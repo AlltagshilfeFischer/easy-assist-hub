@@ -43,8 +43,8 @@ export function DashboardHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {getUserInitials()}
+                <AvatarFallback className="bg-white">
+                  <img src="/lovable-uploads/891b224f-e6be-40c4-bfcb-acf04320f118.png" alt="User" className="w-6 h-6" />
                 </AvatarFallback>
               </Avatar>
             </Button>

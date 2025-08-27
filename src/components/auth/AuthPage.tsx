@@ -73,8 +73,8 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary mb-4">
-            <div className="text-2xl font-bold text-primary-foreground">AH</div>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white mb-4">
+            <img src="/lovable-uploads/891b224f-e6be-40c4-bfcb-acf04320f118.png" alt="Alltagshilfe Fischer Logo" className="w-12 h-12" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Alltagshilfe Fischer</h1>
           <p className="text-muted-foreground">Mitarbeiterportal</p>

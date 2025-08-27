@@ -59,8 +59,8 @@ export function AppSidebar() {
         {/* Logo */}
         <div className="p-4 border-b">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-sm font-bold text-primary-foreground">AH</span>
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+              <img src="/lovable-uploads/891b224f-e6be-40c4-bfcb-acf04320f118.png" alt="Logo" className="w-6 h-6" />
             </div>
             {!collapsed && (
               <div>
