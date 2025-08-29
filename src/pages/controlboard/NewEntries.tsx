@@ -12,23 +12,23 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function NewEntries() {
   const [newCustomer, setNewCustomer] = useState({
-    first_name: '',
-    last_name: '',
-    birth_date: '',
-    address: '',
-    phone: '',
+    vorname: '',
+    nachname: '',
+    geburtsdatum: '',
+    adresse: '',
+    telefon: '',
     email: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-    notes: ''
+    notfallkontakt_name: '',
+    notfallkontakt_telefon: '',
+    notizen: ''
   });
 
   const [newEmployee, setNewEmployee] = useState({
     position: '',
-    employee_number: '',
-    hourly_rate: '',
-    qualifications: '',
-    notes: ''
+    mitarbeiter_nummer: '',
+    stundenlohn: '',
+    qualifikationen: '',
+    notizen: ''
   });
 
   const { toast } = useToast();
@@ -45,15 +45,15 @@ export default function NewEntries() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       setNewCustomer({
-        first_name: '',
-        last_name: '',
-        birth_date: '',
-        address: '',
-        phone: '',
+        vorname: '',
+        nachname: '',
+        geburtsdatum: '',
+        adresse: '',
+        telefon: '',
         email: '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-        notes: ''
+        notfallkontakt_name: '',
+        notfallkontakt_telefon: '',
+        notizen: ''
       });
       toast({
         title: 'Erfolg',
@@ -94,8 +94,8 @@ export default function NewEntries() {
     e.preventDefault();
     const employeeData = {
       ...newEmployee,
-      hourly_rate: newEmployee.hourly_rate ? parseFloat(newEmployee.hourly_rate) : null,
-      qualifications: newEmployee.qualifications.split(',').map(q => q.trim()).filter(q => q)
+      stundenlohn: newEmployee.stundenlohn ? parseFloat(newEmployee.stundenlohn) : null,
+      qualifikationen: newEmployee.qualifikationen.split(',').map(q => q.trim()).filter(q => q)
     };
     createEmployeeMutation.mutate(employeeData);
   };
@@ -138,10 +138,10 @@ export default function NewEntries() {
                       <Label htmlFor="customer_first_name">Vorname *</Label>
                       <Input
                         id="customer_first_name"
-                        value={newCustomer.first_name}
+                        value={newCustomer.vorname}
                         onChange={(e) => setNewCustomer({
                           ...newCustomer,
-                          first_name: e.target.value
+                          vorname: e.target.value
                         })}
                         required
                       />
@@ -150,10 +150,10 @@ export default function NewEntries() {
                       <Label htmlFor="customer_last_name">Nachname *</Label>
                       <Input
                         id="customer_last_name"
-                        value={newCustomer.last_name}
+                        value={newCustomer.nachname}
                         onChange={(e) => setNewCustomer({
                           ...newCustomer,
-                          last_name: e.target.value
+                          nachname: e.target.value
                         })}
                         required
                       />
@@ -165,10 +165,10 @@ export default function NewEntries() {
                     <Input
                       id="customer_birth_date"
                       type="date"
-                      value={newCustomer.birth_date}
+                      value={newCustomer.geburtsdatum}
                       onChange={(e) => setNewCustomer({
                         ...newCustomer,
-                        birth_date: e.target.value
+                        geburtsdatum: e.target.value
                       })}
                     />
                   </div>
@@ -181,10 +181,10 @@ export default function NewEntries() {
                     <Label htmlFor="customer_address">Adresse</Label>
                     <Textarea
                       id="customer_address"
-                      value={newCustomer.address}
+                      value={newCustomer.adresse}
                       onChange={(e) => setNewCustomer({
                         ...newCustomer,
-                        address: e.target.value
+                        adresse: e.target.value
                       })}
                       rows={2}
                       placeholder="Straße, Hausnummer, PLZ, Ort"
@@ -196,10 +196,10 @@ export default function NewEntries() {
                       <Label htmlFor="customer_phone">Telefon</Label>
                       <Input
                         id="customer_phone"
-                        value={newCustomer.phone}
+                        value={newCustomer.telefon}
                         onChange={(e) => setNewCustomer({
                           ...newCustomer,
-                          phone: e.target.value
+                          telefon: e.target.value
                         })}
                         placeholder="+49 123 456789"
                       />
@@ -228,10 +228,10 @@ export default function NewEntries() {
                       <Label htmlFor="emergency_contact_name">Name</Label>
                       <Input
                         id="emergency_contact_name"
-                        value={newCustomer.emergency_contact_name}
+                        value={newCustomer.notfallkontakt_name}
                         onChange={(e) => setNewCustomer({
                           ...newCustomer,
-                          emergency_contact_name: e.target.value
+                          notfallkontakt_name: e.target.value
                         })}
                         placeholder="Max Mustermann"
                       />
@@ -240,10 +240,10 @@ export default function NewEntries() {
                       <Label htmlFor="emergency_contact_phone">Telefon</Label>
                       <Input
                         id="emergency_contact_phone"
-                        value={newCustomer.emergency_contact_phone}
+                        value={newCustomer.notfallkontakt_telefon}
                         onChange={(e) => setNewCustomer({
                           ...newCustomer,
-                          emergency_contact_phone: e.target.value
+                          notfallkontakt_telefon: e.target.value
                         })}
                         placeholder="+49 123 456789"
                       />
@@ -258,10 +258,10 @@ export default function NewEntries() {
                     <Label htmlFor="customer_notes">Notizen</Label>
                     <Textarea
                       id="customer_notes"
-                      value={newCustomer.notes}
+                      value={newCustomer.notizen}
                       onChange={(e) => setNewCustomer({
                         ...newCustomer,
-                        notes: e.target.value
+                        notizen: e.target.value
                       })}
                       rows={4}
                       placeholder="Allergien, besondere Bedürfnisse, Medikamente, etc."
@@ -318,10 +318,10 @@ export default function NewEntries() {
                       <Label htmlFor="employee_number">Mitarbeiternummer</Label>
                       <Input
                         id="employee_number"
-                        value={newEmployee.employee_number}
+                        value={newEmployee.mitarbeiter_nummer}
                         onChange={(e) => setNewEmployee({
                           ...newEmployee,
-                          employee_number: e.target.value
+                          mitarbeiter_nummer: e.target.value
                         })}
                         placeholder="MA001"
                       />
@@ -332,10 +332,10 @@ export default function NewEntries() {
                         id="employee_hourly_rate"
                         type="number"
                         step="0.01"
-                        value={newEmployee.hourly_rate}
+                        value={newEmployee.stundenlohn}
                         onChange={(e) => setNewEmployee({
                           ...newEmployee,
-                          hourly_rate: e.target.value
+                          stundenlohn: e.target.value
                         })}
                         placeholder="15.00"
                       />
@@ -350,10 +350,10 @@ export default function NewEntries() {
                     <Label htmlFor="employee_qualifications">Qualifikationen</Label>
                     <Input
                       id="employee_qualifications"
-                      value={newEmployee.qualifications}
+                      value={newEmployee.qualifikationen}
                       onChange={(e) => setNewEmployee({
                         ...newEmployee,
-                        qualifications: e.target.value
+                        qualifikationen: e.target.value
                       })}
                       placeholder="Altenpflege, Erste Hilfe, Demenzbetreuung (durch Komma getrennt)"
                     />
@@ -370,10 +370,10 @@ export default function NewEntries() {
                     <Label htmlFor="employee_notes">Notizen</Label>
                     <Textarea
                       id="employee_notes"
-                      value={newEmployee.notes}
+                      value={newEmployee.notizen}
                       onChange={(e) => setNewEmployee({
                         ...newEmployee,
-                        notes: e.target.value
+                        notizen: e.target.value
                       })}
                       rows={4}
                       placeholder="Besondere Fähigkeiten, Verfügbarkeit, etc."

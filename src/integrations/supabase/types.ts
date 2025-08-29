@@ -16,61 +16,61 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
-          appointment_date: string
-          created_at: string
-          customer_id: string
-          description: string | null
-          employee_id: string
-          end_time: string
+          aktualisiert_am: string
+          beschreibung: string | null
+          endzeit: string
+          erstellt_am: string
           id: string
-          notes: string | null
-          private_notes: string | null
-          start_time: string
+          kunden_id: string
+          mitarbeiter_id: string
+          notizen: string | null
+          private_notizen: string | null
+          startzeit: string
           status: string | null
-          title: string
-          updated_at: string
+          termin_datum: string
+          titel: string
         }
         Insert: {
-          appointment_date: string
-          created_at?: string
-          customer_id: string
-          description?: string | null
-          employee_id: string
-          end_time: string
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          endzeit: string
+          erstellt_am?: string
           id?: string
-          notes?: string | null
-          private_notes?: string | null
-          start_time: string
+          kunden_id: string
+          mitarbeiter_id: string
+          notizen?: string | null
+          private_notizen?: string | null
+          startzeit: string
           status?: string | null
-          title: string
-          updated_at?: string
+          termin_datum: string
+          titel: string
         }
         Update: {
-          appointment_date?: string
-          created_at?: string
-          customer_id?: string
-          description?: string | null
-          employee_id?: string
-          end_time?: string
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          endzeit?: string
+          erstellt_am?: string
           id?: string
-          notes?: string | null
-          private_notes?: string | null
-          start_time?: string
+          kunden_id?: string
+          mitarbeiter_id?: string
+          notizen?: string | null
+          private_notizen?: string | null
+          startzeit?: string
           status?: string | null
-          title?: string
-          updated_at?: string
+          termin_datum?: string
+          titel?: string
         }
         Relationships: [
           {
             foreignKeyName: "appointments_customer_id_fkey"
-            columns: ["customer_id"]
+            columns: ["kunden_id"]
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "appointments_employee_id_fkey"
-            columns: ["employee_id"]
+            columns: ["mitarbeiter_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -79,115 +79,115 @@ export type Database = {
       }
       customers: {
         Row: {
-          address: string | null
-          birth_date: string | null
-          capacity_per_day: number | null
-          created_at: string
+          adresse: string | null
+          aktualisiert_am: string
+          betriebstage: string[] | null
+          betriebszeiten_ende: string | null
+          betriebszeiten_start: string | null
           email: string | null
-          emergency_contact_name: string | null
-          emergency_contact_phone: string | null
-          first_name: string
+          erstellt_am: string
+          geburtsdatum: string | null
           id: string
-          last_name: string
-          notes: string | null
-          operating_days: string[] | null
-          operating_hours_end: string | null
-          operating_hours_start: string | null
-          phone: string | null
-          updated_at: string
+          kapazitaet_pro_tag: number | null
+          nachname: string
+          notfallkontakt_name: string | null
+          notfallkontakt_telefon: string | null
+          notizen: string | null
+          telefon: string | null
+          vorname: string
         }
         Insert: {
-          address?: string | null
-          birth_date?: string | null
-          capacity_per_day?: number | null
-          created_at?: string
+          adresse?: string | null
+          aktualisiert_am?: string
+          betriebstage?: string[] | null
+          betriebszeiten_ende?: string | null
+          betriebszeiten_start?: string | null
           email?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
-          first_name: string
+          erstellt_am?: string
+          geburtsdatum?: string | null
           id?: string
-          last_name: string
-          notes?: string | null
-          operating_days?: string[] | null
-          operating_hours_end?: string | null
-          operating_hours_start?: string | null
-          phone?: string | null
-          updated_at?: string
+          kapazitaet_pro_tag?: number | null
+          nachname: string
+          notfallkontakt_name?: string | null
+          notfallkontakt_telefon?: string | null
+          notizen?: string | null
+          telefon?: string | null
+          vorname: string
         }
         Update: {
-          address?: string | null
-          birth_date?: string | null
-          capacity_per_day?: number | null
-          created_at?: string
+          adresse?: string | null
+          aktualisiert_am?: string
+          betriebstage?: string[] | null
+          betriebszeiten_ende?: string | null
+          betriebszeiten_start?: string | null
           email?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
-          first_name?: string
+          erstellt_am?: string
+          geburtsdatum?: string | null
           id?: string
-          last_name?: string
-          notes?: string | null
-          operating_days?: string[] | null
-          operating_hours_end?: string | null
-          operating_hours_start?: string | null
-          phone?: string | null
-          updated_at?: string
+          kapazitaet_pro_tag?: number | null
+          nachname?: string
+          notfallkontakt_name?: string | null
+          notfallkontakt_telefon?: string | null
+          notizen?: string | null
+          telefon?: string | null
+          vorname?: string
         }
         Relationships: []
       }
       employees: {
         Row: {
-          created_at: string
-          employee_number: string | null
-          hire_date: string | null
-          hourly_rate: number | null
+          aktualisiert_am: string
+          arbeitstage: string[] | null
+          arbeitszeiten_ende: string | null
+          arbeitszeiten_start: string | null
+          benutzer_id: string
+          einstellungsdatum: string | null
+          erstellt_am: string
           id: string
-          is_active: boolean | null
-          max_appointments_per_day: number | null
-          notes: string | null
+          ist_aktiv: boolean | null
+          max_termine_pro_tag: number | null
+          mitarbeiter_nummer: string | null
+          notizen: string | null
           position: string | null
-          qualifications: string[] | null
-          updated_at: string
-          user_id: string
-          vacation_days: string[] | null
-          working_days: string[] | null
-          working_hours_end: string | null
-          working_hours_start: string | null
+          qualifikationen: string[] | null
+          stundenlohn: number | null
+          urlaubstage: string[] | null
         }
         Insert: {
-          created_at?: string
-          employee_number?: string | null
-          hire_date?: string | null
-          hourly_rate?: number | null
+          aktualisiert_am?: string
+          arbeitstage?: string[] | null
+          arbeitszeiten_ende?: string | null
+          arbeitszeiten_start?: string | null
+          benutzer_id: string
+          einstellungsdatum?: string | null
+          erstellt_am?: string
           id?: string
-          is_active?: boolean | null
-          max_appointments_per_day?: number | null
-          notes?: string | null
+          ist_aktiv?: boolean | null
+          max_termine_pro_tag?: number | null
+          mitarbeiter_nummer?: string | null
+          notizen?: string | null
           position?: string | null
-          qualifications?: string[] | null
-          updated_at?: string
-          user_id: string
-          vacation_days?: string[] | null
-          working_days?: string[] | null
-          working_hours_end?: string | null
-          working_hours_start?: string | null
+          qualifikationen?: string[] | null
+          stundenlohn?: number | null
+          urlaubstage?: string[] | null
         }
         Update: {
-          created_at?: string
-          employee_number?: string | null
-          hire_date?: string | null
-          hourly_rate?: number | null
+          aktualisiert_am?: string
+          arbeitstage?: string[] | null
+          arbeitszeiten_ende?: string | null
+          arbeitszeiten_start?: string | null
+          benutzer_id?: string
+          einstellungsdatum?: string | null
+          erstellt_am?: string
           id?: string
-          is_active?: boolean | null
-          max_appointments_per_day?: number | null
-          notes?: string | null
+          ist_aktiv?: boolean | null
+          max_termine_pro_tag?: number | null
+          mitarbeiter_nummer?: string | null
+          notizen?: string | null
           position?: string | null
-          qualifications?: string[] | null
-          updated_at?: string
-          user_id?: string
-          vacation_days?: string[] | null
-          working_days?: string[] | null
-          working_hours_end?: string | null
-          working_hours_start?: string | null
+          qualifikationen?: string[] | null
+          stundenlohn?: number | null
+          urlaubstage?: string[] | null
         }
         Relationships: []
       }
@@ -208,70 +208,70 @@ export type Database = {
       }
       profiles: {
         Row: {
-          created_at: string
+          aktualisiert_am: string
+          benutzer_id: string
           email: string | null
-          first_name: string | null
+          erstellt_am: string
           id: string
-          last_name: string | null
-          phone: string | null
-          updated_at: string
-          user_id: string
+          nachname: string | null
+          telefon: string | null
+          vorname: string | null
         }
         Insert: {
-          created_at?: string
+          aktualisiert_am?: string
+          benutzer_id: string
           email?: string | null
-          first_name?: string | null
+          erstellt_am?: string
           id?: string
-          last_name?: string | null
-          phone?: string | null
-          updated_at?: string
-          user_id: string
+          nachname?: string | null
+          telefon?: string | null
+          vorname?: string | null
         }
         Update: {
-          created_at?: string
+          aktualisiert_am?: string
+          benutzer_id?: string
           email?: string | null
-          first_name?: string | null
+          erstellt_am?: string
           id?: string
-          last_name?: string | null
-          phone?: string | null
-          updated_at?: string
-          user_id?: string
+          nachname?: string | null
+          telefon?: string | null
+          vorname?: string | null
         }
         Relationships: []
       }
       schedule_templates: {
         Row: {
-          created_at: string
-          customer_id: string
-          day_of_week: string
-          employee_id: string
-          end_time: string
+          aktualisiert_am: string
+          endzeit: string
+          erstellt_am: string
           id: string
-          is_active: boolean | null
-          start_time: string
-          updated_at: string
+          ist_aktiv: boolean | null
+          kunden_id: string
+          mitarbeiter_id: string
+          startzeit: string
+          wochentag: string
         }
         Insert: {
-          created_at?: string
-          customer_id: string
-          day_of_week: string
-          employee_id: string
-          end_time: string
+          aktualisiert_am?: string
+          endzeit: string
+          erstellt_am?: string
           id?: string
-          is_active?: boolean | null
-          start_time: string
-          updated_at?: string
+          ist_aktiv?: boolean | null
+          kunden_id: string
+          mitarbeiter_id: string
+          startzeit: string
+          wochentag: string
         }
         Update: {
-          created_at?: string
-          customer_id?: string
-          day_of_week?: string
-          employee_id?: string
-          end_time?: string
+          aktualisiert_am?: string
+          endzeit?: string
+          erstellt_am?: string
           id?: string
-          is_active?: boolean | null
-          start_time?: string
-          updated_at?: string
+          ist_aktiv?: boolean | null
+          kunden_id?: string
+          mitarbeiter_id?: string
+          startzeit?: string
+          wochentag?: string
         }
         Relationships: []
       }

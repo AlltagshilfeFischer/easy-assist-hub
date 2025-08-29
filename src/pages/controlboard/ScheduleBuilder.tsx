@@ -28,17 +28,17 @@ export default function ScheduleBuilder() {
         .from('employees')
         .select(`
           id,
-          user_id,
-          employee_number,
+          benutzer_id,
+          mitarbeiter_nummer,
           position,
-          is_active,
-          max_appointments_per_day,
-          working_days,
-          working_hours_start,
-          working_hours_end,
-          vacation_days
+          ist_aktiv,
+          max_termine_pro_tag,
+          arbeitstage,
+          arbeitszeiten_start,
+          arbeitszeiten_ende,
+          urlaubstage
         `)
-        .eq('is_active', true);
+        .eq('ist_aktiv', true);
       
       if (error) throw error;
       return data;
@@ -66,15 +66,15 @@ export default function ScheduleBuilder() {
         .from('customers')
         .select(`
           id,
-          first_name,
-          last_name,
-          address,
-          phone,
+          vorname,
+          nachname,
+          adresse,
+          telefon,
           email,
-          capacity_per_day,
-          operating_days,
-          operating_hours_start,
-          operating_hours_end
+          kapazitaet_pro_tag,
+          betriebstage,
+          betriebszeiten_start,
+          betriebszeiten_ende
         `);
       
       if (error) throw error;
@@ -93,16 +93,16 @@ export default function ScheduleBuilder() {
         .from('appointments')
         .select(`
           id,
-          title,
-          appointment_date,
-          start_time,
-          end_time,
-          employee_id,
-          customer_id,
+          titel,
+          termin_datum,
+          startzeit,
+          endzeit,
+          mitarbeiter_id,
+          kunden_id,
           status
         `)
-        .gte('appointment_date', format(start, 'yyyy-MM-dd'))
-        .lte('appointment_date', format(end, 'yyyy-MM-dd'));
+        .gte('termin_datum', format(start, 'yyyy-MM-dd'))
+        .lte('termin_datum', format(end, 'yyyy-MM-dd'));
       
       if (error) throw error;
       return data;
@@ -123,12 +123,12 @@ export default function ScheduleBuilder() {
       const { data, error } = await supabase
         .from('appointments')
         .insert({
-          employee_id: employeeId,
-          customer_id: customerId,
-          appointment_date: date,
-          start_time: timeSlot,
-          end_time: endTime,
-          title: 'Termin',
+          mitarbeiter_id: employeeId,
+          kunden_id: customerId,
+          termin_datum: date,
+          startzeit: timeSlot,
+          endzeit: endTime,
+          titel: 'Termin',
           status: 'scheduled'
         });
 
@@ -172,16 +172,16 @@ export default function ScheduleBuilder() {
 
   const getAppointmentsForDay = (customerId: string, date: string) => {
     return appointments?.filter(apt => 
-      apt.customer_id === customerId && 
-      apt.appointment_date === date
+      apt.kunden_id === customerId && 
+      apt.termin_datum === date
     ) || [];
   };
 
   const getEmployeeName = (employeeId: string) => {
     const employee = employees?.find(emp => emp.id === employeeId);
     if (employee) {
-      const profile = profiles?.find(p => p.user_id === employee.user_id);
-      return profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown';
+      const profile = profiles?.find(p => p.benutzer_id === employee.benutzer_id);
+      return profile ? `${profile.vorname} ${profile.nachname}` : 'Unknown';
     }
     return 'Unknown';
   };
@@ -191,16 +191,16 @@ export default function ScheduleBuilder() {
     if (!employee) return null;
 
     const employeeAppointments = appointments?.filter(apt => 
-      apt.employee_id === employeeId && 
-      apt.appointment_date === date
+      apt.mitarbeiter_id === employeeId && 
+      apt.termin_datum === date
     ) || [];
 
-    const profile = profiles?.find(p => p.user_id === employee.user_id);
-    const name = profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown';
+    const profile = profiles?.find(p => p.benutzer_id === employee.benutzer_id);
+    const name = profile ? `${profile.vorname} ${profile.nachname}` : 'Unknown';
 
     return {
       used: employeeAppointments.length,
-      max: employee.max_appointments_per_day || 8,
+      max: employee.max_termine_pro_tag || 8,
       name
     };
   };
@@ -210,15 +210,15 @@ export default function ScheduleBuilder() {
     if (!employee) return false;
 
     const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][getDay(new Date(date))];
-    const isWorkingDay = employee.working_days?.includes(dayOfWeek) ?? true;
-    const isOnVacation = employee.vacation_days?.includes(date) ?? false;
+    const isWorkingDay = employee.arbeitstage?.includes(dayOfWeek) ?? true;
+    const isOnVacation = employee.urlaubstage?.includes(date) ?? false;
 
     const employeeAppointments = appointments?.filter(apt => 
-      apt.employee_id === employeeId && 
-      apt.appointment_date === date
+      apt.mitarbeiter_id === employeeId && 
+      apt.termin_datum === date
     ) || [];
 
-    const hasCapacity = employeeAppointments.length < (employee.max_appointments_per_day || 8);
+    const hasCapacity = employeeAppointments.length < (employee.max_termine_pro_tag || 8);
 
     return isWorkingDay && !isOnVacation && hasCapacity;
   };
@@ -275,7 +275,7 @@ export default function ScheduleBuilder() {
               <div className="grid grid-cols-7 gap-2">
                 {monthDays.map(date => {
                   const dateStr = format(date, 'yyyy-MM-dd');
-                  const dayAppointments = appointments?.filter(apt => apt.appointment_date === dateStr) || [];
+                  const dayAppointments = appointments?.filter(apt => apt.termin_datum === dateStr) || [];
                   
                   return (
                     <div key={dateStr} className="min-h-[120px] p-2 border rounded-lg">
@@ -283,7 +283,7 @@ export default function ScheduleBuilder() {
                       <div className="space-y-1">
                         {dayAppointments.map(apt => (
                           <div key={apt.id} className="bg-primary/10 text-xs p-1 rounded">
-                            {apt.start_time} - {getEmployeeName(apt.employee_id)}
+                            {apt.startzeit} - {getEmployeeName(apt.mitarbeiter_id)}
                           </div>
                         ))}
                       </div>
@@ -322,7 +322,7 @@ export default function ScheduleBuilder() {
                       }`}
                     >
                       <div className="font-medium text-sm">
-                        {profiles?.find(p => p.user_id === employee.user_id)?.first_name} {profiles?.find(p => p.user_id === employee.user_id)?.last_name}
+                        {profiles?.find(p => p.benutzer_id === employee.benutzer_id)?.vorname} {profiles?.find(p => p.benutzer_id === employee.benutzer_id)?.nachname}
                       </div>
                       <div className="text-xs text-muted-foreground mb-2">
                         {employee.position || 'Mitarbeiter'}
@@ -332,7 +332,7 @@ export default function ScheduleBuilder() {
                           {todayCapacity ? `${todayCapacity.used}/${todayCapacity.max}` : '0/8'}
                         </Badge>
                         <span className="text-muted-foreground">
-                          {employee.working_hours_start} - {employee.working_hours_end}
+                          {employee.arbeitszeiten_start} - {employee.arbeitszeiten_ende}
                         </span>
                       </div>
                     </div>
@@ -370,21 +370,21 @@ export default function ScheduleBuilder() {
                         return (
                           <tr key={customer.id}>
                             <td className="border p-3">
-                              <div className="font-medium">{customer.first_name} {customer.last_name}</div>
-                              <div className="text-sm text-muted-foreground">{customer.address}</div>
+                              <div className="font-medium">{customer.vorname} {customer.nachname}</div>
+                              <div className="text-sm text-muted-foreground">{customer.adresse}</div>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant="outline" className="text-xs">
-                                  Kapazität: {customer.capacity_per_day || 1}/Tag
+                                  Kapazität: {customer.kapazitaet_pro_tag || 1}/Tag
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
-                                  {customer.operating_hours_start} - {customer.operating_hours_end}
+                                  {customer.betriebszeiten_start} - {customer.betriebszeiten_ende}
                                 </span>
                               </div>
                             </td>
                             {TIME_SLOTS.map(slot => {
-                              const appointment = customerAppointments.find(apt => apt.start_time === slot);
-                              const isInOperatingHours = slot >= (customer.operating_hours_start || '08:00') && 
-                                                       slot <= (customer.operating_hours_end || '18:00');
+                              const appointment = customerAppointments.find(apt => apt.startzeit === slot);
+                              const isInOperatingHours = slot >= (customer.betriebszeiten_start || '08:00') && 
+                                                       slot <= (customer.betriebszeiten_ende || '18:00');
                               
                               return (
                                 <td
@@ -396,7 +396,7 @@ export default function ScheduleBuilder() {
                                   {appointment ? (
                                     <div className="bg-primary text-primary-foreground p-2 rounded text-xs text-center">
                                       <div className="font-medium">
-                                        {getEmployeeName(appointment.employee_id)}
+                                        {getEmployeeName(appointment.mitarbeiter_id)}
                                       </div>
                                     </div>
                                   ) : isInOperatingHours ? (

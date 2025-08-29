@@ -39,7 +39,7 @@ export default function MasterData() {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .order('last_name');
+        .order('nachname');
       
       if (error) throw error;
       return data;
@@ -52,7 +52,7 @@ export default function MasterData() {
       const { data, error } = await supabase
         .from('employees')
         .select('*')
-        .eq('is_active', true);
+        .eq('ist_aktiv', true);
       
       if (error) throw error;
       return data;
@@ -116,8 +116,8 @@ export default function MasterData() {
   };
 
   const getEmployeeName = (userId: string) => {
-    const profile = profiles?.find(p => p.user_id === userId);
-    return profile ? `${profile.first_name} ${profile.last_name}` : 'Unbekannt';
+    const profile = profiles?.find(p => p.benutzer_id === userId);
+    return profile ? `${profile.vorname} ${profile.nachname}` : 'Unbekannt';
   };
 
   return (
@@ -169,19 +169,19 @@ export default function MasterData() {
                       {customers.map((customer) => (
                         <TableRow key={customer.id}>
                           <TableCell className="font-medium">
-                            {customer.first_name} {customer.last_name}
+                            {customer.vorname} {customer.nachname}
                           </TableCell>
-                          <TableCell>{formatDate(customer.birth_date)}</TableCell>
+                          <TableCell>{formatDate(customer.geburtsdatum)}</TableCell>
                           <TableCell>
                             <div className="max-w-[200px] truncate">
-                              {customer.address || '-'}
+                              {customer.adresse || '-'}
                             </div>
                           </TableCell>
                           <TableCell>
-                            {customer.phone ? (
+                            {customer.telefon ? (
                               <div className="flex items-center gap-1">
                                 <Phone className="h-3 w-3" />
-                                {customer.phone}
+                                {customer.telefon}
                               </div>
                             ) : (
                               '-'
@@ -198,13 +198,13 @@ export default function MasterData() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {customer.emergency_contact_name ? (
+                            {customer.notfallkontakt_name ? (
                               <div>
                                 <div className="font-medium text-sm">
-                                  {customer.emergency_contact_name}
+                                  {customer.notfallkontakt_name}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {customer.emergency_contact_phone}
+                                  {customer.notfallkontakt_telefon}
                                 </div>
                               </div>
                             ) : (
@@ -265,34 +265,34 @@ export default function MasterData() {
                     </TableHeader>
                     <TableBody>
                       {employees.map((employee) => {
-                        const profile = profiles?.find(p => p.user_id === employee.user_id);
+                        const profile = profiles?.find(p => p.benutzer_id === employee.benutzer_id);
                         return (
                           <TableRow key={employee.id}>
                             <TableCell className="font-medium">
-                              {getEmployeeName(employee.user_id)}
+                              {getEmployeeName(employee.benutzer_id)}
                             </TableCell>
                             <TableCell>{employee.position || '-'}</TableCell>
-                            <TableCell>{employee.employee_number || '-'}</TableCell>
-                            <TableCell>{formatDate(employee.hire_date)}</TableCell>
+                            <TableCell>{employee.mitarbeiter_nummer || '-'}</TableCell>
+                            <TableCell>{formatDate(employee.einstellungsdatum)}</TableCell>
                             <TableCell>
-                              {employee.hourly_rate ? `${employee.hourly_rate}€` : '-'}
+                              {employee.stundenlohn ? `${employee.stundenlohn}€` : '-'}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={employee.is_active ? 'default' : 'secondary'}>
-                                {employee.is_active ? 'Aktiv' : 'Inaktiv'}
+                              <Badge variant={employee.ist_aktiv ? 'default' : 'secondary'}>
+                                {employee.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              {employee.qualifications && employee.qualifications.length > 0 ? (
+                              {employee.qualifikationen && employee.qualifikationen.length > 0 ? (
                                 <div className="flex flex-wrap gap-1">
-                                  {employee.qualifications.slice(0, 2).map((qual, index) => (
+                                  {employee.qualifikationen.slice(0, 2).map((qual, index) => (
                                     <Badge key={index} variant="outline" className="text-xs">
                                       {qual}
                                     </Badge>
                                   ))}
-                                  {employee.qualifications.length > 2 && (
+                                  {employee.qualifikationen.length > 2 && (
                                     <Badge variant="outline" className="text-xs">
-                                      +{employee.qualifications.length - 2}
+                                      +{employee.qualifikationen.length - 2}
                                     </Badge>
                                   )}
                                 </div>
@@ -322,7 +322,7 @@ export default function MasterData() {
           <DialogHeader>
             <DialogTitle>Kundendaten bearbeiten</DialogTitle>
             <DialogDescription>
-              Bearbeiten Sie die Informationen für {editingCustomer?.first_name} {editingCustomer?.last_name}
+              Bearbeiten Sie die Informationen für {editingCustomer?.vorname} {editingCustomer?.nachname}
             </DialogDescription>
           </DialogHeader>
           
@@ -333,10 +333,10 @@ export default function MasterData() {
                   <Label htmlFor="first_name">Vorname</Label>
                   <Input
                     id="first_name"
-                    value={editingCustomer.first_name || ''}
+                    value={editingCustomer.vorname || ''}
                     onChange={(e) => setEditingCustomer({
                       ...editingCustomer,
-                      first_name: e.target.value
+                      vorname: e.target.value
                     })}
                     required
                   />
@@ -345,10 +345,10 @@ export default function MasterData() {
                   <Label htmlFor="last_name">Nachname</Label>
                   <Input
                     id="last_name"
-                    value={editingCustomer.last_name || ''}
+                    value={editingCustomer.nachname || ''}
                     onChange={(e) => setEditingCustomer({
                       ...editingCustomer,
-                      last_name: e.target.value
+                      nachname: e.target.value
                     })}
                     required
                   />
@@ -360,10 +360,10 @@ export default function MasterData() {
                 <Input
                   id="birth_date"
                   type="date"
-                  value={editingCustomer.birth_date || ''}
+                  value={editingCustomer.geburtsdatum || ''}
                   onChange={(e) => setEditingCustomer({
                     ...editingCustomer,
-                    birth_date: e.target.value
+                    geburtsdatum: e.target.value
                   })}
                 />
               </div>
@@ -372,10 +372,10 @@ export default function MasterData() {
                 <Label htmlFor="address">Adresse</Label>
                 <Textarea
                   id="address"
-                  value={editingCustomer.address || ''}
+                  value={editingCustomer.adresse || ''}
                   onChange={(e) => setEditingCustomer({
                     ...editingCustomer,
-                    address: e.target.value
+                    adresse: e.target.value
                   })}
                   rows={2}
                 />
@@ -386,10 +386,10 @@ export default function MasterData() {
                   <Label htmlFor="phone">Telefon</Label>
                   <Input
                     id="phone"
-                    value={editingCustomer.phone || ''}
+                    value={editingCustomer.telefon || ''}
                     onChange={(e) => setEditingCustomer({
                       ...editingCustomer,
-                      phone: e.target.value
+                      telefon: e.target.value
                     })}
                   />
                 </div>
@@ -412,10 +412,10 @@ export default function MasterData() {
                   <Label htmlFor="emergency_contact_name">Notfallkontakt Name</Label>
                   <Input
                     id="emergency_contact_name"
-                    value={editingCustomer.emergency_contact_name || ''}
+                    value={editingCustomer.notfallkontakt_name || ''}
                     onChange={(e) => setEditingCustomer({
                       ...editingCustomer,
-                      emergency_contact_name: e.target.value
+                      notfallkontakt_name: e.target.value
                     })}
                   />
                 </div>
@@ -423,10 +423,10 @@ export default function MasterData() {
                   <Label htmlFor="emergency_contact_phone">Notfallkontakt Telefon</Label>
                   <Input
                     id="emergency_contact_phone"
-                    value={editingCustomer.emergency_contact_phone || ''}
+                    value={editingCustomer.notfallkontakt_telefon || ''}
                     onChange={(e) => setEditingCustomer({
                       ...editingCustomer,
-                      emergency_contact_phone: e.target.value
+                      notfallkontakt_telefon: e.target.value
                     })}
                   />
                 </div>
@@ -436,10 +436,10 @@ export default function MasterData() {
                 <Label htmlFor="notes">Notizen</Label>
                 <Textarea
                   id="notes"
-                  value={editingCustomer.notes || ''}
+                  value={editingCustomer.notizen || ''}
                   onChange={(e) => setEditingCustomer({
                     ...editingCustomer,
-                    notes: e.target.value
+                    notizen: e.target.value
                   })}
                   rows={3}
                   placeholder="Besondere Hinweise, Allergien, etc."

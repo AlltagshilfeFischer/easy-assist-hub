@@ -14,7 +14,7 @@ export default function DashboardHome() {
       const { data, error } = await supabase
         .from('employees')
         .select('*')
-        .eq('is_active', true);
+        .eq('ist_aktiv', true);
       
       if (error) throw error;
       return data;
@@ -39,7 +39,7 @@ export default function DashboardHome() {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .order('last_name');
+        .order('nachname');
       
       if (error) throw error;
       return data;
@@ -56,8 +56,8 @@ export default function DashboardHome() {
           employees!inner(*),
           customers!inner(*)
         `)
-        .order('appointment_date', { ascending: true })
-        .order('start_time', { ascending: true });
+        .order('termin_datum', { ascending: true })
+        .order('startzeit', { ascending: true });
       
       if (error) throw error;
       return data;
@@ -66,15 +66,15 @@ export default function DashboardHome() {
 
   // Kategorisierung der Termine
   const todayAppointments = appointments?.filter(apt => 
-    isToday(new Date(apt.appointment_date))
+    isToday(new Date(apt.termin_datum))
   ) || [];
   
   const upcomingAppointments = appointments?.filter(apt => 
-    isFuture(new Date(apt.appointment_date)) && !isToday(new Date(apt.appointment_date))
+    isFuture(new Date(apt.termin_datum)) && !isToday(new Date(apt.termin_datum))
   ) || [];
   
   const pastAppointments = appointments?.filter(apt => 
-    isPast(new Date(apt.appointment_date)) && !isToday(new Date(apt.appointment_date))
+    isPast(new Date(apt.termin_datum)) && !isToday(new Date(apt.termin_datum))
   ) || [];
 
   return (
@@ -137,21 +137,21 @@ export default function DashboardHome() {
           ) : employees && employees.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {employees.map((employee) => {
-                const profile = profiles?.find(p => p.user_id === employee.user_id);
+                const profile = profiles?.find(p => p.benutzer_id === employee.benutzer_id);
                 return (
                   <div
                     key={employee.id}
                     className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                   >
                     <div className="font-medium">
-                      {profile?.first_name} {profile?.last_name}
+                      {profile?.vorname} {profile?.nachname}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {employee.position || 'Keine Position angegeben'}
                     </div>
-                    {employee.employee_number && (
+                    {employee.mitarbeiter_nummer && (
                       <div className="text-xs text-muted-foreground mt-1">
-                        Nr: {employee.employee_number}
+                        Nr: {employee.mitarbeiter_nummer}
                       </div>
                     )}
                   </div>
@@ -197,24 +197,24 @@ export default function DashboardHome() {
                         <div key={appointment.id} className="p-3 bg-accent/30 rounded-lg border-l-4 border-primary">
                           <div className="flex justify-between items-start">
                             <div>
-                              <div className="font-medium">{appointment.title}</div>
+                              <div className="font-medium">{appointment.titel}</div>
                               <div className="text-sm text-muted-foreground">
-                                {appointment.customers?.first_name} {appointment.customers?.last_name}
+                                {appointment.customers?.vorname} {appointment.customers?.nachname}
                               </div>
                               <div className="text-xs text-muted-foreground mt-1">
                                 Mitarbeiter: {appointment.employees?.position || 'Unbekannt'}
                               </div>
                             </div>
                             <div className="text-right text-sm">
-                              <div>{appointment.start_time} - {appointment.end_time}</div>
+                              <div>{appointment.startzeit} - {appointment.endzeit}</div>
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(appointment.appointment_date), 'dd.MM.yyyy', { locale: de })}
+                                {format(new Date(appointment.termin_datum), 'dd.MM.yyyy', { locale: de })}
                               </div>
                             </div>
                           </div>
-                          {appointment.description && (
+                          {appointment.beschreibung && (
                             <div className="mt-2 text-sm text-muted-foreground">
-                              {appointment.description}
+                              {appointment.beschreibung}
                             </div>
                           )}
                         </div>
@@ -243,24 +243,24 @@ export default function DashboardHome() {
                         <div key={appointment.id} className="p-3 bg-accent/10 rounded-lg border">
                           <div className="flex justify-between items-start">
                             <div>
-                              <div className="font-medium">{appointment.title}</div>
+                              <div className="font-medium">{appointment.titel}</div>
                               <div className="text-sm text-muted-foreground">
-                                {appointment.customers?.first_name} {appointment.customers?.last_name}
+                                {appointment.customers?.vorname} {appointment.customers?.nachname}
                               </div>
                               <div className="text-xs text-muted-foreground mt-1">
                                 Mitarbeiter: {appointment.employees?.position || 'Unbekannt'}
                               </div>
                             </div>
                             <div className="text-right text-sm">
-                              <div>{appointment.start_time} - {appointment.end_time}</div>
+                              <div>{appointment.startzeit} - {appointment.endzeit}</div>
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(appointment.appointment_date), 'dd.MM.yyyy', { locale: de })}
+                                {format(new Date(appointment.termin_datum), 'dd.MM.yyyy', { locale: de })}
                               </div>
                             </div>
                           </div>
-                          {appointment.description && (
+                          {appointment.beschreibung && (
                             <div className="mt-2 text-sm text-muted-foreground">
-                              {appointment.description}
+                              {appointment.beschreibung}
                             </div>
                           )}
                         </div>
@@ -289,24 +289,24 @@ export default function DashboardHome() {
                         <div key={appointment.id} className="p-3 bg-muted/30 rounded-lg border opacity-75">
                           <div className="flex justify-between items-start">
                             <div>
-                              <div className="font-medium">{appointment.title}</div>
+                              <div className="font-medium">{appointment.titel}</div>
                               <div className="text-sm text-muted-foreground">
-                                {appointment.customers?.first_name} {appointment.customers?.last_name}
+                                {appointment.customers?.vorname} {appointment.customers?.nachname}
                               </div>
                               <div className="text-xs text-muted-foreground mt-1">
                                 Mitarbeiter: {appointment.employees?.position || 'Unbekannt'}
                               </div>
                             </div>
                             <div className="text-right text-sm">
-                              <div>{appointment.start_time} - {appointment.end_time}</div>
+                              <div>{appointment.startzeit} - {appointment.endzeit}</div>
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(appointment.appointment_date), 'dd.MM.yyyy', { locale: de })}
+                                {format(new Date(appointment.termin_datum), 'dd.MM.yyyy', { locale: de })}
                               </div>
                             </div>
                           </div>
-                          {appointment.description && (
+                          {appointment.beschreibung && (
                             <div className="mt-2 text-sm text-muted-foreground">
-                              {appointment.description}
+                              {appointment.beschreibung}
                             </div>
                           )}
                         </div>
@@ -346,16 +346,16 @@ export default function DashboardHome() {
                   className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                 >
                   <div className="font-medium">
-                    {customer.first_name} {customer.last_name}
+                    {customer.vorname} {customer.nachname}
                   </div>
-                  {customer.address && (
+                  {customer.adresse && (
                     <div className="text-sm text-muted-foreground">
-                      {customer.address}
+                      {customer.adresse}
                     </div>
                   )}
-                  {customer.phone && (
+                  {customer.telefon && (
                     <div className="text-xs text-muted-foreground mt-1">
-                      Tel: {customer.phone}
+                      Tel: {customer.telefon}
                     </div>
                   )}
                 </div>
