@@ -66,15 +66,15 @@ export default function DashboardHome() {
 
   // Kategorisierung der Termine
   const todayAppointments = appointments?.filter((apt: any) => 
-    isToday(new Date(apt.termin_datum))
+    isToday(new Date(apt.startzeit))
   ) || [];
   
   const upcomingAppointments = appointments?.filter((apt: any) => 
-    isFuture(new Date(apt.termin_datum)) && !isToday(new Date(apt.termin_datum))
+    isFuture(new Date(apt.startzeit)) && !isToday(new Date(apt.startzeit))
   ) || [];
   
   const pastAppointments = appointments?.filter((apt: any) => 
-    isPast(new Date(apt.termin_datum)) && !isToday(new Date(apt.termin_datum))
+    isPast(new Date(apt.startzeit)) && !isToday(new Date(apt.startzeit))
   ) || [];
 
   return (
