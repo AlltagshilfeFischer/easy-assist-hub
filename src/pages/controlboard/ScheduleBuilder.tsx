@@ -37,7 +37,7 @@ export default function ScheduleBuilder() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [draggedItem, setDraggedItem] = useState<any>(null);
-  const [dragType, setDragType] = useState<'employee' | 'appointment' | null>(null);
+  const [dragType, setDragType] = useState<'employee' | 'appointment' | 'assigned-appointment' | null>(null);
   const [employees, setEmployees] = useState(dummyEmployees);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,26 +88,45 @@ export default function ScheduleBuilder() {
   const weekDates = getWeekDates();
   const currentWeekNumber = getWeek(currentWeek, { weekStartsOn: 1 });
 
-  const handleDragStart = (item: any, type: 'employee' | 'appointment') => {
+  const handleDragStart = (item: any, type: 'employee' | 'appointment' | 'assigned-appointment') => {
     setDraggedItem(item);
     setDragType(type);
   };
 
   const handleDrop = (employeeId: string, date: string) => {
-    if (draggedItem && dragType === 'appointment') {
-      // Assign open appointment to employee
+    if (draggedItem && (dragType === 'appointment' || dragType === 'assigned-appointment')) {
+      if (dragType === 'assigned-appointment') {
+        // Remove from previous assignment
+        setAssignments(prev => prev.filter(a => a.id !== draggedItem.id));
+      }
+      
+      // Assign appointment to employee
       const newAssignment = {
-        id: `assignment-${Date.now()}`,
+        id: dragType === 'assigned-appointment' ? draggedItem.id : `assignment-${Date.now()}`,
         employeeId,
-        appointmentId: draggedItem.id,
+        appointmentId: draggedItem.appointment?.id || draggedItem.id,
         date,
-        appointment: draggedItem
+        appointment: draggedItem.appointment || draggedItem
       };
       
       setAssignments(prev => [...prev, newAssignment]);
       
       const employeeName = employees.find(e => e.id === employeeId)?.vorname;
-      toast.success(`Termin "${draggedItem.titel}" wurde ${employeeName} zugewiesen`);
+      const appointmentTitle = draggedItem.appointment?.titel || draggedItem.titel;
+      toast.success(`Termin "${appointmentTitle}" wurde ${employeeName} zugewiesen`);
+      
+      setDraggedItem(null);
+      setDragType(null);
+    }
+  };
+
+  const handleDropToOpenShifts = (date: string) => {
+    if (draggedItem && dragType === 'assigned-appointment') {
+      // Remove from assignments to make it an open shift again
+      setAssignments(prev => prev.filter(a => a.id !== draggedItem.id));
+      
+      const appointmentTitle = draggedItem.appointment?.titel;
+      toast.success(`Termin "${appointmentTitle}" wurde zu offenen Schichten verschoben`);
       
       setDraggedItem(null);
       setDragType(null);
@@ -499,7 +518,11 @@ export default function ScheduleBuilder() {
                     </div>
                     
                     {/* Enhanced Open appointments for this day */}
-                    <div className="space-y-2 min-h-[100px]">
+                    <div 
+                      className="space-y-2 min-h-[100px]"
+                      onDrop={() => handleDropToOpenShifts(dateStr)}
+                      onDragOver={handleDragOver}
+                    >
                       {dayAppointments.map((appointment) => (
                         <div
                           key={appointment.id}
@@ -515,8 +538,10 @@ export default function ScheduleBuilder() {
                           </div>
                           <div className="text-xs opacity-75 flex items-center gap-1 mb-1">
                             <Clock className="h-3 w-3" />
-                            {appointment.startzeit}-{appointment.endzeit}
-                            <span className="text-xs">({appointment.dauer}min)</span>
+                            <span className="font-mono bg-white/50 px-1 rounded">
+                              {appointment.startzeit} - {appointment.endzeit}
+                            </span>
+                            <span className="text-xs ml-1">({appointment.dauer}min)</span>
                           </div>
                           <div className="text-xs font-medium truncate">{appointment.kunde}</div>
                           {viewMode === 'detailed' && (
@@ -531,7 +556,7 @@ export default function ScheduleBuilder() {
                       ))}
                       {dayAppointments.length === 0 && (
                         <div className="h-full flex items-center justify-center text-xs text-muted-foreground border-2 border-dashed border-muted rounded-lg p-4">
-                          Keine offenen Termine
+                          Termine hier ablegen
                         </div>
                       )}
                     </div>
@@ -609,8 +634,10 @@ export default function ScheduleBuilder() {
                       {/* Display assigned appointments */}
                       {employeeAssignments.map((assignment) => (
                         <div 
-                          key={assignment.id} 
-                          className="mb-2 p-2 bg-green-50 border border-green-200 text-green-800 rounded-lg text-xs shadow-sm"
+                          key={assignment.id}
+                          draggable
+                          onDragStart={() => handleDragStart(assignment, 'assigned-appointment')}
+                          className="mb-2 p-2 bg-green-50 border border-green-200 text-green-800 rounded-lg text-xs shadow-sm cursor-move transition-all duration-200 hover:shadow-md hover:scale-105"
                         >
                           <div className="flex items-center gap-1 mb-1">
                             <CheckCircle className="h-3 w-3" />
@@ -618,7 +645,10 @@ export default function ScheduleBuilder() {
                           </div>
                           <div className="text-xs opacity-75 flex items-center gap-1 mb-1">
                             <Clock className="h-3 w-3" />
-                            {assignment.appointment.startzeit} - {assignment.appointment.endzeit}
+                            <span className="font-mono bg-white/50 px-1 rounded">
+                              {assignment.appointment.startzeit} - {assignment.appointment.endzeit}
+                            </span>
+                            <span className="text-xs ml-1">({assignment.appointment.dauer}min)</span>
                           </div>
                           <div className="text-xs font-medium truncate">{assignment.appointment.kunde}</div>
                           {viewMode === 'detailed' && (
