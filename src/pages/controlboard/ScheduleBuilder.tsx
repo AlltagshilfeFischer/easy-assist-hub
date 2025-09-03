@@ -198,7 +198,7 @@ export default function ScheduleBuilder() {
 
   return (
     <div className="p-6 space-y-6 bg-gradient-to-br from-background to-muted/20 min-h-screen">
-      {/* Enhanced Header with Controls */}
+      {/* Enhanced Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card rounded-lg p-4 shadow-sm border">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4">
@@ -212,55 +212,6 @@ export default function ScheduleBuilder() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input 
-              placeholder="Mitarbeiter suchen..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-48"
-            />
-          </div>
-          
-          {/* Sort Employee */}
-          <Select value={employeeSort} onValueChange={(value: any) => setEmployeeSort(value)}>
-            <SelectTrigger className="w-40">
-              <ArrowUpDown className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Nach Name</SelectItem>
-              <SelectItem value="workload">Nach Auslastung</SelectItem>
-              <SelectItem value="qualification">Nach Qualifikation</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {/* Filter Appointments */}
-          <Select value={appointmentFilter} onValueChange={(value: any) => setAppointmentFilter(value)}>
-            <SelectTrigger className="w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Alle Termine</SelectItem>
-              <SelectItem value="urgent">Notfall</SelectItem>
-              <SelectItem value="high">Hoch</SelectItem>
-              <SelectItem value="medium">Mittel</SelectItem>
-              <SelectItem value="low">Niedrig</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {/* View Mode */}
-          <Button
-            variant={viewMode === 'detailed' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode(viewMode === 'detailed' ? 'compact' : 'detailed')}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            {viewMode === 'detailed' ? 'Detailliert' : 'Kompakt'}
-          </Button>
-          
           {/* Week Navigation */}
           <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
             <Button variant="ghost" size="sm" onClick={() => navigateWeek('prev')}>
@@ -402,6 +353,59 @@ export default function ScheduleBuilder() {
                   className="text-xs"
                 >
                   {showInactive ? 'Nur Aktive' : 'Alle zeigen'}
+                </Button>
+              </div>
+              
+              {/* Sorting and Filter Controls */}
+              <div className="space-y-3 pt-3 border-t">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input 
+                    placeholder="Mitarbeiter suchen..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 text-sm"
+                  />
+                </div>
+                
+                {/* Sort Employee */}
+                <Select value={employeeSort} onValueChange={(value: any) => setEmployeeSort(value)}>
+                  <SelectTrigger className="w-full">
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Nach Name</SelectItem>
+                    <SelectItem value="workload">Nach Auslastung</SelectItem>
+                    <SelectItem value="qualification">Nach Qualifikation</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {/* Filter Appointments */}
+                <Select value={appointmentFilter} onValueChange={(value: any) => setAppointmentFilter(value)}>
+                  <SelectTrigger className="w-full">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Termine</SelectItem>
+                    <SelectItem value="urgent">Notfall</SelectItem>
+                    <SelectItem value="high">Hoch</SelectItem>
+                    <SelectItem value="medium">Mittel</SelectItem>
+                    <SelectItem value="low">Niedrig</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {/* View Mode */}
+                <Button
+                  variant={viewMode === 'detailed' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode(viewMode === 'detailed' ? 'compact' : 'detailed')}
+                  className="w-full"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  {viewMode === 'detailed' ? 'Detailliert' : 'Kompakt'}
                 </Button>
               </div>
             </CardHeader>
