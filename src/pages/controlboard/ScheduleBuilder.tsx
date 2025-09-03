@@ -197,10 +197,18 @@ export default function ScheduleBuilder() {
                       onDrop={() => handleDrop(employee.id, dateStr)}
                       onDragOver={handleDragOver}
                     >
-                      {/* Shift assignments would be displayed here */}
-                      <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                        Drop hier
-                      </div>
+                      {/* Display assigned shifts */}
+                      {getAssignmentsForEmployeeAndDate(employee.id, dateStr).map((assignment) => (
+                        <div key={assignment.id} className="mb-1 p-1 bg-green-100 text-green-800 rounded text-xs">
+                          <div className="font-medium">{assignment.shift.titel}</div>
+                          <div className="text-xs">{assignment.shift.startzeit} - {assignment.shift.endzeit}</div>
+                        </div>
+                      ))}
+                      {getAssignmentsForEmployeeAndDate(employee.id, dateStr).length === 0 && (
+                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                          Drop hier
+                        </div>
+                      )}
                     </div>
                   );
                 })}
