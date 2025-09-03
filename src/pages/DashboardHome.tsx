@@ -8,11 +8,11 @@ import { format, isToday, isFuture, isPast } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 export default function DashboardHome() {
-  // Direct queries to the actual table names in the database
+  // Using type assertion to work with German table names until migration is complete
   const { data: employees, isLoading: employeesLoading } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('mitarbeiter')
         .select('*')
         .eq('ist_aktiv', true);
@@ -25,7 +25,7 @@ export default function DashboardHome() {
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('kunden')
         .select('*')
         .order('nachname');
@@ -38,7 +38,7 @@ export default function DashboardHome() {
   const { data: appointments, isLoading: appointmentsLoading } = useQuery({
     queryKey: ['appointments'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('termine')
         .select(`
           *,

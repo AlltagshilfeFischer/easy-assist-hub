@@ -20,24 +20,13 @@ export default function ScheduleBuilder() {
   const [draggedEmployee, setDraggedEmployee] = useState<any>(null);
   const queryClient = useQueryClient();
 
-  // Fetch employees with capacity
+  // Fetch employees with capacity using type assertion
   const { data: employees } = useQuery({
     queryKey: ['mitarbeiter-with-capacity'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('mitarbeiter')
-        .select(`
-          id,
-          benutzer_id,
-          mitarbeiter_nummer,
-          position,
-          ist_aktiv,
-          max_termine_pro_tag,
-          arbeitstage,
-          arbeitszeiten_start,
-          arbeitszeiten_ende,
-          urlaubstage
-        `)
+        .select('*')
         .eq('ist_aktiv', true);
       
       if (error) throw error;
@@ -45,12 +34,12 @@ export default function ScheduleBuilder() {
     }
   });
 
-  // Fetch profiles separately
-  const { data: profiles } = useQuery({
-    queryKey: ['profile'],
+  // Fetch customers with capacity using type assertion
+  const { data: customers } = useQuery({
+    queryKey: ['kunden-with-capacity'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profile')
+      const { data, error } = await (supabase as any)
+        .from('kunden')
         .select('*');
       
       if (error) throw error;
@@ -58,58 +47,25 @@ export default function ScheduleBuilder() {
     }
   });
 
-  // Fetch customers with capacity
-  const { data: customers } = useQuery({
-    queryKey: ['kunden-with-capacity'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('kunden')
-        .select(`
-          id,
-          vorname,
-          nachname,
-          adresse,
-          telefon,
-          email,
-          kapazitaet_pro_tag,
-          betriebstage,
-          betriebszeiten_start,
-          betriebszeiten_ende
-        `);
-      
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  // Fetch appointments for current month
+  // Fetch appointments for current month using type assertion
   const { data: appointments } = useQuery({
     queryKey: ['monthly-termine', currentMonth],
     queryFn: async () => {
       const start = startOfMonth(currentMonth);
       const end = endOfMonth(currentMonth);
       
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('termine')
-        .select(`
-          id,
-          titel,
-          termin_datum,
-          startzeit,
-          endzeit,
-          mitarbeiter_id,
-          kunden_id,
-          status
-        `)
-        .gte('termin_datum', format(start, 'yyyy-MM-dd'))
-        .lte('termin_datum', format(end, 'yyyy-MM-dd'));
+        .select('*')
+        .gte('start_at', format(start, 'yyyy-MM-dd'))
+        .lte('start_at', format(end, 'yyyy-MM-dd'));
       
       if (error) throw error;
       return data;
     }
   });
 
-  // Create appointment mutation
+  // Create appointment mutation using type assertion
   const createAppointmentMutation = useMutation({
     mutationFn: async ({ employeeId, customerId, date, timeSlot }: {
       employeeId: string;
@@ -120,14 +76,16 @@ export default function ScheduleBuilder() {
       const [hours] = timeSlot.split(':');
       const endTime = `${(parseInt(hours) + 1).toString().padStart(2, '0')}:00`;
       
-      const { data, error } = await supabase
+      const appointmentDate = new Date(`${date}T${timeSlot}:00`);
+      const endDate = new Date(`${date}T${endTime}:00`);
+      
+      const { data, error } = await (supabase as any)
         .from('termine')
         .insert({
           mitarbeiter_id: employeeId,
           kunden_id: customerId,
-          termin_datum: date,
-          startzeit: timeSlot,
-          endzeit: endTime,
+          start_at: appointmentDate.toISOString(),
+          end_at: endDate.toISOString(),
           titel: 'Termin',
           status: 'scheduled'
         });
@@ -171,56 +129,44 @@ export default function ScheduleBuilder() {
   };
 
   const getAppointmentsForDay = (customerId: string, date: string) => {
-    return appointments?.filter(apt => 
+    return appointments?.filter((apt: any) => 
       apt.kunden_id === customerId && 
-      apt.termin_datum === date
+      apt.start_at && apt.start_at.startsWith(date)
     ) || [];
   };
 
   const getEmployeeName = (employeeId: string) => {
-    const employee = employees?.find(emp => emp.id === employeeId);
-    if (employee) {
-      const profile = profiles?.find(p => p.benutzer_id === employee.benutzer_id);
-      return profile ? `${profile.vorname} ${profile.nachname}` : 'Unknown';
-    }
-    return 'Unknown';
+    const employee = employees?.find((emp: any) => emp.id === employeeId);
+    return employee ? `${employee.vorname} ${employee.nachname}` : 'Unknown';
   };
 
   const getEmployeeCapacityInfo = (employeeId: string, date: string) => {
-    const employee = employees?.find(emp => emp.id === employeeId);
+    const employee = employees?.find((emp: any) => emp.id === employeeId);
     if (!employee) return null;
 
-    const employeeAppointments = appointments?.filter(apt => 
+    const employeeAppointments = appointments?.filter((apt: any) => 
       apt.mitarbeiter_id === employeeId && 
-      apt.termin_datum === date
+      apt.start_at && apt.start_at.startsWith(date)
     ) || [];
-
-    const profile = profiles?.find(p => p.benutzer_id === employee.benutzer_id);
-    const name = profile ? `${profile.vorname} ${profile.nachname}` : 'Unknown';
 
     return {
       used: employeeAppointments.length,
       max: employee.max_termine_pro_tag || 8,
-      name
+      name: `${employee.vorname} ${employee.nachname}`
     };
   };
 
   const isEmployeeAvailable = (employeeId: string, date: string) => {
-    const employee = employees?.find(emp => emp.id === employeeId);
+    const employee = employees?.find((emp: any) => emp.id === employeeId);
     if (!employee) return false;
 
-    const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][getDay(new Date(date))];
-    const isWorkingDay = employee.arbeitstage?.includes(dayOfWeek) ?? true;
-    const isOnVacation = employee.urlaubstage?.includes(date) ?? false;
-
-    const employeeAppointments = appointments?.filter(apt => 
+    const employeeAppointments = appointments?.filter((apt: any) => 
       apt.mitarbeiter_id === employeeId && 
-      apt.termin_datum === date
+      apt.start_at && apt.start_at.startsWith(date)
     ) || [];
 
     const hasCapacity = employeeAppointments.length < (employee.max_termine_pro_tag || 8);
-
-    return isWorkingDay && !isOnVacation && hasCapacity;
+    return hasCapacity;
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
@@ -232,7 +178,7 @@ export default function ScheduleBuilder() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-foreground mb-2">Dienstplan Manager</h1>
         <p className="text-muted-foreground">
-          Verwalten Sie Dienstpläne mit Drag & Drop und Kapazitätsmanagement
+          Verwalten Sie Dienstpläne mit Drag & Drop - Links sind die Mitarbeiter, oben sind die Tage
         </p>
       </div>
 
@@ -275,15 +221,17 @@ export default function ScheduleBuilder() {
               <div className="grid grid-cols-7 gap-2">
                 {monthDays.map(date => {
                   const dateStr = format(date, 'yyyy-MM-dd');
-                  const dayAppointments = appointments?.filter(apt => apt.termin_datum === dateStr) || [];
+                  const dayAppointments = appointments?.filter((apt: any) => 
+                    apt.start_at && apt.start_at.startsWith(dateStr)
+                  ) || [];
                   
                   return (
                     <div key={dateStr} className="min-h-[120px] p-2 border rounded-lg">
                       <div className="font-medium text-sm mb-2">{format(date, 'd')}</div>
                       <div className="space-y-1">
-                        {dayAppointments.map(apt => (
+                        {dayAppointments.map((apt: any) => (
                           <div key={apt.id} className="bg-primary/10 text-xs p-1 rounded">
-                            {apt.startzeit} - {getEmployeeName(apt.mitarbeiter_id)}
+                            {format(new Date(apt.start_at), 'HH:mm')} - {getEmployeeName(apt.mitarbeiter_id)}
                           </div>
                         ))}
                       </div>
@@ -306,7 +254,7 @@ export default function ScheduleBuilder() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {employees?.map((employee) => {
+                {employees?.map((employee: any) => {
                   const todayCapacity = getEmployeeCapacityInfo(employee.id, format(new Date(), 'yyyy-MM-dd'));
                   const isAvailable = isEmployeeAvailable(employee.id, format(new Date(), 'yyyy-MM-dd'));
                   
@@ -322,17 +270,17 @@ export default function ScheduleBuilder() {
                       }`}
                     >
                       <div className="font-medium text-sm">
-                        {profiles?.find(p => p.benutzer_id === employee.benutzer_id)?.vorname} {profiles?.find(p => p.benutzer_id === employee.benutzer_id)?.nachname}
+                        {employee.vorname} {employee.nachname}
                       </div>
                       <div className="text-xs text-muted-foreground mb-2">
-                        {employee.position || 'Mitarbeiter'}
+                        {employee.email || 'Mitarbeiter'}
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <Badge variant={isAvailable ? "default" : "secondary"} className="text-xs">
                           {todayCapacity ? `${todayCapacity.used}/${todayCapacity.max}` : '0/8'}
                         </Badge>
                         <span className="text-muted-foreground">
-                          {employee.arbeitszeiten_start} - {employee.arbeitszeiten_ende}
+                          08:00 - 18:00
                         </span>
                       </div>
                     </div>
@@ -363,7 +311,7 @@ export default function ScheduleBuilder() {
                       </tr>
                     </thead>
                     <tbody>
-                      {customers?.map((customer) => {
+                      {customers?.map((customer: any) => {
                         const todayStr = format(new Date(), 'yyyy-MM-dd');
                         const customerAppointments = getAppointmentsForDay(customer.id, todayStr);
                         
@@ -371,20 +319,21 @@ export default function ScheduleBuilder() {
                           <tr key={customer.id}>
                             <td className="border p-3">
                               <div className="font-medium">{customer.vorname} {customer.nachname}</div>
-                              <div className="text-sm text-muted-foreground">{customer.adresse}</div>
+                              <div className="text-sm text-muted-foreground">{customer.telefon}</div>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant="outline" className="text-xs">
-                                  Kapazität: {customer.kapazitaet_pro_tag || 1}/Tag
+                                  Aktiv
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
-                                  {customer.betriebszeiten_start} - {customer.betriebszeiten_ende}
+                                  08:00 - 18:00
                                 </span>
                               </div>
                             </td>
                             {TIME_SLOTS.map(slot => {
-                              const appointment = customerAppointments.find(apt => apt.startzeit === slot);
-                              const isInOperatingHours = slot >= (customer.betriebszeiten_start || '08:00') && 
-                                                       slot <= (customer.betriebszeiten_ende || '18:00');
+                              const appointment = customerAppointments.find((apt: any) => 
+                                apt.start_at && format(new Date(apt.start_at), 'HH:mm') === slot
+                              );
+                              const isInOperatingHours = slot >= '08:00' && slot <= '18:00';
                               
                               return (
                                 <td
@@ -425,12 +374,12 @@ export default function ScheduleBuilder() {
 
       <Alert>
         <AlertDescription>
-          <strong>Kapazitätsfunktionen:</strong>
+          <strong>Dienstplan-Funktionen:</strong>
           <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-            <li>Mitarbeiter haben maximale Termine pro Tag und Arbeitszeiten</li>
-            <li>Kunden haben Betriebszeiten und Kapazitätslimits</li>
-            <li>Drag & Drop nur in verfügbaren Zeitslots möglich</li>
-            <li>Echtzeitanzeige der Auslastung pro Mitarbeiter</li>
+            <li>Mitarbeiter können per Drag & Drop auf Kundenzeiten gezogen werden</li>
+            <li>Links werden alle verfügbaren Mitarbeiter angezeigt</li>
+            <li>Oben sind die Tage des Monats zu sehen</li>
+            <li>Die Planung zeigt eine Tagesansicht mit Zeitslots</li>
           </ul>
         </AlertDescription>
       </Alert>

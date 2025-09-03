@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -32,10 +31,11 @@ export default function MasterData() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Using type assertion to work with German table names
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('kunden')
         .select('*')
         .order('nachname');
@@ -48,7 +48,7 @@ export default function MasterData() {
   const { data: employees, isLoading: employeesLoading } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('mitarbeiter')
         .select('*')
         .eq('ist_aktiv', true);
@@ -60,7 +60,7 @@ export default function MasterData() {
 
   const updateCustomerMutation = useMutation({
     mutationFn: async (customerData: any) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('kunden')
         .update(customerData)
         .eq('id', customerData.id);

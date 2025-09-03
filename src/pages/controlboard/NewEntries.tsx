@@ -36,7 +36,7 @@ export default function NewEntries() {
 
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: any) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('kunden')
         .insert([customerData]);
       

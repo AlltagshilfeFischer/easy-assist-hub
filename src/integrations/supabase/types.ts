@@ -14,276 +14,588 @@ export type Database = {
   }
   public: {
     Tables: {
-      appointments: {
+      benutzer: {
         Row: {
-          aktualisiert_am: string
-          beschreibung: string | null
-          endzeit: string
-          erstellt_am: string
+          created_at: string | null
+          email: string
           id: string
-          kunden_id: string
-          mitarbeiter_id: string
-          notizen: string | null
-          private_notizen: string | null
-          startzeit: string
-          status: string | null
-          termin_datum: string
-          titel: string
+          nachname: string | null
+          passwort_hash: string | null
+          rolle: Database["public"]["Enums"]["user_rolle"]
+          updated_at: string | null
+          vorname: string | null
         }
         Insert: {
-          aktualisiert_am?: string
-          beschreibung?: string | null
-          endzeit: string
-          erstellt_am?: string
+          created_at?: string | null
+          email: string
           id?: string
-          kunden_id: string
-          mitarbeiter_id: string
-          notizen?: string | null
-          private_notizen?: string | null
-          startzeit: string
-          status?: string | null
-          termin_datum: string
-          titel: string
+          nachname?: string | null
+          passwort_hash?: string | null
+          rolle: Database["public"]["Enums"]["user_rolle"]
+          updated_at?: string | null
+          vorname?: string | null
         }
         Update: {
-          aktualisiert_am?: string
-          beschreibung?: string | null
-          endzeit?: string
-          erstellt_am?: string
+          created_at?: string | null
+          email?: string
           id?: string
-          kunden_id?: string
-          mitarbeiter_id?: string
-          notizen?: string | null
-          private_notizen?: string | null
-          startzeit?: string
-          status?: string | null
-          termin_datum?: string
-          titel?: string
+          nachname?: string | null
+          passwort_hash?: string | null
+          rolle?: Database["public"]["Enums"]["user_rolle"]
+          updated_at?: string | null
+          vorname?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "appointments_customer_id_fkey"
-            columns: ["kunden_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_employee_id_fkey"
-            columns: ["mitarbeiter_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      customers: {
+      kunden: {
         Row: {
-          adresse: string | null
-          aktualisiert_am: string
-          betriebstage: string[] | null
-          betriebszeiten_ende: string | null
-          betriebszeiten_start: string | null
+          aktiv: boolean | null
+          created_at: string | null
           email: string | null
-          erstellt_am: string
-          geburtsdatum: string | null
           id: string
-          kapazitaet_pro_tag: number | null
           nachname: string
-          notfallkontakt_name: string | null
-          notfallkontakt_telefon: string | null
-          notizen: string | null
+          notfall_name: string | null
+          notfall_telefon: string | null
           telefon: string | null
+          updated_at: string | null
           vorname: string
         }
         Insert: {
-          adresse?: string | null
-          aktualisiert_am?: string
-          betriebstage?: string[] | null
-          betriebszeiten_ende?: string | null
-          betriebszeiten_start?: string | null
+          aktiv?: boolean | null
+          created_at?: string | null
           email?: string | null
-          erstellt_am?: string
-          geburtsdatum?: string | null
           id?: string
-          kapazitaet_pro_tag?: number | null
           nachname: string
-          notfallkontakt_name?: string | null
-          notfallkontakt_telefon?: string | null
-          notizen?: string | null
+          notfall_name?: string | null
+          notfall_telefon?: string | null
           telefon?: string | null
+          updated_at?: string | null
           vorname: string
         }
         Update: {
-          adresse?: string | null
-          aktualisiert_am?: string
-          betriebstage?: string[] | null
-          betriebszeiten_ende?: string | null
-          betriebszeiten_start?: string | null
+          aktiv?: boolean | null
+          created_at?: string | null
           email?: string | null
-          erstellt_am?: string
-          geburtsdatum?: string | null
           id?: string
-          kapazitaet_pro_tag?: number | null
           nachname?: string
-          notfallkontakt_name?: string | null
-          notfallkontakt_telefon?: string | null
-          notizen?: string | null
+          notfall_name?: string | null
+          notfall_telefon?: string | null
           telefon?: string | null
+          updated_at?: string | null
           vorname?: string
         }
         Relationships: []
       }
-      employees: {
+      kunden_zeitfenster: {
         Row: {
-          aktualisiert_am: string
-          arbeitstage: string[] | null
-          arbeitszeiten_ende: string | null
-          arbeitszeiten_start: string | null
-          benutzer_id: string
-          einstellungsdatum: string | null
-          erstellt_am: string
+          bis: string
           id: string
-          ist_aktiv: boolean | null
-          max_termine_pro_tag: number | null
-          mitarbeiter_nummer: string | null
-          notizen: string | null
-          position: string | null
-          qualifikationen: string[] | null
-          stundenlohn: number | null
-          urlaubstage: string[] | null
+          kunden_id: string
+          prioritaet: number
+          von: string
+          wochentag: number
         }
         Insert: {
-          aktualisiert_am?: string
-          arbeitstage?: string[] | null
-          arbeitszeiten_ende?: string | null
-          arbeitszeiten_start?: string | null
-          benutzer_id: string
-          einstellungsdatum?: string | null
-          erstellt_am?: string
+          bis: string
           id?: string
-          ist_aktiv?: boolean | null
-          max_termine_pro_tag?: number | null
-          mitarbeiter_nummer?: string | null
-          notizen?: string | null
-          position?: string | null
-          qualifikationen?: string[] | null
-          stundenlohn?: number | null
-          urlaubstage?: string[] | null
+          kunden_id: string
+          prioritaet?: number
+          von: string
+          wochentag: number
         }
         Update: {
-          aktualisiert_am?: string
-          arbeitstage?: string[] | null
-          arbeitszeiten_ende?: string | null
-          arbeitszeiten_start?: string | null
-          benutzer_id?: string
-          einstellungsdatum?: string | null
-          erstellt_am?: string
+          bis?: string
           id?: string
-          ist_aktiv?: boolean | null
-          max_termine_pro_tag?: number | null
-          mitarbeiter_nummer?: string | null
-          notizen?: string | null
-          position?: string | null
-          qualifikationen?: string[] | null
-          stundenlohn?: number | null
-          urlaubstage?: string[] | null
+          kunden_id?: string
+          prioritaet?: number
+          von?: string
+          wochentag?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kunden_zeitfenster_kunden_id_fkey"
+            columns: ["kunden_id"]
+            isOneToOne: false
+            referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mitarbeiter: {
         Row: {
-          created_at: string
-          id: number
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-        }
-        Update: {
-          created_at?: string
-          id?: number
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          aktualisiert_am: string
-          benutzer_id: string
+          benutzer_id: string | null
+          created_at: string | null
           email: string | null
-          erstellt_am: string
-          id: string
-          nachname: string | null
-          telefon: string | null
-          vorname: string | null
-        }
-        Insert: {
-          aktualisiert_am?: string
-          benutzer_id: string
-          email?: string | null
-          erstellt_am?: string
-          id?: string
-          nachname?: string | null
-          telefon?: string | null
-          vorname?: string | null
-        }
-        Update: {
-          aktualisiert_am?: string
-          benutzer_id?: string
-          email?: string | null
-          erstellt_am?: string
-          id?: string
-          nachname?: string | null
-          telefon?: string | null
-          vorname?: string | null
-        }
-        Relationships: []
-      }
-      schedule_templates: {
-        Row: {
-          aktualisiert_am: string
-          endzeit: string
-          erstellt_am: string
           id: string
           ist_aktiv: boolean | null
-          kunden_id: string
-          mitarbeiter_id: string
-          startzeit: string
-          wochentag: string
+          max_termine_pro_tag: number | null
+          nachname: string
+          soll_wochenstunden: number | null
+          telefon: string | null
+          updated_at: string | null
+          vorname: string
         }
         Insert: {
-          aktualisiert_am?: string
-          endzeit: string
-          erstellt_am?: string
+          benutzer_id?: string | null
+          created_at?: string | null
+          email?: string | null
           id?: string
           ist_aktiv?: boolean | null
-          kunden_id: string
-          mitarbeiter_id: string
-          startzeit: string
-          wochentag: string
+          max_termine_pro_tag?: number | null
+          nachname: string
+          soll_wochenstunden?: number | null
+          telefon?: string | null
+          updated_at?: string | null
+          vorname: string
         }
         Update: {
-          aktualisiert_am?: string
-          endzeit?: string
-          erstellt_am?: string
+          benutzer_id?: string | null
+          created_at?: string | null
+          email?: string | null
           id?: string
           ist_aktiv?: boolean | null
-          kunden_id?: string
-          mitarbeiter_id?: string
-          startzeit?: string
-          wochentag?: string
+          max_termine_pro_tag?: number | null
+          nachname?: string
+          soll_wochenstunden?: number | null
+          telefon?: string | null
+          updated_at?: string | null
+          vorname?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "mitarbeiter_benutzer_id_fkey"
+            columns: ["benutzer_id"]
+            isOneToOne: true
+            referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mitarbeiter_abwesenheiten: {
+        Row: {
+          created_at: string
+          grund: string | null
+          id: string
+          mitarbeiter_id: string
+          zeitraum: unknown
+        }
+        Insert: {
+          created_at?: string
+          grund?: string | null
+          id?: string
+          mitarbeiter_id: string
+          zeitraum: unknown
+        }
+        Update: {
+          created_at?: string
+          grund?: string | null
+          id?: string
+          mitarbeiter_id?: string
+          zeitraum?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mitarbeiter_abwesenheiten_mitarbeiter_id_fkey"
+            columns: ["mitarbeiter_id"]
+            isOneToOne: false
+            referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mitarbeiter_verfuegbarkeit: {
+        Row: {
+          bis: string
+          id: string
+          mitarbeiter_id: string
+          von: string
+          wochentag: number
+        }
+        Insert: {
+          bis: string
+          id?: string
+          mitarbeiter_id: string
+          von: string
+          wochentag: number
+        }
+        Update: {
+          bis?: string
+          id?: string
+          mitarbeiter_id?: string
+          von?: string
+          wochentag?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mitarbeiter_verfuegbarkeit_mitarbeiter_id_fkey"
+            columns: ["mitarbeiter_id"]
+            isOneToOne: false
+            referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      termine: {
+        Row: {
+          created_at: string | null
+          end_at: string
+          id: string
+          kunden_id: string | null
+          mitarbeiter_id: string | null
+          start_at: string
+          status: Database["public"]["Enums"]["termin_status"] | null
+          titel: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_at: string
+          id?: string
+          kunden_id?: string | null
+          mitarbeiter_id?: string | null
+          start_at: string
+          status?: Database["public"]["Enums"]["termin_status"] | null
+          titel: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_at?: string
+          id?: string
+          kunden_id?: string | null
+          mitarbeiter_id?: string | null
+          start_at?: string
+          status?: Database["public"]["Enums"]["termin_status"] | null
+          titel?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "termine_kunden_id_fkey"
+            columns: ["kunden_id"]
+            isOneToOne: false
+            referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "termine_mitarbeiter_id_fkey"
+            columns: ["mitarbeiter_id"]
+            isOneToOne: false
+            referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      citext: {
+        Args: { "": boolean } | { "": string } | { "": unknown }
+        Returns: string
+      }
+      citext_hash: {
+        Args: { "": string }
+        Returns: number
+      }
+      citextin: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      citextout: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      citextrecv: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      citextsend: {
+        Args: { "": string }
+        Returns: string
+      }
+      find_free_mitarbeiter: {
+        Args: { p_end: string; p_kunden_id?: string; p_start: string }
+        Returns: {
+          mitarbeiter_id: string
+          nachname: string
+          vorname: string
+        }[]
+      }
+      gbt_bit_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_bool_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_bool_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_bpchar_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_bytea_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_cash_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_cash_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_date_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_date_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_enum_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_enum_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_float4_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_float4_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_float8_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_float8_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_inet_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_int2_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_int2_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_int4_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_int4_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_int8_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_int8_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_intv_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_intv_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_intv_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_macad_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_macad_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_macad8_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_macad8_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_numeric_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_oid_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_oid_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_text_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_time_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_time_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_timetz_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_ts_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_ts_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_tstz_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_uuid_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_uuid_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_var_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbt_var_fetch: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey_var_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey_var_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey16_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey16_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey2_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey2_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey32_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey32_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey4_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey4_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey8_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gbtreekey8_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
+      }
+      suggest_slots_for_kunde: {
+        Args: {
+          p_dauer_min: number
+          p_kunden_id: string
+          p_step_min?: number
+          p_tag: string
+        }
+        Returns: {
+          end_at: string
+          mitarbeiter_id: string
+          start_at: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      termin_status: "scheduled" | "in_progress" | "completed" | "cancelled"
+      user_rolle: "admin" | "manager" | "mitarbeiter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -410,6 +722,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      termin_status: ["scheduled", "in_progress", "completed", "cancelled"],
+      user_rolle: ["admin", "manager", "mitarbeiter"],
+    },
   },
 } as const
