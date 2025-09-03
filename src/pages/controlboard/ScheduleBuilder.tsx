@@ -77,6 +77,10 @@ export default function ScheduleBuilder() {
     return openShifts.filter(shift => shift.datum === date);
   };
 
+  const getAssignmentsForEmployeeAndDate = (employeeId: string, date: string) => {
+    return assignments.filter(a => a.employeeId === employeeId && a.date === date);
+  };
+
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
