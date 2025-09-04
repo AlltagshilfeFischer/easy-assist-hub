@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ export default function ScheduleBuilder() {
   const [appointmentFilter, setAppointmentFilter] = useState<'all' | 'urgent' | 'high' | 'medium' | 'low'>('all');
   const [showInactive, setShowInactive] = useState(false);
   const [viewMode, setViewMode] = useState<'compact' | 'detailed'>('detailed');
+  const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Use dummy data for now - in production this would come from the database
@@ -174,23 +176,17 @@ export default function ScheduleBuilder() {
   };
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'hoch': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'mittel': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'niedrig': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    if (['urgent', 'hoch', 'mittel', 'niedrig'].includes(priority)) {
+      return 'bg-purple-100 text-purple-800 border-purple-200';
     }
+    return 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
   const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return <AlertCircle className="h-3 w-3" />;
-      case 'hoch': return <XCircle className="h-3 w-3" />;
-      case 'mittel': return <Clock className="h-3 w-3" />;
-      case 'niedrig': return <CheckCircle className="h-3 w-3" />;
-      default: return <Clock className="h-3 w-3" />;
+    if (['urgent', 'hoch', 'mittel', 'niedrig'].includes(priority)) {
+      return <AlertCircle className="h-3 w-3" />;
     }
+    return <Clock className="h-3 w-3" />;
   };
 
   const getWorkloadStatus = (employeeId: string) => {
@@ -528,6 +524,7 @@ export default function ScheduleBuilder() {
                           key={appointment.id}
                           draggable
                           onDragStart={() => handleDragStart(appointment, 'appointment')}
+                          onClick={() => setEditingAppointment(appointment)}
                           className={`p-2 rounded-lg text-xs cursor-move transition-all duration-200 hover:shadow-md hover:scale-105 border ${
                             getPriorityColor(appointment.prioritaet)
                           }`}
@@ -548,7 +545,7 @@ export default function ScheduleBuilder() {
                               variant="outline" 
                               className="text-xs mt-1"
                             >
-                              {appointment.prioritaet}
+                              Sondertermin
                             </Badge>
                           )}
                         </div>
@@ -636,6 +633,7 @@ export default function ScheduleBuilder() {
                           key={assignment.id}
                           draggable
                           onDragStart={() => handleDragStart(assignment, 'assigned-appointment')}
+                          onClick={() => setEditingAppointment(assignment.appointment)}
                           className="mb-2 p-2 bg-green-50 border border-green-200 text-green-800 rounded-lg text-xs shadow-sm cursor-move transition-all duration-200 hover:shadow-md hover:scale-105"
                         >
                           <div className="flex items-center gap-1 mb-1">
@@ -652,7 +650,7 @@ export default function ScheduleBuilder() {
                           <div className="text-xs font-medium truncate">{assignment.appointment.kunde}</div>
                           {viewMode === 'detailed' && (
                             <Badge variant="outline" className="text-xs mt-1">
-                              {assignment.appointment.prioritaet}
+                              Sondertermin
                             </Badge>
                           )}
                         </div>
@@ -702,6 +700,55 @@ export default function ScheduleBuilder() {
           </div>
         </AlertDescription>
       </Alert>
+
+      {/* Appointment Edit Dialog */}
+      <Dialog open={!!editingAppointment} onOpenChange={() => setEditingAppointment(null)}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Termin bearbeiten</DialogTitle>
+          </DialogHeader>
+          {editingAppointment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Titel</label>
+                  <Input value={editingAppointment.titel} className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Kunde</label>
+                  <Input value={editingAppointment.kunde} className="mt-1" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Startzeit</label>
+                  <Input value={editingAppointment.startzeit} className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Endzeit</label>
+                  <Input value={editingAppointment.endzeit} className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Dauer (min)</label>
+                  <Input value={editingAppointment.dauer} className="mt-1" />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Datum</label>
+                <Input value={editingAppointment.datum} className="mt-1" />
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setEditingAppointment(null)}>
+                  Abbrechen
+                </Button>
+                <Button onClick={() => setEditingAppointment(null)}>
+                  Speichern
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
