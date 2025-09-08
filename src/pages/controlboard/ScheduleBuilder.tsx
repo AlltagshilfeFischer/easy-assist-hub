@@ -8,11 +8,30 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AppointmentApprovalDialog } from '@/components/schedule/AppointmentApprovalDialog';
+import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
+import { DropZone } from '@/components/schedule/DropZone';
+import { EmployeeCard } from '@/components/schedule/EmployeeCard';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 interface Employee {
   id: string;
@@ -49,7 +68,7 @@ interface Appointment {
 
 const ScheduleBuilder = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [draggedItem, setDraggedItem] = useState<any>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [searchEmployee, setSearchEmployee] = useState('');
   const [searchAppointment, setSearchAppointment] = useState('');
@@ -66,6 +85,18 @@ const ScheduleBuilder = () => {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   
   const { toast } = useToast();
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Load data from Supabase
   useEffect(() => {
@@ -104,27 +135,11 @@ const ScheduleBuilder = () => {
       
       if (appointmentsError) throw appointmentsError;
 
-      // Load pending changes
-      const { data: changesData, error: changesError } = await supabase
-        .from('termin_aenderungen')
-        .select(`
-          *,
-          requester:benutzer!termin_aenderungen_requested_by_fkey(*),
-          old_customer:kunden!termin_aenderungen_old_kunden_id_fkey(*),
-          new_customer:kunden!termin_aenderungen_new_kunden_id_fkey(*),
-          old_employee:mitarbeiter!termin_aenderungen_old_mitarbeiter_id_fkey(*),
-          new_employee:mitarbeiter!termin_aenderungen_new_mitarbeiter_id_fkey(*)
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      
-      if (changesError) throw changesError;
-
-      // Transform employees data
+      // Transform employees data to match our interface
       const transformedEmployees = employeesData?.map(emp => ({
         ...emp,
         name: `${emp.vorname} ${emp.nachname}`,
-        workload: Math.floor(Math.random() * 40) + 60, // Mock workload for now
+        workload: Math.floor(Math.random() * 40) + 60,
       })) || [];
 
       // Transform appointments data to match our interface
@@ -141,7 +156,6 @@ const ScheduleBuilder = () => {
       setEmployees(transformedEmployees);
       setCustomers(customersData || []);
       setAppointments(transformedAppointments);
-      setPendingChanges(changesData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -186,424 +200,467 @@ const ScheduleBuilder = () => {
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   };
 
-  const handleDragStart = (item: any, type: string) => {
-    setDraggedItem(item);
+  // DnD event handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
-  const handleDrop = (employeeId: string, dayIndex: number) => {
-    if (draggedItem) {
-      // Here you would implement the appointment assignment logic
-      toast({
-        title: 'Erfolg',
-        description: `Termin "${draggedItem.titel}" wurde zugewiesen.`,
-      });
-      setDraggedItem(null);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over) {
+      setActiveId(null);
+      return;
     }
-  };
 
-  const handleDropToOpenShifts = () => {
-    if (draggedItem) {
-      toast({
-        title: 'Erfolg',
-        description: 'Termin wurde zu offenen Schichten verschoben.',
-      });
-      setDraggedItem(null);
+    const appointmentId = active.id as string;
+    const appointment = appointments.find(app => app.id === appointmentId);
+    
+    if (!appointment) {
+      setActiveId(null);
+      return;
     }
-  };
 
-  const handleEmployeeDrop = (draggedId: string, targetId: string) => {
-    // Implement employee reordering logic
+    // Handle dropping on employee schedule
+    if (over.id.toString().startsWith('employee-')) {
+      const [, employeeId, dayIndex] = over.id.toString().split('-');
+      
+      try {
+        // Update appointment assignment
+        const { error } = await supabase
+          .from('termine')
+          .update({ 
+            mitarbeiter_id: employeeId,
+            status: 'scheduled'
+          })
+          .eq('id', appointmentId);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Erfolg',
+          description: `Termin "${appointment.titel}" wurde zugewiesen.`,
+        });
+        
+        loadData(); // Refresh data
+      } catch (error) {
+        console.error('Error updating appointment:', error);
+        toast({
+          title: 'Fehler',
+          description: 'Termin konnte nicht zugewiesen werden.',
+          variant: 'destructive',
+        });
+      }
+    }
+    
+    // Handle dropping on unassigned area
+    if (over.id === 'unassigned') {
+      try {
+        const { error } = await supabase
+          .from('termine')
+          .update({ 
+            mitarbeiter_id: null,
+            status: 'unassigned'
+          })
+          .eq('id', appointmentId);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Erfolg',
+          description: 'Termin wurde zu offenen Schichten verschoben.',
+        });
+        
+        loadData(); // Refresh data
+      } catch (error) {
+        console.error('Error updating appointment:', error);
+        toast({
+          title: 'Fehler',
+          description: 'Termin konnte nicht verschoben werden.',
+          variant: 'destructive',
+        });
+      }
+    }
+
+    setActiveId(null);
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     setCurrentWeek(direction === 'prev' ? subWeeks(currentWeek, 1) : addWeeks(currentWeek, 1));
   };
 
-  const getAppointmentCount = (employeeId: string, day: number) => {
-    const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-    const targetDate = addDays(weekStart, day);
-    
-    return appointments.filter(app => {
-      if (app.mitarbeiter_id !== employeeId) return false;
-      const appDate = new Date(app.start_at);
-      return appDate.toDateString() === targetDate.toDateString();
-    }).length;
+  const getAppointmentCount = (employeeId: string, dayIndex: number) => {
+    const date = getWeekDates()[dayIndex];
+    return appointments.filter(app => 
+      app.mitarbeiter_id === employeeId && 
+      format(new Date(app.start_at), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+    ).length;
   };
 
-  const getAppointmentsForDate = (employeeId: string, day: number) => {
-    const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-    const targetDate = addDays(weekStart, day);
-    
-    return appointments.filter(app => {
-      if (app.mitarbeiter_id !== employeeId) return false;
-      const appDate = new Date(app.start_at);
-      return appDate.toDateString() === targetDate.toDateString();
-    });
+  const getAppointmentsForDate = (employeeId: string, dayIndex: number) => {
+    const date = getWeekDates()[dayIndex];
+    return appointments.filter(app => 
+      app.mitarbeiter_id === employeeId && 
+      format(new Date(app.start_at), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+    );
   };
 
-  const getWorkloadStatus = (workload: number) => {
-    if (workload >= 90) return { color: 'bg-red-500', text: 'Überlastet' };
-    if (workload >= 80) return { color: 'bg-orange-500', text: 'Hoch' };
-    if (workload >= 60) return { color: 'bg-yellow-500', text: 'Normal' };
-    return { color: 'bg-green-500', text: 'Niedrig' };
-  };
+  const draggedAppointment = activeId ? appointments.find(app => app.id === activeId) : null;
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Dienstplanmanagement</h1>
-          <p className="text-muted-foreground">
-            KW {format(currentWeek, 'w')} • {format(currentWeek, 'MMMM yyyy', { locale: de })}
-          </p>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="p-6 space-y-6 bg-gradient-to-br from-background to-muted/20">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              Dienstplan Builder
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Termine per Drag & Drop zuweisen und verwalten
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowApprovalDialog(true)}>
+              <Bell className="h-4 w-4 mr-2" />
+              Genehmigungen ({pendingChanges.length})
+            </Button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentWeek(new Date())}>
-            Heute
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
+        {/* Week Navigation */}
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Offene Termine</p>
-                <p className="text-2xl font-bold">{openAppointments.length}</p>
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="text-xl font-semibold">
+                  {format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'dd. MMMM', { locale: de })} - {format(addDays(startOfWeek(currentWeek, { weekStartsOn: 1 }), 6), 'dd. MMMM yyyy', { locale: de })}
+                </h2>
+                <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Zugeteilte Termine</p>
-                <p className="text-2xl font-bold">{appointments.filter(a => a.status !== 'unassigned').length}</p>
-              </div>
-              <User className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Aktive Mitarbeiter</p>
-                <p className="text-2xl font-bold">{employees.filter(e => e.ist_aktiv).length}</p>
-              </div>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Heute geplant</p>
-                <p className="text-2xl font-bold">{appointments.filter(a => {
-                  const today = new Date();
-                  const appDate = new Date(a.start_at);
-                  return appDate.toDateString() === today.toDateString() && a.status === 'scheduled';
-                }).length}</p>
-              </div>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Ausstehende Genehmigungen</p>
-                <p className="text-2xl font-bold">{pendingChanges.length}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowApprovalDialog(true)}
-                className="p-0 h-auto"
-                disabled={pendingChanges.length === 0}
-              >
-                <Bell className="h-4 w-4 text-muted-foreground" />
+              <Button variant="outline" onClick={() => setCurrentWeek(new Date())}>
+                Heute
               </Button>
             </div>
-          </CardContent>
+          </CardHeader>
         </Card>
-      </div>
 
-      {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-        {/* Sidebar */}
-        <div className="space-y-4">
-          {/* Employees */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Mitarbeiter</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Suchen..."
-                    value={searchEmployee}
-                    onChange={(e) => setSearchEmployee(e.target.value)}
-                    className="w-24 h-8 text-xs"
-                  />
-                  <Select value={sortEmployees} onValueChange={setSortEmployees}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name">Nach Name</SelectItem>
-                      <SelectItem value="workload">Nach Auslastung</SelectItem>
-                    </SelectContent>
-                  </Select>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-200 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-orange-700" />
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="space-y-2">
-                {filteredEmployees.map((employee) => (
-                  <div
-                    key={employee.id}
-                    className="p-3 border rounded-lg cursor-move hover:bg-muted/50 transition-colors"
-                    draggable
-                    onDragStart={(e) => handleDragStart(employee, 'employee')}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: employee.farbe_kalender }}
-                        />
-                        <span className="font-medium">{employee.name}</span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {employee.email}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span>Auslastung</span>
-                          <span>{employee.workload}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className={cn("h-1.5 rounded-full", getWorkloadStatus(employee.workload).color)}
-                            style={{ width: `${employee.workload}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Max. {employee.max_termine_pro_tag || 8} Termine/Tag
-                    </div>
-                  </div>
-                ))}
+                <div>
+                  <p className="text-sm text-orange-700 font-medium">Offene Termine</p>
+                  <p className="text-2xl font-bold text-orange-800">{openAppointments.length}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Open Appointments */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Offene Termine</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Suchen..."
-                    value={searchAppointment}
-                    onChange={(e) => setSearchAppointment(e.target.value)}
-                    className="w-24 h-8 text-xs"
-                  />
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-200 rounded-lg">
+                  <Calendar className="h-5 w-5 text-blue-700" />
+                </div>
+                <div>
+                  <p className="text-sm text-blue-700 font-medium">Zugewiesene Termine</p>
+                  <p className="text-2xl font-bold text-blue-800">
+                    {appointments.filter(app => app.status === 'scheduled').length}
+                  </p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div
-                className="min-h-[200px] border-2 border-dashed border-muted rounded-lg p-4"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDropToOpenShifts}
-              >
-                <div className="space-y-2">
-                  {filteredAppointments.map((appointment) => (
-                    <div
-                      key={appointment.id}
-                      className="p-3 rounded-lg border cursor-move transition-colors border-orange-300 bg-orange-50"
-                      draggable
-                      onDragStart={(e) => {
-                        setDraggedItem(appointment);
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{appointment.titel}</span>
-                        <Badge variant="secondary">
-                          Unzugewiesen
-                        </Badge>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-200 rounded-lg">
+                  <Users className="h-5 w-5 text-green-700" />
+                </div>
+                <div>
+                  <p className="text-sm text-green-700 font-medium">Aktive Mitarbeiter</p>
+                  <p className="text-2xl font-bold text-green-800">
+                    {employees.filter(emp => emp.ist_aktiv).length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-200 rounded-lg">
+                  <CalendarDays className="h-5 w-5 text-purple-700" />
+                </div>
+                <div>
+                  <p className="text-sm text-purple-700 font-medium">Heutige Termine</p>
+                  <p className="text-2xl font-bold text-purple-800">
+                    {appointments.filter(app => 
+                      format(new Date(app.start_at), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                    ).length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-200 rounded-lg">
+                  <Bell className="h-5 w-5 text-yellow-700" />
+                </div>
+                <div>
+                  <p className="text-sm text-yellow-700 font-medium">Genehmigungen</p>
+                  <p className="text-2xl font-bold text-yellow-800">{pendingChanges.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Employee List */}
+            <Card className="shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Mitarbeiter
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Mitarbeiter suchen..."
+                    value={searchEmployee}
+                    onChange={(e) => setSearchEmployee(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Select value={sortEmployees} onValueChange={setSortEmployees}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Name</SelectItem>
+                      <SelectItem value="workload">Auslastung</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {filteredEmployees.map((employee) => (
+                    <EmployeeCard
+                      key={employee.id}
+                      employee={employee}
+                      currentAppointments={appointments.filter(app => app.mitarbeiter_id === employee.id).length}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Open Appointments */}
+            <Card className="shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  Offene Termine
+                </CardTitle>
+                <Input
+                  placeholder="Termine suchen..."
+                  value={searchAppointment}
+                  onChange={(e) => setSearchAppointment(e.target.value)}
+                />
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <DropZone
+                  id="unassigned"
+                  className="min-h-[200px]"
+                  isEmpty={filteredAppointments.length === 0}
+                >
+                  <SortableContext items={filteredAppointments.map(app => app.id)} strategy={verticalListSortingStrategy}>
+                    {filteredAppointments.map((appointment) => (
+                      <DraggableAppointment
+                        key={appointment.id}
+                        appointment={appointment}
+                        isDragging={activeId === appointment.id}
+                      />
+                    ))}
+                  </SortableContext>
+                </DropZone>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Schedule */}
+          <div className="lg:col-span-3">
+            <Card className="shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Wochenplan
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                {/* Week Headers */}
+                <div className="grid grid-cols-8 gap-2 mb-4">
+                  <div className="p-3 text-sm font-medium text-muted-foreground">Mitarbeiter</div>
+                  {getWeekDates().map((date, index) => (
+                    <div key={index} className="p-3 text-center bg-muted/30 rounded-lg">
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {format(date, 'EEE', { locale: de })}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {appointment.customer?.vorname} {appointment.customer?.nachname}
+                      <div className="text-lg font-bold mt-1">
+                        {format(date, 'd')}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {format(new Date(appointment.start_at), 'dd.MM.yyyy HH:mm')} - {format(new Date(appointment.end_at), 'HH:mm')}
+                        {format(date, 'MMM', { locale: de })}
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+
+                <Separator className="mb-4" />
+
+                {/* Employee Rows */}
+                <div className="space-y-3">
+                  {filteredEmployees.map((employee) => (
+                    <div key={employee.id} className="grid grid-cols-8 gap-2 items-stretch">
+                      <div className="p-3 flex items-center gap-3 bg-muted/20 rounded-lg">
+                        <div 
+                          className="w-4 h-4 rounded-full border-2 border-white shadow-sm" 
+                          style={{ backgroundColor: employee.farbe_kalender }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium truncate block">{employee.name}</span>
+                          <span className="text-xs text-muted-foreground">{employee.email}</span>
+                        </div>
+                      </div>
+                      
+                      {getWeekDates().map((date, dayIndex) => {
+                        const appointmentCount = getAppointmentCount(employee.id, dayIndex);
+                        const dayAppointments = getAppointmentsForDate(employee.id, dayIndex);
+                        const isOverloaded = appointmentCount >= (employee.max_termine_pro_tag || 8);
+                        
+                        return (
+                          <DropZone
+                            key={dayIndex}
+                            id={`employee-${employee.id}-${dayIndex}`}
+                            className={cn(
+                              "min-h-[80px]",
+                              isOverloaded && "border-red-300 bg-red-50"
+                            )}
+                            isEmpty={dayAppointments.length === 0}
+                          >
+                            {dayAppointments.map((app) => (
+                              <DraggableAppointment
+                                key={app.id}
+                                appointment={app}
+                                isAssigned={true}
+                                isDragging={activeId === app.id}
+                              />
+                            ))}
+                            {appointmentCount > 0 && (
+                              <div className="text-xs text-muted-foreground mt-2 text-center">
+                                {appointmentCount} Termine
+                              </div>
+                            )}
+                          </DropZone>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Main Schedule */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Wochenplan</CardTitle>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Eye className="h-4 w-4" />
+        {editingAppointment && (
+          <Dialog open={!!editingAppointment} onOpenChange={() => setEditingAppointment(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Termin bearbeiten</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Titel</label>
+                  <div className="text-sm">{editingAppointment.titel}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Status</label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="scheduled">Geplant</SelectItem>
+                      <SelectItem value="completed">Abgeschlossen</SelectItem>
+                      <SelectItem value="cancelled">Abgesagt</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={() => setEditingAppointment(null)}>
+                  Speichern
                 </Button>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Week Headers */}
-            <div className="grid grid-cols-8 gap-2 mb-4">
-              <div className="p-2 text-sm font-medium">Mitarbeiter</div>
-              {getWeekDates().map((date, index) => (
-                <div key={index} className="p-2 text-center">
-                  <div className="text-xs font-medium">
-                    {format(date, 'EEE', { locale: de })}
-                  </div>
-                  <div className="text-lg font-bold">
-                    {format(date, 'd')}
-                  </div>
-                </div>
-              ))}
-            </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
-            <Separator className="mb-4" />
-
-            {/* Employee Rows */}
-            <div className="space-y-2">
-              {filteredEmployees.map((employee) => (
-                <div key={employee.id} className="grid grid-cols-8 gap-2 items-center">
-                  <div className="p-2 flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: employee.farbe_kalender }}
-                    />
-                    <span className="text-sm font-medium">{employee.name}</span>
-                  </div>
-                  
-                  {getWeekDates().map((date, dayIndex) => {
-                    const appointmentCount = getAppointmentCount(employee.id, dayIndex);
-                    const dayAppointments = getAppointmentsForDate(employee.id, dayIndex);
-                    
-                    return (
-                      <div
-                        key={dayIndex}
-                        className={cn(
-                          "min-h-[60px] border border-dashed border-gray-300 rounded p-2",
-                          "hover:bg-gray-50 transition-colors cursor-pointer",
-                          appointmentCount >= (employee.max_termine_pro_tag || 8) && "bg-red-100 border-red-300"
-                        )}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          if (draggedItem) {
-                            handleDrop(employee.id, dayIndex);
-                          }
-                        }}
-                      >
-                        {dayAppointments.map((app) => (
-                          <div key={app.id} className="mb-1 p-1 bg-blue-50 rounded text-xs">
-                            {app.titel} ({format(new Date(app.start_at), 'HH:mm')})
-                          </div>
-                        ))}
-                        {appointmentCount > 0 && (
-                          <div className="text-xs text-muted-foreground">
-                            {appointmentCount} Termine
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <AppointmentApprovalDialog
+          isOpen={showApprovalDialog}
+          onClose={() => setShowApprovalDialog(false)}
+          changes={pendingChanges}
+          onApprovalAction={() => {
+            loadData();
+            setShowApprovalDialog(false);
+          }}
+        />
       </div>
 
-      {editingAppointment && (
-        <Dialog open={!!editingAppointment} onOpenChange={() => setEditingAppointment(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Termin bearbeiten</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Titel</label>
-                <div className="text-sm">{editingAppointment.titel}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Status</label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Geplant</SelectItem>
-                    <SelectItem value="completed">Abgeschlossen</SelectItem>
-                    <SelectItem value="cancelled">Abgesagt</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={() => setEditingAppointment(null)}>
-                Speichern
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      <AppointmentApprovalDialog
-        isOpen={showApprovalDialog}
-        onClose={() => setShowApprovalDialog(false)}
-        changes={pendingChanges}
-        onApprovalAction={() => {
-          loadData();
-          setShowApprovalDialog(false);
-        }}
-      />
-    </div>
+      <DragOverlay>
+        {draggedAppointment ? (
+          <DraggableAppointment
+            appointment={draggedAppointment}
+            isDragging={true}
+          />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
 

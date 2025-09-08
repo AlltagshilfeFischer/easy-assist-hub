@@ -1,0 +1,54 @@
+import React from 'react';
+import { useDroppable } from '@dnd-kit/core';
+import { cn } from '@/lib/utils';
+import { Plus } from 'lucide-react';
+
+interface DropZoneProps {
+  id: string;
+  children?: React.ReactNode;
+  className?: string;
+  isOver?: boolean;
+  isEmpty?: boolean;
+  employeeName?: string;
+  date?: string;
+}
+
+export function DropZone({ 
+  id, 
+  children, 
+  className, 
+  isEmpty = false, 
+  employeeName, 
+  date 
+}: DropZoneProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'min-h-[80px] p-2 rounded-lg border-2 border-dashed transition-all duration-200',
+        isOver 
+          ? 'border-primary bg-primary/5 shadow-inner' 
+          : 'border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/20',
+        isEmpty && 'flex items-center justify-center',
+        className
+      )}
+    >
+      {isEmpty && !children ? (
+        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <Plus className="h-6 w-6" />
+          <span className="text-xs text-center">
+            Termin hierher ziehen
+          </span>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
