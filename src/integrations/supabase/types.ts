@@ -159,6 +159,7 @@ export type Database = {
           benutzer_id: string | null
           created_at: string
           email: string | null
+          farbe_kalender: string | null
           id: string
           ist_aktiv: boolean
           max_termine_pro_tag: number | null
@@ -172,6 +173,7 @@ export type Database = {
           benutzer_id?: string | null
           created_at?: string
           email?: string | null
+          farbe_kalender?: string | null
           id?: string
           ist_aktiv?: boolean
           max_termine_pro_tag?: number | null
@@ -185,6 +187,7 @@ export type Database = {
           benutzer_id?: string | null
           created_at?: string
           email?: string | null
+          farbe_kalender?: string | null
           id?: string
           ist_aktiv?: boolean
           max_termine_pro_tag?: number | null
@@ -504,6 +507,8 @@ export type Database = {
       find_free_mitarbeiter: {
         Args: { p_end: string; p_kunden_id?: string; p_start: string }
         Returns: {
+          email: string
+          farbe_kalender: string
           mitarbeiter_id: string
           nachname: string
           vorname: string
