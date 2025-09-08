@@ -14,74 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          actor_benutzer_id: string | null
+          changed_at: string
+          id: number
+          new_data: Json | null
+          old_data: Json | null
+          operation: string
+          row_id: string | null
+          table_name: string
+        }
+        Insert: {
+          actor_benutzer_id?: string | null
+          changed_at?: string
+          id?: number
+          new_data?: Json | null
+          old_data?: Json | null
+          operation: string
+          row_id?: string | null
+          table_name: string
+        }
+        Update: {
+          actor_benutzer_id?: string | null
+          changed_at?: string
+          id?: number
+          new_data?: Json | null
+          old_data?: Json | null
+          operation?: string
+          row_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       benutzer: {
         Row: {
-          created_at: string | null
+          created_at: string
           email: string
           id: string
           nachname: string | null
           passwort_hash: string | null
           rolle: Database["public"]["Enums"]["user_rolle"]
-          updated_at: string | null
+          updated_at: string
           vorname: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           email: string
           id?: string
           nachname?: string | null
           passwort_hash?: string | null
           rolle: Database["public"]["Enums"]["user_rolle"]
-          updated_at?: string | null
+          updated_at?: string
           vorname?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           email?: string
           id?: string
           nachname?: string | null
           passwort_hash?: string | null
           rolle?: Database["public"]["Enums"]["user_rolle"]
-          updated_at?: string | null
+          updated_at?: string
           vorname?: string | null
         }
         Relationships: []
       }
       kunden: {
         Row: {
-          aktiv: boolean | null
-          created_at: string | null
+          aktiv: boolean
+          created_at: string
           email: string | null
           id: string
           nachname: string
           notfall_name: string | null
           notfall_telefon: string | null
           telefon: string | null
-          updated_at: string | null
+          updated_at: string
           vorname: string
         }
         Insert: {
-          aktiv?: boolean | null
-          created_at?: string | null
+          aktiv?: boolean
+          created_at?: string
           email?: string | null
           id?: string
           nachname: string
           notfall_name?: string | null
           notfall_telefon?: string | null
           telefon?: string | null
-          updated_at?: string | null
+          updated_at?: string
           vorname: string
         }
         Update: {
-          aktiv?: boolean | null
-          created_at?: string | null
+          aktiv?: boolean
+          created_at?: string
           email?: string | null
           id?: string
           nachname?: string
           notfall_name?: string | null
           notfall_telefon?: string | null
           telefon?: string | null
-          updated_at?: string | null
+          updated_at?: string
           vorname?: string
         }
         Relationships: []
@@ -124,41 +157,41 @@ export type Database = {
       mitarbeiter: {
         Row: {
           benutzer_id: string | null
-          created_at: string | null
+          created_at: string
           email: string | null
           id: string
-          ist_aktiv: boolean | null
+          ist_aktiv: boolean
           max_termine_pro_tag: number | null
           nachname: string
           soll_wochenstunden: number | null
           telefon: string | null
-          updated_at: string | null
+          updated_at: string
           vorname: string
         }
         Insert: {
           benutzer_id?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           id?: string
-          ist_aktiv?: boolean | null
+          ist_aktiv?: boolean
           max_termine_pro_tag?: number | null
           nachname: string
           soll_wochenstunden?: number | null
           telefon?: string | null
-          updated_at?: string | null
+          updated_at?: string
           vorname: string
         }
         Update: {
           benutzer_id?: string | null
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           id?: string
-          ist_aktiv?: boolean | null
+          ist_aktiv?: boolean
           max_termine_pro_tag?: number | null
           nachname?: string
           soll_wochenstunden?: number | null
           telefon?: string | null
-          updated_at?: string | null
+          updated_at?: string
           vorname?: string
         }
         Relationships: [
@@ -235,6 +268,81 @@ export type Database = {
           },
         ]
       }
+      termin_aenderungen: {
+        Row: {
+          approved_at: string | null
+          approver_id: string | null
+          created_at: string
+          id: string
+          new_end_at: string | null
+          new_kunden_id: string | null
+          new_mitarbeiter_id: string | null
+          new_start_at: string | null
+          old_end_at: string | null
+          old_kunden_id: string | null
+          old_mitarbeiter_id: string | null
+          old_start_at: string | null
+          reason: string | null
+          requested_by: string
+          status: Database["public"]["Enums"]["approval_status"]
+          termin_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id?: string | null
+          created_at?: string
+          id?: string
+          new_end_at?: string | null
+          new_kunden_id?: string | null
+          new_mitarbeiter_id?: string | null
+          new_start_at?: string | null
+          old_end_at?: string | null
+          old_kunden_id?: string | null
+          old_mitarbeiter_id?: string | null
+          old_start_at?: string | null
+          reason?: string | null
+          requested_by: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          termin_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string | null
+          created_at?: string
+          id?: string
+          new_end_at?: string | null
+          new_kunden_id?: string | null
+          new_mitarbeiter_id?: string | null
+          new_start_at?: string | null
+          old_end_at?: string | null
+          old_kunden_id?: string | null
+          old_mitarbeiter_id?: string | null
+          old_start_at?: string | null
+          reason?: string | null
+          requested_by?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          termin_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "termin_aenderungen_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "termin_aenderungen_termin_id_fkey"
+            columns: ["termin_id"]
+            isOneToOne: false
+            referencedRelation: "termine"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       termin_vorlagen: {
         Row: {
           created_at: string
@@ -303,37 +411,37 @@ export type Database = {
       }
       termine: {
         Row: {
-          created_at: string | null
+          created_at: string
           end_at: string
           id: string
-          kunden_id: string | null
+          kunden_id: string
           mitarbeiter_id: string | null
           start_at: string
-          status: Database["public"]["Enums"]["termin_status"] | null
+          status: Database["public"]["Enums"]["termin_status"]
           titel: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           end_at: string
           id?: string
-          kunden_id?: string | null
+          kunden_id: string
           mitarbeiter_id?: string | null
           start_at: string
-          status?: Database["public"]["Enums"]["termin_status"] | null
+          status?: Database["public"]["Enums"]["termin_status"]
           titel: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           end_at?: string
           id?: string
-          kunden_id?: string | null
+          kunden_id?: string
           mitarbeiter_id?: string | null
           start_at?: string
-          status?: Database["public"]["Enums"]["termin_status"] | null
+          status?: Database["public"]["Enums"]["termin_status"]
           titel?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -357,6 +465,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      app_clear_context: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      app_set_context: {
+        Args: { p_benutzer_id: string }
+        Returns: undefined
+      }
+      approve_termin_change: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       citext: {
         Args: { "": boolean } | { "": string } | { "": unknown }
         Returns: string
@@ -613,63 +733,31 @@ export type Database = {
         Args: { "": unknown }
         Returns: unknown
       }
-      generate_termine_from_vorlagen: {
-        Args: { end_date?: string; start_date?: string }
-        Returns: number
-      }
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
+      reject_termin_change: {
+        Args: { p_reason: string; p_request_id: string }
         Returns: undefined
       }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      is_authenticated_employee: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
-      }
-      suggest_slots_for_kunde: {
+      request_termin_change: {
         Args: {
-          p_dauer_min: number
-          p_kunden_id: string
-          p_step_min?: number
-          p_tag: string
+          p_new_end: string
+          p_new_kunde: string
+          p_new_mitarbeiter: string
+          p_new_start: string
+          p_reason: string
+          p_termin_id: string
         }
-        Returns: {
-          end_at: string
-          mitarbeiter_id: string
-          start_at: string
-        }[]
+        Returns: string
       }
     }
     Enums: {
-      recurrence_interval: "weekly" | "biweekly" | "monthly" | "quarterly"
-      termin_status: "scheduled" | "in_progress" | "completed" | "cancelled"
+      approval_status: "pending" | "approved" | "rejected"
+      recurrence_interval: "none" | "weekly" | "biweekly" | "monthly"
+      termin_status:
+        | "unassigned"
+        | "scheduled"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
       user_rolle: "admin" | "manager" | "mitarbeiter"
     }
     CompositeTypes: {
@@ -798,8 +886,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      recurrence_interval: ["weekly", "biweekly", "monthly", "quarterly"],
-      termin_status: ["scheduled", "in_progress", "completed", "cancelled"],
+      approval_status: ["pending", "approved", "rejected"],
+      recurrence_interval: ["none", "weekly", "biweekly", "monthly"],
+      termin_status: [
+        "unassigned",
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
       user_rolle: ["admin", "manager", "mitarbeiter"],
     },
   },
