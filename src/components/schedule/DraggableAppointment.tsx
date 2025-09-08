@@ -82,7 +82,7 @@ export function DraggableAppointment({ appointment, isDragging = false, isAssign
       style={style}
       {...attributes}
       className={cn(
-        'p-3 border-2 transition-all duration-200 cursor-move hover:shadow-md',
+        'p-2 border transition-all duration-200 cursor-move hover:shadow-sm',
         getStatusColor(appointment.status),
         isDragging && 'opacity-50 scale-105 shadow-lg',
         isAssigned && 'border-dashed'
@@ -91,21 +91,23 @@ export function DraggableAppointment({ appointment, isDragging = false, isAssign
       <div className="flex items-start gap-2">
         <div
           {...listeners}
-          className="text-muted-foreground hover:text-foreground transition-colors mt-1 cursor-grab active:cursor-grabbing"
+          className="text-muted-foreground hover:text-foreground transition-colors mt-0.5 cursor-grab active:cursor-grabbing flex-shrink-0"
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-3 w-3" />
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <h4 className="font-medium text-sm truncate">{appointment.titel}</h4>
-            {getStatusBadge(appointment.status)}
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h4 className="font-medium text-sm truncate leading-tight">{appointment.titel}</h4>
+            <div className="flex-shrink-0">
+              {getStatusBadge(appointment.status)}
+            </div>
           </div>
           
           <div className="space-y-1">
             {appointment.customer && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <User className="h-3 w-3" />
+                <User className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">
                   {appointment.customer.vorname} {appointment.customer.nachname}
                 </span>
@@ -113,9 +115,9 @@ export function DraggableAppointment({ appointment, isDragging = false, isAssign
             )}
             
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>
-                {format(new Date(appointment.start_at), 'dd.MM.yyyy HH:mm')} - {format(new Date(appointment.end_at), 'HH:mm')}
+              <Clock className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">
+                {format(new Date(appointment.start_at), 'HH:mm')} - {format(new Date(appointment.end_at), 'HH:mm')}
               </span>
             </div>
           </div>

@@ -444,25 +444,25 @@ const ScheduleBuilder = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="xl:col-span-1 space-y-4">
             {/* Employee List */}
-            <Card className="shadow-lg">
+            <Card className="border shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-4 w-4" />
                   Mitarbeiter
                 </CardTitle>
-                <div className="flex gap-2">
+                <div className="space-y-2">
                   <Input
-                    placeholder="Mitarbeiter suchen..."
+                    placeholder="Suchen..."
                     value={searchEmployee}
                     onChange={(e) => setSearchEmployee(e.target.value)}
-                    className="flex-1"
+                    className="h-8 text-sm"
                   />
                   <Select value={sortEmployees} onValueChange={setSortEmployees}>
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -472,8 +472,8 @@ const ScheduleBuilder = () => {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="space-y-3 max-h-80 overflow-y-auto">
+              <CardContent className="p-3 pt-0">
+                <div className="space-y-2 max-h-96 overflow-y-auto">
                   {filteredEmployees.map((employee) => (
                     <EmployeeCard
                       key={employee.id}
@@ -486,123 +486,118 @@ const ScheduleBuilder = () => {
             </Card>
 
             {/* Open Appointments */}
-            <Card className="shadow-lg">
+            <Card className="border shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
                   Offene Termine
                 </CardTitle>
                 <Input
-                  placeholder="Termine suchen..."
+                  placeholder="Suchen..."
                   value={searchAppointment}
                   onChange={(e) => setSearchAppointment(e.target.value)}
+                  className="h-8 text-sm"
                 />
               </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <DropZone
-                  id="unassigned"
-                  className="min-h-[200px]"
-                  isEmpty={filteredAppointments.length === 0}
-                >
+              <CardContent className="p-3 pt-0">
+                <DropZone id="unassigned" className="max-h-96 overflow-y-auto">
                   <SortableContext items={filteredAppointments.map(app => app.id)} strategy={verticalListSortingStrategy}>
-                    {filteredAppointments.map((appointment) => (
-                      <DraggableAppointment
-                        key={appointment.id}
-                        appointment={appointment}
-                        isDragging={activeId === appointment.id}
-                      />
-                    ))}
+                    <div className="space-y-2">
+                      {filteredAppointments.map((appointment) => (
+                        <DraggableAppointment
+                          key={appointment.id}
+                          appointment={appointment}
+                          isAssigned={false}
+                        />
+                      ))}
+                    </div>
                   </SortableContext>
+                  {filteredAppointments.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Calendar className="mx-auto h-8 w-8 opacity-50 mb-2" />
+                      <p className="text-sm">Keine offenen Termine</p>
+                    </div>
+                  )}
                 </DropZone>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main Schedule */}
-          <div className="lg:col-span-3">
-            <Card className="shadow-lg">
+          {/* Schedule Grid */}
+          <div className="xl:col-span-4">
+            <Card className="border shadow-sm">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Wochenplan
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CalendarDays className="h-4 w-4" />
+                  Wochenansicht
+                </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 pt-0">
-                {/* Week Headers */}
-                <div className="grid grid-cols-8 gap-2 mb-4">
-                  <div className="p-3 text-sm font-medium text-muted-foreground">Mitarbeiter</div>
-                  {getWeekDates().map((date, index) => (
-                    <div key={index} className="p-3 text-center bg-muted/30 rounded-lg">
-                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {format(date, 'EEE', { locale: de })}
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <div className="min-w-[800px]">
+                    {/* Header */}
+                    <div className="grid grid-cols-8 border-b">
+                      <div className="p-3 bg-muted/50 font-medium text-sm border-r">
+                        Mitarbeiter
                       </div>
-                      <div className="text-lg font-bold mt-1">
-                        {format(date, 'd')}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(date, 'MMM', { locale: de })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <Separator className="mb-4" />
-
-                {/* Employee Rows */}
-                <div className="space-y-3">
-                  {filteredEmployees.map((employee) => (
-                    <div key={employee.id} className="grid grid-cols-8 gap-2 items-stretch">
-                      <div className="p-3 flex items-center gap-3 bg-muted/20 rounded-lg">
-                        <div 
-                          className="w-4 h-4 rounded-full border-2 border-white shadow-sm" 
-                          style={{ backgroundColor: employee.farbe_kalender }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium truncate block">{employee.name}</span>
-                          <span className="text-xs text-muted-foreground">{employee.email}</span>
+                      {getWeekDates().map((date, index) => (
+                        <div key={index} className="p-3 bg-muted/50 text-center border-r last:border-r-0">
+                          <div className="font-medium text-sm">
+                            {format(date, 'EEE', { locale: de })}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {format(date, 'dd.MM')}
+                          </div>
                         </div>
-                      </div>
-                      
-                      {getWeekDates().map((date, dayIndex) => {
-                        const appointmentCount = getAppointmentCount(employee.id, dayIndex);
-                        const dayAppointments = getAppointmentsForDate(employee.id, dayIndex);
-                        const isOverloaded = appointmentCount >= (employee.max_termine_pro_tag || 8);
-                        
-                        return (
-                          <DropZone
-                            key={dayIndex}
-                            id={`employee-${employee.id}-${dayIndex}`}
-                            className={cn(
-                              "min-h-[80px]",
-                              isOverloaded && "border-red-300 bg-red-50"
-                            )}
-                            isEmpty={dayAppointments.length === 0}
-                          >
-                            {dayAppointments.map((app) => (
-                              <DraggableAppointment
-                                key={app.id}
-                                appointment={app}
-                                isAssigned={true}
-                                isDragging={activeId === app.id}
-                              />
-                            ))}
-                            {appointmentCount > 0 && (
-                              <div className="text-xs text-muted-foreground mt-2 text-center">
-                                {appointmentCount} Termine
-                              </div>
-                            )}
-                          </DropZone>
-                        );
-                      })}
+                      ))}
                     </div>
-                  ))}
+                    
+                    {/* Employee Rows */}
+                    <div className="divide-y">
+                      {filteredEmployees.map((employee) => (
+                        <div key={employee.id} className="grid grid-cols-8">
+                          {/* Employee Info */}
+                          <div className="p-3 bg-muted/25 border-r">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full border border-white shadow-sm flex-shrink-0" 
+                                style={{ backgroundColor: employee.farbe_kalender }}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm truncate">{employee.name}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {appointments.filter(app => app.mitarbeiter_id === employee.id).length}/{employee.max_termine_pro_tag || 8} Termine
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Day Columns */}
+                          {getWeekDates().map((date, dayIndex) => (
+                            <div key={dayIndex} className="border-r last:border-r-0">
+                              <DropZone
+                                id={`employee-${employee.id}-${dayIndex}`}
+                                className="min-h-[120px] p-2"
+                                isEmpty={getAppointmentCount(employee.id, dayIndex) === 0}
+                                employeeName={employee.name}
+                                date={format(date, 'dd.MM')}
+                              >
+                                <div className="space-y-1">
+                                  {getAppointmentsForDate(employee.id, dayIndex).map((appointment) => (
+                                    <DraggableAppointment
+                                      key={appointment.id}
+                                      appointment={appointment}
+                                      isAssigned={true}
+                                    />
+                                  ))}
+                                </div>
+                              </DropZone>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

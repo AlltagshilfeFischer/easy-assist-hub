@@ -29,25 +29,23 @@ export function DropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        'min-h-[80px] p-2 rounded-lg border-2 border-dashed transition-all duration-200',
+        'min-h-[80px] p-2 rounded-md border border-dashed transition-all duration-200',
         isOver 
-          ? 'border-primary bg-primary/5 shadow-inner' 
-          : 'border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/20',
+          ? 'border-primary bg-primary/5' 
+          : 'border-border hover:border-muted-foreground/60 hover:bg-muted/20',
         isEmpty && 'flex items-center justify-center',
         className
       )}
     >
       {isEmpty && !children ? (
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <Plus className="h-6 w-6" />
+        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+          <Plus className="h-4 w-4" />
           <span className="text-xs text-center">
             Termin hierher ziehen
           </span>
         </div>
       ) : (
-        <div className="space-y-2">
-          {children}
-        </div>
+        children
       )}
     </div>
   );
