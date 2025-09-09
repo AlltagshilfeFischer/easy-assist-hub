@@ -276,7 +276,7 @@ const ScheduleBuilder = () => {
       const parts = overIdStr.split('-');
       
       if (parts.length >= 3 && parts[0] === 'employee') {
-        const employeeId = parts[1];
+        const employeeId = parts.slice(1, -1).join('-'); // Join all parts except first and last to handle UUIDs with dashes
         
         try {
           // Update appointment assignment
