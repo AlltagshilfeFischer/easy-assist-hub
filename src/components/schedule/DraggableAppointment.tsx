@@ -53,7 +53,7 @@ export function DraggableAppointment({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'unassigned':
-        return 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200 hover:border-orange-300';
+        return 'bg-gradient-to-r from-amber-100 to-orange-200 border-2 border-orange-400 shadow-lg hover:shadow-xl ring-2 ring-orange-200';
       case 'scheduled':
         return 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 hover:border-blue-300';
       case 'in_progress':
@@ -70,7 +70,7 @@ export function DraggableAppointment({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'unassigned':
-        return <Badge variant="outline" className="text-orange-700 border-orange-300 text-xs px-1 py-0">Unzugewiesen</Badge>;
+        return <Badge className="bg-orange-500 text-white border-0 text-xs px-2 py-1 font-bold animate-pulse">ZUORDNUNG ERFORDERLICH</Badge>;
       case 'scheduled':
         return <Badge variant="outline" className="text-blue-700 border-blue-300 text-xs px-1 py-0">Geplant</Badge>;
       case 'in_progress':
@@ -92,46 +92,71 @@ export function DraggableAppointment({
       {...attributes}
       {...listeners}
       className={cn(
-        'p-2 border-2 transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-md text-xs group',
+        'p-3 border-2 transition-all duration-300 cursor-grab active:cursor-grabbing hover:shadow-lg text-xs group rounded-lg',
         getStatusColor(appointment.status),
         isDragging && 'opacity-50 scale-105 shadow-xl ring-2 ring-primary/20 z-50',
         isAssigned && 'border-dashed',
         isConflicting && 'ring-2 ring-red-500 ring-opacity-50 border-red-300 animate-pulse',
-        'hover:scale-102 hover:shadow-lg active:scale-95',
-        !isDragging && 'hover:border-primary/40'
+        'hover:scale-105 hover:shadow-xl active:scale-95 transform',
+        !isDragging && 'hover:border-primary/40',
+        appointment.status === 'unassigned' && 'hover:scale-110 hover:rotate-1 hover:shadow-2xl'
       )}
     >
-      <div className="flex items-start gap-2">
-        <div className="text-muted-foreground group-hover:text-primary transition-colors mt-0.5 flex-shrink-0">
-          <GripVertical className="h-3 w-3" />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-1 mb-1">
-            <h4 className="font-semibold text-sm truncate leading-tight group-hover:text-primary transition-colors">{appointment.titel}</h4>
-            <div className="flex-shrink-0">
-              {getStatusBadge(appointment.status)}
+      <div className="space-y-2">
+        {/* Status Badge prominently displayed at top */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0">
+              <GripVertical className="h-4 w-4" />
             </div>
-          </div>
-          
-          <div className="space-y-1">
-            {appointment.customer && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <User className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate font-medium">
-                  {appointment.customer.vorname} {appointment.customer.nachname}
-                </span>
-              </div>
+            {appointment.status === 'unassigned' && (
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
             )}
-            
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate font-medium">
-                {format(new Date(appointment.start_at), 'HH:mm')} - {format(new Date(appointment.end_at), 'HH:mm')}
-              </span>
-            </div>
           </div>
+          {getStatusBadge(appointment.status)}
         </div>
+
+        {/* Appointment Title - Large and prominent */}
+        <h4 className={cn(
+          "font-bold text-sm leading-tight group-hover:text-primary transition-colors",
+          appointment.status === 'unassigned' && "text-orange-800 text-base"
+        )}>
+          {appointment.titel}
+        </h4>
+        
+        {/* Customer Info - Very prominent for unassigned */}
+        {appointment.customer && (
+          <div className={cn(
+            "flex items-center gap-2 p-2 rounded-md bg-white/50",
+            appointment.status === 'unassigned' && "bg-orange-50 border border-orange-200"
+          )}>
+            <User className={cn(
+              "h-4 w-4 flex-shrink-0",
+              appointment.status === 'unassigned' ? "text-orange-600" : "text-muted-foreground"
+            )} />
+            <span className={cn(
+              "font-semibold text-sm",
+              appointment.status === 'unassigned' ? "text-orange-800" : "text-muted-foreground"
+            )}>
+              {appointment.customer.vorname} {appointment.customer.nachname}
+            </span>
+          </div>
+        )}
+        
+        {/* Time Info */}
+        <div className="flex items-center gap-2 text-xs">
+          <Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          <span className="font-medium text-muted-foreground">
+            {format(new Date(appointment.start_at), 'HH:mm')} - {format(new Date(appointment.end_at), 'HH:mm')}
+          </span>
+        </div>
+
+        {/* Assignment Instruction for unassigned appointments */}
+        {appointment.status === 'unassigned' && (
+          <div className="text-xs text-orange-700 font-medium bg-orange-100 p-1 rounded text-center">
+            ⤴ Auf Mitarbeiter ziehen
+          </div>
+        )}
       </div>
     </Card>
   );

@@ -133,31 +133,34 @@ export function CalendarGrid({
         {employees.filter(emp => emp.ist_aktiv).map((employee) => (
           <div key={employee.id} className="grid grid-cols-8 gap-2">
             {/* Employee Info Cell */}
-            <Card className="h-full min-h-[120px] border shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-3 h-full flex flex-col">
-                <div className="flex items-start gap-2 mb-2">
+            <Card className="h-full min-h-[140px] border-2 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
+              <CardContent className="p-4 h-full flex flex-col">
+                <div className="flex items-start gap-3 mb-3">
                   <div 
-                    className="w-3 h-3 rounded-full border border-white shadow-sm mt-0.5 flex-shrink-0" 
+                    className="w-4 h-4 rounded-full border-2 border-white shadow-md mt-0.5 flex-shrink-0" 
                     style={{ backgroundColor: employee.farbe_kalender }}
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm truncate">{employee.name}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
+                    <h3 className="font-bold text-sm truncate text-foreground">{employee.name}</h3>
+                    <p className="text-xs text-muted-foreground truncate font-medium">{employee.email}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                   <Phone className="h-3 w-3 flex-shrink-0" />
-                  <span className="truncate">{employee.telefon}</span>
+                  <span className="truncate font-medium">{employee.telefon}</span>
                 </div>
 
-                <div className="mt-auto">
+                <div className="mt-auto space-y-2">
                   <Badge 
                     variant={employee.ist_aktiv ? "default" : "secondary"}
-                    className="text-xs"
+                    className="text-xs font-semibold"
                   >
                     {employee.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
                   </Badge>
+                  <div className="text-xs text-muted-foreground">
+                    Max: {employee.max_termine_pro_tag} Termine/Tag
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -173,21 +176,22 @@ export function CalendarGrid({
                 <Card 
                   key={dayIndex} 
                   className={cn(
-                    "min-h-[120px] transition-all duration-200",
-                    getWorkloadColor(workloadInfo.percentage, workloadInfo.isOverbooked)
+                    "min-h-[140px] transition-all duration-300 border-2 hover:shadow-lg",
+                    getWorkloadColor(workloadInfo.percentage, workloadInfo.isOverbooked),
+                    isEmpty && "hover:border-orange-300 hover:bg-orange-50/50"
                   )}
                 >
-                  <CardContent className="p-2 h-full">
+                  <CardContent className="p-3 h-full">
                     {/* Workload indicator */}
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-1">
                         {workloadInfo.isOverbooked ? (
-                          <AlertTriangle className="h-3 w-3 text-red-600" />
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
                         ) : (
-                          <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         )}
                         <span className={cn(
-                          'text-xs font-medium',
+                          'text-sm font-bold',
                           workloadInfo.isOverbooked ? 'text-red-600' : 
                           workloadInfo.isNearCapacity ? 'text-orange-600' : 'text-muted-foreground'
                         )}>
@@ -195,11 +199,18 @@ export function CalendarGrid({
                         </span>
                       </div>
                       {workloadInfo.isOverbooked && (
-                        <Badge variant="destructive" className="text-xs">
+                        <Badge variant="destructive" className="text-xs font-bold">
                           Überlastet
                         </Badge>
                       )}
                     </div>
+
+                    {/* Drop instruction for empty slots */}
+                    {isEmpty && (
+                      <div className="text-center text-xs text-muted-foreground font-medium mb-2 p-2 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50/30">
+                        Termine hier hinziehen
+                      </div>
+                    )}
 
                     <EnhancedDropZone
                       id={dropZoneId}
@@ -207,7 +218,7 @@ export function CalendarGrid({
                       employeeName={employee.name}
                       date={format(date, 'dd.MM.yyyy')}
                       workloadInfo={workloadInfo}
-                      className="h-full min-h-[100px]"
+                      className="h-full min-h-[110px]"
                     >
                       <div className="space-y-1">
                         {dayAppointments.map((appointment) => (

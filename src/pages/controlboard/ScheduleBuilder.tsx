@@ -619,31 +619,50 @@ const ScheduleBuilder = () => {
           </Card>
         </div>
 
-        {/* Open Appointments Section */}
-        <Card className="border shadow-sm bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base text-orange-800">
-              <AlertTriangle className="h-4 w-4" />
-              Offene Termine
+        {/* Open Appointments Section - Highly Visible */}
+        <Card className="border-4 border-orange-400 shadow-xl bg-gradient-to-br from-orange-100 via-amber-50 to-orange-100 relative overflow-hidden">
+          {/* Animated background pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-200 via-transparent to-orange-200 animate-pulse"></div>
+          </div>
+          
+          <CardHeader className="pb-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white relative">
+            <CardTitle className="flex items-center gap-3 text-lg font-bold">
+              <div className="p-2 bg-white rounded-full">
+                <AlertTriangle className="h-6 w-6 text-orange-500 animate-bounce" />
+              </div>
+              🎯 KUNDENTERMINE - ZUORDNUNG ERFORDERLICH
+              <Badge className="ml-auto bg-white text-orange-600 font-bold text-lg px-3 py-1 animate-pulse">
+                {filteredAppointments.length}
+              </Badge>
             </CardTitle>
-            <div className="space-y-2">
+            <div className="space-y-3">
+              <div className="bg-white/20 rounded-lg p-3 text-center">
+                <p className="text-sm font-medium">
+                  📋 Diese Termine warten auf Mitarbeiterzuordnung
+                </p>
+                <p className="text-xs mt-1 opacity-90">
+                  Ziehen Sie die Termine auf die gewünschten Mitarbeiter-Zeitslots im Kalender unten
+                </p>
+              </div>
               <Input
-                placeholder="Termine suchen..."
+                placeholder="🔍 Termine nach Titel oder Kunde suchen..."
                 value={searchAppointment}
                 onChange={(e) => setSearchAppointment(e.target.value)}
-                className="h-8 text-sm"
+                className="h-10 text-sm bg-white border-2 border-orange-200 focus:border-white"
               />
             </div>
           </CardHeader>
-          <CardContent className="p-3 pt-0">
+          <CardContent className="p-4 relative">
             <DropZone id="unassigned" isEmpty={filteredAppointments.length === 0}>
               <SortableContext items={filteredAppointments.map(app => app.id)} strategy={verticalListSortingStrategy}>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-64 overflow-y-auto">
                   {filteredAppointments.map((appointment) => (
                     <DraggableAppointment
                       key={appointment.id}
                       appointment={appointment}
                       isDragging={activeId === appointment.id}
+                      onClick={() => setEditingAppointment(appointment)}
                     />
                   ))}
                 </div>
