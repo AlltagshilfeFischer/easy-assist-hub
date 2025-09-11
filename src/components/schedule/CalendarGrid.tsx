@@ -122,14 +122,15 @@ export function CalendarGrid({
               </div>
             </div>
 
-            {/* Dynamic Day Slots */}
+            {/* Dynamic Day Slots - Create robust drop zones */}
             {weekDates.map((date, dayIndex) => {
               const dayAppointments = getAppointmentsForDate(employee.id, date);
+              // Create consistent drop zone ID: employee-{uuid}-{dayIndex}
               const dropZoneId = `employee-${employee.id}-${dayIndex}`;
               const hasAppointments = dayAppointments.length > 0;
 
               return (
-                <div key={dayIndex} className={cn(
+                <div key={`${employee.id}-day-${dayIndex}`} className={cn(
                   "min-h-[60px]",
                   weekDates.length > 7 && "min-h-[40px]" // Smaller height for month view
                 )}>
@@ -138,7 +139,13 @@ export function CalendarGrid({
                     isEmpty={!hasAppointments}
                     employeeName={employee.name}
                     date={format(date, 'dd.MM.yyyy')}
-                    workloadInfo={null}
+                    workloadInfo={{
+                      count: dayAppointments.length,
+                      max: employee.max_termine_pro_tag || 8,
+                      percentage: Math.round((dayAppointments.length / (employee.max_termine_pro_tag || 8)) * 100),
+                      isOverbooked: dayAppointments.length > (employee.max_termine_pro_tag || 8),
+                      isNearCapacity: dayAppointments.length >= (employee.max_termine_pro_tag || 8) * 0.8
+                    }}
                     className={cn(
                       "transition-all duration-200 rounded-lg",
                       weekDates.length > 7 ? "min-h-[40px]" : "min-h-[60px]",

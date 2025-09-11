@@ -406,50 +406,80 @@ const ScheduleBuilder = () => {
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
-    console.log('Drag end event:', { activeId: active.id, overId: over?.id });
+    console.log('=== DRAG END EVENT ===');
+    console.log('Active ID:', active.id);
+    console.log('Over ID:', over?.id);
     
     if (!over) {
-      console.log('No drop target detected');
+      console.log('❌ No drop target detected');
       setActiveId(null);
       return;
     }
 
     const activeIdStr = active.id as string;
     
-    // Handle employee sorting
+    // Handle employee sorting (different logic)
     if (activeIdStr.startsWith('employee-sort-')) {
+      console.log('📋 Handling employee sorting');
       handleEmployeeSort(event);
       setActiveId(null);
       return;
     }
 
+    // Handle appointment assignment
     const appointmentId = activeIdStr;
     const appointment = appointments.find(app => app.id === appointmentId);
     
     if (!appointment) {
+      console.log('❌ Appointment not found:', appointmentId);
       setActiveId(null);
       return;
     }
 
-    // Handle dropping on employee schedule
-    if (over.id.toString().startsWith('employee-')) {
-      console.log('Dropping on employee zone:', over.id);
-      // Parse the drop zone ID correctly
-      const overIdStr = over.id.toString();
+    console.log('📅 Found appointment:', appointment.titel);
+
+    // Parse drop target
+    const overIdStr = over.id.toString();
+    console.log('🎯 Drop target:', overIdStr);
+
+    // Case 1: Dropping on employee zone (assignment)
+    if (overIdStr.startsWith('employee-')) {
       const parts = overIdStr.split('-');
-      console.log('Drop zone parts:', parts);
+      console.log('🔍 Parsing employee drop zone:', parts);
       
       if (parts.length >= 3 && parts[0] === 'employee') {
-        const employeeId = parts.slice(1, -1).join('-'); // Join all parts except first and last to handle UUIDs with dashes
-        console.log('Extracted employee ID:', employeeId);
+        // Extract employee ID (handle UUIDs with dashes)
+        const employeeId = parts.slice(1, -1).join('-');
+        console.log('✅ Extracted employee ID:', employeeId);
+        
+        // Verify employee exists
+        const employee = employees.find(emp => emp.id === employeeId);
+        if (!employee) {
+          console.log('❌ Employee not found:', employeeId);
+          toast({
+            title: 'Fehler',
+            description: 'Mitarbeiter nicht gefunden.',
+            variant: 'destructive',
+          });
+          setActiveId(null);
+          return;
+        }
+
+        console.log('🎯 Assigning to employee:', employee.name);
         await assignAppointment(appointmentId, employeeId);
       } else {
-        console.log('Could not parse employee ID from drop zone');
+        console.log('❌ Could not parse employee ID from drop zone');
+        toast({
+          title: 'Fehler',
+          description: 'Ungültiger Drop-Bereich.',
+          variant: 'destructive',
+        });
       }
     }
     
-    // Handle dropping on unassigned area
-    if (over.id === 'unassigned') {
+    // Case 2: Dropping on unassigned area (unassignment)
+    else if (overIdStr === 'unassigned') {
+      console.log('📤 Unassigning appointment');
       try {
         // Update local state immediately for instant UI feedback
         setAppointments(prev => prev.map(app => 
@@ -474,16 +504,21 @@ const ScheduleBuilder = () => {
 
         toast({
           title: 'Erfolg',
-          description: 'Termin wurde zu offenen Schichten verschoben.',
+          description: `Termin "${appointment.titel}" wurde zu offenen Terminen verschoben.`,
         });
       } catch (error) {
-        console.error('Error updating appointment:', error);
+        console.error('Error unassigning appointment:', error);
         toast({
           title: 'Fehler',
           description: 'Termin konnte nicht verschoben werden.',
           variant: 'destructive',
         });
       }
+    }
+    
+    // Case 3: Unknown drop target
+    else {
+      console.log('❌ Unknown drop target:', overIdStr);
     }
 
     setActiveId(null);
