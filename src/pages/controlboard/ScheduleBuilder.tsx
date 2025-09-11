@@ -287,24 +287,8 @@ const ScheduleBuilder = () => {
     );
   };
 
-  const assignAppointment = async (appointmentId: string, employeeId: string, forceAssign = false) => {
+  const assignAppointment = async (appointmentId: string, employeeId: string) => {
     try {
-      // Check for conflicts unless forcing assignment
-      if (!forceAssign) {
-        const conflicts = checkForConflicts(appointmentId, employeeId);
-        console.log('Conflict check result:', conflicts);
-        if (conflicts.length > 0) {
-          console.log('Conflicts found, showing warning dialog');
-          setConflictWarning({
-            show: true,
-            appointmentId,
-            employeeId,
-            conflicts
-          });
-          return;
-        }
-      }
-
       console.log('Assigning appointment:', appointmentId, 'to employee:', employeeId);
 
       // Update local state immediately for instant UI feedback
@@ -327,13 +311,10 @@ const ScheduleBuilder = () => {
         .eq('id', appointmentId);
 
       if (error) throw error;
-
-      const hasConflicts = checkForConflicts(appointmentId, employeeId).length > 0;
       
       toast({
-        title: hasConflicts ? 'Termin zugewiesen (mit Konflikten)' : 'Erfolg',
-        description: `Termin "${appointment?.titel}" wurde ${employee?.name} zugewiesen.${hasConflicts ? ' ⚠️ Zeitkonflikt!' : ''}`,
-        variant: hasConflicts ? 'destructive' : 'default',
+        title: 'Erfolg',
+        description: `${appointment?.customer?.vorname} ${appointment?.customer?.nachname} → ${employee?.name}`,
       });
       
     } catch (error: any) {
@@ -346,15 +327,15 @@ const ScheduleBuilder = () => {
       ));
       
       toast({
-        title: 'Fehler',
-        description: 'Termin konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut.',
+        title: 'Zuordnung fehlgeschlagen',
+        description: 'Technisches Problem aufgetreten.',
         variant: 'destructive',
       });
     }
   };
 
   const handleConflictConfirm = () => {
-    assignAppointment(conflictWarning.appointmentId, conflictWarning.employeeId, true);
+    assignAppointment(conflictWarning.appointmentId, conflictWarning.employeeId);
     setConflictWarning({ show: false, appointmentId: '', employeeId: '', conflicts: [] });
   };
 

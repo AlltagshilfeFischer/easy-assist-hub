@@ -56,129 +56,45 @@ export function DraggableAppointment({
     transition,
   };
 
-  const isUnassigned = !appointment.mitarbeiter_id;
-  
-  const getCustomerAvailabilityDays = () => {
-    if (!appointment.customer?.availability) return [];
-    
-    const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-    return appointment.customer.availability.map(avail => ({
-      day: dayNames[avail.wochentag],
-      time: `${avail.von.slice(0,5)}-${avail.bis.slice(0,5)}`,
-      priority: avail.prioritaet
-    }));
+  const formatTime = (dateString: string) => {
+    return format(new Date(dateString), 'HH:mm');
   };
-  
-  const getCardStyle = () => {
-    if (isUnassigned) {
-      return 'bg-muted/50 border border-muted-foreground/20 hover:border-muted-foreground/40';
-    }
-    return 'bg-card border border-border hover:border-primary/40';
+
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'dd.MM');
   };
 
   return (
-    <Card
+    <div
       ref={setNodeRef}
       style={style}
-      onClick={onClick}
+      className={cn(
+        "cursor-grab active:cursor-grabbing transition-all duration-200",
+        "border rounded-md p-2 bg-card hover:bg-accent/50 shadow-sm",
+        "min-w-[100px] text-xs",
+        isDragging && "opacity-60 scale-95",
+        isConflicting && "border-destructive bg-destructive/10"
+      )}
       {...attributes}
       {...listeners}
-      className={cn(
-        'transition-all duration-200 cursor-grab active:cursor-grabbing text-xs group rounded-md',
-        getCardStyle(),
-        isDragging && 'opacity-50 scale-105 shadow-lg ring-2 ring-primary/20 z-50',
-        isConflicting && 'ring-2 ring-red-500 ring-opacity-50 border-red-300',
-        isUnassigned ? 'p-2 hover:scale-102' : 'p-3 hover:scale-105 hover:shadow-lg'
-      )}
+      onClick={onClick}
     >
-      <div className={cn("space-y-1", isUnassigned && "space-y-1")}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <div className="text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0">
-              <GripVertical className={cn("h-3 w-3", isUnassigned && "h-2.5 w-2.5")} />
-            </div>
-          </div>
-          {isUnassigned && (
-            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
-          )}
-        </div>
-
-        {appointment.titel && appointment.titel !== 'Aktueller Termin' && (
-          <h4 className={cn(
-            "font-medium leading-tight group-hover:text-primary transition-colors",
-            isUnassigned ? "text-xs text-muted-foreground" : "text-sm"
-          )}>
-            {appointment.titel}
-          </h4>
-        )}
-        
-        {appointment.customer && (
-          <div className={cn(
-            "flex items-center gap-1",
-            isUnassigned ? "p-1" : "p-2 rounded-md bg-white/50"
-          )}>
-            <User className={cn(
-              "flex-shrink-0 text-muted-foreground",
-              isUnassigned ? "h-2.5 w-2.5" : "h-4 w-4"
-            )} />
-            <span className={cn(
-              "font-medium",
-              isUnassigned ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground"
-            )}>
-              {appointment.customer.vorname} {appointment.customer.nachname}
-            </span>
-          </div>
-        )}
-        
-        {/* Customer availability days */}
-        {appointment.customer?.availability && isUnassigned && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            <Calendar className="h-2.5 w-2.5 text-muted-foreground mt-0.5" />
-            {getCustomerAvailabilityDays().map((avail, idx) => (
-              <Badge 
-                key={idx} 
-                variant="outline" 
-                className={cn(
-                  "text-xs px-1 py-0 h-4",
-                  avail.priority === 1 ? "border-green-300 text-green-700" :
-                  avail.priority === 2 ? "border-yellow-300 text-yellow-700" :
-                  "border-orange-300 text-orange-700"
-                )}
-              >
-                {avail.day}
-              </Badge>
-            ))}
-          </div>
-        )}
-        
-        {/* Appointment Day and Time */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-1">
-            <Calendar className={cn(
-              "flex-shrink-0 text-muted-foreground",
-              isUnassigned ? "h-2.5 w-2.5" : "h-3 w-3"
-            )} />
-            <span className={cn(
-              "font-medium text-muted-foreground",
-              isUnassigned ? "text-xs" : "text-xs"
-            )}>
-              {format(new Date(appointment.start_at), 'EEE, dd.MM.yyyy', { locale: de })}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className={cn(
-              "flex-shrink-0 text-muted-foreground",
-              isUnassigned ? "h-2.5 w-2.5" : "h-3 w-3"
-            )} />
-            <span className={cn(
-              "font-medium text-muted-foreground",
-              isUnassigned ? "text-xs" : "text-xs"
-            )}>
-              {format(new Date(appointment.start_at), 'HH:mm')} - {format(new Date(appointment.end_at), 'HH:mm')}
-            </span>
-          </div>
-        </div>
+      {/* Customer Name - most prominent */}
+      <div className="font-medium text-foreground truncate">
+        {appointment.customer?.vorname} {appointment.customer?.nachname}
       </div>
-    </Card>
+      
+      {/* Date and Time - essential info */}
+      <div className="text-muted-foreground mt-1">
+        {formatDate(appointment.start_at)} • {formatTime(appointment.start_at)}
+      </div>
+
+      {/* Title if different from customer name */}
+      {appointment.titel && (
+        <div className="text-muted-foreground/70 mt-1 truncate">
+          {appointment.titel}
+        </div>
+      )}
+    </div>
   );
 }

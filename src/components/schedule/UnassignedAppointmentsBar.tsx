@@ -38,92 +38,37 @@ export function UnassignedAppointmentsBar({
   activeId,
   onEditAppointment
 }: UnassignedAppointmentsBarProps) {
-  // Group unassigned appointments by date
-  const groupedAppointments = React.useMemo(() => {
-    const groups: { [key: string]: Appointment[] } = {};
-    
-    appointments
-      .filter(app => !app.mitarbeiter_id)
-      .forEach(appointment => {
-        const dateKey = format(new Date(appointment.start_at), 'yyyy-MM-dd');
-        if (!groups[dateKey]) {
-          groups[dateKey] = [];
-        }
-        groups[dateKey].push(appointment);
-      });
-    
-    return groups;
-  }, [appointments]);
+  const unassignedAppointments = React.useMemo(() => 
+    appointments.filter(app => !app.mitarbeiter_id),
+    [appointments]
+  );
 
-  const totalUnassigned = appointments.filter(app => !app.mitarbeiter_id).length;
-
-  if (totalUnassigned === 0) {
+  if (unassignedAppointments.length === 0) {
     return null;
   }
 
   return (
-    <Card className="border-2 border-warning bg-gradient-to-r from-warning/10 to-orange-50 shadow-md">
+    <Card className="border border-muted bg-muted/20">
       <CardContent className="p-3">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <h3 className="font-medium text-warning-foreground">Unzugeordnete Termine</h3>
-            <Badge variant="destructive" className="bg-warning text-warning-foreground text-xs">
-              {totalUnassigned}
-            </Badge>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="text-sm font-medium text-foreground">
+            Unzugeordnete Termine
           </div>
-          <div className="text-sm text-muted-foreground">
-            Termine ohne Mitarbeiter - Per Drag & Drop zuordnen
-          </div>
+          <Badge variant="secondary" className="text-xs">
+            {unassignedAppointments.length}
+          </Badge>
         </div>
 
-        {/* Grid matching calendar days - exact same structure as CalendarGrid */}
-        <div className={`grid gap-1 ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,1fr)]' : 'grid-cols-8'}`}>
-          {/* Employee column header */}
-          <div className="bg-muted/30 rounded p-2">
-            <div className="text-xs font-medium text-muted-foreground">Unzugeordnet</div>
-          </div>
-          
-          {/* Date headers - exact same as CalendarGrid */}
-          {weekDates.map((date) => (
-            <div key={date.toISOString()} className="text-center bg-muted/20 rounded p-1">
-              <div className="text-xs font-medium text-muted-foreground">
-                {format(date, 'EEE', { locale: de })}
-              </div>
-              <div className="text-xs font-semibold text-foreground">
-                {format(date, 'dd.MM')}
-              </div>
-            </div>
+        <div className="flex flex-wrap gap-2">
+          {unassignedAppointments.map((appointment) => (
+            <DraggableAppointment
+              key={appointment.id}
+              appointment={appointment}
+              isDragging={activeId === appointment.id}
+              isConflicting={false}
+              onClick={() => onEditAppointment(appointment)}
+            />
           ))}
-
-          {/* Empty spacer for employee column alignment */}
-          <div></div>
-
-          {/* Appointments for each day - exact same grid structure as CalendarGrid */}
-          {weekDates.map((date) => {
-            const dateKey = format(date, 'yyyy-MM-dd');
-            const dayAppointments = groupedAppointments[dateKey] || [];
-
-            return (
-              <div key={dateKey} className="min-h-[50px] space-y-1">
-                {dayAppointments.length > 0 ? (
-                  dayAppointments.map((appointment) => (
-                    <DraggableAppointment
-                      key={appointment.id}
-                      appointment={appointment}
-                      isDragging={activeId === appointment.id}
-                      isConflicting={false}
-                      onClick={() => onEditAppointment(appointment)}
-                    />
-                  ))
-                ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground opacity-60">
-                    -
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       </CardContent>
     </Card>
