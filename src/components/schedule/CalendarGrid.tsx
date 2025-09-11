@@ -91,8 +91,8 @@ export function CalendarGrid({
 
   return (
     <div className="calendar-grid">
-      {/* Compact Header Row - exact same structure as UnassignedAppointmentsBar */}
-      <div className={`grid gap-1 mb-2 bg-muted/30 p-2 rounded-lg ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,1fr)]' : 'grid-cols-8'}`}>
+      {/* Header Row */}
+      <div className={`grid gap-2 mb-2 bg-muted/20 p-2 rounded-lg ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,1fr)]' : 'grid-cols-[200px_repeat(7,1fr)]'}`}>
         <div className="text-xs font-semibold text-muted-foreground px-2 py-1">
           Mitarbeiter
         </div>
@@ -110,9 +110,9 @@ export function CalendarGrid({
 
       <div className="space-y-1">
         {sortedEmployees.map((employee) => (
-          <div key={employee.id} className={`grid gap-1 ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,1fr)]' : 'grid-cols-8'}`}>
-            {/* Compact Employee Info */}
-            <div className="bg-card border rounded-lg p-2 shadow-sm hover:shadow-md transition-shadow">
+          <div key={employee.id} className={`grid gap-2 ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,1fr)]' : 'grid-cols-[200px_repeat(7,1fr)]'}`}>
+            {/* Employee Info */}
+            <div className="bg-card border rounded-lg p-2 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <div 
                   className="w-3 h-3 rounded-full border border-border flex-shrink-0" 
@@ -121,67 +121,43 @@ export function CalendarGrid({
                 <h3 className="font-semibold text-xs truncate text-foreground">{employee.name}</h3>
               </div>
               <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
-              <div className="flex items-center gap-1 mt-1">
-                <Phone className="h-2.5 w-2.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground truncate">{employee.telefon}</span>
-              </div>
             </div>
 
-            {/* Dynamic Day Slots - Create robust drop zones */}
+            {/* Day Slots */}
             {weekDates.map((date, dayIndex) => {
               const dayAppointments = getAppointmentsForDate(employee.id, date);
-              // Create consistent drop zone ID: employee-{uuid}-{dayIndex}
               const dropZoneId = `employee-${employee.id}-${dayIndex}`;
-              const hasAppointments = dayAppointments.length > 0;
 
               return (
-                <div key={`${employee.id}-day-${dayIndex}`} className={cn(
-                  "min-h-[60px]",
-                  weekDates.length > 7 && "min-h-[40px]" // Smaller height for month view
-                )}>
+                <div key={`${employee.id}-day-${dayIndex}`} className="min-h-[80px]">
                   <EnhancedDropZone
                     id={dropZoneId}
-                    isEmpty={!hasAppointments}
+                    isEmpty={dayAppointments.length === 0}
                     employeeName={employee.name}
                     date={format(date, 'dd.MM.yyyy')}
-                    workloadInfo={{
-                      count: dayAppointments.length,
-                      max: employee.max_termine_pro_tag || 8,
-                      percentage: Math.round((dayAppointments.length / (employee.max_termine_pro_tag || 8)) * 100),
-                      isOverbooked: dayAppointments.length > (employee.max_termine_pro_tag || 8),
-                      isNearCapacity: dayAppointments.length >= (employee.max_termine_pro_tag || 8) * 0.8
-                    }}
                     className={cn(
-                      "transition-all duration-200 rounded-lg",
-                      weekDates.length > 7 ? "min-h-[40px]" : "min-h-[60px]",
-                      hasAppointments 
-                        ? "bg-card border shadow-sm" 
-                        : "border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5"
+                      "transition-all duration-200 rounded-lg min-h-[80px] p-1",
+                      dayAppointments.length === 0 
+                        ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5" 
+                        : "bg-card border shadow-sm space-y-1"
                     )}
                   >
-                    {!hasAppointments ? (
+                    {dayAppointments.length === 0 ? (
                       <div className="h-full flex items-center justify-center">
-                        {weekDates.length <= 7 && (
-                          <div className="text-xs text-muted-foreground text-center opacity-60">
-                            Termin zuweisen
-                          </div>
-                        )}
+                        <div className="text-xs text-muted-foreground/60 text-center">
+                          Termin hier ablegen
+                        </div>
                       </div>
                     ) : (
-                      <div className={cn(
-                        "space-y-1",
-                        weekDates.length > 7 ? "p-0.5" : "p-1"
-                      )}>
-                        {dayAppointments.map((appointment) => (
-                          <DraggableAppointment
-                            key={appointment.id}
-                            appointment={appointment}
-                            isDragging={activeId === appointment.id}
-                            isConflicting={conflictingAppointments.has(appointment.id)}
-                            onClick={() => onEditAppointment(appointment)}
-                          />
-                        ))}
-                      </div>
+                      dayAppointments.map((appointment) => (
+                        <DraggableAppointment
+                          key={appointment.id}
+                          appointment={appointment}
+                          isDragging={activeId === appointment.id}
+                          isConflicting={conflictingAppointments.has(appointment.id)}
+                          onClick={() => onEditAppointment(appointment)}
+                        />
+                      ))
                     )}
                   </EnhancedDropZone>
                 </div>
