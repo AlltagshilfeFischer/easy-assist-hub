@@ -260,13 +260,17 @@ const ScheduleBuilder = () => {
       return;
     }
 
-    const oldIndex = employeeOrder.indexOf(active.id as string);
-    const newIndex = employeeOrder.indexOf(over.id as string);
+    // Extract employee IDs from the sort prefixed IDs
+    const activeEmployeeId = (active.id as string).replace('employee-sort-', '');
+    const overEmployeeId = (over.id as string).replace('employee-sort-', '');
+    
+    const oldIndex = employeeOrder.indexOf(activeEmployeeId);
+    const newIndex = employeeOrder.indexOf(overEmployeeId);
     
     if (oldIndex !== -1 && newIndex !== -1) {
       const newOrder = [...employeeOrder];
       newOrder.splice(oldIndex, 1);
-      newOrder.splice(newIndex, 0, active.id as string);
+      newOrder.splice(newIndex, 0, activeEmployeeId);
       setEmployeeOrder(newOrder);
     }
   };

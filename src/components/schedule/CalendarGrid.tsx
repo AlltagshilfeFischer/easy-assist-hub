@@ -58,9 +58,7 @@ export function CalendarGrid({
   };
 
   const sortedEmployees = useMemo(() => {
-    return employees
-      .filter(emp => emp.ist_aktiv)
-      .sort((a, b) => a.name.localeCompare(b.name)); // Stable alphabetical sorting
+    return employees.filter(emp => emp.ist_aktiv);
   }, [employees]);
 
   const conflictingAppointments = useMemo(() => {
