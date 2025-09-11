@@ -317,6 +317,7 @@ const ScheduleBuilder = () => {
       const appointment = appointments.find(app => app.id === appointmentId);
       const employee = employees.find(emp => emp.id === employeeId);
 
+      // Only update mitarbeiter_id and status - keep original time unchanged
       const { error } = await supabase
         .from('termine')
         .update({ 
@@ -344,11 +345,9 @@ const ScheduleBuilder = () => {
           : app
       ));
       
-      const errorMessage = error?.message || 'Termin konnte nicht zugewiesen werden.';
-      
       toast({
         title: 'Fehler',
-        description: errorMessage,
+        description: 'Termin konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut.',
         variant: 'destructive',
       });
     }
