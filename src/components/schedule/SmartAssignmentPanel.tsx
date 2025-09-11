@@ -27,7 +27,6 @@ interface Appointment {
   mitarbeiter_id: string | null;
   start_at: string;
   end_at: string;
-  status: 'unassigned' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   customer?: any;
   employee?: Employee;
 }

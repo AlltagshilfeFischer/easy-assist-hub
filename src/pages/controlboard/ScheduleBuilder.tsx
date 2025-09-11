@@ -66,7 +66,6 @@ interface Appointment {
   mitarbeiter_id: string | null;
   start_at: string;
   end_at: string;
-  status: 'unassigned' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   customer?: Customer;
   employee?: Employee;
 }
@@ -216,7 +215,7 @@ const ScheduleBuilder = () => {
   }, [employees, searchEmployee, sortEmployees, employeeOrder]);
 
   const openAppointments = useMemo(() => {
-    return appointments.filter(app => app.status === 'unassigned');
+    return appointments.filter(app => !app.mitarbeiter_id);
   }, [appointments]);
 
   const filteredAppointments = useMemo(() => {
@@ -264,7 +263,6 @@ const ScheduleBuilder = () => {
     return appointments.filter(existingApp => 
       existingApp.mitarbeiter_id === employeeId &&
       existingApp.id !== appointmentId &&
-      existingApp.status !== 'cancelled' &&
       // Check for time overlap
       new Date(existingApp.start_at) < appointmentEnd &&
       new Date(existingApp.end_at) > appointmentStart
@@ -563,7 +561,7 @@ const ScheduleBuilder = () => {
                 <div>
                   <p className="text-sm text-blue-700 font-medium">Zugewiesene Termine</p>
                   <p className="text-2xl font-bold text-blue-800">
-                    {appointments.filter(app => app.status === 'scheduled').length}
+                    {appointments.filter(app => app.mitarbeiter_id).length}
                   </p>
                 </div>
               </div>

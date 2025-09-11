@@ -29,7 +29,6 @@ interface Appointment {
   mitarbeiter_id: string | null;
   start_at: string;
   end_at: string;
-  status: 'unassigned' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   customer?: any;
   employee?: Employee;
 }
@@ -65,9 +64,7 @@ export function CalendarGrid({
       if (app1.mitarbeiter_id) {
         appointments.forEach(app2 => {
           if (app1.id !== app2.id && 
-              app1.mitarbeiter_id === app2.mitarbeiter_id && 
-              app1.status !== 'cancelled' && 
-              app2.status !== 'cancelled') {
+              app1.mitarbeiter_id === app2.mitarbeiter_id) {
             
             const start1 = new Date(app1.start_at);
             const end1 = new Date(app1.end_at);
