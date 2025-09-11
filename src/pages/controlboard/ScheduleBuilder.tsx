@@ -335,7 +335,7 @@ const ScheduleBuilder = () => {
         variant: hasConflicts ? 'destructive' : 'default',
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error assigning appointment:', error);
       // Revert local state on error
       setAppointments(prev => prev.map(app => 
@@ -344,9 +344,11 @@ const ScheduleBuilder = () => {
           : app
       ));
       
+      const errorMessage = error?.message || 'Termin konnte nicht zugewiesen werden.';
+      
       toast({
         title: 'Fehler',
-        description: 'Termin konnte nicht zugewiesen werden.',
+        description: errorMessage,
         variant: 'destructive',
       });
     }
