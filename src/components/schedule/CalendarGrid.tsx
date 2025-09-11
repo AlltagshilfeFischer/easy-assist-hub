@@ -86,11 +86,8 @@ export function CalendarGrid({
 
   return (
     <div className="calendar-grid">
-      {/* Compact Header Row */}
-      <div className={cn(
-        "grid gap-1 mb-2 bg-muted/30 p-2 rounded-lg",
-        weekDates.length > 7 ? "grid-cols-[200px_repeat(28,1fr)]" : "grid-cols-8"
-      )}>
+      {/* Compact Header Row - exact same structure as UnassignedAppointmentsBar */}
+      <div className={`grid gap-1 mb-2 bg-muted/30 p-2 rounded-lg ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,1fr)]' : 'grid-cols-8'}`}>
         <div className="text-xs font-semibold text-muted-foreground px-2 py-1">
           Mitarbeiter
         </div>
@@ -108,10 +105,7 @@ export function CalendarGrid({
 
       <div className="space-y-1">
         {employees.filter(emp => emp.ist_aktiv).map((employee) => (
-          <div key={employee.id} className={cn(
-            "grid gap-1",
-            weekDates.length > 7 ? "grid-cols-[200px_repeat(28,1fr)]" : "grid-cols-8"
-          )}>
+          <div key={employee.id} className={`grid gap-1 ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,1fr)]' : 'grid-cols-8'}`}>
             {/* Compact Employee Info */}
             <div className="bg-card border rounded-lg p-2 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-2 mb-1">
