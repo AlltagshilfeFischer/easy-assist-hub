@@ -52,7 +52,7 @@ export function DraggableAppointment({
   
   const getCardStyle = () => {
     if (isUnassigned) {
-      return 'bg-gradient-to-r from-amber-100 to-orange-200 border-2 border-orange-400 shadow-lg hover:shadow-xl ring-2 ring-orange-200';
+      return 'bg-muted/50 border border-muted-foreground/20 hover:border-muted-foreground/40';
     }
     return 'bg-card border border-border hover:border-primary/40';
   };
@@ -65,68 +65,59 @@ export function DraggableAppointment({
       {...attributes}
       {...listeners}
       className={cn(
-        'p-3 transition-all duration-300 cursor-grab active:cursor-grabbing hover:shadow-lg text-xs group rounded-lg',
+        'transition-all duration-200 cursor-grab active:cursor-grabbing text-xs group rounded-md',
         getCardStyle(),
-        isDragging && 'opacity-50 scale-105 shadow-xl ring-2 ring-primary/20 z-50',
-        isConflicting && 'ring-2 ring-red-500 ring-opacity-50 border-red-300 animate-pulse',
-        'hover:scale-105 hover:shadow-xl active:scale-95 transform',
-        isUnassigned && 'hover:scale-110 hover:rotate-1 hover:shadow-2xl'
+        isDragging && 'opacity-50 scale-105 shadow-lg ring-2 ring-primary/20 z-50',
+        isConflicting && 'ring-2 ring-red-500 ring-opacity-50 border-red-300',
+        isUnassigned ? 'p-2 hover:scale-102' : 'p-3 hover:scale-105 hover:shadow-lg'
       )}
     >
-      <div className="space-y-2">
+      <div className={cn("space-y-1", isUnassigned && "space-y-1")}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <div className="text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0">
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className={cn("h-3 w-3", isUnassigned && "h-2.5 w-2.5")} />
             </div>
-            {isUnassigned && (
-              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-            )}
           </div>
           {isUnassigned && (
-            <Badge className="bg-orange-500 text-white border-0 text-xs px-2 py-1 font-bold animate-pulse">
-              ZUORDNUNG ERFORDERLICH
-            </Badge>
+            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
           )}
         </div>
 
         <h4 className={cn(
-          "font-bold text-sm leading-tight group-hover:text-primary transition-colors",
-          isUnassigned && "text-orange-800 text-base"
+          "font-medium leading-tight group-hover:text-primary transition-colors",
+          isUnassigned ? "text-xs text-muted-foreground" : "text-sm"
         )}>
           {appointment.titel}
         </h4>
         
         {appointment.customer && (
           <div className={cn(
-            "flex items-center gap-2 p-2 rounded-md bg-white/50",
-            isUnassigned && "bg-orange-50 border border-orange-200"
+            "flex items-center gap-1",
+            isUnassigned ? "p-1" : "p-2 rounded-md bg-white/50"
           )}>
             <User className={cn(
-              "h-4 w-4 flex-shrink-0",
-              isUnassigned ? "text-orange-600" : "text-muted-foreground"
+              "flex-shrink-0 text-muted-foreground",
+              isUnassigned ? "h-2.5 w-2.5" : "h-4 w-4"
             )} />
             <span className={cn(
-              "font-semibold text-sm",
-              isUnassigned ? "text-orange-800" : "text-muted-foreground"
+              "font-medium",
+              isUnassigned ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground"
             )}>
               {appointment.customer.vorname} {appointment.customer.nachname}
             </span>
           </div>
         )}
         
-        <div className="flex items-center gap-2 text-xs">
-          <Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+        <div className={cn("flex items-center gap-1", isUnassigned ? "text-xs" : "text-xs")}>
+          <Clock className={cn(
+            "flex-shrink-0 text-muted-foreground",
+            isUnassigned ? "h-2.5 w-2.5" : "h-3 w-3"
+          )} />
           <span className="font-medium text-muted-foreground">
             {format(new Date(appointment.start_at), 'HH:mm')} - {format(new Date(appointment.end_at), 'HH:mm')}
           </span>
         </div>
-
-        {isUnassigned && (
-          <div className="text-xs text-orange-700 font-medium bg-orange-100 p-1 rounded text-center">
-            ⤴ Auf Mitarbeiter ziehen
-          </div>
-        )}
       </div>
     </Card>
   );
