@@ -26,9 +26,17 @@ interface DraggableAppointmentProps {
   };
   isDragging?: boolean;
   isAssigned?: boolean;
+  isConflicting?: boolean;
+  onClick?: () => void;
 }
 
-export function DraggableAppointment({ appointment, isDragging = false, isAssigned = false }: DraggableAppointmentProps) {
+export function DraggableAppointment({ 
+  appointment, 
+  isDragging = false, 
+  isAssigned = false,
+  isConflicting = false,
+  onClick
+}: DraggableAppointmentProps) {
   const {
     attributes,
     listeners,
@@ -80,6 +88,7 @@ export function DraggableAppointment({ appointment, isDragging = false, isAssign
     <Card
       ref={setNodeRef}
       style={style}
+      onClick={onClick}
       {...attributes}
       {...listeners}
       className={cn(
@@ -87,6 +96,7 @@ export function DraggableAppointment({ appointment, isDragging = false, isAssign
         getStatusColor(appointment.status),
         isDragging && 'opacity-50 scale-105 shadow-xl ring-2 ring-primary/20 z-50',
         isAssigned && 'border-dashed',
+        isConflicting && 'ring-2 ring-red-500 ring-opacity-50 border-red-300 animate-pulse',
         'hover:scale-102 hover:shadow-lg active:scale-95',
         !isDragging && 'hover:border-primary/40'
       )}

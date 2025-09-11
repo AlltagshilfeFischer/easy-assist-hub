@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AppointmentApprovalDialog } from '@/components/schedule/AppointmentApprovalDialog';
+import { ConflictWarningDialog } from '@/components/schedule/ConflictWarningDialog';
+import { CalendarGrid } from '@/components/schedule/CalendarGrid';
+import { AppointmentDetailDialog } from '@/components/schedule/AppointmentDetailDialog';
 import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
 import { DropZone } from '@/components/schedule/DropZone';
 import { EmployeeCard } from '@/components/schedule/EmployeeCard';
@@ -86,6 +89,12 @@ const ScheduleBuilder = () => {
   const [pendingChanges, setPendingChanges] = useState<any[]>([]);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [employeeOrder, setEmployeeOrder] = useState<string[]>([]);
+  const [conflictWarning, setConflictWarning] = useState<{
+    show: boolean;
+    appointmentId: string;
+    employeeId: string;
+    conflicts: any[];
+  }>({ show: false, appointmentId: '', employeeId: '', conflicts: [] });
   
   const { toast } = useToast();
 
@@ -245,8 +254,39 @@ const ScheduleBuilder = () => {
     }
   };
 
-  const assignAppointment = async (appointmentId: string, employeeId: string) => {
+  const checkForConflicts = (appointmentId: string, employeeId: string) => {
+    const appointment = appointments.find(app => app.id === appointmentId);
+    if (!appointment) return [];
+
+    const appointmentStart = new Date(appointment.start_at);
+    const appointmentEnd = new Date(appointment.end_at);
+
+    return appointments.filter(existingApp => 
+      existingApp.mitarbeiter_id === employeeId &&
+      existingApp.id !== appointmentId &&
+      existingApp.status !== 'cancelled' &&
+      // Check for time overlap
+      new Date(existingApp.start_at) < appointmentEnd &&
+      new Date(existingApp.end_at) > appointmentStart
+    );
+  };
+
+  const assignAppointment = async (appointmentId: string, employeeId: string, forceAssign = false) => {
     try {
+      // Check for conflicts unless forcing assignment
+      if (!forceAssign) {
+        const conflicts = checkForConflicts(appointmentId, employeeId);
+        if (conflicts.length > 0) {
+          setConflictWarning({
+            show: true,
+            appointmentId,
+            employeeId,
+            conflicts
+          });
+          return;
+        }
+      }
+
       // Update local state immediately for instant UI feedback
       setAppointments(prev => prev.map(app => 
         app.id === appointmentId 
@@ -267,9 +307,12 @@ const ScheduleBuilder = () => {
 
       if (error) throw error;
 
+      const hasConflicts = checkForConflicts(appointmentId, employeeId).length > 0;
+      
       toast({
-        title: 'Erfolg',
-        description: `Termin "${appointment?.titel}" wurde ${employee?.name} zugewiesen.`,
+        title: hasConflicts ? 'Termin zugewiesen (mit Konflikten)' : 'Erfolg',
+        description: `Termin "${appointment?.titel}" wurde ${employee?.name} zugewiesen.${hasConflicts ? ' ⚠️ Zeitkonflikt!' : ''}`,
+        variant: hasConflicts ? 'destructive' : 'default',
       });
       
     } catch (error) {
@@ -287,6 +330,11 @@ const ScheduleBuilder = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleConflictConfirm = () => {
+    assignAppointment(conflictWarning.appointmentId, conflictWarning.employeeId, true);
+    setConflictWarning({ show: false, appointmentId: '', employeeId: '', conflicts: [] });
   };
 
   const autoAssignAppointments = async () => {
@@ -666,112 +714,46 @@ const ScheduleBuilder = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <CalendarDays className="h-4 w-4" />
-                  Wochenansicht
+                  Wochenansicht - Masterkalender
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <div className="min-w-[800px]">
-                    {/* Header */}
-                    <div className="grid grid-cols-8 border-b">
-                      <div className="p-3 bg-muted/50 font-medium text-sm border-r">
-                        Mitarbeiter
-                      </div>
-                      {getWeekDates().map((date, index) => (
-                        <div key={index} className="p-3 bg-muted/50 text-center border-r last:border-r-0">
-                          <div className="font-medium text-sm">
-                            {format(date, 'EEE', { locale: de })}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {format(date, 'dd.MM')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Employee Rows */}
-                    <div className="divide-y">
-                      {filteredEmployees.map((employee) => (
-                        <div key={employee.id} className="grid grid-cols-8">
-                          {/* Employee Info */}
-                          <div className="p-3 bg-muted/25 border-r">
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-3 h-3 rounded-full border border-white shadow-sm flex-shrink-0" 
-                                style={{ backgroundColor: employee.farbe_kalender }}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium text-sm truncate">{employee.name}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {appointments.filter(app => app.mitarbeiter_id === employee.id).length}/{employee.max_termine_pro_tag || 8} Termine
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Day Columns */}
-                          {getWeekDates().map((date, dayIndex) => (
-                            <div key={dayIndex} className="border-r last:border-r-0">
-                              <DropZone
-                                id={`employee-${employee.id}-${dayIndex}`}
-                                className="min-h-[120px] p-2"
-                                isEmpty={getAppointmentCount(employee.id, dayIndex) === 0}
-                                employeeName={employee.name}
-                                date={format(date, 'dd.MM')}
-                              >
-                                <div className="space-y-1">
-                                  {getAppointmentsForDate(employee.id, dayIndex).map((appointment) => (
-                                    <DraggableAppointment
-                                      key={appointment.id}
-                                      appointment={appointment}
-                                      isAssigned={true}
-                                    />
-                                  ))}
-                                </div>
-                              </DropZone>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              <CardContent className="p-4">
+                <CalendarGrid
+                  employees={filteredEmployees}
+                  appointments={appointments}
+                  weekDates={getWeekDates()}
+                  activeId={activeId}
+                  onEditAppointment={setEditingAppointment}
+                />
               </CardContent>
             </Card>
           </div>
         </div>
 
-        {editingAppointment && (
-          <Dialog open={!!editingAppointment} onOpenChange={() => setEditingAppointment(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Termin bearbeiten</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Titel</label>
-                  <div className="text-sm">{editingAppointment.titel}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Status</label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Status auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="scheduled">Geplant</SelectItem>
-                      <SelectItem value="completed">Abgeschlossen</SelectItem>
-                      <SelectItem value="cancelled">Abgesagt</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={() => setEditingAppointment(null)}>
-                  Speichern
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
+        <AppointmentDetailDialog
+          isOpen={!!editingAppointment}
+          onClose={() => setEditingAppointment(null)}
+          appointment={editingAppointment}
+          employees={employees}
+          customers={customers}
+          onUpdate={async (appointment) => {
+            try {
+              const { error } = await supabase
+                .from('termine')
+                .update({
+                  titel: appointment.titel,
+                  status: appointment.status,
+                  mitarbeiter_id: appointment.mitarbeiter_id
+                })
+                .eq('id', appointment.id);
+
+              if (error) throw error;
+              await loadData();
+            } catch (error) {
+              throw error;
+            }
+          }}
+        />
 
         <AppointmentApprovalDialog
           isOpen={showApprovalDialog}
@@ -780,6 +762,19 @@ const ScheduleBuilder = () => {
           onApprovalAction={() => {
             loadData();
             setShowApprovalDialog(false);
+          }}
+        />
+
+        <ConflictWarningDialog
+          isOpen={conflictWarning.show}
+          onClose={() => setConflictWarning({ show: false, appointmentId: '', employeeId: '', conflicts: [] })}
+          onConfirm={handleConflictConfirm}
+          employeeName={employees.find(emp => emp.id === conflictWarning.employeeId)?.name || ''}
+          appointmentTitle={appointments.find(app => app.id === conflictWarning.appointmentId)?.titel || ''}
+          conflictingAppointments={conflictWarning.conflicts}
+          newAppointmentTime={{
+            start: appointments.find(app => app.id === conflictWarning.appointmentId)?.start_at || '',
+            end: appointments.find(app => app.id === conflictWarning.appointmentId)?.end_at || ''
           }}
         />
       </div>
