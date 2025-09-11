@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EnhancedDropZone } from './EnhancedDropZone';
 import { DraggableAppointment } from './DraggableAppointment';
-import { Clock, User, Phone, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Employee {
@@ -57,28 +57,6 @@ export function CalendarGrid({
     ).sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
   };
 
-  const getWorkloadInfo = (employeeId: string, date: Date) => {
-    const dayAppointments = getAppointmentsForDate(employeeId, date);
-    const employee = employees.find(emp => emp.id === employeeId);
-    const maxAppointments = employee?.max_termine_pro_tag || 8;
-    const currentCount = dayAppointments.length;
-    const percentage = (currentCount / maxAppointments) * 100;
-    
-    return {
-      count: currentCount,
-      max: maxAppointments,
-      percentage,
-      isOverbooked: currentCount > maxAppointments,
-      isNearCapacity: percentage >= 80
-    };
-  };
-
-  const getWorkloadColor = (percentage: number, isOverbooked: boolean) => {
-    if (isOverbooked) return 'bg-red-500/10 border-red-200';
-    if (percentage >= 80) return 'bg-orange-500/10 border-orange-200';
-    if (percentage >= 60) return 'bg-yellow-500/10 border-yellow-200';
-    return 'bg-green-500/10 border-green-200';
-  };
 
   const conflictingAppointments = useMemo(() => {
     const conflicts = new Set<string>();
@@ -111,14 +89,14 @@ export function CalendarGrid({
 
   return (
     <div className="calendar-grid">
-      {/* Header Row */}
-      <div className="grid grid-cols-8 gap-2 mb-4">
-        <div className="text-sm font-medium text-muted-foreground p-2">
+      {/* Compact Header Row */}
+      <div className="grid grid-cols-8 gap-1 mb-2 bg-muted/30 p-2 rounded-lg">
+        <div className="text-xs font-semibold text-muted-foreground px-2 py-1">
           Mitarbeiter
         </div>
         {weekDates.map((date, index) => (
-          <div key={index} className="text-center p-2">
-            <div className="text-sm font-medium">
+          <div key={index} className="text-center px-1 py-1">
+            <div className="text-xs font-semibold text-foreground">
               {format(date, 'EEE', { locale: de })}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -128,113 +106,68 @@ export function CalendarGrid({
         ))}
       </div>
 
-      {/* Employee Rows */}
-      <div className="space-y-2">
+      {/* Compact Employee Rows */}
+      <div className="space-y-1">
         {employees.filter(emp => emp.ist_aktiv).map((employee) => (
-          <div key={employee.id} className="grid grid-cols-8 gap-2">
-            {/* Employee Info Cell */}
-            <Card className="h-full min-h-[140px] border-2 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
-              <CardContent className="p-4 h-full flex flex-col">
-                <div className="flex items-start gap-3 mb-3">
-                  <div 
-                    className="w-4 h-4 rounded-full border-2 border-white shadow-md mt-0.5 flex-shrink-0" 
-                    style={{ backgroundColor: employee.farbe_kalender }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm truncate text-foreground">{employee.name}</h3>
-                    <p className="text-xs text-muted-foreground truncate font-medium">{employee.email}</p>
-                  </div>
-                </div>
+          <div key={employee.id} className="grid grid-cols-8 gap-1">
+            {/* Compact Employee Info */}
+            <div className="bg-card border rounded-lg p-2 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2 mb-1">
+                <div 
+                  className="w-3 h-3 rounded-full border border-border flex-shrink-0" 
+                  style={{ backgroundColor: employee.farbe_kalender }}
+                />
+                <h3 className="font-semibold text-xs truncate text-foreground">{employee.name}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <Phone className="h-2.5 w-2.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground truncate">{employee.telefon}</span>
+              </div>
+            </div>
 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                  <Phone className="h-3 w-3 flex-shrink-0" />
-                  <span className="truncate font-medium">{employee.telefon}</span>
-                </div>
-
-                <div className="mt-auto space-y-2">
-                  <Badge 
-                    variant={employee.ist_aktiv ? "default" : "secondary"}
-                    className="text-xs font-semibold"
-                  >
-                    {employee.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
-                  </Badge>
-                  <div className="text-xs text-muted-foreground">
-                    Max: {employee.max_termine_pro_tag} Termine/Tag
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Day Cells */}
+            {/* Dynamic Day Slots */}
             {weekDates.map((date, dayIndex) => {
               const dayAppointments = getAppointmentsForDate(employee.id, date);
-              const workloadInfo = getWorkloadInfo(employee.id, date);
-              const isEmpty = dayAppointments.length === 0;
               const dropZoneId = `employee-${employee.id}-${dayIndex}`;
+              const hasAppointments = dayAppointments.length > 0;
 
               return (
-                <Card 
-                  key={dayIndex} 
-                  className={cn(
-                    "min-h-[140px] transition-all duration-300 border-2 hover:shadow-lg",
-                    getWorkloadColor(workloadInfo.percentage, workloadInfo.isOverbooked),
-                    isEmpty && "hover:border-orange-300 hover:bg-orange-50/50"
-                  )}
-                >
-                  <CardContent className="p-3 h-full">
-                    {/* Workload indicator */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-1">
-                        {workloadInfo.isOverbooked ? (
-                          <AlertTriangle className="h-4 w-4 text-red-600" />
-                        ) : (
-                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <span className={cn(
-                          'text-sm font-bold',
-                          workloadInfo.isOverbooked ? 'text-red-600' : 
-                          workloadInfo.isNearCapacity ? 'text-orange-600' : 'text-muted-foreground'
-                        )}>
-                          {workloadInfo.count}/{workloadInfo.max}
-                        </span>
-                      </div>
-                      {workloadInfo.isOverbooked && (
-                        <Badge variant="destructive" className="text-xs font-bold">
-                          Überlastet
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Drop instruction for empty slots */}
-                    {isEmpty && (
-                      <div className="text-center text-xs text-muted-foreground font-medium mb-2 p-2 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50/30">
-                        Termine hier hinziehen
-                      </div>
+                <div key={dayIndex} className="min-h-[60px]">
+                  <EnhancedDropZone
+                    id={dropZoneId}
+                    isEmpty={!hasAppointments}
+                    employeeName={employee.name}
+                    date={format(date, 'dd.MM.yyyy')}
+                    workloadInfo={null}
+                    className={cn(
+                      "min-h-[60px] rounded-lg transition-all duration-200",
+                      hasAppointments 
+                        ? "bg-card border shadow-sm" 
+                        : "border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5"
                     )}
-
-                    <EnhancedDropZone
-                      id={dropZoneId}
-                      isEmpty={isEmpty}
-                      employeeName={employee.name}
-                      date={format(date, 'dd.MM.yyyy')}
-                      workloadInfo={workloadInfo}
-                      className="h-full min-h-[110px]"
-                    >
-                      <div className="space-y-1">
+                  >
+                    {!hasAppointments ? (
+                      <div className="h-full flex items-center justify-center">
+                        <div className="text-xs text-muted-foreground text-center opacity-60">
+                          Termin zuweisen
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-1 space-y-1">
                         {dayAppointments.map((appointment) => (
-                          <div key={appointment.id} className="relative">
-                            <DraggableAppointment
-                              appointment={appointment}
-                              isDragging={activeId === appointment.id}
-                              isConflicting={conflictingAppointments.has(appointment.id)}
-                              onClick={() => onEditAppointment(appointment)}
-                            />
-                          </div>
+                          <DraggableAppointment
+                            key={appointment.id}
+                            appointment={appointment}
+                            isDragging={activeId === appointment.id}
+                            isConflicting={conflictingAppointments.has(appointment.id)}
+                            onClick={() => onEditAppointment(appointment)}
+                          />
                         ))}
                       </div>
-                    </EnhancedDropZone>
-                  </CardContent>
-                </Card>
+                    )}
+                  </EnhancedDropZone>
+                </div>
               );
             })}
           </div>
