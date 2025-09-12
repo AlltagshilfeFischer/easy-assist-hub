@@ -112,20 +112,33 @@ export function CalendarGrid({
         >
           Mitarbeiter
         </div>
-        {weekDates.map((date, index) => (
-          <div 
-            key={index} 
-            className="text-center px-1 py-2 border-r border-muted last:border-r-0 box-border"
-            style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
-          >
-            <div className="text-xs font-semibold text-foreground">
-              {format(date, 'dd', { locale: de })}
+        {weekDates.map((date, index) => {
+          const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+          
+          return (
+            <div 
+              key={index} 
+              className={cn(
+                "text-center px-1 py-2 border-r border-muted last:border-r-0 box-border",
+                isToday && "bg-red-50/80 border-red-200"
+              )}
+              style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
+            >
+              <div className={cn(
+                "text-xs font-semibold",
+                isToday ? "text-red-700" : "text-foreground"
+              )}>
+                {format(date, 'dd', { locale: de })}
+              </div>
+              <div className={cn(
+                "text-xs",
+                isToday ? "text-red-600" : "text-muted-foreground"
+              )}>
+                {format(date, 'MM', { locale: de })}
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {format(date, 'MM', { locale: de })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="border-l border-r border-b border-muted box-border">

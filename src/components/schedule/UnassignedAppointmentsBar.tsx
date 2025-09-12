@@ -109,15 +109,22 @@ export function UnassignedAppointmentsBar({
           {weekDates.map((date) => {
             const dateKey = format(date, 'yyyy-MM-dd');
             const dayAppointments = groupedAppointments[dateKey] || [];
+            const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
             return (
               <div 
                 key={dateKey} 
-                className="border-r border-muted last:border-r-0 p-1 min-h-[80px] box-border"
+                className={cn(
+                  "border-r border-muted last:border-r-0 p-1 min-h-[80px] box-border",
+                  isToday && "bg-red-50/80 border-red-200"
+                )}
                 style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
               >
                 {/* Date header matching calendar exactly */}
-                <div className="text-center p-1 bg-muted/30 rounded text-xs font-medium border-b border-muted mb-2">
+                <div className={cn(
+                  "text-center p-1 rounded text-xs font-medium border-b border-muted mb-2",
+                  isToday ? "bg-red-100/60 text-red-700" : "bg-muted/30 text-foreground"
+                )}>
                   {format(date, 'dd', { locale: de })}
                 </div>
                 

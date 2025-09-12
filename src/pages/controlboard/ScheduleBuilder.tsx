@@ -257,14 +257,12 @@ const ScheduleBuilder = () => {
   const getMonthDates = () => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const endDate = endOfMonth(currentMonth);
     
     const dates = [];
-    let current = startDate;
+    let current = monthStart; // Start at the 1st of the month
     
     // Get all days from start of month to end of month
-    while (current <= endDate) {
+    while (current <= monthEnd) {
       dates.push(new Date(current));
       current = addDays(current, 1);
     }
