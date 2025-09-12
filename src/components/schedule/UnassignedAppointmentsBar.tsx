@@ -79,19 +79,21 @@ export function UnassignedAppointmentsBar({
           )}
         </div>
 
-        {/* Grid that exactly matches calendar structure - fixed column widths */}
-        <div className={`grid gap-1`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, minmax(120px, 1fr))`, minWidth: `${200 + weekDates.length * 120}px` }}>
-          {/* Empty space for employee column */}
-          <div className="border-r border-muted"></div>
+        {/* Grid with exact same dimensions as calendar */}
+        <div className={`grid border border-muted`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, 120px)`, width: `${200 + weekDates.length * 120}px` }}>
+          {/* Employee column space - exact match */}
+          <div className="border-r border-muted w-[200px] px-2 py-1">
+            <div className="text-xs text-muted-foreground text-center">Zuordnung aufheben</div>
+          </div>
           
-          {/* Date columns matching calendar */}
+          {/* Date columns with exact calendar alignment */}
           {weekDates.map((date) => {
             const dateKey = format(date, 'yyyy-MM-dd');
             const dayAppointments = groupedAppointments[dateKey] || [];
 
             return (
-              <div key={dateKey} className="border-r border-muted p-1 min-h-[80px]">
-                {/* Date header with grid border */}
+              <div key={dateKey} className="border-r border-muted last:border-r-0 p-1 min-h-[80px] w-[120px]">
+                {/* Date header matching calendar exactly */}
                 <div className="text-center p-1 bg-muted/30 rounded text-xs font-medium border-b border-muted mb-2">
                   {format(date, 'dd', { locale: de })}
                 </div>
@@ -101,7 +103,7 @@ export function UnassignedAppointmentsBar({
                   id={`unassigned-${dateKey}`}
                   isEmpty={dayAppointments.length === 0}
                   className={cn(
-                    "transition-all duration-200 rounded-lg min-h-[60px] h-full",
+                    "transition-all duration-200 rounded-lg min-h-[60px] h-full w-full",
                     dayAppointments.length === 0 
                       ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5" 
                       : "flex flex-col gap-1 overflow-y-auto max-h-[120px]"

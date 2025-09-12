@@ -90,13 +90,13 @@ export function CalendarGrid({
 
   return (
     <div className="calendar-grid">
-      {/* Header Row with fixed widths and grid borders */}
-      <div className={`grid gap-1 mb-2 bg-muted/20 p-2 rounded-lg border`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, minmax(120px, 1fr))`, minWidth: `${200 + weekDates.length * 120}px` }}>
-        <div className="text-xs font-semibold text-muted-foreground px-2 py-1 border-r border-muted">
+      {/* Header Row with exact fixed widths */}
+      <div className={`grid bg-muted/20 p-0 border border-muted`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, 120px)`, width: `${200 + weekDates.length * 120}px` }}>
+        <div className="text-xs font-semibold text-muted-foreground px-2 py-2 border-r border-muted">
           Mitarbeiter
         </div>
         {weekDates.map((date, index) => (
-          <div key={index} className="text-center px-1 py-1 border-r border-muted">
+          <div key={index} className="text-center px-1 py-2 border-r border-muted last:border-r-0">
             <div className="text-xs font-semibold text-foreground">
               {format(date, 'dd', { locale: de })}
             </div>
@@ -107,11 +107,11 @@ export function CalendarGrid({
         ))}
       </div>
 
-      <div className="space-y-1 border-t border-muted">
+      <div className="border-l border-r border-b border-muted">
         {sortedEmployees.map((employee) => (
-          <div key={employee.id} className={`grid gap-1 border-b border-muted/50`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, minmax(120px, 1fr))`, minWidth: `${200 + weekDates.length * 120}px` }}>
-            {/* Employee Info with border */}
-            <div className="bg-card border-r border-muted rounded-lg p-2 shadow-sm">
+          <div key={employee.id} className={`grid border-b border-muted last:border-b-0`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, 120px)`, width: `${200 + weekDates.length * 120}px` }}>
+            {/* Employee Info with exact width */}
+            <div className="bg-card border-r border-muted p-2 w-[200px]">
               <div className="flex items-center gap-2 mb-1">
                 <div 
                   className="w-3 h-3 rounded-full border border-border flex-shrink-0" 
@@ -122,20 +122,20 @@ export function CalendarGrid({
               <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
             </div>
 
-            {/* Day Slots with grid borders */}
+            {/* Day Slots with exact width */}
             {weekDates.map((date, dayIndex) => {
               const dayAppointments = getAppointmentsForDate(employee.id, date);
               const dropZoneId = `employee-${employee.id}-${dayIndex}`;
 
               return (
-                <div key={`${employee.id}-day-${dayIndex}`} className="min-h-[80px] border-r border-muted p-1">
+                <div key={`${employee.id}-day-${dayIndex}`} className="min-h-[80px] border-r border-muted last:border-r-0 p-1 w-[120px]">
                   <EnhancedDropZone
                     id={dropZoneId}
                     isEmpty={dayAppointments.length === 0}
                     employeeName={employee.name}
                     date={format(date, 'dd.MM.yyyy')}
                     className={cn(
-                      "transition-all duration-200 rounded-lg min-h-[80px] p-1 h-full",
+                      "transition-all duration-200 rounded-lg min-h-[80px] p-1 h-full w-full",
                       dayAppointments.length === 0 
                         ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5" 
                         : "bg-card/50 border border-muted/50 shadow-sm space-y-1"
