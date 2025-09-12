@@ -83,6 +83,18 @@ const ScheduleBuilder = () => {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
+  const scrollToToday = () => {
+    setCurrentMonth(new Date());
+  };
+  
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prev => subMonths(prev, 1));
+  };
+  
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => addMonths(prev, 1));
+  };
+  
   // Real data from Supabase
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -793,6 +805,35 @@ const ScheduleBuilder = () => {
                 <CardTitle className="flex items-center gap-2 text-base">
                   <CalendarDays className="h-4 w-4" />
                   Masterkalender
+                  <div className="ml-auto flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={goToPreviousMonth}
+                      className="h-8 px-2"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium min-w-[120px] text-center">
+                      {format(currentMonth, 'MMMM yyyy', { locale: de })}
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={goToNextMonth}
+                      className="h-8 px-2"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={scrollToToday}
+                      className="h-8 px-3 ml-2"
+                    >
+                      Heute
+                    </Button>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
