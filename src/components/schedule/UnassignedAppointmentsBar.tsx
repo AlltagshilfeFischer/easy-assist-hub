@@ -116,14 +116,14 @@ export function UnassignedAppointmentsBar({
                 key={dateKey} 
                 className={cn(
                   "border-r border-muted last:border-r-0 p-1 box-border",
-                  isToday && "bg-red-50/80 border-red-200"
+                  isToday && "bg-red-100/60 border-red-300"
                 )}
                 style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
               >
                 {/* Date header matching calendar exactly */}
                 <div className={cn(
                   "text-center p-1 rounded text-xs font-medium border-b border-muted mb-2",
-                  isToday ? "bg-red-100/60 text-red-700" : "bg-muted/30 text-foreground"
+                  isToday ? "bg-red-200/80 text-red-800" : "bg-muted/30 text-foreground"
                 )}>
                   {format(date, 'dd', { locale: de })}
                 </div>

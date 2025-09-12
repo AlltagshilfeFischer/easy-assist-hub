@@ -651,7 +651,7 @@ const cellWidth = DAY_COL_WIDTH;
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-              <Button variant="outline" onClick={() => setCurrentMonth(new Date())}>
+              <Button variant="outline" onClick={scrollToToday}>
                 Heute
               </Button>
             </div>

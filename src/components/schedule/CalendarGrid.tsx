@@ -120,7 +120,7 @@ export function CalendarGrid({
               key={index} 
               className={cn(
                 "text-center px-1 py-2 border-r border-muted last:border-r-0 box-border",
-                isToday && "bg-red-50/80 border-red-200"
+                isToday && "bg-red-200/80 border-red-400"
               )}
               style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
             >
@@ -172,11 +172,15 @@ export function CalendarGrid({
             {weekDates.map((date, dayIndex) => {
               const dayAppointments = getAppointmentsForDate(employee.id, date);
               const dropZoneId = `employee-${employee.id}-${dayIndex}`;
+              const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
               return (
                 <div 
                   key={`${employee.id}-day-${dayIndex}`} 
-                  className="min-h-[80px] border-r border-muted last:border-r-0 p-1 box-border"
+                  className={cn(
+                    "min-h-[80px] border-r border-muted last:border-r-0 p-1 box-border",
+                    isToday && "bg-red-100/60 border-red-300"
+                  )}
                   style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
                 >
                   <EnhancedDropZone
