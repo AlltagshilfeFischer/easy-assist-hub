@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone } from 'lucide-react';
+import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from '@/components/schedule/gridConfig';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -282,8 +283,8 @@ const ScheduleBuilder = () => {
       
       if (todayIndex !== -1) {
         // Calculate scroll position to center today
-        const cellWidth = 120; // Same as CSS grid template
-        const employeeColumnWidth = 200;
+const cellWidth = DAY_COL_WIDTH; // from shared config
+        const employeeColumnWidth = EMPLOYEE_COL_WIDTH;
         const scrollToX = employeeColumnWidth + (todayIndex * cellWidth) - (scrollAreaRef.current.clientWidth / 2) + (cellWidth / 2);
         
         setTimeout(() => {
@@ -306,8 +307,8 @@ const ScheduleBuilder = () => {
       );
       
       if (todayIndex !== -1) {
-        const cellWidth = 120;
-        const employeeColumnWidth = 200;
+const cellWidth = DAY_COL_WIDTH;
+        const employeeColumnWidth = EMPLOYEE_COL_WIDTH;
         const scrollToX = employeeColumnWidth + (todayIndex * cellWidth) - (scrollAreaRef.current.clientWidth / 2) + (cellWidth / 2);
         
         setTimeout(() => {

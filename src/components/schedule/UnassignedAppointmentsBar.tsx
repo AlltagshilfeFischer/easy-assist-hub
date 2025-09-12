@@ -8,6 +8,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { DraggableAppointment } from './DraggableAppointment';
 import { EnhancedDropZone } from './EnhancedDropZone';
+import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from './gridConfig';
 
 interface Customer {
   id: string;
@@ -62,9 +63,9 @@ export function UnassignedAppointmentsBar({
   // Always show the bar, even when empty
   const isEmpty = totalUnassigned === 0;
 
-  // Fixed grid dimensions - MUST match CalendarGrid exactly
-  const employeeColumnWidth = 200;
-  const dayColumnWidth = 120;
+  // Fixed grid dimensions - MUST match CalendarGrid exactly (from shared config)
+  const employeeColumnWidth = EMPLOYEE_COL_WIDTH;
+  const dayColumnWidth = DAY_COL_WIDTH;
   const totalWidth = employeeColumnWidth + (weekDates.length * dayColumnWidth);
 
   return (
@@ -96,7 +97,7 @@ export function UnassignedAppointmentsBar({
         >
           {/* Employee column space - exact match */}
           <div 
-            className="border-r border-muted px-2 py-1 box-border"
+            className="border-r border-muted px-2 py-2 box-border"
             style={{ width: `${employeeColumnWidth}px`, minWidth: `${employeeColumnWidth}px`, maxWidth: `${employeeColumnWidth}px` }}
           >
             <div className="text-xs text-muted-foreground text-center">Zuordnung aufheben</div>
