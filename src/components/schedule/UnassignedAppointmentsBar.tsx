@@ -104,7 +104,7 @@ export function UnassignedAppointmentsBar({
                     "transition-all duration-200 rounded-lg min-h-[60px] h-full",
                     dayAppointments.length === 0 
                       ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5" 
-                      : "space-y-1"
+                      : "flex flex-col gap-1 overflow-y-auto max-h-[120px]"
                   )}
                 >
                   {dayAppointments.length === 0 && isEmpty ? (
@@ -113,13 +113,14 @@ export function UnassignedAppointmentsBar({
                     </div>
                   ) : (
                     dayAppointments.map((appointment) => (
-                      <DraggableAppointment
-                        key={appointment.id}
-                        appointment={appointment}
-                        isDragging={activeId === appointment.id}
-                        isConflicting={false}
-                        onClick={() => onEditAppointment(appointment)}
-                      />
+                      <div key={appointment.id} className="flex-shrink-0">
+                        <DraggableAppointment
+                          appointment={appointment}
+                          isDragging={activeId === appointment.id}
+                          isConflicting={false}
+                          onClick={() => onEditAppointment(appointment)}
+                        />
+                      </div>
                     ))
                   )}
                 </EnhancedDropZone>
