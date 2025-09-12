@@ -80,7 +80,7 @@ export function UnassignedAppointmentsBar({
         </div>
 
         {/* Grid that exactly matches calendar structure - fixed column widths */}
-        <div className={`grid gap-1 grid-cols-[200px_repeat(${weekDates.length},minmax(80px,1fr))]`} style={{ minWidth: `${200 + weekDates.length * 80}px` }}>
+        <div className={`grid gap-1 ${weekDates.length > 7 ? 'grid-cols-[200px_repeat(28,minmax(100px,1fr))]' : 'grid-cols-[200px_repeat(7,minmax(180px,1fr))]'}`} style={{ minWidth: weekDates.length > 7 ? '3000px' : '1560px' }}>
           {/* Empty space for employee column */}
           <div className="border-r border-muted"></div>
           
@@ -93,7 +93,7 @@ export function UnassignedAppointmentsBar({
               <div key={dateKey} className="border-r border-muted p-1 min-h-[80px]">
                 {/* Date header with grid border */}
                 <div className="text-center p-1 bg-muted/30 rounded text-xs font-medium border-b border-muted mb-2">
-                  {format(date, 'EEE dd.MM', { locale: de })}
+                  {format(date, weekDates.length > 7 ? 'dd' : 'EEE dd.MM', { locale: de })}
                 </div>
                 
                 {/* Enhanced drop zone for unassignment */}

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { format, startOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, subWeeks, addMonths, subMonths, parseISO } from 'date-fns';
+import { format, startOfWeek, addDays, addWeeks, subWeeks, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -73,13 +73,14 @@ interface Appointment {
 }
 
 const ScheduleBuilder = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentWeek, setCurrentWeek] = useState(new Date());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [searchEmployee, setSearchEmployee] = useState('');
   const [searchAppointment, setSearchAppointment] = useState('');
   const [sortEmployees, setSortEmployees] = useState('name');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   
   // Real data from Supabase
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -239,16 +240,13 @@ const ScheduleBuilder = () => {
     });
   }, [openAppointments, searchAppointment]);
 
-  const getMonthDates = () => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    const startWeek = startOfWeek(start, { weekStartsOn: 1 });
-    const endWeek = startOfWeek(end, { weekStartsOn: 1 });
-    
-    // Calculate total days needed (complete weeks)
-    const totalDays = Math.ceil((end.getTime() - startWeek.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
-    return Array.from({ length: totalDays }, (_, i) => addDays(startWeek, i));
+  const getWeekDates = () => {
+    const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
+    if (viewMode === 'month') {
+      // Show 4 weeks for month view
+      return Array.from({ length: 28 }, (_, i) => addDays(start, i));
+    }
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   };
 
   // DnD event handlers
@@ -512,12 +510,17 @@ const ScheduleBuilder = () => {
     setActiveId(null);
   };
 
-  const navigateMonth = (direction: number) => {
-    setCurrentMonth(direction > 0 ? addMonths(currentMonth, 1) : subMonths(currentMonth, 1));
+  const navigateWeek = (direction: number) => {
+    if (viewMode === 'week') {
+      setCurrentWeek(direction > 0 ? addWeeks(currentWeek, 1) : subWeeks(currentWeek, 1));
+    } else {
+      // For month view, navigate by 4 weeks
+      setCurrentWeek(direction > 0 ? addWeeks(currentWeek, 4) : subWeeks(currentWeek, 4));
+    }
   };
 
   const getAppointmentCount = (employeeId: string, dayIndex: number) => {
-    const date = getMonthDates()[dayIndex];
+    const date = getWeekDates()[dayIndex];
     return appointments.filter(app => 
       app.mitarbeiter_id === employeeId && 
       format(new Date(app.start_at), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
@@ -525,7 +528,7 @@ const ScheduleBuilder = () => {
   };
 
   const getAppointmentsForDate = (employeeId: string, dayIndex: number) => {
-    const date = getMonthDates()[dayIndex];
+    const date = getWeekDates()[dayIndex];
     return appointments.filter(app => 
       app.mitarbeiter_id === employeeId && 
       format(new Date(app.start_at), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
@@ -568,22 +571,42 @@ const ScheduleBuilder = () => {
           </div>
         </div>
 
-        {/* Month Navigation */}
+        {/* Week Navigation */}
         <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <Button variant="outline" size="sm" onClick={() => navigateMonth(-1)}>
+                <Button variant="outline" size="sm" onClick={() => navigateWeek(-1)}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <h2 className="text-xl font-semibold">
-                  {format(currentMonth, 'MMMM yyyy', { locale: de })}
+                  {viewMode === 'week' 
+                    ? `${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'dd. MMMM', { locale: de })} - ${format(addDays(startOfWeek(currentWeek, { weekStartsOn: 1 }), 6), 'dd. MMMM yyyy', { locale: de })}`
+                    : `${format(currentWeek, 'MMMM yyyy', { locale: de })}`
+                  }
                 </h2>
-                <Button variant="outline" size="sm" onClick={() => navigateMonth(1)}>
+                <Button variant="outline" size="sm" onClick={() => navigateWeek(1)}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
+                
+                <div className="flex items-center gap-2 ml-4">
+                  <Button
+                    variant={viewMode === 'week' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('week')}
+                  >
+                    Woche
+                  </Button>
+                  <Button
+                    variant={viewMode === 'month' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('month')}
+                  >
+                    Monat
+                  </Button>
+                </div>
               </div>
-              <Button variant="outline" onClick={() => setCurrentMonth(new Date())}>
+              <Button variant="outline" onClick={() => setCurrentWeek(new Date())}>
                 Heute
               </Button>
             </div>
@@ -744,7 +767,7 @@ const ScheduleBuilder = () => {
                     {/* Unassigned Appointments Bar */}
                     <UnassignedAppointmentsBar
                       appointments={appointments}
-                      weekDates={getMonthDates()}
+                      weekDates={getWeekDates()}
                       activeId={activeId}
                       onEditAppointment={setEditingAppointment}
                     />
@@ -753,7 +776,7 @@ const ScheduleBuilder = () => {
                     <CalendarGrid
                       employees={filteredEmployees}
                       appointments={appointments}
-                      weekDates={getMonthDates()}
+                      weekDates={getWeekDates()}
                       activeId={activeId}
                       onEditAppointment={setEditingAppointment}
                     />
