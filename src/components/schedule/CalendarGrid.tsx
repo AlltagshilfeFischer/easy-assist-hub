@@ -91,7 +91,7 @@ export function CalendarGrid({
   return (
     <div className="calendar-grid">
       {/* Header Row with fixed widths and grid borders */}
-      <div className={`grid gap-1 mb-2 bg-muted/20 p-2 rounded-lg border`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, minmax(80px, 1fr))`, minWidth: `${200 + weekDates.length * 80}px` }}>
+      <div className={`grid gap-1 mb-2 bg-muted/20 p-2 rounded-lg border`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, minmax(120px, 1fr))`, minWidth: `${200 + weekDates.length * 120}px` }}>
         <div className="text-xs font-semibold text-muted-foreground px-2 py-1 border-r border-muted">
           Mitarbeiter
         </div>
@@ -109,7 +109,7 @@ export function CalendarGrid({
 
       <div className="space-y-1 border-t border-muted">
         {sortedEmployees.map((employee) => (
-          <div key={employee.id} className={`grid gap-1 border-b border-muted/50`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, minmax(80px, 1fr))`, minWidth: `${200 + weekDates.length * 80}px` }}>
+          <div key={employee.id} className={`grid gap-1 border-b border-muted/50`} style={{ gridTemplateColumns: `200px repeat(${weekDates.length}, minmax(120px, 1fr))`, minWidth: `${200 + weekDates.length * 120}px` }}>
             {/* Employee Info with border */}
             <div className="bg-card border-r border-muted rounded-lg p-2 shadow-sm">
               <div className="flex items-center gap-2 mb-1">

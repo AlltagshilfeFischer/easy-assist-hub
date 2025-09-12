@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { format, startOfWeek, addDays, parseISO, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +81,7 @@ const ScheduleBuilder = () => {
   const [sortEmployees, setSortEmployees] = useState('name');
   const [filterPriority, setFilterPriority] = useState('all');
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   // Real data from Supabase
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -257,6 +258,55 @@ const ScheduleBuilder = () => {
     
     return dates;
   };
+
+  // Auto-scroll to center current day
+  useEffect(() => {
+    if (scrollAreaRef.current && !loading) {
+      const dates = getMonthDates();
+      const today = new Date();
+      const todayIndex = dates.findIndex(date => 
+        format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')
+      );
+      
+      if (todayIndex !== -1) {
+        // Calculate scroll position to center today
+        const cellWidth = 120; // Same as CSS grid template
+        const employeeColumnWidth = 200;
+        const scrollToX = employeeColumnWidth + (todayIndex * cellWidth) - (scrollAreaRef.current.clientWidth / 2) + (cellWidth / 2);
+        
+        setTimeout(() => {
+          scrollAreaRef.current?.scrollTo({
+            left: Math.max(0, scrollToX),
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
+    }
+  }, [currentMonth, loading]);
+
+  // Also scroll when month changes
+  useEffect(() => {
+    if (scrollAreaRef.current && !loading) {
+      const dates = getMonthDates();
+      const today = new Date();
+      const todayIndex = dates.findIndex(date => 
+        format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')
+      );
+      
+      if (todayIndex !== -1) {
+        const cellWidth = 120;
+        const employeeColumnWidth = 200;
+        const scrollToX = employeeColumnWidth + (todayIndex * cellWidth) - (scrollAreaRef.current.clientWidth / 2) + (cellWidth / 2);
+        
+        setTimeout(() => {
+          scrollAreaRef.current?.scrollTo({
+            left: Math.max(0, scrollToX),
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
+    }
+  }, [currentMonth]);
 
   // DnD event handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -746,7 +796,7 @@ const ScheduleBuilder = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <ScrollArea className="w-full">
+                <ScrollArea className="w-full" ref={scrollAreaRef}>
                   <div className="space-y-4">
                     {/* Unassigned Appointments Bar */}
                     <UnassignedAppointmentsBar
