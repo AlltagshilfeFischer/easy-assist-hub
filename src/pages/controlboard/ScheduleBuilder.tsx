@@ -109,6 +109,26 @@ const ScheduleBuilder = () => {
       }
     }, 200);
   };
+
+  const scrollByWeeks = (weeks: number) => {
+    if (scrollAreaRef.current) {
+      const cellWidth = DAY_COL_WIDTH;
+      const scrollAmount = cellWidth * 7 * weeks; // 7 days per week
+      
+      scrollAreaRef.current.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const scrollToPreviousWeek = () => {
+    scrollByWeeks(-1);
+  };
+
+  const scrollToNextWeek = () => {
+    scrollByWeeks(1);
+  };
   
   const goToPreviousMonth = () => {
     setCurrentMonth(prev => subMonths(prev, 1));
@@ -858,6 +878,27 @@ const cellWidth = DAY_COL_WIDTH;
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
+                <div className="relative">
+                  {/* Week Navigation Buttons */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={scrollToPreviousWeek}
+                    className="absolute left-2 top-1/2 z-10 h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm shadow-md hover:bg-background/90"
+                    style={{ transform: 'translateY(-50%)' }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={scrollToNextWeek}
+                    className="absolute right-2 top-1/2 z-10 h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm shadow-md hover:bg-background/90"
+                    style={{ transform: 'translateY(-50%)' }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
                 <ScrollArea className="w-full" ref={scrollAreaRef}>
                   <div className="space-y-4">
                     {/* Unassigned Appointments Bar */}
