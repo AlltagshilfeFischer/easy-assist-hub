@@ -880,24 +880,26 @@ const cellWidth = DAY_COL_WIDTH;
               <CardContent className="p-4">
                 <div className="relative">
                   {/* Week Navigation Buttons */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={scrollToPreviousWeek}
-                    className="absolute left-2 top-1/2 z-10 h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm shadow-md hover:bg-background/90"
-                    style={{ transform: 'translateY(-50%)' }}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={scrollToNextWeek}
-                    className="absolute right-2 top-1/2 z-10 h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm shadow-md hover:bg-background/90"
-                    style={{ transform: 'translateY(-50%)' }}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={scrollToPreviousWeek}
+                      className="ml-2 h-8 w-8 p-0 rounded-full bg-background/90 backdrop-blur-sm shadow-lg hover:bg-background border-border/50"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="absolute right-0 top-0 bottom-0 z-20 flex items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={scrollToNextWeek}
+                      className="mr-2 h-8 w-8 p-0 rounded-full bg-background/90 backdrop-blur-sm shadow-lg hover:bg-background border-border/50"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <ScrollArea className="w-full" ref={scrollAreaRef}>
                   <div className="space-y-4">

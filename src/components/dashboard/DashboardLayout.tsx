@@ -14,15 +14,51 @@ function DashboardContent({ children }: DashboardLayoutProps) {
   const { setOpen } = useSidebar();
 
   useEffect(() => {
+    let mouseLeaveTimer: NodeJS.Timeout;
+    let isMouseNearEdge = false;
+
     const handleMouseMove = (e: MouseEvent) => {
-      // If mouse is within 10px of left edge, open sidebar
-      if (e.clientX <= 10) {
-        setOpen(true);
+      // If mouse is within 15px of left edge, open sidebar
+      if (e.clientX <= 15) {
+        if (!isMouseNearEdge) {
+          isMouseNearEdge = true;
+          setOpen(true);
+        }
+        // Clear any pending close timer
+        if (mouseLeaveTimer) {
+          clearTimeout(mouseLeaveTimer);
+        }
+      } else if (e.clientX > 300) {
+        // If mouse moves away from sidebar area (300px+), start close timer
+        if (isMouseNearEdge) {
+          isMouseNearEdge = false;
+          mouseLeaveTimer = setTimeout(() => {
+            setOpen(false);
+          }, 1500); // Close after 1.5 seconds of being away
+        }
+      }
+    };
+
+    const handleMouseLeave = () => {
+      // If mouse leaves the window, start close timer
+      if (isMouseNearEdge) {
+        isMouseNearEdge = false;
+        mouseLeaveTimer = setTimeout(() => {
+          setOpen(false);
+        }, 1000);
       }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
-    return () => document.removeEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      if (mouseLeaveTimer) {
+        clearTimeout(mouseLeaveTimer);
+      }
+    };
   }, [setOpen]);
 
   if (loading) {
