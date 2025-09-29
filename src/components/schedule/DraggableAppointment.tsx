@@ -51,8 +51,8 @@ export function DraggableAppointment({
       style={style}
       className={cn(
         "cursor-grab active:cursor-grabbing transition-all duration-200",
-        "border border-muted bg-card hover:bg-accent/30 rounded-md p-1.5 shadow-sm",
-        "text-xs w-full min-h-[36px] flex-shrink-0 box-border overflow-hidden",
+        "border border-muted bg-card hover:bg-accent/30 rounded-md p-1 shadow-sm",
+        "text-xs w-full min-h-[28px] flex-shrink-0 box-border overflow-hidden",
         isDragging && "opacity-50 scale-95 z-50",
         isConflicting && "border-destructive bg-destructive/5"
       )}
@@ -60,19 +60,21 @@ export function DraggableAppointment({
       {...listeners}
       onClick={onClick}
     >
-      {/* Customer Name */}
-      <div className="font-medium text-foreground truncate mb-1">
-        {appointment.customer?.vorname} {appointment.customer?.nachname}
-      </div>
-      
-      {/* Time */}
-      <div className="text-muted-foreground">
-        {format(new Date(appointment.start_at), 'HH:mm')}
+      {/* Compact layout for more appointments */}
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-foreground truncate text-xs">
+            {appointment.customer?.vorname} {appointment.customer?.nachname}
+          </div>
+        </div>
+        <div className="text-muted-foreground text-xs flex-shrink-0">
+          {format(new Date(appointment.start_at), 'HH:mm')}
+        </div>
       </div>
 
-      {/* Title if meaningful */}
+      {/* Title if meaningful - optional second line */}
       {appointment.titel && appointment.titel !== 'Aktueller Termin' && (
-        <div className="text-muted-foreground/70 mt-1 truncate text-xs">
+        <div className="text-muted-foreground/70 mt-0.5 truncate text-xs">
           {appointment.titel}
         </div>
       )}

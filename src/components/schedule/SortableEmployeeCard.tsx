@@ -64,22 +64,21 @@ export function SortableEmployeeCard({ employee, currentAppointments = 0, classN
         className
       )}
     >
-      <CardContent className="p-3">
-        <div className="flex items-start gap-2 mb-2">
+      <CardContent className="p-2">
+        <div className="flex items-center gap-2 mb-2">
           <div
             {...attributes}
             {...listeners}
-            className="text-muted-foreground hover:text-foreground transition-colors mt-0.5 cursor-grab active:cursor-grabbing flex-shrink-0"
+            className="text-muted-foreground hover:text-foreground transition-colors cursor-grab active:cursor-grabbing flex-shrink-0"
           >
-            <GripVertical className="h-3 w-3" />
+            <GripVertical className="h-4 w-4" />
           </div>
           <div 
-            className="w-3 h-3 rounded-full border border-white shadow-sm mt-0.5 flex-shrink-0" 
+            className="w-4 h-4 rounded-full border border-white shadow-sm flex-shrink-0" 
             style={{ backgroundColor: employee.farbe_kalender }}
           />
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-sm truncate">{employee.name}</h3>
-            <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
+            <h3 className="font-semibold text-sm">{employee.name}</h3>
           </div>
           <Badge 
             variant={employee.ist_aktiv ? "default" : "secondary"}
@@ -89,14 +88,23 @@ export function SortableEmployeeCard({ employee, currentAppointments = 0, classN
           </Badge>
         </div>
 
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-          <Phone className="h-3 w-3 flex-shrink-0" />
-          <span className="truncate">{employee.telefon}</span>
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mb-2">
+          <div className="flex items-center gap-1 truncate">
+            <Mail className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{employee.email}</span>
+          </div>
+          <div className="flex items-center gap-1 truncate">
+            <Phone className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{employee.telefon}</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1 text-xs">
-          {getWorkloadIcon(workloadPercentage)}
-          <span className={cn('px-2 py-0.5 rounded-full font-medium text-xs', getWorkloadColor(workloadPercentage))}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-xs">
+            {getWorkloadIcon(workloadPercentage)}
+            <span className="text-muted-foreground">Auslastung:</span>
+          </div>
+          <span className={cn('px-2 py-1 rounded-full font-medium text-xs', getWorkloadColor(workloadPercentage))}>
             {currentAppointments}/{employee.max_termine_pro_tag || 8}
           </span>
         </div>

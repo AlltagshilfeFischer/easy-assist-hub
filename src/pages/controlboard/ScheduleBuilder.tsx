@@ -801,49 +801,66 @@ const cellWidth = DAY_COL_WIDTH;
         </div>
 
 
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-          {/* Sidebar */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* Expanded Sidebar for Better Employee Management */}
           <div className="xl:col-span-1 space-y-4">
-            {/* Smart Assignment Panel */}
-            <SmartAssignmentPanel
-              employees={employees}
-              appointments={appointments}
-              openAppointments={openAppointments}
-              onAssignAppointment={assignAppointment}
-              onAutoAssign={autoAssignAppointments}
-            />
+            {/* Smart Assignment Panel - Compact */}
+            <Card className="border shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Smart Assignment</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <SmartAssignmentPanel
+                  employees={employees}
+                  appointments={appointments}
+                  openAppointments={openAppointments}
+                  onAssignAppointment={assignAppointment}
+                  onAutoAssign={autoAssignAppointments}
+                />
+              </CardContent>
+            </Card>
 
-            {/* Employee List */}
+            {/* Enhanced Employee List */}
             <Card className="border shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Users className="h-4 w-4" />
-                  Mitarbeiter
+                  Mitarbeiter ({filteredEmployees.length})
                   <Badge variant="outline" className="text-xs ml-auto">
                     Drag & Drop
                   </Badge>
                 </CardTitle>
                 <div className="space-y-2">
                   <Input
-                    placeholder="Suchen..."
+                    placeholder="Mitarbeiter suchen..."
                     value={searchEmployee}
                     onChange={(e) => setSearchEmployee(e.target.value)}
                     className="h-8 text-sm"
                   />
-                  <Select value={sortEmployees} onValueChange={setSortEmployees}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name">Name</SelectItem>
-                      <SelectItem value="workload">Auslastung</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select value={sortEmployees} onValueChange={setSortEmployees}>
+                      <SelectTrigger className="h-8 text-sm flex-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="workload">Auslastung</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setEmployeeOrder(employees.map(emp => emp.id))}
+                      className="h-8 px-2 text-xs"
+                    >
+                      Reset
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-3 pt-0">
                 <SortableContext items={filteredEmployees.map(emp => `employee-sort-${emp.id}`)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
                     {filteredEmployees.map((employee) => (
                       <div key={`employee-sort-${employee.id}`}>
                         <SortableEmployeeCard
@@ -858,8 +875,8 @@ const cellWidth = DAY_COL_WIDTH;
             </Card>
           </div>
 
-          {/* Schedule Grid */}
-          <div className="xl:col-span-4">
+          {/* Main Schedule Grid */}
+          <div className="xl:col-span-3">
             <Card className="border shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -921,7 +938,44 @@ const cellWidth = DAY_COL_WIDTH;
                   </div>
                 </div>
                 <ScrollArea className="w-full" ref={scrollAreaRef}>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
+                    {/* Quick Actions Bar */}
+                    <div className="flex items-center justify-between gap-2 px-2">
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          onClick={scrollToPreviousWeek} 
+                          variant="outline" 
+                          size="sm"
+                          className="text-xs h-8"
+                        >
+                          <ChevronLeft className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          onClick={scrollToNextWeek} 
+                          variant="outline" 
+                          size="sm"
+                          className="text-xs h-8"
+                        >
+                          <ChevronRight className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          onClick={scrollToToday} 
+                          variant="outline" 
+                          size="sm"
+                          className="text-xs h-8"
+                        >
+                          Heute
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Termine suchen..."
+                          value={searchAppointment}
+                          onChange={(e) => setSearchAppointment(e.target.value)}
+                          className="w-48 text-xs h-8"
+                        />
+                      </div>
+                    </div>
                     {/* Unassigned Appointments Bar */}
                     <UnassignedAppointmentsBar
                       appointments={appointments}

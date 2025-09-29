@@ -153,19 +153,22 @@ export function CalendarGrid({
               maxWidth: `${totalWidth}px`
             }}
           >
-            {/* Employee Info with exact width */}
+            {/* Employee Info with better spacing for names */}
             <div 
-              className="bg-card border-r border-muted p-2 box-border"
+              className="bg-card border-r border-muted p-3 box-border"
               style={{ width: `${employeeColumnWidth}px`, minWidth: `${employeeColumnWidth}px`, maxWidth: `${employeeColumnWidth}px` }}
             >
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-2">
                 <div 
-                  className="w-3 h-3 rounded-full border border-border flex-shrink-0" 
+                  className="w-4 h-4 rounded-full border border-border flex-shrink-0" 
                   style={{ backgroundColor: employee.farbe_kalender }}
                 />
-                <h3 className="font-semibold text-xs truncate text-foreground">{employee.name}</h3>
+                <h3 className="font-semibold text-sm text-foreground">{employee.name}</h3>
               </div>
-              <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="truncate">{employee.email}</div>
+                <div className="truncate">{employee.telefon}</div>
+              </div>
             </div>
 
             {/* Day Slots with exact width */}
@@ -175,47 +178,47 @@ export function CalendarGrid({
               const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
               return (
-                <div 
-                  key={`${employee.id}-day-${dayIndex}`} 
-                  className={cn(
-                    "min-h-[80px] border-r border-muted last:border-r-0 p-1 box-border",
-                    isToday && "bg-red-100/60 border-red-300"
-                  )}
-                  style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
-                >
-                  <EnhancedDropZone
-                    id={dropZoneId}
-                    isEmpty={dayAppointments.length === 0}
-                    employeeName={employee.name}
-                    date={format(date, 'dd.MM.yyyy')}
-                    className={cn(
-                      "transition-all duration-200 rounded-lg min-h-[70px] p-1 box-border",
-                      "w-full h-full overflow-hidden",
-                      dayAppointments.length === 0 
-                        ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5" 
-                        : "bg-card/50 border border-muted/50 shadow-sm flex flex-col gap-1"
-                    )}
-                  >
-                    {dayAppointments.length === 0 ? (
-                      <div className="h-full flex items-center justify-center">
-                        <div className="text-xs text-muted-foreground/60 text-center">
-                          Drop
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1 overflow-y-auto max-h-[70px]">
-                        {dayAppointments.map((appointment) => (
-                          <DraggableAppointment
-                            key={appointment.id}
-                            appointment={appointment}
-                            isDragging={activeId === appointment.id}
-                            isConflicting={conflictingAppointments.has(appointment.id)}
-                            onClick={() => onEditAppointment(appointment)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </EnhancedDropZone>
+                 <div 
+                   key={`${employee.id}-day-${dayIndex}`} 
+                   className={cn(
+                     "min-h-[100px] border-r border-muted last:border-r-0 p-2 box-border",
+                     isToday && "bg-red-100/60 border-red-300"
+                   )}
+                   style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
+                 >
+                   <EnhancedDropZone
+                     id={dropZoneId}
+                     isEmpty={dayAppointments.length === 0}
+                     employeeName={employee.name}
+                     date={format(date, 'dd.MM.yyyy')}
+                     className={cn(
+                       "transition-all duration-200 rounded-lg min-h-[90px] p-2 box-border",
+                       "w-full h-full overflow-hidden",
+                       dayAppointments.length === 0 
+                         ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5" 
+                         : "bg-card/50 border border-muted/50 shadow-sm flex flex-col gap-1"
+                     )}
+                   >
+                     {dayAppointments.length === 0 ? (
+                       <div className="h-full flex items-center justify-center">
+                         <div className="text-xs text-muted-foreground/60 text-center">
+                           Drop
+                         </div>
+                       </div>
+                     ) : (
+                       <div className="flex flex-col gap-1 overflow-y-auto max-h-[85px]">
+                         {dayAppointments.map((appointment) => (
+                           <DraggableAppointment
+                             key={appointment.id}
+                             appointment={appointment}
+                             isDragging={activeId === appointment.id}
+                             isConflicting={conflictingAppointments.has(appointment.id)}
+                             onClick={() => onEditAppointment(appointment)}
+                           />
+                         ))}
+                       </div>
+                     )}
+                   </EnhancedDropZone>
                 </div>
               );
             })}

@@ -127,113 +127,93 @@ export function SmartAssignmentPanel({
   };
 
   return (
-    <Card className={cn('border shadow-sm', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4 text-purple-600" />
-          Smart Assignment
-          <Badge variant="outline" className="text-xs ml-auto bg-purple-50 text-purple-700">
-            KI-gestützt
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Quick Actions */}
-        <div className="space-y-2">
-          <Button 
-            onClick={onAutoAssign} 
-            className="w-full h-8 text-xs bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-            disabled={openAppointments.length === 0}
-          >
-            <Zap className="h-3 w-3 mr-2" />
-            Alle automatisch zuweisen ({openAppointments.length})
-          </Button>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="h-7 text-xs">
-              <Clock className="h-3 w-3 mr-1" />
-              Nach Zeit
-            </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs">
-              <Users className="h-3 w-3 mr-1" />
-              Nach Last
-            </Button>
+    <div className={cn('space-y-3', className)}>
+      {/* Quick Actions - Compact */}
+      <div className="space-y-2">
+        <Button 
+          onClick={onAutoAssign} 
+          className="w-full h-7 text-xs bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          disabled={openAppointments.length === 0}
+        >
+          <Zap className="h-3 w-3 mr-1" />
+          Auto-Zuweisung ({openAppointments.length})
+        </Button>
+        
+        <div className="grid grid-cols-2 gap-1">
+          <div className="text-center p-1 bg-muted/20 rounded text-xs">
+            <div className="font-semibold text-green-600">{employees.filter(e => e.ist_aktiv).length}</div>
+            <div className="text-muted-foreground text-xs">Verfügbar</div>
+          </div>
+          <div className="text-center p-1 bg-muted/20 rounded text-xs">
+            <div className="font-semibold text-orange-600">{openAppointments.length}</div>
+            <div className="text-muted-foreground text-xs">Offen</div>
           </div>
         </div>
+      </div>
 
-        {/* Appointment Selection */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">
-            Termin auswählen für Empfehlungen:
-          </label>
-          <Select value={selectedAppointment} onValueChange={setSelectedAppointment}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Termin auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              {openAppointments.map((appointment) => (
-                <SelectItem key={appointment.id} value={appointment.id}>
-                  <div className="flex items-center gap-2">
-                    <span>{appointment.titel}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {new Date(appointment.start_at).toLocaleDateString('de-DE')}
-                    </Badge>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Suggestions */}
-        {selectedAppointment && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-muted-foreground">
-                Empfehlungen:
-              </label>
-              <Select value={suggestionFilter} onValueChange={(value: any) => setSuggestionFilter(value)}>
-                <SelectTrigger className="h-6 w-20 text-xs">
-                  <Filter className="h-3 w-3" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle</SelectItem>
-                  <SelectItem value="available">Verfügbar</SelectItem>
-                  <SelectItem value="optimal">Optimal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {suggestions.length > 0 ? (
-                suggestions.map((suggestion) => (
-                  <EmployeeSuggestionCard
-                    key={suggestion.employee.id}
-                    suggestion={suggestion}
-                    onAssign={handleAssign}
-                  />
-                ))
-              ) : (
-                <div className="text-center py-4 text-xs text-muted-foreground">
-                  Keine passenden Mitarbeiter gefunden
+      {/* Compact Appointment Selection */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">
+          Termin für KI-Empfehlung:
+        </label>
+        <Select value={selectedAppointment} onValueChange={setSelectedAppointment}>
+          <SelectTrigger className="h-7 text-xs">
+            <SelectValue placeholder="Termin wählen..." />
+          </SelectTrigger>
+          <SelectContent>
+            {openAppointments.slice(0, 10).map((appointment) => (
+              <SelectItem key={appointment.id} value={appointment.id}>
+                <div className="flex items-center gap-1 text-xs">
+                  <span>{appointment.customer?.vorname} {appointment.customer?.nachname}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {new Date(appointment.start_at).toLocaleDateString('de-DE', { 
+                      day: '2-digit', 
+                      month: '2-digit' 
+                    })}
+                  </Badge>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-          <div className="text-center">
-            <div className="text-lg font-bold text-green-600">{employees.filter(e => e.ist_aktiv).length}</div>
-            <div className="text-xs text-muted-foreground">Verfügbar</div>
+      {/* Compact Suggestions */}
+      {selectedAppointment && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">
+              KI-Empfehlungen:
+            </label>
+            <Select value={suggestionFilter} onValueChange={(value: any) => setSuggestionFilter(value)}>
+              <SelectTrigger className="h-6 w-16 text-xs">
+                <Filter className="h-3 w-3" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle</SelectItem>
+                <SelectItem value="available">Verfügbar</SelectItem>
+                <SelectItem value="optimal">Optimal</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="text-center">
-            <div className="text-lg font-bold text-orange-600">{openAppointments.length}</div>
-            <div className="text-xs text-muted-foreground">Offen</div>
+          
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {suggestions.length > 0 ? (
+              suggestions.slice(0, 4).map((suggestion) => (
+                <EmployeeSuggestionCard
+                  key={suggestion.employee.id}
+                  suggestion={suggestion}
+                  onAssign={handleAssign}
+                />
+              ))
+            ) : (
+              <div className="text-center py-2 text-xs text-muted-foreground">
+                Keine passenden Mitarbeiter
+              </div>
+            )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
