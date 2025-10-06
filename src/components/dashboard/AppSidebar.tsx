@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useUserRole } from '@/hooks/useUserRole';
 import {
   Calendar,
   Home,
@@ -40,6 +41,7 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
+  const { role } = useUserRole();
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -72,62 +74,83 @@ export function AppSidebar() {
           </div>
         </div>
 
-        {/* Dashboard */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {dashboardItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+        {/* Mitarbeiter sehen nur Dashboard */}
+        {role === 'mitarbeiter' ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass(item.url)}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                    <NavLink to="/dashboard" className={getNavClass('/dashboard')}>
+                      <Home className="h-4 w-4" />
+                      {!collapsed && <span>Meine Termine</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : (
+          <>
+            {/* Dashboard */}
+            <SidebarGroup>
+              <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {dashboardItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink to={item.url} className={getNavClass(item.url)}>
+                          <item.icon className="h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
-        {/* Controlboard */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Controlboard</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {controlboardItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass(item.url)}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+            {/* Controlboard */}
+            <SidebarGroup>
+              <SidebarGroupLabel>Controlboard</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {controlboardItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink to={item.url} className={getNavClass(item.url)}>
+                          <item.icon className="h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
-        {/* Settings */}
-        <SidebarGroup>
-          <SidebarGroupLabel>System</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {settingsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClass(item.url)}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+            {/* Settings */}
+            <SidebarGroup>
+              <SidebarGroupLabel>System</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {settingsItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink to={item.url} className={getNavClass(item.url)}>
+                          <item.icon className="h-4 w-4" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
     </Sidebar>
   );
