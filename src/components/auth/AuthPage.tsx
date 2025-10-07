@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RegistrationRequestForm } from './RegistrationRequestForm';
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
@@ -118,7 +119,7 @@ export default function AuthPage() {
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="signin">Anmelden</TabsTrigger>
-              <TabsTrigger value="signup">Registrieren</TabsTrigger>
+              <TabsTrigger value="register">Registrieren</TabsTrigger>
               <TabsTrigger value="reset">Passwort zurücksetzen</TabsTrigger>
             </TabsList>
               
@@ -157,39 +158,8 @@ export default function AuthPage() {
                 </form>
               </TabsContent>
 
-              <TabsContent value="signup" className="space-y-4 mt-4">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signupEmail">E-Mail</Label>
-                    <Input
-                      id="signupEmail"
-                      type="email"
-                      placeholder="ihre.email@beispiel.de"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signupPassword">Passwort</Label>
-                    <Input
-                      id="signupPassword"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={signUpLoading}
-                    className="w-full bg-primary hover:bg-primary-hover"
-                  >
-                    {signUpLoading ? 'Wird registriert...' : 'Registrieren'}
-                  </Button>
-                </form>
+              <TabsContent value="register" className="space-y-4 mt-4">
+                <RegistrationRequestForm />
               </TabsContent>
               
               <TabsContent value="reset" className="space-y-4 mt-4">

@@ -74,29 +74,36 @@ export default function PendingRegistrations() {
   const handleApprove = async (registration: PendingRegistration) => {
     setActionLoading(registration.id);
     try {
-      const { data, error } = await supabase.rpc('approve_registration', {
-        p_registration_id: registration.id,
-        p_email: registration.email,
-        p_password: 'TempPass123!', // Temporäres Passwort
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Nicht angemeldet');
+      }
+
+      const { data, error } = await supabase.functions.invoke('approve-registration', {
+        body: {
+          registration_id: registration.id,
+          email: registration.email,
+          password: 'TempPass123!', // Temporäres Passwort - User sollte es ändern
+        },
       });
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; message?: string };
-      if (result.success) {
+      if (data?.success) {
         toast({
           title: 'Genehmigt',
-          description: `Registrierung für ${registration.email} wurde genehmigt.`,
+          description: `Registrierung für ${registration.email} wurde genehmigt. Temporäres Passwort: TempPass123!`,
         });
         loadRegistrations();
       } else {
-        throw new Error(result.error || 'Unbekannter Fehler');
+        throw new Error(data?.error || 'Unbekannter Fehler');
       }
     } catch (error: any) {
+      console.error('Approval error:', error);
       toast({
         variant: 'destructive',
         title: 'Fehler',
-        description: error.message,
+        description: error.message || 'Fehler beim Genehmigen der Registrierung',
       });
     } finally {
       setActionLoading(null);
@@ -115,15 +122,21 @@ export default function PendingRegistrations() {
 
     setActionLoading(selectedReg.id);
     try {
-      const { data, error } = await supabase.rpc('reject_registration', {
-        p_registration_id: selectedReg.id,
-        p_reason: rejectionReason,
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Nicht angemeldet');
+      }
+
+      const { data, error } = await supabase.functions.invoke('reject-registration', {
+        body: {
+          registration_id: selectedReg.id,
+          reason: rejectionReason,
+        },
       });
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; message?: string };
-      if (result.success) {
+      if (data?.success) {
         toast({
           title: 'Abgelehnt',
           description: `Registrierung für ${selectedReg.email} wurde abgelehnt.`,
@@ -133,13 +146,14 @@ export default function PendingRegistrations() {
         setSelectedReg(null);
         loadRegistrations();
       } else {
-        throw new Error(result.error || 'Unbekannter Fehler');
+        throw new Error(data?.error || 'Unbekannter Fehler');
       }
     } catch (error: any) {
+      console.error('Rejection error:', error);
       toast({
         variant: 'destructive',
         title: 'Fehler',
-        description: error.message,
+        description: error.message || 'Fehler beim Ablehnen der Registrierung',
       });
     } finally {
       setActionLoading(null);
