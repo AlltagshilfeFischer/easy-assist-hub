@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { Resend } from 'npm:resend@4.0.0'
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +29,17 @@ serve(async (req) => {
     const { registration_id, email, password } = await req.json()
 
     console.log('Approving registration:', { registration_id, email })
+
+    // Get registration details
+    const { data: registration, error: regError } = await supabaseAdmin
+      .from('pending_registrations')
+      .select('vorname, nachname')
+      .eq('id', registration_id)
+      .single()
+
+    if (regError || !registration) {
+      throw new Error('Registration not found')
+    }
 
     // Check if user is admin
     const authHeader = req.headers.get('Authorization')
@@ -81,6 +95,27 @@ serve(async (req) => {
     }
 
     console.log('Registration approved successfully')
+
+    // Send welcome email with password
+    try {
+      await resend.emails.send({
+        from: 'KIT Dienstleistungen <onboarding@resend.dev>',
+        to: [email],
+        subject: 'Dein Konto wurde freigeschaltet',
+        html: `
+          <h1>Willkommen ${registration.vorname} ${registration.nachname}!</h1>
+          <p>Deine Registrierung wurde genehmigt. Du kannst dich jetzt mit folgenden Zugangsdaten einloggen:</p>
+          <p><strong>E-Mail:</strong> ${email}</p>
+          <p><strong>Passwort:</strong> ${password}</p>
+          <p>Bitte ändere dein Passwort nach dem ersten Login.</p>
+          <p>Viele Grüße,<br>Dein KIT-Team</p>
+        `,
+      })
+      console.log('Welcome email sent successfully')
+    } catch (emailError) {
+      console.error('Error sending welcome email:', emailError)
+      // Continue even if email fails
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: 'Registration approved' }),

@@ -348,28 +348,34 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          nachname: string | null
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          vorname: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
+          nachname?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          vorname?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          nachname?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          vorname?: string | null
         }
         Relationships: [
           {

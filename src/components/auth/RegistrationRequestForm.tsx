@@ -8,6 +8,8 @@ import { Loader2 } from 'lucide-react';
 
 export function RegistrationRequestForm() {
   const [email, setEmail] = useState('');
+  const [vorname, setVorname] = useState('');
+  const [nachname, setNachname] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
@@ -20,7 +22,7 @@ export function RegistrationRequestForm() {
       // Insert into pending_registrations table
       const { error } = await supabase
         .from('pending_registrations')
-        .insert([{ email }]);
+        .insert([{ email, vorname, nachname }]);
 
       if (error) {
         if (error.code === '23505') {
@@ -38,9 +40,11 @@ export function RegistrationRequestForm() {
       setSubmitted(true);
       toast({
         title: 'Anfrage gesendet',
-        description: 'Ihre Registrierungsanfrage wurde eingereicht. Sie erhalten eine Benachrichtigung, sobald sie genehmigt wurde.',
+        description: 'Vielen Dank für deine Registrierung – ein Admin prüft deine Daten.',
       });
       setEmail('');
+      setVorname('');
+      setNachname('');
     } catch (error: any) {
       console.error('Registration request error:', error);
       toast({
@@ -75,6 +79,30 @@ export function RegistrationRequestForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
+        <Label htmlFor="vorname">Vorname</Label>
+        <Input
+          id="vorname"
+          type="text"
+          placeholder="Max"
+          value={vorname}
+          onChange={(e) => setVorname(e.target.value)}
+          required
+          disabled={loading}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="nachname">Nachname</Label>
+        <Input
+          id="nachname"
+          type="text"
+          placeholder="Mustermann"
+          value={nachname}
+          onChange={(e) => setNachname(e.target.value)}
+          required
+          disabled={loading}
+        />
+      </div>
+      <div className="space-y-2">
         <Label htmlFor="email">E-Mail-Adresse</Label>
         <Input
           id="email"
@@ -89,7 +117,7 @@ export function RegistrationRequestForm() {
       <Button
         type="submit"
         className="w-full"
-        disabled={loading || !email}
+        disabled={loading || !email || !vorname || !nachname}
       >
         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Registrierungsanfrage stellen

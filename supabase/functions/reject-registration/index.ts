@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { Resend } from 'npm:resend@4.0.0'
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +29,17 @@ serve(async (req) => {
     const { registration_id, reason } = await req.json()
 
     console.log('Rejecting registration:', { registration_id, reason })
+
+    // Get registration details
+    const { data: registration, error: regError } = await supabaseAdmin
+      .from('pending_registrations')
+      .select('email, vorname, nachname')
+      .eq('id', registration_id)
+      .single()
+
+    if (regError || !registration) {
+      throw new Error('Registration not found')
+    }
 
     // Check if user is admin
     const authHeader = req.headers.get('Authorization')
@@ -68,6 +82,26 @@ serve(async (req) => {
     }
 
     console.log('Registration rejected successfully')
+
+    // Send rejection email
+    try {
+      await resend.emails.send({
+        from: 'KIT Dienstleistungen <onboarding@resend.dev>',
+        to: [registration.email],
+        subject: 'Deine Registrierung wurde abgelehnt',
+        html: `
+          <h1>Hallo ${registration.vorname} ${registration.nachname},</h1>
+          <p>Leider mussten wir deine Registrierung ablehnen.</p>
+          ${reason ? `<p><strong>Grund:</strong> ${reason}</p>` : ''}
+          <p>Bei Fragen kannst du dich gerne an uns wenden.</p>
+          <p>Viele Grüße,<br>Dein KIT-Team</p>
+        `,
+      })
+      console.log('Rejection email sent successfully')
+    } catch (emailError) {
+      console.error('Error sending rejection email:', emailError)
+      // Continue even if email fails
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: 'Registration rejected' }),
