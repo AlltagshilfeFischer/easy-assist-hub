@@ -184,7 +184,7 @@ const ScheduleBuilder = () => {
       const { data: employeesData, error: employeesError } = await supabase
         .from('mitarbeiter')
         .select('*')
-        .order('vorname');
+        .order('email', { ascending: true });
       
       if (employeesError) throw employeesError;
 
