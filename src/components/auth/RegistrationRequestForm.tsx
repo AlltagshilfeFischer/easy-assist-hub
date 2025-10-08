@@ -19,7 +19,6 @@ export function RegistrationRequestForm() {
     setLoading(true);
 
     try {
-      // Insert into pending_registrations table
       const { error } = await supabase
         .from('pending_registrations')
         .insert([{ email, vorname, nachname }]);
@@ -62,8 +61,8 @@ export function RegistrationRequestForm() {
       <div className="space-y-4 text-center">
         <h3 className="text-xl font-semibold">Anfrage eingereicht</h3>
         <p className="text-muted-foreground">
-          Ihre Registrierungsanfrage wurde erfolgreich eingereicht.
-          Sie erhalten eine E-Mail, sobald ein Administrator Ihre Anfrage genehmigt hat.
+          Deine Registrierungsanfrage wurde erfolgreich eingereicht.
+          Du erhältst eine E-Mail, sobald ein Administrator deine Anfrage genehmigt hat.
         </p>
         <Button
           variant="outline"
@@ -107,7 +106,7 @@ export function RegistrationRequestForm() {
         <Input
           id="email"
           type="email"
-          placeholder="ihre.email@beispiel.de"
+          placeholder="max.mustermann@beispiel.de"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -123,7 +122,7 @@ export function RegistrationRequestForm() {
         Registrierungsanfrage stellen
       </Button>
       <p className="text-sm text-muted-foreground text-center">
-        Nach Genehmigung durch einen Administrator erhalten Sie Ihre Zugangsdaten per E-Mail.
+        Nach Genehmigung durch einen Administrator erhältst du deine Zugangsdaten per E-Mail.
       </p>
     </form>
   );

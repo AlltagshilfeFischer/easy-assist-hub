@@ -30,17 +30,6 @@ serve(async (req) => {
 
     console.log('Rejecting registration:', { registration_id, reason })
 
-    // Get registration details
-    const { data: registration, error: regError } = await supabaseAdmin
-      .from('pending_registrations')
-      .select('email, vorname, nachname')
-      .eq('id', registration_id)
-      .single()
-
-    if (regError || !registration) {
-      throw new Error('Registration not found')
-    }
-
     // Check if user is admin
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -54,7 +43,6 @@ serve(async (req) => {
       throw new Error('Not authenticated')
     }
 
-    // Check if user is admin
     const { data: benutzer, error: benutzerError } = await supabaseAdmin
       .from('benutzer')
       .select('rolle')
@@ -63,6 +51,17 @@ serve(async (req) => {
 
     if (benutzerError || !benutzer || benutzer.rolle !== 'admin') {
       throw new Error('Not authorized')
+    }
+
+    // Get registration details for email
+    const { data: registration, error: regError } = await supabaseAdmin
+      .from('pending_registrations')
+      .select('email, vorname, nachname')
+      .eq('id', registration_id)
+      .single()
+
+    if (regError || !registration) {
+      throw new Error('Registration not found')
     }
 
     // Update pending registration status
@@ -88,26 +87,26 @@ serve(async (req) => {
       await resend.emails.send({
         from: 'KIT Dienstleistungen <onboarding@resend.dev>',
         to: [registration.email],
-        subject: 'Deine Registrierung wurde abgelehnt',
+        subject: 'Deine Registrierung bei KIT Dienstleistungen',
         html: `
           <h1>Hallo ${registration.vorname} ${registration.nachname},</h1>
-          <p>Leider mussten wir deine Registrierung ablehnen.</p>
+          <p>Leider können wir deine Registrierung derzeit nicht genehmigen.</p>
           ${reason ? `<p><strong>Grund:</strong> ${reason}</p>` : ''}
           <p>Bei Fragen kannst du dich gerne an uns wenden.</p>
-          <p>Viele Grüße,<br>Dein KIT-Team</p>
+          <p>Viele Grüße,<br>Dein KIT Team</p>
         `,
       })
       console.log('Rejection email sent successfully')
     } catch (emailError) {
       console.error('Error sending rejection email:', emailError)
-      // Continue even if email fails
+      // Don't fail the rejection if email fails
     }
 
     return new Response(
       JSON.stringify({ success: true, message: 'Registration rejected' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error rejecting registration:', error)
     return new Response(
       JSON.stringify({ success: false, error: error.message }),

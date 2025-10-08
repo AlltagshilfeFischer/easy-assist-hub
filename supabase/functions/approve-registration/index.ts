@@ -30,17 +30,6 @@ serve(async (req) => {
 
     console.log('Approving registration:', { registration_id, email })
 
-    // Get registration details
-    const { data: registration, error: regError } = await supabaseAdmin
-      .from('pending_registrations')
-      .select('vorname, nachname')
-      .eq('id', registration_id)
-      .single()
-
-    if (regError || !registration) {
-      throw new Error('Registration not found')
-    }
-
     // Check if user is admin
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -54,7 +43,6 @@ serve(async (req) => {
       throw new Error('Not authenticated')
     }
 
-    // Check if user is admin
     const { data: benutzer, error: benutzerError } = await supabaseAdmin
       .from('benutzer')
       .select('rolle')
@@ -63,6 +51,17 @@ serve(async (req) => {
 
     if (benutzerError || !benutzer || benutzer.rolle !== 'admin') {
       throw new Error('Not authorized')
+    }
+
+    // Get registration details
+    const { data: registration, error: regError } = await supabaseAdmin
+      .from('pending_registrations')
+      .select('vorname, nachname')
+      .eq('id', registration_id)
+      .single()
+
+    if (regError || !registration) {
+      throw new Error('Registration not found')
     }
 
     // Create auth user with admin privileges
@@ -96,32 +95,32 @@ serve(async (req) => {
 
     console.log('Registration approved successfully')
 
-    // Send welcome email with password
+    // Send welcome email with credentials
     try {
       await resend.emails.send({
         from: 'KIT Dienstleistungen <onboarding@resend.dev>',
         to: [email],
-        subject: 'Dein Konto wurde freigeschaltet',
+        subject: 'Willkommen bei KIT Dienstleistungen - Dein Zugang wurde freigeschaltet',
         html: `
           <h1>Willkommen ${registration.vorname} ${registration.nachname}!</h1>
-          <p>Deine Registrierung wurde genehmigt. Du kannst dich jetzt mit folgenden Zugangsdaten einloggen:</p>
-          <p><strong>E-Mail:</strong> ${email}</p>
-          <p><strong>Passwort:</strong> ${password}</p>
+          <p>Deine Registrierung wurde genehmigt. Du kannst dich jetzt einloggen:</p>
+          <p><strong>E-Mail:</strong> ${email}<br>
+          <strong>Passwort:</strong> ${password}</p>
           <p>Bitte ändere dein Passwort nach dem ersten Login.</p>
-          <p>Viele Grüße,<br>Dein KIT-Team</p>
+          <p>Viele Grüße,<br>Dein KIT Team</p>
         `,
       })
       console.log('Welcome email sent successfully')
     } catch (emailError) {
       console.error('Error sending welcome email:', emailError)
-      // Continue even if email fails
+      // Don't fail the approval if email fails
     }
 
     return new Response(
       JSON.stringify({ success: true, message: 'Registration approved' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error approving registration:', error)
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
