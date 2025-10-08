@@ -8,8 +8,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RegistrationRequestForm } from './RegistrationRequestForm';
+import { PasswordResetForm } from './PasswordResetForm';
 
 export default function AuthPage() {
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [resetEmail, setResetEmail] = useState('');

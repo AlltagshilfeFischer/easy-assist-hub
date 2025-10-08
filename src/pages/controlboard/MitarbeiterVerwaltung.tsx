@@ -1,0 +1,500 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, CheckCircle, XCircle, Clock, UserPlus } from 'lucide-react';
+
+interface PendingRegistration {
+  id: string;
+  email: string;
+  vorname: string;
+  nachname: string;
+  status: string;
+  created_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  rejection_reason: string | null;
+}
+
+interface Mitarbeiter {
+  id: string;
+  email: string;
+  telefon: string | null;
+  ist_aktiv: boolean;
+  created_at: string;
+  benutzer_id: string | null;
+  benutzer?: {
+    vorname: string;
+    nachname: string;
+  };
+}
+
+export default function MitarbeiterVerwaltung() {
+  const [registrations, setRegistrations] = useState<PendingRegistration[]>([]);
+  const [mitarbeiter, setMitarbeiter] = useState<Mitarbeiter[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRegistration, setSelectedRegistration] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const { toast } = useToast();
+
+  // New employee form
+  const [newEmployee, setNewEmployee] = useState({
+    email: '',
+    password: '',
+    vorname: '',
+    nachname: '',
+    telefon: '',
+  });
+
+  useEffect(() => {
+    loadData();
+
+    const channel = supabase
+      .channel('mitarbeiter-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pending_registrations' },
+        () => loadData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'mitarbeiter' },
+        () => loadData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [regResponse, mitResponse] = await Promise.all([
+        supabase
+          .from('pending_registrations')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('mitarbeiter')
+          .select(`
+            *,
+            benutzer:benutzer_id (
+              vorname,
+              nachname
+            )
+          `)
+          .order('created_at', { ascending: false })
+      ]);
+
+      if (regResponse.error) throw regResponse.error;
+      if (mitResponse.error) throw mitResponse.error;
+
+      setRegistrations(regResponse.data || []);
+      setMitarbeiter(mitResponse.data || []);
+    } catch (error: any) {
+      console.error('Error loading data:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: 'Daten konnten nicht geladen werden.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (registrationId: string, email: string) => {
+    if (!newPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: 'Bitte Passwort eingeben.',
+      });
+      return;
+    }
+
+    setActionLoading(registrationId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { data, error } = await supabase.functions.invoke('approve-registration', {
+        body: { registration_id: registrationId, email, password: newPassword },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Erfolgreich',
+        description: 'Registrierung wurde genehmigt.',
+      });
+
+      setNewPassword('');
+      loadData();
+    } catch (error: any) {
+      console.error('Error approving:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: error.message || 'Genehmigung fehlgeschlagen.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedRegistration) return;
+
+    setActionLoading(selectedRegistration);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { data, error } = await supabase.functions.invoke('reject-registration', {
+        body: { registration_id: selectedRegistration, reason: rejectionReason },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Erfolgreich',
+        description: 'Registrierung wurde abgelehnt.',
+      });
+
+      setRejectDialogOpen(false);
+      setSelectedRegistration(null);
+      setRejectionReason('');
+      loadData();
+    } catch (error: any) {
+      console.error('Error rejecting:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: error.message || 'Ablehnung fehlgeschlagen.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading('create-new');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { data, error } = await supabase.functions.invoke('create-employee', {
+        body: newEmployee,
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Erfolgreich',
+        description: 'Mitarbeiter wurde erstellt.',
+      });
+
+      setNewEmployee({
+        email: '',
+        password: '',
+        vorname: '',
+        nachname: '',
+        telefon: '',
+      });
+      loadData();
+    } catch (error: any) {
+      console.error('Error creating employee:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: error.message || 'Erstellung fehlgeschlagen.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-500/10"><Clock className="w-3 h-3 mr-1" />Ausstehend</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-green-500/10"><CheckCircle className="w-3 h-3 mr-1" />Genehmigt</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="bg-red-500/10"><XCircle className="w-3 h-3 mr-1" />Abgelehnt</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  const pendingRegistrations = registrations.filter(r => r.status === 'pending');
+  const processedRegistrations = registrations.filter(r => r.status !== 'pending');
+
+  return (
+    <div className="container mx-auto py-8 space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Mitarbeiterverwaltung</h1>
+        <p className="text-muted-foreground">Registrierungen verwalten und Mitarbeiter anlegen</p>
+      </div>
+
+      <Tabs defaultValue="registrations" className="w-full">
+        <TabsList>
+          <TabsTrigger value="registrations">
+            Registrierungen {pendingRegistrations.length > 0 && `(${pendingRegistrations.length})`}
+          </TabsTrigger>
+          <TabsTrigger value="employees">Mitarbeiter ({mitarbeiter.length})</TabsTrigger>
+          <TabsTrigger value="create">Neuer Mitarbeiter</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="registrations" className="space-y-4">
+          {pendingRegistrations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Ausstehende Registrierungen</CardTitle>
+                <CardDescription>
+                  Registrierungsanfragen die auf Genehmigung warten
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {pendingRegistrations.map((reg) => (
+                  <Card key={reg.id}>
+                    <CardContent className="pt-6">
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{reg.vorname} {reg.nachname}</h3>
+                            {getStatusBadge(reg.status)}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{reg.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Beantragt am: {new Date(reg.created_at).toLocaleDateString('de-DE')}
+                          </p>
+                        </div>
+                        <div className="space-y-2 min-w-[300px]">
+                          <div className="space-y-2">
+                            <Label htmlFor={`password-${reg.id}`}>Passwort für {reg.vorname}</Label>
+                            <Input
+                              id={`password-${reg.id}`}
+                              type="password"
+                              placeholder="Passwort eingeben"
+                              value={actionLoading === reg.id ? '' : newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              disabled={actionLoading === reg.id}
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleApprove(reg.id, reg.email)}
+                              disabled={actionLoading === reg.id || !newPassword}
+                              className="flex-1"
+                            >
+                              {actionLoading === reg.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Genehmigen
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() => {
+                                setSelectedRegistration(reg.id);
+                                setRejectDialogOpen(true);
+                              }}
+                              disabled={actionLoading === reg.id}
+                            >
+                              Ablehnen
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {processedRegistrations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Bearbeitete Registrierungen</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {processedRegistrations.map((reg) => (
+                  <div key={reg.id} className="flex justify-between items-center p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{reg.vorname} {reg.nachname}</p>
+                      <p className="text-sm text-muted-foreground">{reg.email}</p>
+                      {reg.rejection_reason && (
+                        <p className="text-xs text-destructive mt-1">Grund: {reg.rejection_reason}</p>
+                      )}
+                    </div>
+                    {getStatusBadge(reg.status)}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {registrations.length === 0 && (
+            <Card>
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                Keine Registrierungen vorhanden
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="employees" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Alle Mitarbeiter</CardTitle>
+              <CardDescription>Übersicht aller registrierten Mitarbeiter</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {mitarbeiter.map((m) => (
+                  <div key={m.id} className="flex justify-between items-center p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">
+                        {m.benutzer?.vorname || 'Unbekannt'} {m.benutzer?.nachname || ''}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{m.email}</p>
+                      {m.telefon && (
+                        <p className="text-xs text-muted-foreground">Tel: {m.telefon}</p>
+                      )}
+                    </div>
+                    <Badge variant={m.ist_aktiv ? 'default' : 'secondary'}>
+                      {m.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="create">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5" />
+                Neuen Mitarbeiter anlegen
+              </CardTitle>
+              <CardDescription>
+                Direktes Anlegen eines Mitarbeiters mit sofortigem Zugang
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateEmployee} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="vorname">Vorname *</Label>
+                    <Input
+                      id="vorname"
+                      value={newEmployee.vorname}
+                      onChange={(e) => setNewEmployee({ ...newEmployee, vorname: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nachname">Nachname *</Label>
+                    <Input
+                      id="nachname"
+                      value={newEmployee.nachname}
+                      onChange={(e) => setNewEmployee({ ...newEmployee, nachname: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-Mail *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newEmployee.email}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Passwort *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newEmployee.password}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="telefon">Telefon</Label>
+                  <Input
+                    id="telefon"
+                    type="tel"
+                    value={newEmployee.telefon}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, telefon: e.target.value })}
+                  />
+                </div>
+                <Button type="submit" disabled={actionLoading === 'create-new'}>
+                  {actionLoading === 'create-new' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Mitarbeiter anlegen
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Registrierung ablehnen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie diese Registrierung wirklich ablehnen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-4">
+            <Label htmlFor="rejection-reason">Ablehnungsgrund (optional)</Label>
+            <Input
+              id="rejection-reason"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Grund der Ablehnung..."
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReject} className="bg-destructive text-destructive-foreground">
+              Ablehnen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
