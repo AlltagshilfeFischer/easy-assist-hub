@@ -33,23 +33,33 @@ serve(async (req) => {
     // Check if user is admin
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('No authorization header')
       throw new Error('Not authenticated')
     }
 
     const token = authHeader.replace('Bearer ', '')
-    const { data: { user } } = await supabaseAdmin.auth.getUser(token)
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token)
     
-    if (!user) {
+    if (userError || !user) {
+      console.error('Error getting user:', userError)
       throw new Error('Not authenticated')
     }
+
+    console.log('User authenticated:', user.id)
 
     const { data: benutzer, error: benutzerError } = await supabaseAdmin
       .from('benutzer')
       .select('rolle')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (benutzerError || !benutzer || benutzer.rolle !== 'admin') {
+    if (benutzerError) {
+      console.error('Error checking admin role:', benutzerError)
+      throw new Error('Not authorized')
+    }
+
+    if (!benutzer || benutzer.rolle !== 'admin') {
+      console.log('User is not admin:', { user_id: user.id, rolle: benutzer?.rolle })
       throw new Error('Not authorized')
     }
 
