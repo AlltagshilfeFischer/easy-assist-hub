@@ -155,11 +155,11 @@ export default function AuthPage() {
     } else {
       toast({
         title: 'Passwort erfolgreich gesetzt',
-        description: 'Sie werden zur Anmeldung weitergeleitet...',
+        description: 'Sie werden nun zum Dashboard weitergeleitet...',
       });
-      // Redirect to auth page after short delay
+      // User is automatically logged in after password update
       setTimeout(() => {
-        window.location.href = '/auth';
+        window.location.href = '/dashboard';
       }, 1500);
     }
   };
