@@ -25,8 +25,13 @@ export default function MitarbeiterDashboard() {
 
   useEffect(() => {
     async function loadAppointments() {
-      if (!mitarbeiterId) return;
+      if (!mitarbeiterId) {
+        setAppointments([]);
+        setLoading(false);
+        return;
+      }
 
+      setLoading(true);
       try {
         const { data, error } = await supabase
           .from('termine')
