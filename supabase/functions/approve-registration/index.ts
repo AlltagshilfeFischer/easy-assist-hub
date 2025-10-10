@@ -1,8 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { Resend } from 'npm:resend@4.0.0'
-
-const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,15 +90,13 @@ serve(async (req) => {
 
     const registration = registrationData[0]
 
-    // Send invite; if user already exists, send a recovery link instead
+    // Send invite; if user already exists, send a password reset email instead
     let alreadyExists = false
-    let invitedUserId: string | null = null
 
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       registration.email,
       {
         data: { vorname: registration.vorname, nachname: registration.nachname }
-        // redirectTo will use Supabase Auth Site URL; configure it in the dashboard
       }
     )
 
@@ -109,45 +104,28 @@ serve(async (req) => {
       const code = (inviteError as any)?.code || (inviteError as any)?.status
       if (code === 'email_exists' || code === 422) {
         alreadyExists = true
-        console.log('User already exists, generating recovery link instead')
+        console.log('User already exists, sending password reset email via Supabase')
 
-        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'recovery',
-          email: registration.email,
-          options: {
-            redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/auth`
+        // Use Supabase's built-in password reset email
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+          registration.email,
+          {
+            redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/`
           }
-        })
+        )
 
-        if (linkError) {
-          console.error('Error generating recovery link:', linkError)
-          throw linkError
+        if (resetError) {
+          console.error('Error sending password reset email:', resetError)
+          throw new Error('Fehler beim Versenden der Passwort-Reset-E-Mail')
         }
 
-        try {
-          await resend.emails.send({
-            from: 'KIT Dienstleistungen <onboarding@resend.dev>',
-            to: [registration.email],
-            subject: 'Passwort setzen / zurücksetzen',
-            html: `
-              <h1>Hallo ${registration.vorname} ${registration.nachname},</h1>
-              <p>Für deine E-Mail existiert bereits ein Zugang. Du kannst hier dein Passwort setzen bzw. zurücksetzen:</p>
-              <p><a href="${linkData?.action_link}" target="_blank" rel="noopener">Passwort jetzt setzen</a></p>
-              <p>Viele Grüße,<br>Dein KIT Team</p>
-            `,
-          })
-          console.log('Recovery email sent successfully')
-        } catch (emailError) {
-          console.error('Error sending recovery email:', emailError)
-          // continue, account is valid and registration can be approved
-        }
+        console.log('Password reset email sent via Supabase')
       } else {
         console.error('Error inviting user:', inviteError)
         throw inviteError
       }
     } else {
-      invitedUserId = inviteData?.user?.id ?? null
-      console.log('Invite sent for user:', invitedUserId)
+      console.log('Invite sent for user:', inviteData?.user?.id)
     }
 
     // Update pending registration status using Security Definer function
@@ -164,27 +142,13 @@ serve(async (req) => {
 
     console.log('Registration approved successfully')
 
-    // Optional: send additional notification email via Resend (no password included)
-    try {
-      await resend.emails.send({
-        from: 'KIT Dienstleistungen <onboarding@resend.dev>',
-        to: [registration.email],
-        subject: 'Deine Registrierung wurde genehmigt – Bitte Passwort setzen',
-        html: `
-          <h1>Hallo ${registration.vorname} ${registration.nachname},</h1>
-          <p>deine Registrierung wurde genehmigt.</p>
-          <p>Du erhältst gleich eine separate Einladung von unserem Auth-System, um dein Passwort festzulegen. Klicke dazu auf den Link in dieser E-Mail.</p>
-          <p>Viele Grüße,<br>Dein KIT Team</p>
-        `,
-      })
-      console.log('Notification email sent successfully')
-    } catch (emailError) {
-      console.error('Error sending notification email:', emailError)
-      // Don't fail the approval if email fails
-    }
-
     return new Response(
-      JSON.stringify({ success: true, message: 'Registration approved' }),
+      JSON.stringify({ 
+        success: true, 
+        message: alreadyExists 
+          ? 'Registrierung genehmigt. Passwort-Reset-E-Mail wurde versendet.'
+          : 'Registrierung genehmigt. Einladungs-E-Mail wurde versendet.'
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
   } catch (error: any) {
