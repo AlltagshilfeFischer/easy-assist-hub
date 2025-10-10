@@ -93,7 +93,10 @@ serve(async (req) => {
 
     const registration = registrationData[0]
 
-    // Send Supabase invite email so the user can set their password
+    // Send invite; if user already exists, send a recovery link instead
+    let alreadyExists = false
+    let invitedUserId: string | null = null
+
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       registration.email,
       {
@@ -103,11 +106,49 @@ serve(async (req) => {
     )
 
     if (inviteError) {
-      console.error('Error inviting user:', inviteError)
-      throw inviteError
-    }
+      const code = (inviteError as any)?.code || (inviteError as any)?.status
+      if (code === 'email_exists' || code === 422) {
+        alreadyExists = true
+        console.log('User already exists, generating recovery link instead')
 
-    console.log('Invite sent for user:', inviteData?.user?.id)
+        const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery',
+          email: registration.email,
+          options: {
+            redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/auth`
+          }
+        })
+
+        if (linkError) {
+          console.error('Error generating recovery link:', linkError)
+          throw linkError
+        }
+
+        try {
+          await resend.emails.send({
+            from: 'KIT Dienstleistungen <onboarding@resend.dev>',
+            to: [registration.email],
+            subject: 'Passwort setzen / zurücksetzen',
+            html: `
+              <h1>Hallo ${registration.vorname} ${registration.nachname},</h1>
+              <p>Für deine E-Mail existiert bereits ein Zugang. Du kannst hier dein Passwort setzen bzw. zurücksetzen:</p>
+              <p><a href="${linkData?.action_link}" target="_blank" rel="noopener">Passwort jetzt setzen</a></p>
+              <p>Viele Grüße,<br>Dein KIT Team</p>
+            `,
+          })
+          console.log('Recovery email sent successfully')
+        } catch (emailError) {
+          console.error('Error sending recovery email:', emailError)
+          // continue, account is valid and registration can be approved
+        }
+      } else {
+        console.error('Error inviting user:', inviteError)
+        throw inviteError
+      }
+    } else {
+      invitedUserId = inviteData?.user?.id ?? null
+      console.log('Invite sent for user:', invitedUserId)
+    }
 
     // Update pending registration status using Security Definer function
     const { error: updateError } = await supabaseAdmin
