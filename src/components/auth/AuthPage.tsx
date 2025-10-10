@@ -274,6 +274,19 @@ export default function AuthPage() {
                     {loading ? 'Wird angemeldet...' : 'Anmelden'}
                   </Button>
                 </form>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tabs = document.querySelector('[role="tablist"]');
+                      const resetTab = tabs?.querySelector('[value="reset"]') as HTMLButtonElement;
+                      resetTab?.click();
+                    }}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Passwort vergessen?
+                  </button>
+                </div>
               </TabsContent>
 
               <TabsContent value="register" className="space-y-4 mt-4">
