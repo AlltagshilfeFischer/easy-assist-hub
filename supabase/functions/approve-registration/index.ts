@@ -24,7 +24,7 @@ serve(async (req) => {
     )
 
     const { registration_id, email } = await req.json()
-    const origin = req.headers.get('origin') || Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'
+    const origin = Deno.env.get('SITE_URL') || req.headers.get('origin') || 'https://easy-assist-hub.lovable.app'
 
     console.log('Approving registration:', { registration_id })
 

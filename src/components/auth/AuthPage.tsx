@@ -30,7 +30,17 @@ export default function AuthPage() {
   const hashString = typeof window !== 'undefined' ? (window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : window.location.hash) : '';
   const hashParams = new URLSearchParams(hashString || '');
   const isInvite = ['invite','signup'].includes(searchParams.get('type') || '') || ['invite','signup'].includes(hashParams.get('type') || '');
-  const isRecovery = searchParams.get('type') === 'recovery' || hashParams.get('type') === 'recovery';
+  const isRecovery = ['recovery'].includes(searchParams.get('type') || '') || ['recovery'].includes(hashParams.get('type') || '');
+
+  useEffect(() => {
+    const errorCode = hashParams.get('error_code');
+    const error = hashParams.get('error');
+    if (errorCode === 'otp_expired' || error === 'access_denied') {
+      setShowPasswordReset(true);
+    }
+  // run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Redirect if already authenticated (but allow invite/recovery to show password setup)
   if (user && !(isInvite || isRecovery)) {
