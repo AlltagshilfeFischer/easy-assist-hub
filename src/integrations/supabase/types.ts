@@ -893,6 +893,14 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: number
       }
+      get_pending_registration: {
+        Args: { p_registration_id: string }
+        Returns: {
+          email: string
+          nachname: string
+          vorname: string
+        }[]
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
@@ -919,6 +927,10 @@ export type Database = {
           p_termin_id: string
         }
         Returns: string
+      }
+      update_registration_status: {
+        Args: { p_registration_id: string; p_reviewer_id: string }
+        Returns: undefined
       }
     }
     Enums: {

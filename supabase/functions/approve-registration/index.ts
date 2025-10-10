@@ -77,37 +77,21 @@ serve(async (req) => {
       throw new Error('Not authorized')
     }
 
-    // Get registration details (try by id first, then fallback to email)
-    const { data: registrationById, error: regErrorById } = await supabaseAdmin
-      .from('pending_registrations')
-      .select('email, vorname, nachname')
-      .eq('id', registration_id)
-      .maybeSingle()
+    // Get registration details using Security Definer function to bypass RLS
+    const { data: registrationData, error: regError } = await supabaseAdmin
+      .rpc('get_pending_registration', { p_registration_id: registration_id })
 
-    if (regErrorById) {
-      console.error('Error fetching registration by id:', regErrorById)
-    }
-
-    let registration = registrationById
-
-    if (!registration && email) {
-      const { data: regByEmail, error: regErrorByEmail } = await supabaseAdmin
-        .from('pending_registrations')
-        .select('email, vorname, nachname')
-        .eq('email', email)
-        .maybeSingle()
-
-      if (regErrorByEmail) {
-        console.error('Error fetching registration by email:', regErrorByEmail)
-      }
-
-      if (regByEmail) registration = regByEmail
-    }
-
-    if (!registration) {
-      console.error('Registration not found for', { registration_id, email })
+    if (regError) {
+      console.error('Error fetching registration:', regError)
       throw new Error('Registration not found')
     }
+
+    if (!registrationData || registrationData.length === 0) {
+      console.error('Registration not found for id:', registration_id)
+      throw new Error('Registration not found')
+    }
+
+    const registration = registrationData[0]
 
     // Send Supabase invite email so the user can set their password
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
@@ -125,15 +109,12 @@ serve(async (req) => {
 
     console.log('Invite sent for user:', inviteData?.user?.id)
 
-    // Update pending registration status (via RLS with user-scoped client)
+    // Update pending registration status using Security Definer function
     const { error: updateError } = await supabaseAdmin
-      .from('pending_registrations')
-      .update({
-        status: 'approved',
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
+      .rpc('update_registration_status', { 
+        p_registration_id: registration_id,
+        p_reviewer_id: user.id
       })
-      .eq('id', registration_id)
 
     if (updateError) {
       console.error('Error updating registration:', updateError)
