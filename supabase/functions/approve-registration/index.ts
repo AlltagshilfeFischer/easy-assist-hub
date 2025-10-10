@@ -24,6 +24,7 @@ serve(async (req) => {
     )
 
     const { registration_id, email } = await req.json()
+    const origin = req.headers.get('origin') || Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'
 
     console.log('Approving registration:', { registration_id })
 
@@ -96,7 +97,8 @@ serve(async (req) => {
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       registration.email,
       {
-        data: { vorname: registration.vorname, nachname: registration.nachname }
+        data: { vorname: registration.vorname, nachname: registration.nachname },
+        redirectTo: `${origin}/auth?type=invite`
       }
     )
 
@@ -110,7 +112,7 @@ serve(async (req) => {
         const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
           registration.email,
           {
-            redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/`
+            redirectTo: `${origin}/auth?type=recovery`
           }
         )
 

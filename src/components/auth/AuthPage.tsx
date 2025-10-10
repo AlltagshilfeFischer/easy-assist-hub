@@ -29,7 +29,7 @@ export default function AuthPage() {
   // Check if this is an invitation link
   const hashString = typeof window !== 'undefined' ? (window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : window.location.hash) : '';
   const hashParams = new URLSearchParams(hashString || '');
-  const isInvite = searchParams.get('type') === 'invite' || hashParams.get('type') === 'invite';
+  const isInvite = ['invite','signup'].includes(searchParams.get('type') || '') || ['invite','signup'].includes(hashParams.get('type') || '');
   const isRecovery = searchParams.get('type') === 'recovery' || hashParams.get('type') === 'recovery';
 
   // Redirect if already authenticated (but allow invite/recovery to show password setup)

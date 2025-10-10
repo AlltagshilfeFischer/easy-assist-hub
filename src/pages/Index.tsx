@@ -8,7 +8,7 @@ const Index = () => {
   const searchParams = new URLSearchParams(location.search);
   const hashString = location.hash?.startsWith('#') ? location.hash.slice(1) : location.hash;
   const hashParams = new URLSearchParams(hashString || '');
-  const isAuthFlow = (searchParams.get('type') === 'invite' || searchParams.get('type') === 'recovery' || hashParams.get('type') === 'invite' || hashParams.get('type') === 'recovery');
+  const isAuthFlow = (['invite','recovery','signup'].includes(searchParams.get('type') || '') || ['invite','recovery','signup'].includes(hashParams.get('type') || ''));
 
   if (loading) {
     return (
