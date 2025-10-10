@@ -93,6 +93,7 @@ serve(async (req) => {
 
     // Send invite; if user already exists, send a password reset email instead
     let alreadyExists = false
+    let userId: string | null = null
 
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       registration.email,
@@ -107,6 +108,13 @@ serve(async (req) => {
       if (code === 'email_exists' || code === 422) {
         alreadyExists = true
         console.log('User already exists, sending password reset email via Supabase')
+
+        // Get existing user ID
+        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
+        const foundUser = existingUser?.users?.find(u => u.email === registration.email)
+        if (foundUser) {
+          userId = foundUser.id
+        }
 
         // Use Supabase's built-in password reset email
         const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
@@ -127,7 +135,53 @@ serve(async (req) => {
         throw inviteError
       }
     } else {
-      console.log('Invite sent for user:', inviteData?.user?.id)
+      userId = inviteData?.user?.id || null
+      console.log('Invite sent for user:', userId)
+    }
+
+    // Create benutzer and mitarbeiter entries if user was created
+    if (userId && !alreadyExists) {
+      console.log('Creating benutzer and mitarbeiter entries for:', userId)
+
+      // Create benutzer entry
+      const { error: benutzerInsertError } = await supabaseAdmin
+        .from('benutzer')
+        .insert({
+          id: userId,
+          email: registration.email,
+          vorname: registration.vorname || null,
+          nachname: registration.nachname || null,
+          rolle: 'mitarbeiter',
+        })
+
+      if (benutzerInsertError) {
+        console.error('Error creating benutzer:', benutzerInsertError)
+        // Rollback: delete auth user
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+        throw new Error(`Fehler beim Erstellen des Benutzer-Eintrags: ${benutzerInsertError.message}`)
+      }
+
+      console.log('Benutzer entry created')
+
+      // Create mitarbeiter entry
+      const { error: mitarbeiterInsertError } = await supabaseAdmin
+        .from('mitarbeiter')
+        .insert({
+          benutzer_id: userId,
+          email: registration.email,
+          ist_aktiv: true,
+          farbe_kalender: '#3B82F6',
+        })
+
+      if (mitarbeiterInsertError) {
+        console.error('Error creating mitarbeiter:', mitarbeiterInsertError)
+        // Rollback: delete benutzer and auth user
+        await supabaseAdmin.from('benutzer').delete().eq('id', userId)
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+        throw new Error(`Fehler beim Erstellen des Mitarbeiter-Eintrags: ${mitarbeiterInsertError.message}`)
+      }
+
+      console.log('Mitarbeiter entry created')
     }
 
     // Update pending registration status using Security Definer function
