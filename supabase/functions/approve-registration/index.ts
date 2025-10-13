@@ -104,35 +104,52 @@ serve(async (req) => {
     )
 
     if (inviteError) {
-      const code = (inviteError as any)?.code || (inviteError as any)?.status
-      if (code === 'email_exists' || code === 422) {
+      // Be robust: treat any error as potential "user already exists"
+      const code = (inviteError as any)?.code || (inviteError as any)?.status || (inviteError as any)?.name
+      console.warn('Invite error encountered, checking if user already exists:', inviteError)
+
+      // Try to find existing user by email (covers 500 unexpected_failure cases)
+      const { data: existingUser, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      if (listErr) {
+        console.error('Error listing users:', listErr)
+      }
+      const foundUser = existingUser?.users?.find(u => (u.email || '').toLowerCase() === (registration.email || '').toLowerCase())
+
+      if (foundUser || code === 'email_exists' || code === 422) {
         alreadyExists = true
-        console.log('User already exists, sending password reset email via Supabase')
+        userId = foundUser?.id || null
+        console.log('User already exists, sending password reset email via Supabase', { userId })
 
-        // Get existing user ID
-        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
-        const foundUser = existingUser?.users?.find(u => u.email === registration.email)
-        if (foundUser) {
-          userId = foundUser.id
-        }
-
-        // Use Supabase's built-in password reset email
         const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
           registration.email,
-          {
-            redirectTo: `${origin}/auth?type=recovery`
-          }
+          { redirectTo: `${origin}/auth?type=recovery` }
         )
-
         if (resetError) {
           console.error('Error sending password reset email:', resetError)
           throw new Error('Fehler beim Versenden der Passwort-Reset-E-Mail')
         }
-
         console.log('Password reset email sent via Supabase')
       } else {
-        console.error('Error inviting user:', inviteError)
-        throw inviteError
+        console.error('Error inviting user (not an existing user case):', inviteError)
+        // Fallback: create user directly and send reset email
+        const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+          email: registration.email,
+          email_confirm: false
+        })
+        if (createErr) {
+          console.error('Fallback createUser failed:', createErr)
+          throw new Error('Benutzer konnte nicht angelegt werden: ' + (createErr as any)?.message || 'Unbekannter Fehler')
+        }
+        userId = created?.user?.id || null
+        console.log('User created via fallback:', userId)
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
+          registration.email,
+          { redirectTo: `${origin}/auth?type=recovery` }
+        )
+        if (resetError) {
+          console.error('Error sending password reset after fallback create:', resetError)
+          throw new Error('Fehler beim Versenden der Passwort-Reset-E-Mail')
+        }
       }
     } else {
       userId = inviteData?.user?.id || null

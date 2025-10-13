@@ -125,7 +125,10 @@ export default function MitarbeiterVerwaltung() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const serverMsg = (data as any)?.error || (typeof data === 'string' ? data : null);
+        throw new Error(serverMsg || error.message);
+      }
 
       toast({
         title: 'Erfolgreich',
