@@ -18,9 +18,13 @@ interface Employee {
   vorname?: string;
   nachname?: string;
   name: string;
-  email: string;
   telefon: string;
   farbe_kalender: string;
+  benutzer?: {
+    email: string;
+    vorname: string;
+    nachname: string;
+  };
 }
 
 interface Customer {
@@ -338,7 +342,7 @@ export function AppointmentDetailDialog({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-2">
                             <Mail className="h-3 w-3" />
-                            {editedAppointment.employee.email}
+                            {editedAppointment.employee.benutzer?.email || 'Keine E-Mail'}
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="h-3 w-3" />

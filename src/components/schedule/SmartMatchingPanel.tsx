@@ -18,10 +18,14 @@ interface Employee {
   id: string;
   vorname?: string;
   nachname?: string;
-  email: string;
   telefon: string;
   ist_aktiv: boolean;
   max_termine_pro_tag: number;
+  benutzer?: {
+    email: string;
+    vorname: string;
+    nachname: string;
+  };
 }
 
 interface Appointment {
@@ -227,11 +231,11 @@ export function SmartMatchingPanel({
                                 {match.matchScore}%
                               </Badge>
                             </div>
-                            {match.employee.email && (
+                            {match.employee.benutzer?.email && (
                               <div className="flex items-center gap-1 mt-1">
                                 <Mail className="h-3 w-3 text-muted-foreground" />
                                 <span className="text-xs text-muted-foreground truncate">
-                                  {match.employee.email}
+                                  {match.employee.benutzer.email}
                                 </span>
                               </div>
                             )}

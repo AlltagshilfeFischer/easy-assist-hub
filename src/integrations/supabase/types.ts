@@ -54,7 +54,6 @@ export type Database = {
           geburtsdatum: string | null
           id: string
           nachname: string | null
-          passwort_hash: string | null
           rolle: Database["public"]["Enums"]["user_rolle"]
           updated_at: string
           vorname: string | null
@@ -65,7 +64,6 @@ export type Database = {
           geburtsdatum?: string | null
           id?: string
           nachname?: string | null
-          passwort_hash?: string | null
           rolle: Database["public"]["Enums"]["user_rolle"]
           updated_at?: string
           vorname?: string | null
@@ -76,7 +74,6 @@ export type Database = {
           geburtsdatum?: string | null
           id?: string
           nachname?: string | null
-          passwort_hash?: string | null
           rolle?: Database["public"]["Enums"]["user_rolle"]
           updated_at?: string
           vorname?: string | null
@@ -239,7 +236,6 @@ export type Database = {
         Row: {
           benutzer_id: string | null
           created_at: string
-          email: string | null
           farbe_kalender: string | null
           id: string
           ist_aktiv: boolean
@@ -251,7 +247,6 @@ export type Database = {
         Insert: {
           benutzer_id?: string | null
           created_at?: string
-          email?: string | null
           farbe_kalender?: string | null
           id?: string
           ist_aktiv?: boolean
@@ -263,7 +258,6 @@ export type Database = {
         Update: {
           benutzer_id?: string | null
           created_at?: string
-          email?: string | null
           farbe_kalender?: string | null
           id?: string
           ist_aktiv?: boolean

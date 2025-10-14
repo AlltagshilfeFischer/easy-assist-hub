@@ -49,12 +49,16 @@ interface Employee {
   vorname?: string;
   nachname?: string;
   name: string;
-  email: string;
   telefon: string;
   ist_aktiv: boolean;
   max_termine_pro_tag: number;
   farbe_kalender: string;
   workload: number;
+  benutzer?: {
+    email: string;
+    vorname: string;
+    nachname: string;
+  };
 }
 
 interface Customer {
@@ -231,7 +235,7 @@ const ScheduleBuilder = () => {
       // Transform employees data to match our interface
       const transformedEmployees = employeesData?.map(emp => ({
         ...emp,
-        name: emp.email || `Mitarbeiter ${emp.id.slice(0, 8)}`,
+        name: (emp as any).benutzer?.email || `Mitarbeiter ${emp.id.slice(0, 8)}`,
         workload: Math.floor(Math.random() * 40) + 60,
       })) || [];
 
@@ -246,7 +250,7 @@ const ScheduleBuilder = () => {
         } as Customer : undefined,
         employee: app.employee ? {
           ...app.employee,
-          name: app.employee.email || `Mitarbeiter ${app.employee.id.slice(0, 8)}`,
+          name: (app.employee as any).benutzer?.email || `Mitarbeiter ${app.employee.id.slice(0, 8)}`,
           workload: Math.floor(Math.random() * 40) + 60,
         } : undefined,
       })) || [];

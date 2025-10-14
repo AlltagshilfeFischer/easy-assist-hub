@@ -24,7 +24,6 @@ interface PendingRegistration {
 
 interface Mitarbeiter {
   id: string;
-  email: string;
   telefon: string | null;
   ist_aktiv: boolean;
   created_at: string;
@@ -32,6 +31,7 @@ interface Mitarbeiter {
   benutzer?: {
     vorname: string;
     nachname: string;
+    email: string;
   };
 }
 
@@ -90,7 +90,8 @@ export default function MitarbeiterVerwaltung() {
             *,
             benutzer:benutzer_id (
               vorname,
-              nachname
+              nachname,
+              email
             )
           `)
           .order('created_at', { ascending: false })
@@ -365,7 +366,7 @@ export default function MitarbeiterVerwaltung() {
                       <p className="font-medium">
                         {m.benutzer?.vorname || 'Unbekannt'} {m.benutzer?.nachname || ''}
                       </p>
-                      <p className="text-sm text-muted-foreground">{m.email}</p>
+                      <p className="text-sm text-muted-foreground">{m.benutzer?.email}</p>
                       {m.telefon && (
                         <p className="text-xs text-muted-foreground">Tel: {m.telefon}</p>
                       )}

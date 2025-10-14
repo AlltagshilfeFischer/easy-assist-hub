@@ -11,12 +11,16 @@ interface Employee {
   vorname?: string;
   nachname?: string;
   name: string;
-  email: string;
   telefon: string;
   ist_aktiv: boolean;
   max_termine_pro_tag: number;
   farbe_kalender: string;
   workload: number;
+  benutzer?: {
+    email: string;
+    vorname: string;
+    nachname: string;
+  };
 }
 
 interface SortableEmployeeCardProps {

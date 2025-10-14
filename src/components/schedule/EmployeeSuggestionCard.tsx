@@ -10,12 +10,16 @@ interface Employee {
   vorname?: string;
   nachname?: string;
   name: string;
-  email: string;
   telefon: string;
   ist_aktiv: boolean;
   max_termine_pro_tag: number;
   farbe_kalender: string;
   workload: number;
+  benutzer?: {
+    email: string;
+    vorname: string;
+    nachname: string;
+  };
 }
 
 interface Suggestion {
@@ -60,7 +64,7 @@ export function EmployeeSuggestionCard({ suggestion, onAssign, className }: Empl
             />
             <div className="min-w-0 flex-1">
               <h3 className="font-medium text-sm truncate">{employee.name}</h3>
-              <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
+              <p className="text-xs text-muted-foreground truncate">{employee.benutzer?.email || 'Keine E-Mail'}</p>
             </div>
           </div>
           <Badge 
