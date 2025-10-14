@@ -184,11 +184,11 @@ const ScheduleBuilder = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load employees
+      // Load employees with benutzer relation
       const { data: employeesData, error: employeesError } = await supabase
         .from('mitarbeiter')
-        .select('*')
-        .order('email', { ascending: true });
+        .select('*, benutzer!inner(*)')
+        .order('created_at', { ascending: true });
       
       if (employeesError) throw employeesError;
 
