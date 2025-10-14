@@ -52,7 +52,11 @@ export function EmployeeCard({ employee, currentAppointments = 0, className }: E
           />
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-sm truncate">{employee.name}</h3>
-            <p className="text-xs text-muted-foreground truncate">{employee.benutzer?.email || 'Keine E-Mail'}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {employee.benutzer?.vorname && employee.benutzer?.nachname 
+                ? `${employee.benutzer.vorname} ${employee.benutzer.nachname}` 
+                : 'Kein Name'}
+            </p>
           </div>
           <Badge 
             variant={employee.ist_aktiv ? "default" : "secondary"}

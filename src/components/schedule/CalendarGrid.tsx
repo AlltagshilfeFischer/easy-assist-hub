@@ -170,7 +170,11 @@ export function CalendarGrid({
                 <h3 className="font-semibold text-sm text-foreground">{employee.name}</h3>
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
-                <div className="truncate">{employee.benutzer?.email || 'Keine E-Mail'}</div>
+                <div className="truncate">
+                  {employee.benutzer?.vorname && employee.benutzer?.nachname 
+                    ? `${employee.benutzer.vorname} ${employee.benutzer.nachname}` 
+                    : 'Kein Name'}
+                </div>
                 <div className="truncate">{employee.telefon}</div>
               </div>
             </div>
