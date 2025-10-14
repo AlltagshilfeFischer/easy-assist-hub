@@ -49,7 +49,7 @@ const AdminDashboard = () => {
       console.error('Fehler beim Laden der nicht freigeschalteten User:', error);
       toast({
         title: 'Fehler',
-        description: error.message,
+        description: 'Fehler beim Laden der nicht freigeschalteten Benutzer: ' + error.message,
         variant: 'destructive',
       });
     }
@@ -70,7 +70,7 @@ const AdminDashboard = () => {
       console.error('Fehler beim Laden der Mitarbeiter:', error);
       toast({
         title: 'Fehler',
-        description: error.message,
+        description: 'Fehler beim Laden der Mitarbeiter: ' + error.message,
         variant: 'destructive',
       });
     }
@@ -97,7 +97,7 @@ const AdminDashboard = () => {
       console.error('Fehler beim Freischalten:', error);
       toast({
         title: 'Fehler',
-        description: error.message,
+        description: 'Fehler beim Freischalten: ' + error.message,
         variant: 'destructive',
       });
     } finally {
