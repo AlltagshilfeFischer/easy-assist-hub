@@ -316,11 +316,11 @@ export default function DashboardHome() {
                   className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                 >
                   <div className="font-medium">
-                    {customer.vorname} {customer.nachname}
+                    {customer.name}
                   </div>
-                  {customer.telefon && (
+                  {customer.telefonnr && (
                     <div className="text-xs text-muted-foreground mt-1">
-                      Tel: {customer.telefon}
+                      Tel: {customer.telefonnr}
                     </div>
                   )}
                 </div>

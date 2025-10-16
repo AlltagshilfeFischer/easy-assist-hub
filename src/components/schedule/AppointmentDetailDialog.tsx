@@ -30,8 +30,8 @@ interface Employee {
 interface Customer {
   id: string;
   name: string;
-  email: string;
-  telefon: string;
+  email: string | null;
+  telefonnr: string | null;
 }
 
 interface Appointment {
@@ -285,7 +285,7 @@ export function AppointmentDetailDialog({
                       <Label className="text-sm font-medium text-muted-foreground">Telefon</Label>
                       <div className="flex items-center gap-2 mt-1">
                         <Phone className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-sm">{editedAppointment.customer.telefon}</p>
+                        <p className="text-sm">{editedAppointment.customer.telefonnr}</p>
                       </div>
                     </div>
                   </div>

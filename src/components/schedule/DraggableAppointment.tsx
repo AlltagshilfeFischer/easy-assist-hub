@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 interface Customer {
   id: string;
   name: string;
-  email: string;
-  telefon: string;
+  email: string | null;
+  telefonnr: string | null;
 }
 
 interface DraggableAppointmentProps {

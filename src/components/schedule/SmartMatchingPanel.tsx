@@ -10,8 +10,8 @@ import { cn } from '@/lib/utils';
 interface Customer {
   id: string;
   name: string;
-  email: string;
-  telefon: string;
+  email: string | null;
+  telefonnr: string | null;
 }
 
 interface Employee {
@@ -166,10 +166,10 @@ export function SmartMatchingPanel({
                   {selectedCustomerData.name}
                 </span>
               </div>
-              {selectedCustomerData.telefon && (
+              {selectedCustomerData.telefonnr && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-3 w-3" />
-                  <span className="text-xs">{selectedCustomerData.telefon}</span>
+                  <span className="text-xs">{selectedCustomerData.telefonnr}</span>
                 </div>
               )}
               {selectedCustomerData.email && (

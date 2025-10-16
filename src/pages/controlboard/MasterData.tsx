@@ -234,16 +234,16 @@ export default function MasterData() {
 
       switch (key) {
         case 'name':
-          aValue = `${a.vorname || ''} ${a.nachname || ''}`.trim().toLowerCase();
-          bValue = `${b.vorname || ''} ${b.nachname || ''}`.trim().toLowerCase();
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
           break;
         case 'status':
           aValue = a.aktiv ? 'aktiv' : 'inaktiv';
           bValue = b.aktiv ? 'aktiv' : 'inaktiv';
           break;
         case 'telefon':
-          aValue = (a.telefon || '').toLowerCase();
-          bValue = (b.telefon || '').toLowerCase();
+          aValue = (a.telefonnr || '').toLowerCase();
+          bValue = (b.telefonnr || '').toLowerCase();
           break;
         case 'email':
           aValue = (a.email || '').toLowerCase();
@@ -389,25 +389,25 @@ export default function MasterData() {
                      </TableHeader>
                      <TableBody>
                        {sortedCustomers.map((customer: any) => (
-                        <TableRow key={customer.id}>
-                          <TableCell className="font-medium">
-                            {customer.vorname} {customer.nachname}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={customer.aktiv ? "default" : "secondary"}>
-                              {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {customer.telefon ? (
-                              <div className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {customer.telefon}
-                              </div>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
+                         <TableRow key={customer.id}>
+                           <TableCell className="font-medium">
+                             {customer.name}
+                           </TableCell>
+                           <TableCell>
+                             <Badge variant={customer.aktiv ? "default" : "secondary"}>
+                               {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
+                             </Badge>
+                           </TableCell>
+                           <TableCell>
+                             {customer.telefonnr ? (
+                               <div className="flex items-center gap-1">
+                                 <Phone className="h-3 w-3" />
+                                 {customer.telefonnr}
+                               </div>
+                             ) : (
+                               '-'
+                             )}
+                           </TableCell>
                           <TableCell>
                             {customer.email ? (
                               <div className="flex items-center gap-1">

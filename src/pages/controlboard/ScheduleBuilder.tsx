@@ -64,8 +64,22 @@ interface Employee {
 interface Customer {
   id: string;
   name: string;
-  email: string;
-  telefon: string;
+  email: string | null;
+  telefonnr: string | null;
+  geburtsdatum: string | null;
+  pflegegrad: number | null;
+  adresse: string | null;
+  stadtteil: string | null;
+  notfall_name: string | null;
+  notfall_telefon: string | null;
+  aktiv: boolean;
+  status: string | null;
+  pflegekasse: string | null;
+  versichertennummer: string | null;
+  stunden_kontingent_monat: number | null;
+  tage: string | null;
+  mitarbeiter: string | null;
+  angehoerige_ansprechpartner: string | null;
 }
 
 interface Appointment {
@@ -252,8 +266,22 @@ const ScheduleBuilder = () => {
         customer: app.customer ? {
           id: app.customer.id,
           name: (app.customer as any).name || '',
-          email: app.customer.email || '',
-          telefon: (app.customer as any).telefonnr || '',
+          email: app.customer.email || null,
+          telefonnr: (app.customer as any).telefonnr || null,
+          geburtsdatum: (app.customer as any).geburtsdatum || null,
+          pflegegrad: (app.customer as any).pflegegrad || null,
+          adresse: (app.customer as any).adresse || null,
+          stadtteil: (app.customer as any).stadtteil || null,
+          notfall_name: (app.customer as any).notfall_name || null,
+          notfall_telefon: (app.customer as any).notfall_telefon || null,
+          aktiv: (app.customer as any).aktiv || false,
+          status: (app.customer as any).status || null,
+          pflegekasse: (app.customer as any).pflegekasse || null,
+          versichertennummer: (app.customer as any).versichertennummer || null,
+          stunden_kontingent_monat: (app.customer as any).stunden_kontingent_monat || null,
+          tage: (app.customer as any).tage || null,
+          mitarbeiter: (app.customer as any).mitarbeiter || null,
+          angehoerige_ansprechpartner: (app.customer as any).angehoerige_ansprechpartner || null,
         } as Customer : undefined,
         employee: app.employee ? {
           ...app.employee,
@@ -266,8 +294,22 @@ const ScheduleBuilder = () => {
       const transformedCustomers = customersData?.map(cust => ({
         id: cust.id,
         name: (cust as any).name || '',
-        email: cust.email || '',
-        telefon: (cust as any).telefonnr || '',
+        email: cust.email || null,
+        telefonnr: (cust as any).telefonnr || null,
+        geburtsdatum: (cust as any).geburtsdatum || null,
+        pflegegrad: (cust as any).pflegegrad || null,
+        adresse: (cust as any).adresse || null,
+        stadtteil: (cust as any).stadtteil || null,
+        notfall_name: (cust as any).notfall_name || null,
+        notfall_telefon: (cust as any).notfall_telefon || null,
+        aktiv: (cust as any).aktiv || false,
+        status: (cust as any).status || null,
+        pflegekasse: (cust as any).pflegekasse || null,
+        versichertennummer: (cust as any).versichertennummer || null,
+        stunden_kontingent_monat: (cust as any).stunden_kontingent_monat || null,
+        tage: (cust as any).tage || null,
+        mitarbeiter: (cust as any).mitarbeiter || null,
+        angehoerige_ansprechpartner: (cust as any).angehoerige_ansprechpartner || null,
       } as Customer)) || [];
 
       setEmployees(transformedEmployees);

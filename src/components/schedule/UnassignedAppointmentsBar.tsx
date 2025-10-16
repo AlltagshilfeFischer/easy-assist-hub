@@ -13,8 +13,8 @@ import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from './gridConfig';
 interface Customer {
   id: string;
   name: string;
-  email: string;
-  telefon: string;
+  email: string | null;
+  telefonnr: string | null;
 }
 
 interface Appointment {
