@@ -38,10 +38,13 @@ type SortDirection = 'asc' | 'desc';
 
 export default function MasterData() {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [customerSort, setCustomerSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [employeeSort, setEmployeeSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -68,8 +71,7 @@ export default function MasterData() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('mitarbeiter')
-        .select('*')
-        .eq('ist_aktiv', true);
+        .select('*');
       
       if (error) throw error;
       return data;
@@ -129,6 +131,33 @@ export default function MasterData() {
     },
   });
 
+  const updateEmployeeMutation = useMutation({
+    mutationFn: async (employeeData: any) => {
+      const { error } = await (supabase as any)
+        .from('mitarbeiter')
+        .update(employeeData)
+        .eq('id', employeeData.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setIsEmployeeDialogOpen(false);
+      setEditingEmployee(null);
+      toast({
+        title: 'Erfolg',
+        description: 'Mitarbeiterdaten wurden aktualisiert',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Fehler',
+        description: 'Mitarbeiterdaten konnten nicht aktualisiert werden',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleEditCustomer = (customer: any) => {
     setEditingCustomer(customer);
     setIsDialogOpen(true);
@@ -138,6 +167,18 @@ export default function MasterData() {
     e.preventDefault();
     if (editingCustomer) {
       updateCustomerMutation.mutate(editingCustomer);
+    }
+  };
+
+  const handleEditEmployee = (employee: any) => {
+    setEditingEmployee(employee);
+    setIsEmployeeDialogOpen(true);
+  };
+
+  const handleSaveEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingEmployee) {
+      updateEmployeeMutation.mutate(editingEmployee);
     }
   };
 
@@ -313,7 +354,24 @@ export default function MasterData() {
   const sortedEmployees = useMemo(() => {
     if (!employees) return [];
     
-    return [...employees].sort((a, b) => {
+    // First filter by search query
+    let filtered = employees;
+    if (employeeSearchQuery.trim()) {
+      const query = employeeSearchQuery.toLowerCase();
+      filtered = employees.filter((employee: any) => {
+        const searchableFields = [
+          employee.vorname,
+          employee.nachname,
+          employee.email,
+          employee.telefon,
+        ].filter(Boolean).map(f => f.toLowerCase());
+        
+        return searchableFields.some(field => field.includes(query));
+      });
+    }
+    
+    // Then sort
+    return [...filtered].sort((a, b) => {
       const { key, direction } = employeeSort;
       let aValue: string | number = '';
       let bValue: string | number = '';
@@ -347,7 +405,7 @@ export default function MasterData() {
       if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [employees, employeeSort]);
+  }, [employees, employeeSort, employeeSearchQuery]);
 
   return (
     <div className="space-y-6">
@@ -539,6 +597,18 @@ export default function MasterData() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Search Bar */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Mitarbeiter suchen (Name, E-Mail, Telefon...)"
+                    value={employeeSearchQuery}
+                    onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
               {employeesLoading ? (
                 <div className="text-center py-4">Lade Mitarbeiterdaten...</div>
               ) : employees && employees.length > 0 ? (
@@ -582,16 +652,17 @@ export default function MasterData() {
                              Status
                            </SortButton>
                          </TableHead>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="created_at" 
-                             currentSort={employeeSort} 
-                             onClick={(key) => handleSort(key, 'employee')}
-                           >
-                             Erstellt am
-                           </SortButton>
-                         </TableHead>
-                       </TableRow>
+                          <TableHead>
+                            <SortButton 
+                              sortKey="created_at" 
+                              currentSort={employeeSort} 
+                              onClick={(key) => handleSort(key, 'employee')}
+                            >
+                              Erstellt am
+                            </SortButton>
+                          </TableHead>
+                          <TableHead>Aktionen</TableHead>
+                        </TableRow>
                      </TableHeader>
                      <TableBody>
                        {sortedEmployees.map((employee: any) => (
@@ -599,15 +670,24 @@ export default function MasterData() {
                           <TableCell className="font-medium">
                             {employee.vorname} {employee.nachname}
                           </TableCell>
-                          <TableCell>{employee.email || '-'}</TableCell>
-                          <TableCell>{employee.telefon || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant={employee.ist_aktiv ? 'default' : 'secondary'}>
-                              {employee.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{formatDate(employee.created_at)}</TableCell>
-                        </TableRow>
+                           <TableCell>{employee.email || '-'}</TableCell>
+                           <TableCell>{employee.telefon || '-'}</TableCell>
+                           <TableCell>
+                             <Badge variant={employee.ist_aktiv ? 'default' : 'secondary'}>
+                               {employee.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
+                             </Badge>
+                           </TableCell>
+                           <TableCell>{formatDate(employee.created_at)}</TableCell>
+                           <TableCell>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => handleEditEmployee(employee)}
+                             >
+                               <Edit className="h-3 w-3" />
+                             </Button>
+                           </TableCell>
+                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
@@ -1096,6 +1176,148 @@ export default function MasterData() {
                   disabled={updateCustomerMutation.isPending}
                 >
                   {updateCustomerMutation.isPending ? 'Speichern...' : 'Speichern'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Employee Dialog */}
+      <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Mitarbeiterdaten bearbeiten</DialogTitle>
+            <DialogDescription>
+              Bearbeiten Sie die Informationen für {editingEmployee?.vorname} {editingEmployee?.nachname}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingEmployee && (
+            <form onSubmit={handleSaveEmployee} className="space-y-6">
+              {/* Persönliche Daten */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Persönliche Daten</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="vorname">Vorname</Label>
+                    <Input
+                      id="vorname"
+                      value={editingEmployee.vorname || ''}
+                      onChange={(e) => setEditingEmployee({
+                        ...editingEmployee,
+                        vorname: e.target.value
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="nachname">Nachname</Label>
+                    <Input
+                      id="nachname"
+                      value={editingEmployee.nachname || ''}
+                      onChange={(e) => setEditingEmployee({
+                        ...editingEmployee,
+                        nachname: e.target.value
+                      })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Kontaktdaten */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="text-lg font-semibold">Kontaktdaten</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="emp_telefon">Telefon</Label>
+                    <Input
+                      id="emp_telefon"
+                      value={editingEmployee.telefon || ''}
+                      onChange={(e) => setEditingEmployee({
+                        ...editingEmployee,
+                        telefon: e.target.value
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="farbe_kalender">Kalenderfarbe</Label>
+                    <Input
+                      id="farbe_kalender"
+                      type="color"
+                      value={editingEmployee.farbe_kalender || '#3B82F6'}
+                      onChange={(e) => setEditingEmployee({
+                        ...editingEmployee,
+                        farbe_kalender: e.target.value
+                      })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status und Arbeitszeit */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="text-lg font-semibold">Status und Arbeitszeit</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="ist_aktiv">Status</Label>
+                    <Select
+                      value={editingEmployee.ist_aktiv ? 'true' : 'false'}
+                      onValueChange={(value) => setEditingEmployee({
+                        ...editingEmployee,
+                        ist_aktiv: value === 'true'
+                      })}
+                    >
+                      <SelectTrigger id="ist_aktiv">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Aktiv</SelectItem>
+                        <SelectItem value="false">Nicht aktiv</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="soll_wochenstunden">Soll-Wochenstunden</Label>
+                    <Input
+                      id="soll_wochenstunden"
+                      type="number"
+                      step="0.5"
+                      value={editingEmployee.soll_wochenstunden || ''}
+                      onChange={(e) => setEditingEmployee({
+                        ...editingEmployee,
+                        soll_wochenstunden: e.target.value ? parseFloat(e.target.value) : null
+                      })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="max_termine_pro_tag">Max. Termine pro Tag</Label>
+                  <Input
+                    id="max_termine_pro_tag"
+                    type="number"
+                    value={editingEmployee.max_termine_pro_tag || ''}
+                    onChange={(e) => setEditingEmployee({
+                      ...editingEmployee,
+                      max_termine_pro_tag: e.target.value ? parseInt(e.target.value) : null
+                    })}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEmployeeDialogOpen(false)}
+                >
+                  Abbrechen
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateEmployeeMutation.isPending}
+                >
+                  {updateEmployeeMutation.isPending ? 'Speichern...' : 'Speichern'}
                 </Button>
               </div>
             </form>
