@@ -5,81 +5,84 @@ import { supabase } from '@/integrations/supabase/client';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, isToday, isFuture } from 'date-fns';
 import { de } from 'date-fns/locale';
-
 export default function DashboardHome() {
-  const { data: appointments, isLoading: appointmentsLoading } = useQuery({
+  const {
+    data: appointments,
+    isLoading: appointmentsLoading
+  } = useQuery({
     queryKey: ['appointments'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('termine')
-        .select(`
+      const {
+        data,
+        error
+      } = await (supabase as any).from('termine').select(`
           *,
           mitarbeiter:mitarbeiter_id(*),
           kunden:kunden_id(*)
-        `)
-        .order('start_at', { ascending: true });
-      
+        `).order('start_at', {
+        ascending: true
+      });
       if (error) throw error;
       return data;
-    },
+    }
   });
-
-  const { data: customersCount } = useQuery({
+  const {
+    data: customersCount
+  } = useQuery({
     queryKey: ['customers-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('kunden')
-        .select('*', { count: 'exact', head: true })
-        .eq('aktiv', true);
-      
+      const {
+        count,
+        error
+      } = await supabase.from('kunden').select('*', {
+        count: 'exact',
+        head: true
+      }).eq('aktiv', true);
       if (error) throw error;
       return count || 0;
-    },
+    }
   });
-
-  const { data: employeesCount } = useQuery({
+  const {
+    data: employeesCount
+  } = useQuery({
     queryKey: ['employees-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('mitarbeiter')
-        .select('*', { count: 'exact', head: true })
-        .eq('ist_aktiv', true);
-      
+      const {
+        count,
+        error
+      } = await supabase.from('mitarbeiter').select('*', {
+        count: 'exact',
+        head: true
+      }).eq('ist_aktiv', true);
       if (error) throw error;
       return count || 0;
-    },
+    }
   });
-
-  const { data: pendingApprovalsCount } = useQuery({
+  const {
+    data: pendingApprovalsCount
+  } = useQuery({
     queryKey: ['pending-approvals-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('termin_aenderungen')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      
+      const {
+        count,
+        error
+      } = await supabase.from('termin_aenderungen').select('*', {
+        count: 'exact',
+        head: true
+      }).eq('status', 'pending');
       if (error) throw error;
       return count || 0;
-    },
+    }
   });
 
   // Kategorisierung der Termine
-  const todayAppointments = appointments?.filter((apt: any) => 
-    isToday(new Date(apt.start_at))
-  ) || [];
-  
-  const upcomingAppointments = appointments?.filter((apt: any) => 
-    isFuture(new Date(apt.start_at)) && !isToday(new Date(apt.start_at))
-  ) || [];
-
-  return (
-    <div className="space-y-6">
+  const todayAppointments = appointments?.filter((apt: any) => isToday(new Date(apt.start_at))) || [];
+  const upcomingAppointments = appointments?.filter((apt: any) => isFuture(new Date(apt.start_at)) && !isToday(new Date(apt.start_at))) || [];
+  return <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Übersicht über alle Termine
-        </p>
+        <p className="text-muted-foreground">Übersicht</p>
       </div>
 
       {/* Statistics Cards */}
@@ -130,10 +133,7 @@ export default function DashboardHome() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {appointmentsLoading ? (
-            <div className="text-center py-4">Lade Termine...</div>
-          ) : (
-            <Accordion type="multiple" defaultValue={["today"]} className="w-full">
+          {appointmentsLoading ? <div className="text-center py-4">Lade Termine...</div> : <Accordion type="multiple" defaultValue={["today"]} className="w-full">
               {/* Heutige Termine */}
               <AccordionItem value="today">
                 <AccordionTrigger className="text-left">
@@ -143,10 +143,8 @@ export default function DashboardHome() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {todayAppointments.length > 0 ? (
-                    <div className="space-y-3">
-                      {todayAppointments.map((appointment: any) => (
-                        <div key={appointment.id} className="p-3 bg-accent/30 rounded-lg border-l-4 border-primary">
+                  {todayAppointments.length > 0 ? <div className="space-y-3">
+                      {todayAppointments.map((appointment: any) => <div key={appointment.id} className="p-3 bg-accent/30 rounded-lg border-l-4 border-primary">
                           <div className="flex justify-between items-start">
                             <div>
                               <div className="font-medium">{appointment.titel}</div>
@@ -158,20 +156,22 @@ export default function DashboardHome() {
                               </div>
                             </div>
                             <div className="text-right text-sm">
-                              <div>{format(new Date(appointment.start_at), 'HH:mm', { locale: de })} - {format(new Date(appointment.end_at), 'HH:mm', { locale: de })}</div>
+                              <div>{format(new Date(appointment.start_at), 'HH:mm', {
+                          locale: de
+                        })} - {format(new Date(appointment.end_at), 'HH:mm', {
+                          locale: de
+                        })}</div>
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(appointment.start_at), 'dd.MM.yyyy', { locale: de })}
+                                {format(new Date(appointment.start_at), 'dd.MM.yyyy', {
+                          locale: de
+                        })}
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-muted-foreground">
+                        </div>)}
+                    </div> : <div className="text-center py-4 text-muted-foreground">
                       Keine Termine für heute
-                    </div>
-                  )}
+                    </div>}
                 </AccordionContent>
               </AccordionItem>
 
@@ -184,10 +184,8 @@ export default function DashboardHome() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {upcomingAppointments.length > 0 ? (
-                    <div className="space-y-3">
-                      {upcomingAppointments.map((appointment: any) => (
-                        <div key={appointment.id} className="p-3 bg-accent/10 rounded-lg border">
+                  {upcomingAppointments.length > 0 ? <div className="space-y-3">
+                      {upcomingAppointments.map((appointment: any) => <div key={appointment.id} className="p-3 bg-accent/10 rounded-lg border">
                           <div className="flex justify-between items-start">
                             <div>
                               <div className="font-medium">{appointment.titel}</div>
@@ -199,26 +197,26 @@ export default function DashboardHome() {
                               </div>
                             </div>
                             <div className="text-right text-sm">
-                              <div>{format(new Date(appointment.start_at), 'HH:mm', { locale: de })} - {format(new Date(appointment.end_at), 'HH:mm', { locale: de })}</div>
+                              <div>{format(new Date(appointment.start_at), 'HH:mm', {
+                          locale: de
+                        })} - {format(new Date(appointment.end_at), 'HH:mm', {
+                          locale: de
+                        })}</div>
                               <div className="text-xs text-muted-foreground">
-                                {format(new Date(appointment.start_at), 'dd.MM.yyyy', { locale: de })}
+                                {format(new Date(appointment.start_at), 'dd.MM.yyyy', {
+                          locale: de
+                        })}
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-muted-foreground">
+                        </div>)}
+                    </div> : <div className="text-center py-4 text-muted-foreground">
                       Keine kommenden Termine
-                    </div>
-                  )}
+                    </div>}
                 </AccordionContent>
               </AccordionItem>
-            </Accordion>
-          )}
+            </Accordion>}
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
