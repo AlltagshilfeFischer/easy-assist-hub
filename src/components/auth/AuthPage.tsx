@@ -115,7 +115,14 @@ const AuthPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Alltagshilfe Fischer Portal</CardTitle>
+          <div className="flex items-center gap-3 mb-2">
+            <img 
+              src="/lovable-uploads/891b224f-e6be-40c4-bfcb-acf04320f118.png" 
+              alt="Alltagshilfe Fischer Logo" 
+              className="h-10 w-10 object-contain"
+            />
+            <CardTitle>Alltagshilfe Fischer Portal</CardTitle>
+          </div>
           <CardDescription>
             Melden Sie sich an oder registrieren Sie sich
           </CardDescription>
