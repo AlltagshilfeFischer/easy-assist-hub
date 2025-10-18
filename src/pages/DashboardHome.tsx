@@ -1,9 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Users, Building, AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { format, isToday, isFuture, isPast } from 'date-fns';
+import { format, isToday, isFuture } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 export default function DashboardHome() {
@@ -24,6 +24,45 @@ export default function DashboardHome() {
     },
   });
 
+  const { data: customersCount } = useQuery({
+    queryKey: ['customers-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('kunden')
+        .select('*', { count: 'exact', head: true })
+        .eq('aktiv', true);
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  const { data: employeesCount } = useQuery({
+    queryKey: ['employees-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('mitarbeiter')
+        .select('*', { count: 'exact', head: true })
+        .eq('ist_aktiv', true);
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  const { data: pendingApprovalsCount } = useQuery({
+    queryKey: ['pending-approvals-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('termin_aenderungen')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
   // Kategorisierung der Termine
   const todayAppointments = appointments?.filter((apt: any) => 
     isToday(new Date(apt.start_at))
@@ -31,10 +70,6 @@ export default function DashboardHome() {
   
   const upcomingAppointments = appointments?.filter((apt: any) => 
     isFuture(new Date(apt.start_at)) && !isToday(new Date(apt.start_at))
-  ) || [];
-  
-  const pastAppointments = appointments?.filter((apt: any) => 
-    isPast(new Date(apt.start_at)) && !isToday(new Date(apt.start_at))
   ) || [];
 
   return (
@@ -45,6 +80,53 @@ export default function DashboardHome() {
         <p className="text-muted-foreground">
           Übersicht über alle Termine
         </p>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Kunden</CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{customersCount || 0}</div>
+            <p className="text-xs text-muted-foreground">Aktive Kunden</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Mitarbeiter</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{employeesCount || 0}</div>
+            <p className="text-xs text-muted-foreground">Aktive Mitarbeiter</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Kommende Termine</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{todayAppointments.length + upcomingAppointments.length}</div>
+            <p className="text-xs text-muted-foreground">Heute + zukünftig</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ausstehende Approvals</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pendingApprovalsCount || 0}</div>
+            <p className="text-xs text-muted-foreground">Zu genehmigen</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Termine Section */}
@@ -140,47 +222,6 @@ export default function DashboardHome() {
                   ) : (
                     <div className="text-center py-4 text-muted-foreground">
                       Keine kommenden Termine
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Vergangene Termine */}
-              <AccordionItem value="past">
-                <AccordionTrigger className="text-left">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Vergangene Termine ({pastAppointments.length})
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  {pastAppointments.length > 0 ? (
-                    <div className="space-y-3">
-                      {pastAppointments.map((appointment: any) => (
-                        <div key={appointment.id} className="p-3 bg-muted/30 rounded-lg border opacity-75">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-medium">{appointment.titel}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {appointment.kunden?.vorname} {appointment.kunden?.nachname}
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                Mitarbeiter: {appointment.mitarbeiter?.vorname} {appointment.mitarbeiter?.nachname}
-                              </div>
-                            </div>
-                            <div className="text-right text-sm">
-                              <div>{format(new Date(appointment.start_at), 'HH:mm', { locale: de })} - {format(new Date(appointment.end_at), 'HH:mm', { locale: de })}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {format(new Date(appointment.start_at), 'dd.MM.yyyy', { locale: de })}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-muted-foreground">
-                      Keine vergangenen Termine
                     </div>
                   )}
                 </AccordionContent>
