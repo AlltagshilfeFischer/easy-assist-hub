@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -26,13 +27,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2, Search } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'notfall_name' | 'created_at';
+type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'notfall_name' | 'created_at' | 'pflegegrad' | 'adresse' | 'geburtsdatum';
 type SortDirection = 'asc' | 'desc';
 
 export default function MasterData() {
@@ -40,10 +41,11 @@ export default function MasterData() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [customerSort, setCustomerSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [employeeSort, setEmployeeSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Using type assertion to work with German table names
+  // Using type assertion to work with German table names - fetch ALL customers (active and inactive)
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
@@ -54,7 +56,6 @@ export default function MasterData() {
           zeitfenster:kunden_zeitfenster(*),
           hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname)
         `)
-        .eq('aktiv', true)
         .order('name');
       
       if (error) throw error;
@@ -236,7 +237,28 @@ export default function MasterData() {
   const sortedCustomers = useMemo(() => {
     if (!customers) return [];
     
-    return [...customers].sort((a, b) => {
+    // First filter by search query
+    let filtered = customers;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = customers.filter((customer: any) => {
+        const searchableFields = [
+          customer.name,
+          customer.telefonnr,
+          customer.email,
+          customer.adresse,
+          customer.stadtteil,
+          customer.notfall_name,
+          customer.notfall_telefon,
+          customer.pflegekasse,
+        ].filter(Boolean).map(f => f.toLowerCase());
+        
+        return searchableFields.some(field => field.includes(query));
+      });
+    }
+    
+    // Then sort
+    return [...filtered].sort((a, b) => {
       const { key, direction } = customerSort;
       let aValue: string | number = '';
       let bValue: string | number = '';
@@ -262,6 +284,22 @@ export default function MasterData() {
           aValue = (a.notfall_name || '').toLowerCase();
           bValue = (b.notfall_name || '').toLowerCase();
           break;
+        case 'pflegegrad':
+          aValue = a.pflegegrad || 0;
+          bValue = b.pflegegrad || 0;
+          break;
+        case 'adresse':
+          aValue = (a.adresse || '').toLowerCase();
+          bValue = (b.adresse || '').toLowerCase();
+          break;
+        case 'geburtsdatum':
+          aValue = new Date(a.geburtsdatum || 0).getTime();
+          bValue = new Date(b.geburtsdatum || 0).getTime();
+          break;
+        case 'created_at':
+          aValue = new Date(a.created_at || 0).getTime();
+          bValue = new Date(b.created_at || 0).getTime();
+          break;
         default:
           return 0;
       }
@@ -270,7 +308,7 @@ export default function MasterData() {
       if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [customers, customerSort]);
+  }, [customers, customerSort, searchQuery]);
 
   const sortedEmployees = useMemo(() => {
     if (!employees) return [];
@@ -340,6 +378,18 @@ export default function MasterData() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Search Bar */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Kunden suchen (Name, Telefon, E-Mail, Adresse, Notfallkontakt...)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
               {customersLoading ? (
                 <div className="text-center py-4">Lade Kundendaten...</div>
               ) : customers && customers.length > 0 ? (
@@ -385,86 +435,85 @@ export default function MasterData() {
                          </TableHead>
                           <TableHead>
                             <SortButton 
-                              sortKey="notfall_name" 
+                              sortKey="pflegegrad" 
                               currentSort={customerSort} 
                               onClick={(key) => handleSort(key, 'customer')}
                             >
-                              Notfallkontakt
+                              Pflegegrad
                             </SortButton>
                           </TableHead>
-                           <TableHead>Hauptbetreuer</TableHead>
-                           <TableHead>Zeitfenster</TableHead>
-                           <TableHead>Aktionen</TableHead>
+                          <TableHead>
+                            <SortButton 
+                              sortKey="adresse" 
+                              currentSort={customerSort} 
+                              onClick={(key) => handleSort(key, 'customer')}
+                            >
+                              Adresse
+                            </SortButton>
+                          </TableHead>
+                          <TableHead>
+                            <SortButton 
+                              sortKey="geburtsdatum" 
+                              currentSort={customerSort} 
+                              onClick={(key) => handleSort(key, 'customer')}
+                            >
+                              Geburtsdatum
+                            </SortButton>
+                          </TableHead>
+                          <TableHead>Aktionen</TableHead>
                        </TableRow>
                      </TableHeader>
                      <TableBody>
                        {sortedCustomers.map((customer: any) => (
-                         <TableRow key={customer.id}>
-                           <TableCell className="font-medium">
-                             {customer.name}
-                           </TableCell>
-                           <TableCell>
-                             <Badge variant={customer.aktiv ? "default" : "secondary"}>
-                               {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
-                             </Badge>
-                           </TableCell>
-                           <TableCell>
-                             {customer.telefonnr ? (
-                               <div className="flex items-center gap-1">
-                                 <Phone className="h-3 w-3" />
-                                 {customer.telefonnr}
-                               </div>
-                             ) : (
-                               '-'
-                             )}
-                           </TableCell>
-                          <TableCell>
-                            {customer.email ? (
-                              <div className="flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {customer.email}
-                              </div>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                           <TableCell>
-                             {customer.notfall_name ? (
-                               <div>
-                                 <div className="font-medium text-sm">
-                                   {customer.notfall_name}
-                                 </div>
-                                 <div className="text-xs text-muted-foreground">
-                                   {customer.notfall_telefon}
-                                 </div>
-                               </div>
-                             ) : (
-                               '-'
-                             )}
-                           </TableCell>
-                            <TableCell>
-                              {customer.hauptbetreuer 
-                                ? `${customer.hauptbetreuer.vorname || ''} ${customer.hauptbetreuer.nachname || ''}`.trim() || '-'
-                                : '-'}
+                          <TableRow key={customer.id}>
+                            <TableCell className="font-medium">
+                              {customer.name}
                             </TableCell>
                             <TableCell>
-                              {formatTimeSlots(customer.zeitfenster) || (
-                                <span className="text-muted-foreground text-sm">
-                                  Keine Zeitfenster
-                                </span>
+                              <Badge variant={customer.aktiv ? "default" : "secondary"}>
+                                {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {customer.telefonnr ? (
+                                <div className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {customer.telefonnr}
+                                </div>
+                              ) : (
+                                '-'
                               )}
                             </TableCell>
                            <TableCell>
-                             <Button
-                               variant="outline"
-                               size="sm"
-                               onClick={() => handleEditCustomer(customer)}
-                             >
-                               <Edit className="h-3 w-3" />
-                             </Button>
+                             {customer.email ? (
+                               <div className="flex items-center gap-1">
+                                 <Mail className="h-3 w-3" />
+                                 {customer.email}
+                               </div>
+                             ) : (
+                               '-'
+                             )}
                            </TableCell>
-                        </TableRow>
-                      ))}
+                           <TableCell>
+                             {customer.pflegegrad || '-'}
+                           </TableCell>
+                           <TableCell>
+                             {customer.adresse || '-'}
+                           </TableCell>
+                           <TableCell>
+                             {formatDate(customer.geburtsdatum)}
+                           </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditCustomer(customer)}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
+                         </TableRow>
+                       ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -809,6 +858,58 @@ export default function MasterData() {
                 </div>
               </div>
 
+              {/* Status und Austrittsinformationen */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="text-lg font-semibold">Status und Austrittsinformationen</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="aktiv" className="text-base font-medium">Status</Label>
+                    <Select
+                      value={editingCustomer.aktiv ? 'true' : 'false'}
+                      onValueChange={(value) => setEditingCustomer({
+                        ...editingCustomer,
+                        aktiv: value === 'true'
+                      })}
+                    >
+                      <SelectTrigger id="aktiv">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Aktiv</SelectItem>
+                        <SelectItem value="false">Nicht aktiv</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="austritt">Austrittsdatum</Label>
+                    <Input
+                      id="austritt"
+                      type="date"
+                      value={editingCustomer.austritt || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        austritt: e.target.value
+                      })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="begruendung">Begründung für Austritt/Deaktivierung</Label>
+                  <Textarea
+                    id="begruendung"
+                    value={editingCustomer.begruendung || ''}
+                    onChange={(e) => setEditingCustomer({
+                      ...editingCustomer,
+                      begruendung: e.target.value
+                    })}
+                    placeholder="Begründung eingeben..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
               {/* Weitere Informationen */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="text-lg font-semibold">Weitere Informationen</h3>
@@ -826,22 +927,7 @@ export default function MasterData() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="austritt">Austrittsdatum</Label>
-                    <Input
-                      id="austritt"
-                      type="date"
-                      value={editingCustomer.austritt || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        austritt: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="status">Status</Label>
+                    <Label htmlFor="status">Status (Freitext)</Label>
                     <Input
                       id="status"
                       value={editingCustomer.status || ''}
@@ -851,6 +937,9 @@ export default function MasterData() {
                       })}
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="tage">Tage</Label>
                     <Input
@@ -859,20 +948,6 @@ export default function MasterData() {
                       onChange={(e) => setEditingCustomer({
                         ...editingCustomer,
                         tage: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="mitarbeiter">Mitarbeiter</Label>
-                    <Input
-                      id="mitarbeiter"
-                      value={editingCustomer.mitarbeiter || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        mitarbeiter: e.target.value
                       })}
                     />
                   </div>
@@ -902,41 +977,16 @@ export default function MasterData() {
                 </div>
 
                 <div>
-                  <Label htmlFor="begruendung">Begründung</Label>
-                  <Input
-                    id="begruendung"
-                    value={editingCustomer.begruendung || ''}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      begruendung: e.target.value
-                    })}
-                  />
-                </div>
-
-                <div>
                   <Label htmlFor="sonstiges">Sonstiges</Label>
-                  <Input
+                  <Textarea
                     id="sonstiges"
                     value={editingCustomer.sonstiges || ''}
                     onChange={(e) => setEditingCustomer({
                       ...editingCustomer,
                       sonstiges: e.target.value
                     })}
+                    rows={3}
                   />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="aktiv"
-                    checked={editingCustomer.aktiv || false}
-                    onChange={(e) => setEditingCustomer({
-                      ...editingCustomer,
-                      aktiv: e.target.checked
-                    })}
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <Label htmlFor="aktiv" className="cursor-pointer">Aktiv</Label>
                 </div>
               </div>
 
