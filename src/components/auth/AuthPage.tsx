@@ -112,7 +112,7 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
+    <div className="w-full flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
