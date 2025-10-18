@@ -29,7 +29,11 @@ const Index = () => {
   }
 
   // If not authenticated, show auth page directly
-  return <AuthPage />;
+  return (
+    <div className="auth-bg-animated min-h-screen flex items-center justify-center p-4">
+      <AuthPage />
+    </div>
+  );
 
 };
 

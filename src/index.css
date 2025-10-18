@@ -125,3 +125,24 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes auth-gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.auth-bg-animated {
+  background: linear-gradient(
+    135deg,
+    hsl(0 0% 5%),
+    hsl(0 50% 15%),
+    hsl(0 0% 8%),
+    hsl(0 60% 12%)
+  );
+  background-size: 400% 400%;
+  animation: auth-gradient-shift 15s ease infinite;
+}
