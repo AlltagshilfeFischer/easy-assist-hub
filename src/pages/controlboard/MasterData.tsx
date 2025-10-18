@@ -4,6 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   Table, 
   TableBody, 
@@ -44,7 +51,8 @@ export default function MasterData() {
         .from('kunden')
         .select(`
           *,
-          zeitfenster:kunden_zeitfenster(*)
+          zeitfenster:kunden_zeitfenster(*),
+          hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname)
         `)
         .eq('aktiv', true)
         .order('name');
@@ -384,8 +392,9 @@ export default function MasterData() {
                               Notfallkontakt
                             </SortButton>
                           </TableHead>
-                          <TableHead>Zeitfenster</TableHead>
-                          <TableHead>Aktionen</TableHead>
+                           <TableHead>Hauptbetreuer</TableHead>
+                           <TableHead>Zeitfenster</TableHead>
+                           <TableHead>Aktionen</TableHead>
                        </TableRow>
                      </TableHeader>
                      <TableBody>
@@ -433,13 +442,18 @@ export default function MasterData() {
                                '-'
                              )}
                            </TableCell>
-                           <TableCell>
-                             {formatTimeSlots(customer.zeitfenster) || (
-                               <span className="text-muted-foreground text-sm">
-                                 Keine Zeitfenster
-                               </span>
-                             )}
-                           </TableCell>
+                            <TableCell>
+                              {customer.hauptbetreuer 
+                                ? `${customer.hauptbetreuer.vorname || ''} ${customer.hauptbetreuer.nachname || ''}`.trim() || '-'
+                                : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {formatTimeSlots(customer.zeitfenster) || (
+                                <span className="text-muted-foreground text-sm">
+                                  Keine Zeitfenster
+                                </span>
+                              )}
+                            </TableCell>
                            <TableCell>
                              <Button
                                variant="outline"
@@ -574,32 +588,57 @@ export default function MasterData() {
               {/* Persönliche Daten */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Persönliche Daten</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Name</Label>
-                    <Input
-                      id="name"
-                      value={editingCustomer.name || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        name: e.target.value
-                      })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
-                    <Input
-                      id="geburtsdatum"
-                      type="date"
-                      value={editingCustomer.geburtsdatum || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        geburtsdatum: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <Label htmlFor="name">Name</Label>
+                     <Input
+                       id="name"
+                       value={editingCustomer.name || ''}
+                       onChange={(e) => setEditingCustomer({
+                         ...editingCustomer,
+                         name: e.target.value
+                       })}
+                       required
+                     />
+                   </div>
+                   <div>
+                     <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
+                     <Input
+                       id="geburtsdatum"
+                       type="date"
+                       value={editingCustomer.geburtsdatum || ''}
+                       onChange={(e) => setEditingCustomer({
+                         ...editingCustomer,
+                         geburtsdatum: e.target.value
+                       })}
+                     />
+                   </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <Label htmlFor="hauptbetreuer">Hauptbetreuer</Label>
+                     <Select
+                       value={editingCustomer.mitarbeiter || ''}
+                       onValueChange={(value) => setEditingCustomer({
+                         ...editingCustomer,
+                         mitarbeiter: value || null
+                       })}
+                     >
+                       <SelectTrigger id="hauptbetreuer">
+                         <SelectValue placeholder="Hauptbetreuer auswählen" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="">Kein Hauptbetreuer</SelectItem>
+                         {employees?.filter((e: any) => e.ist_aktiv).map((mitarbeiter: any) => (
+                           <SelectItem key={mitarbeiter.id} value={mitarbeiter.id}>
+                             {`${mitarbeiter.vorname || ''} ${mitarbeiter.nachname || ''}`.trim() || mitarbeiter.email || 'Unbenannter Mitarbeiter'}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
+                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
