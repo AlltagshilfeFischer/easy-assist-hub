@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone, Settings2 } from 'lucide-react';
 import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from '@/components/schedule/gridConfig';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -101,7 +101,7 @@ const ScheduleBuilder = () => {
   const [sortEmployees, setSortEmployees] = useState('name');
   const [filterPriority, setFilterPriority] = useState('all');
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
-  const [showEmployeeFilters, setShowEmployeeFilters] = useState(false);
+  const [showEmployeeManager, setShowEmployeeManager] = useState(false);
   const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(new Set());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
@@ -822,6 +822,13 @@ const cellWidth = DAY_COL_WIDTH;
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setShowEmployeeManager(true)}>
+              <Settings2 className="h-4 w-4 mr-2" />
+              Mitarbeiter verwalten
+              <Badge variant="secondary" className="ml-2">
+                {filteredEmployees.length}
+              </Badge>
+            </Button>
             <Button onClick={() => setShowCreateAppointment(true)}>
               <CalendarDays className="h-4 w-4 mr-2" />
               Termin erstellen
@@ -940,6 +947,178 @@ const cellWidth = DAY_COL_WIDTH;
           </Card>
         </div>
 
+
+        {/* Employee Manager Dialog */}
+        <Dialog open={showEmployeeManager} onOpenChange={setShowEmployeeManager}>
+          <DialogContent className="max-w-2xl max-h-[85vh] p-0 flex flex-col">
+            <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Mitarbeiter verwalten</DialogTitle>
+                  <DialogDescription>
+                    {filteredEmployees.length} von {employees.filter(e => e.ist_aktiv).length} Mitarbeitern sichtbar
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Controls */}
+              <div className="px-6 py-4 space-y-4 border-b bg-muted/30">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Mitarbeiter durchsuchen..."
+                    value={searchEmployee}
+                    onChange={(e) => setSearchEmployee(e.target.value)}
+                    className="pl-9 h-10"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Select value={sortEmployees} onValueChange={setSortEmployees}>
+                    <SelectTrigger className="h-10 flex-1">
+                      <SelectValue placeholder="Sortieren nach..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Nach Name
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="workload">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4" />
+                          Nach Auslastung
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setEmployeeOrder(employees.map(emp => emp.id));
+                      setHiddenEmployeeIds(new Set());
+                      setSearchEmployee('');
+                    }}
+                    className="h-10"
+                  >
+                    Reset
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="toggle-all"
+                      checked={hiddenEmployeeIds.size === 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setHiddenEmployeeIds(new Set());
+                        } else {
+                          setHiddenEmployeeIds(new Set(employees.filter(e => e.ist_aktiv).map(e => e.id)));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="toggle-all"
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      Alle {hiddenEmployeeIds.size === 0 ? 'ausblenden' : 'einblenden'}
+                    </label>
+                  </div>
+                  <Badge variant="outline" className="gap-1">
+                    <Eye className="h-3 w-3" />
+                    {filteredEmployees.length} sichtbar
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Employee List */}
+              <ScrollArea className="flex-1 px-6 py-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                    <GripVertical className="h-4 w-4" />
+                    <span>Zum Sortieren ziehen</span>
+                  </div>
+
+                  <SortableContext 
+                    items={employees.filter(e => e.ist_aktiv).map(emp => `employee-sort-${emp.id}`)} 
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {employees.filter(e => e.ist_aktiv).map((employee) => {
+                      const isVisible = !hiddenEmployeeIds.has(employee.id);
+                      const appointmentCount = appointments.filter(app => app.mitarbeiter_id === employee.id).length;
+                      
+                      return (
+                        <SortableEmployeeCard
+                          key={`employee-sort-${employee.id}`}
+                          id={`employee-sort-${employee.id}`}
+                          employee={employee}
+                          currentAppointments={appointments}
+                        >
+                          <div className={cn(
+                            "transition-opacity duration-200",
+                            !isVisible && "opacity-40"
+                          )}>
+                            <Card className={cn(
+                              "border-2 transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-md",
+                              isVisible ? "border-primary/20 bg-card hover:border-primary/40" : "border-muted bg-muted/50"
+                            )}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                  {/* Drag Handle */}
+                                  <div className="flex-shrink-0">
+                                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+
+                                  {/* Checkbox */}
+                                  <Checkbox
+                                    checked={isVisible}
+                                    onCheckedChange={(checked) => {
+                                      const newHidden = new Set(hiddenEmployeeIds);
+                                      if (checked) {
+                                        newHidden.delete(employee.id);
+                                      } else {
+                                        newHidden.add(employee.id);
+                                      }
+                                      setHiddenEmployeeIds(newHidden);
+                                    }}
+                                    className="flex-shrink-0"
+                                  />
+
+                                  {/* Color Indicator */}
+                                  <div 
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: employee.farbe_kalender }}
+                                  />
+
+                                  {/* Employee Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm truncate">{employee.name}</p>
+                                  </div>
+
+                                  {/* Appointment Count */}
+                                  <Badge variant="secondary" className="flex-shrink-0">
+                                    {appointmentCount} Termine
+                                  </Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </SortableEmployeeCard>
+                      );
+                    })}
+                  </SortableContext>
+                </div>
+              </ScrollArea>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid grid-cols-1 gap-6">
 
