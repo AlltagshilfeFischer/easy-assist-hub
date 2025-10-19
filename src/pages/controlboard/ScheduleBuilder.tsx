@@ -733,7 +733,7 @@ const ScheduleBuilder = () => {
 
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -791,20 +791,6 @@ const ScheduleBuilder = () => {
                   <p className="text-2xl font-bold text-purple-800">
                     {appointments.filter(app => format(new Date(app.start_at), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')).length}
                   </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-200 rounded-lg">
-                  <Bell className="h-5 w-5 text-yellow-700" />
-                </div>
-                <div>
-                  <p className="text-sm text-yellow-700 font-medium">Genehmigungen</p>
-                  <p className="text-2xl font-bold text-yellow-800">{pendingChanges.length}</p>
                 </div>
               </div>
             </CardContent>
