@@ -950,7 +950,7 @@ const cellWidth = DAY_COL_WIDTH;
 
         {/* Employee Manager Dialog */}
         <Dialog open={showEmployeeManager} onOpenChange={setShowEmployeeManager}>
-          <DialogContent className="max-w-2xl max-h-[85vh] p-0 flex flex-col">
+          <DialogContent className="max-w-2xl h-[85vh] p-0 flex flex-col">
             <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-lg">
@@ -965,7 +965,7 @@ const cellWidth = DAY_COL_WIDTH;
               </div>
             </DialogHeader>
 
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
               {/* Controls */}
               <div className="px-6 py-4 space-y-4 border-b bg-muted/30">
                 <div className="relative">
@@ -1039,7 +1039,7 @@ const cellWidth = DAY_COL_WIDTH;
               </div>
 
               {/* Employee List */}
-              <div className="flex-1 overflow-hidden px-6 py-4">
+              <div className="flex-1 min-h-0 overflow-hidden px-6 py-4">
                 <ScrollArea className="h-full">
                   <div className="space-y-3 pr-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
