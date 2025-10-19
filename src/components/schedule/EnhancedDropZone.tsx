@@ -18,6 +18,7 @@ interface EnhancedDropZoneProps {
     isOverbooked: boolean;
     isNearCapacity: boolean;
   };
+  onClick?: () => void;
 }
 
 export function EnhancedDropZone({ 
@@ -27,7 +28,8 @@ export function EnhancedDropZone({
   isEmpty = false, 
   employeeName, 
   date,
-  workloadInfo
+  workloadInfo,
+  onClick
 }: EnhancedDropZoneProps) {
   const { isOver, setNodeRef } = useDroppable({
     id,
@@ -36,6 +38,7 @@ export function EnhancedDropZone({
   return (
     <div
       ref={setNodeRef}
+      onClick={onClick}
       className={cn(
         'relative transition-all duration-200 overflow-hidden',
         isOver && 'bg-primary/10 border-primary ring-2 ring-primary shadow-lg',

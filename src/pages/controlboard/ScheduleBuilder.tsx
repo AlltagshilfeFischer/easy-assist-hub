@@ -26,6 +26,7 @@ import { SortableEmployeeCard } from '@/components/schedule/SortableEmployeeCard
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
 import { CreateAppointmentDialog } from '@/components/schedule/CreateAppointmentDialog';
 import { CreateRecurringAppointmentDialog } from '@/components/schedule/CreateRecurringAppointmentDialog';
+import { CreateAppointmentFromSlotDialog } from '@/components/schedule/CreateAppointmentFromSlotDialog';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 interface Employee {
@@ -156,6 +157,8 @@ const ScheduleBuilder = () => {
   });
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
   const [showCreateRecurring, setShowCreateRecurring] = useState(false);
+  const [showSlotDialog, setShowSlotDialog] = useState(false);
+  const [slotDialogData, setSlotDialogData] = useState<{ employeeId: string; date: Date } | null>(null);
   const {
     toast
   } = useToast();
@@ -513,16 +516,29 @@ const ScheduleBuilder = () => {
   };
   const handleCreateRecurringAppointment = async (templateData: any) => {
     try {
-      const {
-        error
-      } = await supabase.from('termin_vorlagen').insert({
-        ...templateData,
-        ist_aktiv: true
+      // Insert template
+      const { data: templateResult, error: templateError } = await supabase
+        .from('termin_vorlagen')
+        .insert({
+          ...templateData,
+          ist_aktiv: true
+        })
+        .select()
+        .single();
+      
+      if (templateError) throw templateError;
+
+      // Generate initial appointments from template
+      const { error: generateError } = await supabase.rpc('generate_termine_from_vorlagen', {
+        p_from: templateData.gueltig_von,
+        p_to: templateData.gueltig_bis || format(addMonths(new Date(templateData.gueltig_von), 3), 'yyyy-MM-dd')
       });
-      if (error) throw error;
+
+      if (generateError) throw generateError;
+
       toast({
         title: 'Erfolg',
-        description: 'Regeltermin wurde erstellt.'
+        description: 'Terminserie wurde erstellt und Termine generiert.'
       });
       await loadData();
     } catch (error: any) {
@@ -533,6 +549,19 @@ const ScheduleBuilder = () => {
         variant: 'destructive'
       });
     }
+  };
+
+  const handleSlotClick = (employeeId: string, date: Date) => {
+    setSlotDialogData({ employeeId, date });
+    setShowSlotDialog(true);
+  };
+
+  const handleSlotSingleAppointment = async (data: any) => {
+    await handleCreateAppointment(data);
+  };
+
+  const handleSlotRecurringAppointment = async (data: any) => {
+    await handleCreateRecurringAppointment(data);
   };
   const handleSmartMatch = (customerId: string, employeeId: string) => {
     // Pre-populate the create appointment dialog with customer and employee
@@ -987,7 +1016,14 @@ const ScheduleBuilder = () => {
                     <UnassignedAppointmentsBar appointments={appointments} weekDates={getMonthDates()} activeId={activeId} onEditAppointment={setEditingAppointment} />
                     
                     {/* Calendar Grid */}
-                    <CalendarGrid employees={filteredEmployees} appointments={appointments} weekDates={getMonthDates()} activeId={activeId} onEditAppointment={setEditingAppointment} />
+                    <CalendarGrid 
+                      employees={filteredEmployees} 
+                      appointments={appointments} 
+                      weekDates={getMonthDates()} 
+                      activeId={activeId} 
+                      onEditAppointment={setEditingAppointment}
+                      onSlotClick={handleSlotClick}
+                    />
                   </div>
                   <ScrollBar orientation="horizontal" />
                 </ScrollArea>
@@ -1045,6 +1081,18 @@ const ScheduleBuilder = () => {
         <CreateAppointmentDialog open={showCreateAppointment} onOpenChange={setShowCreateAppointment} customers={customers} employees={employees} onSubmit={handleCreateAppointment} />
 
         <CreateRecurringAppointmentDialog open={showCreateRecurring} onOpenChange={setShowCreateRecurring} customers={customers} employees={employees} onSubmit={handleCreateRecurringAppointment} />
+
+        {slotDialogData && (
+          <CreateAppointmentFromSlotDialog
+            open={showSlotDialog}
+            onOpenChange={setShowSlotDialog}
+            prefilledData={slotDialogData}
+            customers={customers}
+            employees={employees}
+            onSubmitSingle={handleSlotSingleAppointment}
+            onSubmitRecurring={handleSlotRecurringAppointment}
+          />
+        )}
       </div>
 
       <DragOverlay>

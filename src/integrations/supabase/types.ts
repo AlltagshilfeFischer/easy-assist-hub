@@ -88,7 +88,6 @@ export type Database = {
           austritt: string | null
           begruendung: string | null
           column1: string | null
-          column2: string | null
           created_at: string | null
           eintritt: string | null
           email: string | null
@@ -103,6 +102,7 @@ export type Database = {
           notfall_telefon: string | null
           pflegegrad: number | null
           pflegekasse: string | null
+          sollstunden: number | null
           sonstiges: string | null
           stadtteil: string | null
           startdatum: string | null
@@ -121,7 +121,6 @@ export type Database = {
           austritt?: string | null
           begruendung?: string | null
           column1?: string | null
-          column2?: string | null
           created_at?: string | null
           eintritt?: string | null
           email?: string | null
@@ -136,6 +135,7 @@ export type Database = {
           notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
+          sollstunden?: number | null
           sonstiges?: string | null
           stadtteil?: string | null
           startdatum?: string | null
@@ -154,7 +154,6 @@ export type Database = {
           austritt?: string | null
           begruendung?: string | null
           column1?: string | null
-          column2?: string | null
           created_at?: string | null
           eintritt?: string | null
           email?: string | null
@@ -169,6 +168,7 @@ export type Database = {
           notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
+          sollstunden?: number | null
           sonstiges?: string | null
           stadtteil?: string | null
           startdatum?: string | null
@@ -196,7 +196,6 @@ export type Database = {
           id: string
           kunden_id: string
           prioritaet: number | null
-          sollstunden: number | null
           von: string | null
           wochentag: number | null
         }
@@ -205,7 +204,6 @@ export type Database = {
           id?: string
           kunden_id: string
           prioritaet?: number | null
-          sollstunden?: number | null
           von?: string | null
           wochentag?: number | null
         }
@@ -214,7 +212,6 @@ export type Database = {
           id?: string
           kunden_id?: string
           prioritaet?: number | null
-          sollstunden?: number | null
           von?: string | null
           wochentag?: number | null
         }
@@ -557,40 +554,52 @@ export type Database = {
       }
       termine: {
         Row: {
+          ausnahme_grund: string | null
           created_at: string
           end_at: string
           id: string
+          ist_ausnahme: boolean | null
           iststunden: number | null
           kunden_id: string
           mitarbeiter_id: string | null
+          notizen: string | null
           start_at: string
           status: Database["public"]["Enums"]["termin_status"]
           titel: string
           updated_at: string
+          vorlage_id: string | null
         }
         Insert: {
+          ausnahme_grund?: string | null
           created_at?: string
           end_at: string
           id?: string
+          ist_ausnahme?: boolean | null
           iststunden?: number | null
           kunden_id: string
           mitarbeiter_id?: string | null
+          notizen?: string | null
           start_at: string
           status?: Database["public"]["Enums"]["termin_status"]
           titel: string
           updated_at?: string
+          vorlage_id?: string | null
         }
         Update: {
+          ausnahme_grund?: string | null
           created_at?: string
           end_at?: string
           id?: string
+          ist_ausnahme?: boolean | null
           iststunden?: number | null
           kunden_id?: string
           mitarbeiter_id?: string | null
+          notizen?: string | null
           start_at?: string
           status?: Database["public"]["Enums"]["termin_status"]
           titel?: string
           updated_at?: string
+          vorlage_id?: string | null
         }
         Relationships: [
           {
@@ -605,6 +614,13 @@ export type Database = {
             columns: ["mitarbeiter_id"]
             isOneToOne: false
             referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "termine_vorlage_id_fkey"
+            columns: ["vorlage_id"]
+            isOneToOne: false
+            referencedRelation: "termin_vorlagen"
             referencedColumns: ["id"]
           },
         ]

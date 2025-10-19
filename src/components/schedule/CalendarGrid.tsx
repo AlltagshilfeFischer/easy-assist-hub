@@ -45,6 +45,7 @@ interface CalendarGridProps {
   weekDates: Date[];
   activeId: string | null;
   onEditAppointment: (appointment: Appointment) => void;
+  onSlotClick?: (employeeId: string, date: Date) => void;
 }
 
 export function CalendarGrid({ 
@@ -52,7 +53,8 @@ export function CalendarGrid({
   appointments, 
   weekDates, 
   activeId,
-  onEditAppointment 
+  onEditAppointment,
+  onSlotClick
 }: CalendarGridProps) {
   
   const getAppointmentsForDate = (employeeId: string, date: Date) => {
@@ -189,39 +191,44 @@ export function CalendarGrid({
                    )}
                    style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
                  >
-                   <EnhancedDropZone
-                     id={dropZoneId}
-                     isEmpty={dayAppointments.length === 0}
-                     employeeName={employee.name}
-                     date={format(date, 'dd.MM.yyyy')}
-                     className={cn(
-                       "transition-all duration-200 rounded-lg min-h-[90px] p-2 box-border",
-                       "w-full h-full overflow-hidden",
-                       dayAppointments.length === 0 
-                         ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5" 
-                         : "bg-card/50 border border-muted/50 shadow-sm flex flex-col gap-1"
-                     )}
-                   >
-                     {dayAppointments.length === 0 ? (
-                       <div className="h-full flex items-center justify-center">
-                         <div className="text-xs text-muted-foreground/60 text-center">
-                           Drop
-                         </div>
-                       </div>
-                     ) : (
-                       <div className="flex flex-col gap-1 overflow-y-auto max-h-[85px]">
-                         {dayAppointments.map((appointment) => (
-                           <DraggableAppointment
-                             key={appointment.id}
-                             appointment={appointment}
-                             isDragging={activeId === appointment.id}
-                             isConflicting={conflictingAppointments.has(appointment.id)}
-                             onClick={() => onEditAppointment(appointment)}
-                           />
-                         ))}
-                       </div>
-                     )}
-                   </EnhancedDropZone>
+                    <EnhancedDropZone
+                      id={dropZoneId}
+                      isEmpty={dayAppointments.length === 0}
+                      employeeName={employee.name}
+                      date={format(date, 'dd.MM.yyyy')}
+                      className={cn(
+                        "transition-all duration-200 rounded-lg min-h-[90px] p-2 box-border",
+                        "w-full h-full overflow-hidden",
+                        dayAppointments.length === 0 
+                          ? "border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 hover:bg-primary/5 cursor-pointer" 
+                          : "bg-card/50 border border-muted/50 shadow-sm flex flex-col gap-1"
+                      )}
+                      onClick={() => {
+                        if (dayAppointments.length === 0 && onSlotClick) {
+                          onSlotClick(employee.id, date);
+                        }
+                      }}
+                    >
+                      {dayAppointments.length === 0 ? (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-xs text-muted-foreground/60 text-center">
+                            + Termin
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1 overflow-y-auto max-h-[85px]">
+                          {dayAppointments.map((appointment) => (
+                            <DraggableAppointment
+                              key={appointment.id}
+                              appointment={appointment}
+                              isDragging={activeId === appointment.id}
+                              isConflicting={conflictingAppointments.has(appointment.id)}
+                              onClick={() => onEditAppointment(appointment)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </EnhancedDropZone>
                 </div>
               );
             })}
