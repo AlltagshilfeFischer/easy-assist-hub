@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { format, startOfWeek, addDays, parseISO, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -83,18 +83,20 @@ const ScheduleBuilder = () => {
   const [searchAppointment, setSearchAppointment] = useState('');
   const [sortEmployees, setSortEmployees] = useState('name');
   const [filterPriority, setFilterPriority] = useState('all');
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
+  const [currentWeek, setCurrentWeek] = useState(new Date());
   const [showEmployeeManager, setShowEmployeeManager] = useState(false);
   const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(new Set());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollToToday = () => {
-    setCurrentMonth(new Date());
+    const today = new Date();
+    setCurrentMonth(today);
+    setCurrentWeek(today);
 
-    // Trigger scroll to center today after month change
+    // Trigger scroll to center today after change
     setTimeout(() => {
       if (scrollAreaRef.current) {
-        const dates = getMonthDates();
-        const today = new Date();
+        const dates = viewMode === 'month' ? getMonthDates() : getWeekDates();
         const todayIndex = dates.findIndex(date => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
         if (todayIndex !== -1) {
           const cellWidth = DAY_COL_WIDTH;
@@ -133,6 +135,13 @@ const ScheduleBuilder = () => {
   };
   const goToNextMonth = () => {
     setCurrentMonth(prev => addMonths(prev, 1));
+  };
+
+  const goToPreviousWeek = () => {
+    setCurrentWeek(prev => subWeeks(prev, 1));
+  };
+  const goToNextWeek = () => {
+    setCurrentWeek(prev => addWeeks(prev, 1));
   };
 
   // Real data from Supabase
@@ -374,10 +383,27 @@ const ScheduleBuilder = () => {
     return dates;
   };
 
+  const getWeekDates = () => {
+    const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
+    const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 }); // Sunday
+    const dates = [];
+    let current = weekStart;
+
+    while (current <= weekEnd) {
+      dates.push(new Date(current));
+      current = addDays(current, 1);
+    }
+    return dates;
+  };
+
+  const getCurrentDates = () => {
+    return viewMode === 'month' ? getMonthDates() : getWeekDates();
+  };
+
   // Auto-scroll to center current day
   useEffect(() => {
     if (scrollAreaRef.current && !loading) {
-      const dates = getMonthDates();
+      const dates = getCurrentDates();
       const today = new Date();
       const todayIndex = dates.findIndex(date => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
       if (todayIndex !== -1) {
@@ -393,27 +419,7 @@ const ScheduleBuilder = () => {
         }, 100);
       }
     }
-  }, [currentMonth, loading]);
-
-  // Also scroll when month changes
-  useEffect(() => {
-    if (scrollAreaRef.current && !loading) {
-      const dates = getMonthDates();
-      const today = new Date();
-      const todayIndex = dates.findIndex(date => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
-      if (todayIndex !== -1) {
-        const cellWidth = DAY_COL_WIDTH;
-        const employeeColumnWidth = EMPLOYEE_COL_WIDTH;
-        const scrollToX = employeeColumnWidth + todayIndex * cellWidth - scrollAreaRef.current.clientWidth / 2 + cellWidth / 2;
-        setTimeout(() => {
-          scrollAreaRef.current?.scrollTo({
-            left: Math.max(0, scrollToX),
-            behavior: 'smooth'
-          });
-        }, 100);
-      }
-    }
-  }, [currentMonth]);
+  }, [currentMonth, currentWeek, viewMode, loading]);
 
   // DnD event handlers
   const handleDragStart = (event: DragStartEvent) => {
@@ -723,11 +729,11 @@ const ScheduleBuilder = () => {
     setCurrentMonth(direction > 0 ? addMonths(currentMonth, 1) : subMonths(currentMonth, 1));
   };
   const getAppointmentCount = (employeeId: string, dayIndex: number) => {
-    const date = getMonthDates()[dayIndex];
+    const date = getCurrentDates()[dayIndex];
     return appointments.filter(app => app.mitarbeiter_id === employeeId && format(new Date(app.start_at), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')).length;
   };
   const getAppointmentsForDate = (employeeId: string, dayIndex: number) => {
-    const date = getMonthDates()[dayIndex];
+    const date = getCurrentDates()[dayIndex];
     return appointments.filter(app => app.mitarbeiter_id === employeeId && format(new Date(app.start_at), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd'));
   };
   const draggedAppointment = activeId ? appointments.find(app => app.id === activeId) : null;
@@ -980,15 +986,47 @@ const ScheduleBuilder = () => {
                   <CalendarDays className="h-4 w-4" />
                   Masterkalender
                   <div className="ml-auto flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={goToPreviousMonth} className="h-8 px-2">
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center bg-muted rounded-lg p-1 mr-2">
+                      <Button 
+                        variant={viewMode === 'week' ? 'default' : 'ghost'} 
+                        size="sm" 
+                        onClick={() => setViewMode('week')}
+                        className="h-7 px-3"
+                      >
+                        Woche
+                      </Button>
+                      <Button 
+                        variant={viewMode === 'month' ? 'default' : 'ghost'} 
+                        size="sm" 
+                        onClick={() => setViewMode('month')}
+                        className="h-7 px-3"
+                      >
+                        Monat
+                      </Button>
+                    </div>
+
+                    {/* Navigation */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={viewMode === 'month' ? goToPreviousMonth : goToPreviousWeek} 
+                      className="h-8 px-2"
+                    >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <span className="text-sm font-medium min-w-[120px] text-center">
-                      {format(currentMonth, 'MMMM yyyy', {
-                      locale: de
-                    })}
+                    <span className="text-sm font-medium min-w-[180px] text-center">
+                      {viewMode === 'month' 
+                        ? format(currentMonth, 'MMMM yyyy', { locale: de })
+                        : `${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'dd. MMM', { locale: de })} - ${format(endOfWeek(currentWeek, { weekStartsOn: 1 }), 'dd. MMM yyyy', { locale: de })}`
+                      }
                     </span>
-                    <Button variant="outline" size="sm" onClick={goToNextMonth} className="h-8 px-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={viewMode === 'month' ? goToNextMonth : goToNextWeek} 
+                      className="h-8 px-2"
+                    >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                     <Button variant="default" size="sm" onClick={scrollToToday} className="h-8 px-3 ml-2">
@@ -1020,13 +1058,13 @@ const ScheduleBuilder = () => {
                       </div>
                     </div>
                     {/* Unassigned Appointments Bar */}
-                    <UnassignedAppointmentsBar appointments={appointments} weekDates={getMonthDates()} activeId={activeId} onEditAppointment={setEditingAppointment} />
+                    <UnassignedAppointmentsBar appointments={appointments} weekDates={getCurrentDates()} activeId={activeId} onEditAppointment={setEditingAppointment} />
                     
                     {/* Calendar Grid */}
                     <CalendarGrid 
                       employees={filteredEmployees} 
                       appointments={appointments} 
-                      weekDates={getMonthDates()} 
+                      weekDates={getCurrentDates()} 
                       activeId={activeId} 
                       onEditAppointment={setEditingAppointment}
                       onSlotClick={handleSlotClick}
