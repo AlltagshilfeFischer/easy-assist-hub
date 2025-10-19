@@ -950,7 +950,7 @@ const cellWidth = DAY_COL_WIDTH;
 
         {/* Employee Manager Dialog */}
         <Dialog open={showEmployeeManager} onOpenChange={setShowEmployeeManager}>
-          <DialogContent className="max-w-2xl h-[85vh] p-0 flex flex-col">
+          <DialogContent className="max-w-2xl h-[90vh] p-0 flex flex-col">
             <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-lg">
