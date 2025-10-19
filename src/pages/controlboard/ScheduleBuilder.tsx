@@ -76,7 +76,7 @@ interface Appointment {
   employee?: Employee;
 }
 const ScheduleBuilder = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date()); // Always starts with current month
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [searchEmployee, setSearchEmployee] = useState('');
@@ -992,9 +992,9 @@ const ScheduleBuilder = () => {
               </CardHeader>
               <CardContent className="p-4">
                 <ScrollArea className="w-full" ref={scrollAreaRef}>
-                  <div className="space-y-3">
-                    {/* Quick Actions Bar */}
-                    <div className="flex items-center justify-between gap-2 px-2 bg-muted/30 rounded-lg p-2">
+                  <div className="space-y-3 relative">
+                    {/* Quick Actions Bar - Sticky positioned to move with scroll */}
+                    <div className="sticky left-0 z-10 flex items-center justify-between gap-2 px-2 bg-muted/90 backdrop-blur-sm rounded-lg p-2 shadow-sm">
                       <div className="flex items-center gap-2">
                         <Button onClick={scrollToPreviousWeek} variant="outline" size="sm" className="h-9 px-3">
                           <ChevronLeft className="h-4 w-4 mr-1" />
