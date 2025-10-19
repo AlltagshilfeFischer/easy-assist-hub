@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -957,22 +956,22 @@ const cellWidth = DAY_COL_WIDTH;
             </Button>
           </div>
 
-          {/* Employee Filter Sheet */}
-          <Sheet open={showEmployeeFilters} onOpenChange={setShowEmployeeFilters}>
-            <SheetContent side="left" className="w-full sm:w-[540px] p-0 flex flex-col">
-              <SheetHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
+          {/* Employee Filter Dialog */}
+          <Dialog open={showEmployeeFilters} onOpenChange={setShowEmployeeFilters}>
+            <DialogContent className="max-w-2xl max-h-[85vh] p-0 flex flex-col">
+              <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
                     <Users className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <SheetTitle className="text-xl">Mitarbeiter verwalten</SheetTitle>
-                    <SheetDescription>
+                    <DialogTitle className="text-xl">Mitarbeiter verwalten</DialogTitle>
+                    <DialogDescription>
                       {filteredEmployees.length} von {employees.filter(e => e.ist_aktiv).length} Mitarbeitern sichtbar
-                    </SheetDescription>
+                    </DialogDescription>
                   </div>
                 </div>
-              </SheetHeader>
+              </DialogHeader>
 
               <div className="flex-1 overflow-hidden flex flex-col">
                 {/* Search and Controls */}
@@ -1139,8 +1138,8 @@ const cellWidth = DAY_COL_WIDTH;
                   </div>
                 </ScrollArea>
               </div>
-            </SheetContent>
-          </Sheet>
+            </DialogContent>
+          </Dialog>
 
           {/* Main Schedule Grid */}
           <div>
