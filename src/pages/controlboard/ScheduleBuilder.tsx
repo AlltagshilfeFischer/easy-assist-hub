@@ -176,6 +176,13 @@ const ScheduleBuilder = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Scroll to today on initial load
+  useEffect(() => {
+    if (!loading && appointments.length > 0) {
+      scrollToToday();
+    }
+  }, [loading]);
   const loadData = async () => {
     setLoading(true);
     try {
@@ -992,9 +999,9 @@ const ScheduleBuilder = () => {
               </CardHeader>
               <CardContent className="p-4">
                 <ScrollArea className="w-full" ref={scrollAreaRef}>
-                  <div className="space-y-3 relative">
-                    {/* Quick Actions Bar - Sticky positioned to move with scroll */}
-                    <div className="sticky left-0 z-10 flex items-center justify-between gap-2 px-2 bg-muted/90 backdrop-blur-sm rounded-lg p-2 shadow-sm">
+                  <div className="space-y-3">
+                    {/* Quick Actions Bar - Scrolls with calendar content */}
+                    <div className="flex items-center justify-between gap-2 px-2 bg-muted/50 rounded-lg p-2">{}
                       <div className="flex items-center gap-2">
                         <Button onClick={scrollToPreviousWeek} variant="outline" size="sm" className="h-9 px-3">
                           <ChevronLeft className="h-4 w-4 mr-1" />
