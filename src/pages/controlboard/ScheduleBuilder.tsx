@@ -731,29 +731,6 @@ const ScheduleBuilder = () => {
           </div>
         </div>
 
-        {/* Week Navigation */}
-        <Card className="shadow-lg border-0 bg-gradient-to-r from-white to-gray-50/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button variant="outline" size="sm" onClick={() => navigateMonth(-1)}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <h2 className="text-xl font-semibold">
-                  {format(currentMonth, 'MMMM yyyy', {
-                  locale: de
-                })}
-                </h2>
-                <Button variant="outline" size="sm" onClick={() => navigateMonth(1)}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <Button variant="outline" onClick={scrollToToday}>
-                Heute
-              </Button>
-            </div>
-          </CardHeader>
-        </Card>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
