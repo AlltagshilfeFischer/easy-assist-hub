@@ -24,12 +24,14 @@ interface Employee {
 }
 
 interface SortableEmployeeCardProps {
+  id: string;
   employee: Employee;
   currentAppointments?: number;
   className?: string;
+  children?: React.ReactNode;
 }
 
-export function SortableEmployeeCard({ employee, currentAppointments = 0, className }: SortableEmployeeCardProps) {
+export function SortableEmployeeCard({ id, employee, currentAppointments = 0, className, children }: SortableEmployeeCardProps) {
   const {
     attributes,
     listeners,
@@ -37,7 +39,7 @@ export function SortableEmployeeCard({ employee, currentAppointments = 0, classN
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: `employee-sort-${employee.id}` });
+  } = useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -58,6 +60,26 @@ export function SortableEmployeeCard({ employee, currentAppointments = 0, classN
     return <TrendingUp className="h-4 w-4" />;
   };
 
+  // If children are provided, use them
+  if (children) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={cn(
+          'transition-all duration-200',
+          isDragging && 'opacity-50 scale-105 shadow-lg z-50',
+          className
+        )}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  // Default rendering
   return (
     <Card 
       ref={setNodeRef}

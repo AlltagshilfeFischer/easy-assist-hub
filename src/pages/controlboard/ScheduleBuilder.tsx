@@ -942,208 +942,124 @@ const cellWidth = DAY_COL_WIDTH;
         </div>
 
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* Filter and Sort Button */}
-          <div className="flex justify-start">
-            <Button
-              onClick={() => setShowEmployeeFilters(!showEmployeeFilters)}
-              className="h-10 gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              Filtern und Sortieren
-              <Badge variant="secondary" className="ml-1 px-2 py-0 h-5">
-                {filteredEmployees.length}
-              </Badge>
-            </Button>
-          </div>
+        {/* Minimalist Filter Button */}
+        <div className="flex justify-start mb-4">
+          <Button
+            onClick={() => setShowEmployeeFilters(!showEmployeeFilters)}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filtern und Sortieren
+            <Badge variant="secondary" className="ml-1">
+              {filteredEmployees.length}
+            </Badge>
+          </Button>
+        </div>
 
-          {/* Employee Filter Sheet */}
-          <Sheet open={showEmployeeFilters} onOpenChange={setShowEmployeeFilters}>
-            <SheetContent side="left" className="w-full sm:w-[540px] p-0 flex flex-col">
-              <SheetHeader className="px-6 py-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <SheetTitle className="text-xl">Mitarbeiter verwalten</SheetTitle>
-                    <SheetDescription>
-                      {filteredEmployees.length} von {employees.filter(e => e.ist_aktiv).length} Mitarbeitern sichtbar
-                    </SheetDescription>
-                  </div>
+        {/* Minimalist Employee Management Sheet */}
+        <Sheet open={showEmployeeFilters} onOpenChange={setShowEmployeeFilters}>
+          <SheetContent side="left" className="w-[400px] p-0 flex flex-col">
+            <SheetHeader className="px-4 py-3 border-b">
+              <SheetTitle>Mitarbeiter</SheetTitle>
+              <SheetDescription>
+                {filteredEmployees.length} von {employees.filter(e => e.ist_aktiv).length} sichtbar
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {/* Controls */}
+              <div className="px-4 py-3 space-y-3 border-b">
+                <Input
+                  placeholder="Suchen..."
+                  value={searchEmployee}
+                  onChange={(e) => setSearchEmployee(e.target.value)}
+                  className="h-9"
+                />
+
+                <div className="flex gap-2">
+                  <Select value={sortEmployees} onValueChange={setSortEmployees}>
+                    <SelectTrigger className="h-9 flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Name</SelectItem>
+                      <SelectItem value="workload">Auslastung</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setEmployeeOrder(employees.map(emp => emp.id));
+                      setHiddenEmployeeIds(new Set());
+                      setSearchEmployee('');
+                    }}
+                  >
+                    Reset
+                  </Button>
                 </div>
-              </SheetHeader>
-
-              <div className="flex-1 overflow-hidden flex flex-col">
-                {/* Search and Controls */}
-                <div className="px-6 py-4 space-y-4 border-b bg-muted/30">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Mitarbeiter durchsuchen..."
-                      value={searchEmployee}
-                      onChange={(e) => setSearchEmployee(e.target.value)}
-                      className="pl-9 h-10"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Select value={sortEmployees} onValueChange={setSortEmployees}>
-                      <SelectTrigger className="h-10 flex-1">
-                        <SelectValue placeholder="Sortieren nach..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="name">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            Nach Name
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="workload">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4" />
-                            Nach Auslastung
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setEmployeeOrder(employees.map(emp => emp.id));
-                        setHiddenEmployeeIds(new Set());
-                        setSearchEmployee('');
-                      }}
-                      className="h-10"
-                    >
-                      Reset
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="toggle-all"
-                        checked={hiddenEmployeeIds.size === 0}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setHiddenEmployeeIds(new Set());
-                          } else {
-                            setHiddenEmployeeIds(new Set(employees.filter(e => e.ist_aktiv).map(e => e.id)));
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor="toggle-all"
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        Alle {hiddenEmployeeIds.size === 0 ? 'ausblenden' : 'einblenden'}
-                      </label>
-                    </div>
-                    <Badge variant="outline" className="gap-1">
-                      <Eye className="h-3 w-3" />
-                      {filteredEmployees.length} sichtbar
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Employee List */}
-                <ScrollArea className="flex-1">
-                  <div className="px-6 py-4 space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                      <GripVertical className="h-4 w-4" />
-                      <span>Zum Sortieren ziehen</span>
-                    </div>
-
-                    <SortableContext 
-                      items={employees.filter(e => e.ist_aktiv).map(emp => `employee-sort-${emp.id}`)} 
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {employees.filter(e => e.ist_aktiv).map((employee) => {
-                        const isVisible = !hiddenEmployeeIds.has(employee.id);
-                        const appointmentCount = appointments.filter(app => app.mitarbeiter_id === employee.id).length;
-                        const workloadPercentage = (appointmentCount / (employee.max_termine_pro_tag || 8)) * 100;
-                        
-                        return (
-                          <div key={`employee-sort-${employee.id}`} className={cn(
-                            "transition-opacity duration-200",
-                            !isVisible && "opacity-40"
-                          )}>
-                            <Card className={cn(
-                              "border-2 transition-all duration-200",
-                              isVisible ? "border-primary/20 bg-card" : "border-muted bg-muted/50"
-                            )}>
-                              <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                  {/* Drag Handle */}
-                                  <div className="cursor-grab active:cursor-grabbing flex-shrink-0">
-                                    <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                  </div>
-
-                                  {/* Checkbox */}
-                                  <Checkbox
-                                    checked={isVisible}
-                                    onCheckedChange={(checked) => {
-                                      const newHidden = new Set(hiddenEmployeeIds);
-                                      if (checked) {
-                                        newHidden.delete(employee.id);
-                                      } else {
-                                        newHidden.add(employee.id);
-                                      }
-                                      setHiddenEmployeeIds(newHidden);
-                                    }}
-                                    className="flex-shrink-0"
-                                  />
-
-                                  {/* Color Indicator */}
-                                  <div 
-                                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0" 
-                                    style={{ backgroundColor: employee.farbe_kalender }}
-                                  />
-
-                                  {/* Employee Info */}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium text-sm truncate">{employee.name}</h4>
-                                    {employee.telefon && (
-                                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                        <Phone className="h-3 w-3" />
-                                        {employee.telefon}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  {/* Stats */}
-                                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                    <Badge 
-                                      variant="outline"
-                                      className={cn(
-                                        "text-xs px-2 py-0 h-5",
-                                        workloadPercentage >= 100 && "bg-red-50 text-red-700 border-red-200",
-                                        workloadPercentage >= 80 && workloadPercentage < 100 && "bg-orange-50 text-orange-700 border-orange-200",
-                                        workloadPercentage < 80 && "bg-green-50 text-green-700 border-green-200"
-                                      )}
-                                    >
-                                      {appointmentCount} Termine
-                                    </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                      {Math.round(workloadPercentage)}% Auslastung
-                                    </span>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        );
-                      })}
-                    </SortableContext>
-                  </div>
-                </ScrollArea>
               </div>
-            </SheetContent>
-          </Sheet>
 
-          {/* Main Schedule Grid */}
-          <div>
+              {/* Employee List */}
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-2">
+                  <SortableContext 
+                    items={employees.filter(e => e.ist_aktiv).map(emp => `employee-sort-${emp.id}`)} 
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {employees.filter(e => e.ist_aktiv).map((employee) => {
+                      const isVisible = !hiddenEmployeeIds.has(employee.id);
+                      const appointmentCount = appointments.filter(app => app.mitarbeiter_id === employee.id).length;
+                      
+                      return (
+                        <SortableEmployeeCard
+                          key={`employee-sort-${employee.id}`}
+                          id={`employee-sort-${employee.id}`}
+                          employee={employee}
+                        >
+                          <div className={cn(
+                            "flex items-center gap-3 p-2 rounded-lg border transition-all",
+                            isVisible ? "bg-card hover:bg-muted/50" : "bg-muted/30 opacity-60"
+                          )}>
+                            <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            
+                            <Checkbox
+                              checked={isVisible}
+                              onCheckedChange={(checked) => {
+                                const newHidden = new Set(hiddenEmployeeIds);
+                                if (checked) {
+                                  newHidden.delete(employee.id);
+                                } else {
+                                  newHidden.add(employee.id);
+                                }
+                                setHiddenEmployeeIds(newHidden);
+                              }}
+                            />
+                            
+                            <div 
+                              className="w-3 h-3 rounded-full flex-shrink-0" 
+                              style={{ backgroundColor: employee.farbe_kalender || '#666' }}
+                            />
+                            
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{employee.name}</p>
+                              <p className="text-xs text-muted-foreground">{appointmentCount} Termine</p>
+                            </div>
+                          </div>
+                        </SortableEmployeeCard>
+                      );
+                    })}
+                  </SortableContext>
+                </div>
+              </ScrollArea>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Main Schedule Grid */}
+        <div>
             <Card className="border shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1265,7 +1181,6 @@ const cellWidth = DAY_COL_WIDTH;
               </CardContent>
             </Card>
           </div>
-        </div>
 
         <AppointmentDetailDialog
           isOpen={!!editingAppointment}
