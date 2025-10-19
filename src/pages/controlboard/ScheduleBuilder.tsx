@@ -109,13 +109,16 @@ const ScheduleBuilder = () => {
   };
   const scrollByWeeks = (weeks: number) => {
     if (scrollAreaRef.current) {
-      const cellWidth = DAY_COL_WIDTH;
-      const scrollAmount = cellWidth * 7 * weeks; // 7 days per week
+      const scrollViewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollViewport) {
+        const cellWidth = DAY_COL_WIDTH;
+        const scrollAmount = cellWidth * 7 * weeks; // 7 days per week
 
-      scrollAreaRef.current.scrollBy({
-        left: scrollAmount,
-        behavior: 'smooth'
-      });
+        scrollViewport.scrollBy({
+          left: scrollAmount,
+          behavior: 'smooth'
+        });
+      }
     }
   };
   const scrollToPreviousWeek = () => {
