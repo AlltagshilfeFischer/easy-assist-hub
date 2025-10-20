@@ -101,17 +101,12 @@ export default function BenutzerverwaltungNeu() {
   const handleApprove = async (registration: PendingRegistration) => {
     setActionLoading(registration.id);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-
       const { data, error } = await supabase.functions.invoke('approve-benutzer', {
         body: {
           registration_id: registration.id,
           email: registration.email,
           vorname: registration.vorname,
           nachname: registration.nachname
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
         },
       });
 
@@ -143,15 +138,10 @@ export default function BenutzerverwaltungNeu() {
 
     setActionLoading(selectedBenutzer);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-
       const { data, error } = await supabase.functions.invoke('reject-benutzer', {
         body: {
           registration_id: selectedBenutzer,
           reason: rejectionReason
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
         },
       });
 
