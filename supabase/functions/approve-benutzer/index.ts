@@ -78,59 +78,82 @@ Deno.serve(async (req) => {
       throw new Error('Registration not found or already processed');
     }
 
-    // Generate a temporary password
+    // Create or link auth user (handle existing accounts)
     const tempPassword = crypto.randomUUID();
+    let targetUserId: string | null = null;
+    let createdNewUser = false;
+    let emailConfirmed = false;
 
-    // Create auth user with Admin API
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        vorname: vorname || registration.vorname || '',
-        nachname: nachname || registration.nachname || '',
+    try {
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          vorname: vorname || registration.vorname || '',
+          nachname: nachname || registration.nachname || '',
+        }
+      });
+
+      if (createErr) throw createErr;
+
+      targetUserId = created.user.id;
+      createdNewUser = true;
+      emailConfirmed = !!created.user.email_confirmed_at;
+      console.log('Auth user created:', targetUserId);
+    } catch (e: any) {
+      const code = e?.code || e?.status || e?.name;
+      console.warn('Create user failed, attempting to link existing user. Code:', code, 'Message:', e?.message);
+
+      // Try to find existing user by email
+      const { data: usersPage, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listErr) {
+        console.error('List users error:', listErr);
+        throw new Error(`Failed to list users: ${listErr.message}`);
       }
-    });
 
-    if (authError) {
-      console.error('Auth user creation error:', authError);
-      throw new Error(`Failed to create auth user: ${authError.message}`);
+      const existing = usersPage?.users?.find((u: any) => (u.email || '').toLowerCase() === email.toLowerCase());
+      if (!existing) {
+        console.error('No existing user found for email after createUser failed.');
+        throw new Error(`Failed to create auth user: ${e?.message || 'unknown error'}`);
+      }
+
+      targetUserId = existing.id;
+      createdNewUser = false;
+      emailConfirmed = !!existing.email_confirmed_at;
+      console.log('Using existing auth user:', targetUserId);
     }
 
-    console.log('Auth user created:', authUser.user.id);
-
-    // Insert into benutzer table
+    // Upsert into benutzer table
     const { error: benutzerError } = await supabaseAdmin
       .from('benutzer')
-      .insert({
-        id: authUser.user.id,
+      .upsert({
+        id: targetUserId!,
         email: email,
         rolle: 'mitarbeiter',
         status: 'approved',
-        vorname: vorname || registration.vorname,
-        nachname: nachname || registration.nachname
-      });
+        vorname: vorname || registration.vorname || null,
+        nachname: nachname || registration.nachname || null
+      }, { onConflict: 'id' });
 
     if (benutzerError) {
-      console.error('Benutzer insert error:', benutzerError);
-      // Cleanup: delete auth user if benutzer insert fails
-      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
-      throw new Error(`Failed to create benutzer: ${benutzerError.message}`);
+      console.error('Benutzer upsert error:', benutzerError);
+      throw new Error(`Failed to upsert benutzer: ${benutzerError.message}`);
     }
 
-    // Insert into mitarbeiter table
+    // Upsert into mitarbeiter table
     const { error: mitarbeiterError } = await supabaseAdmin
       .from('mitarbeiter')
-      .insert({
-        benutzer_id: authUser.user.id,
+      .upsert({
+        benutzer_id: targetUserId!,
         vorname: vorname || registration.vorname || null,
         nachname: nachname || registration.nachname || null,
         ist_aktiv: true
-      });
+      }, { onConflict: 'benutzer_id' });
 
     if (mitarbeiterError) {
-      console.error('Mitarbeiter insert error:', mitarbeiterError);
-      throw new Error(`Failed to create mitarbeiter: ${mitarbeiterError.message}`);
+      console.error('Mitarbeiter upsert error:', mitarbeiterError);
+      throw new Error(`Failed to upsert mitarbeiter: ${mitarbeiterError.message}`);
     }
 
     // Update registration status to approved
@@ -149,16 +172,16 @@ Deno.serve(async (req) => {
 
     console.log('Registration approved successfully');
 
-    // Send password reset email
-    await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: email,
-    });
+    // Send appropriate email link
+    const linkType = createdNewUser ? 'invite' : (emailConfirmed ? 'recovery' : 'invite');
+    await supabaseAdmin.auth.admin.generateLink({ type: linkType as any, email });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Benutzer approved and activated. User will receive an invite email.' 
+        message: createdNewUser
+          ? 'Benutzer approved. Invite email gesendet.'
+          : (emailConfirmed ? 'Benutzer verknüpft. Passwort-Reset-Mail gesendet.' : 'Benutzer verknüpft. Invite-Mail gesendet.')
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
