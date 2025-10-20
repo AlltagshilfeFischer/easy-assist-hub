@@ -47,15 +47,10 @@ Deno.serve(async (req) => {
       throw new Error('Not authenticated');
     }
 
-    // Check admin role via service role to bypass RLS
-    const { data: benutzerData, error: benutzerErr } = await supabaseAdmin
-      .from('benutzer')
-      .select('rolle')
-      .eq('id', userId)
-      .single();
-
-    if (benutzerErr || benutzerData?.rolle !== 'admin') {
-      console.error('Admin role check failed:', benutzerErr, benutzerData);
+    // Check admin role using SECURITY DEFINER function to avoid table permission issues
+    const { data: isAdmin, error: isAdminErr } = await supabaseAdmin.rpc('is_admin', { user_id: userId });
+    if (isAdminErr || !isAdmin) {
+      console.error('Admin role check failed via is_admin:', isAdminErr);
       throw new Error('Not authorized - admin role required');
     }
 
