@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, XCircle, Clock, UserPlus } from 'lucide-react';
 
-interface PendingBenutzer {
+interface PendingRegistration {
   id: string;
   email: string;
   vorname: string | null;
@@ -30,7 +30,7 @@ interface Mitarbeiter {
 }
 
 export default function BenutzerverwaltungNeu() {
-  const [pendingBenutzer, setPendingBenutzer] = useState<PendingBenutzer[]>([]);
+  const [pendingBenutzer, setPendingBenutzer] = useState<PendingRegistration[]>([]);
   const [mitarbeiter, setMitarbeiter] = useState<Mitarbeiter[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -44,10 +44,10 @@ export default function BenutzerverwaltungNeu() {
     loadData();
 
     const channel = supabase
-      .channel('benutzer-changes')
+      .channel('registration-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'benutzer' },
+        { event: '*', schema: 'public', table: 'pending_registrations' },
         () => loadData()
       )
       .on(
@@ -64,10 +64,11 @@ export default function BenutzerverwaltungNeu() {
 
   const loadData = async () => {
     try {
-      const [benutzerResponse, mitarbeiterResponse] = await Promise.all([
+      const [registrationsResponse, mitarbeiterResponse] = await Promise.all([
         supabase
-          .from('benutzer')
+          .from('pending_registrations')
           .select('*')
+          .eq('status', 'pending')
           .order('created_at', { ascending: false }),
         supabase
           .from('mitarbeiter')
@@ -80,11 +81,10 @@ export default function BenutzerverwaltungNeu() {
           .order('created_at', { ascending: false })
       ]);
 
-      if (benutzerResponse.error) throw benutzerResponse.error;
+      if (registrationsResponse.error) throw registrationsResponse.error;
       if (mitarbeiterResponse.error) throw mitarbeiterResponse.error;
 
-      const allBenutzer = benutzerResponse.data || [];
-      setPendingBenutzer(allBenutzer.filter(b => b.status === 'pending'));
+      setPendingBenutzer(registrationsResponse.data || []);
       setMitarbeiter(mitarbeiterResponse.data || []);
     } catch (error: any) {
       console.error('Error loading data:', error);
@@ -98,17 +98,17 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  const handleApprove = async (benutzer: PendingBenutzer) => {
-    setActionLoading(benutzer.id);
+  const handleApprove = async (registration: PendingRegistration) => {
+    setActionLoading(registration.id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
       const { data, error } = await supabase.functions.invoke('approve-benutzer', {
         body: {
-          benutzer_id: benutzer.id,
-          email: benutzer.email,
-          vorname: benutzer.vorname,
-          nachname: benutzer.nachname
+          registration_id: registration.id,
+          email: registration.email,
+          vorname: registration.vorname,
+          nachname: registration.nachname
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
@@ -147,7 +147,7 @@ export default function BenutzerverwaltungNeu() {
 
       const { data, error } = await supabase.functions.invoke('reject-benutzer', {
         body: {
-          benutzer_id: selectedBenutzer,
+          registration_id: selectedBenutzer,
           reason: rejectionReason
         },
         headers: {

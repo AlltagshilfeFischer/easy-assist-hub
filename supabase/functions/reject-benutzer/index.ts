@@ -43,31 +43,35 @@ Deno.serve(async (req) => {
     }
 
     // Get request body
-    const { benutzer_id, reason } = await req.json();
+    const { registration_id, reason } = await req.json();
 
-    if (!benutzer_id) {
-      throw new Error('benutzer_id is required');
+    if (!registration_id) {
+      throw new Error('registration_id is required');
     }
 
-    console.log('Rejecting benutzer:', { benutzer_id, reason });
+    console.log('Rejecting registration:', { registration_id, reason });
 
-    // Update benutzer status to rejected
+    // Update registration status to rejected
     const { error: updateError } = await supabaseAdmin
-      .from('benutzer')
+      .from('pending_registrations')
       .update({
-        status: 'rejected'
+        status: 'rejected',
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: reason || null
       })
-      .eq('id', benutzer_id);
+      .eq('id', registration_id)
+      .eq('status', 'pending');
 
     if (updateError) {
-      console.error('Benutzer update error:', updateError);
-      throw new Error(`Failed to update benutzer: ${updateError.message}`);
+      console.error('Registration update error:', updateError);
+      throw new Error(`Failed to update registration: ${updateError.message}`);
     }
 
-    console.log('Benutzer rejected successfully');
+    console.log('Registration rejected successfully');
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Benutzer rejected' }),
+      JSON.stringify({ success: true, message: 'Registration rejected' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 

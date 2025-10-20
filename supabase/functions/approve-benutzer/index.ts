@@ -43,21 +43,37 @@ Deno.serve(async (req) => {
     }
 
     // Get request body
-    const { benutzer_id, email, vorname, nachname } = await req.json();
+    const { registration_id, email, vorname, nachname } = await req.json();
 
-    if (!benutzer_id || !email) {
-      throw new Error('benutzer_id and email are required');
+    if (!registration_id || !email) {
+      throw new Error('registration_id and email are required');
     }
 
-    console.log('Approving benutzer:', { benutzer_id, email });
+    console.log('Approving registration:', { registration_id, email });
+
+    // Get registration details
+    const { data: registration, error: registrationError } = await supabaseAdmin
+      .from('pending_registrations')
+      .select('*')
+      .eq('id', registration_id)
+      .eq('status', 'pending')
+      .single();
+
+    if (registrationError || !registration) {
+      throw new Error('Registration not found or already processed');
+    }
+
+    // Generate a temporary password
+    const tempPassword = crypto.randomUUID();
 
     // Create auth user with Admin API
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
+      password: tempPassword,
       email_confirm: true,
       user_metadata: {
-        vorname: vorname || '',
-        nachname: nachname || '',
+        vorname: vorname || registration.vorname || '',
+        nachname: nachname || registration.nachname || '',
       }
     });
 
@@ -68,18 +84,23 @@ Deno.serve(async (req) => {
 
     console.log('Auth user created:', authUser.user.id);
 
-    // Update benutzer status to approved and set the auth user id
-    const { error: updateError } = await supabaseAdmin
+    // Insert into benutzer table
+    const { error: benutzerError } = await supabaseAdmin
       .from('benutzer')
-      .update({
+      .insert({
+        id: authUser.user.id,
+        email: email,
+        rolle: 'mitarbeiter',
         status: 'approved',
-        id: authUser.user.id
-      })
-      .eq('id', benutzer_id);
+        vorname: vorname || registration.vorname,
+        nachname: nachname || registration.nachname
+      });
 
-    if (updateError) {
-      console.error('Benutzer update error:', updateError);
-      throw new Error(`Failed to update benutzer: ${updateError.message}`);
+    if (benutzerError) {
+      console.error('Benutzer insert error:', benutzerError);
+      // Cleanup: delete auth user if benutzer insert fails
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+      throw new Error(`Failed to create benutzer: ${benutzerError.message}`);
     }
 
     // Insert into mitarbeiter table
@@ -87,8 +108,8 @@ Deno.serve(async (req) => {
       .from('mitarbeiter')
       .insert({
         benutzer_id: authUser.user.id,
-        vorname: vorname || null,
-        nachname: nachname || null,
+        vorname: vorname || registration.vorname || null,
+        nachname: nachname || registration.nachname || null,
         ist_aktiv: true
       });
 
@@ -97,10 +118,33 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to create mitarbeiter: ${mitarbeiterError.message}`);
     }
 
-    console.log('Benutzer approved successfully');
+    // Update registration status to approved
+    const { error: updateError } = await supabaseAdmin
+      .from('pending_registrations')
+      .update({
+        status: 'approved',
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', registration_id);
+
+    if (updateError) {
+      console.error('Registration update error:', updateError);
+    }
+
+    console.log('Registration approved successfully');
+
+    // Send password reset email
+    await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email: email,
+    });
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Benutzer approved and activated' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Benutzer approved and activated. User will receive an invite email.' 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
