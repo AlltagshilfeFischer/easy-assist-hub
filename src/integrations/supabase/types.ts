@@ -235,6 +235,7 @@ export type Database = {
           max_termine_pro_tag: number | null
           nachname: string | null
           soll_wochenstunden: number | null
+          standort: Database["public"]["Enums"]["standort"] | null
           telefon: string | null
           updated_at: string
           vorname: string | null
@@ -248,6 +249,7 @@ export type Database = {
           max_termine_pro_tag?: number | null
           nachname?: string | null
           soll_wochenstunden?: number | null
+          standort?: Database["public"]["Enums"]["standort"] | null
           telefon?: string | null
           updated_at?: string
           vorname?: string | null
@@ -261,6 +263,7 @@ export type Database = {
           max_termine_pro_tag?: number | null
           nachname?: string | null
           soll_wochenstunden?: number | null
+          standort?: Database["public"]["Enums"]["standort"] | null
           telefon?: string | null
           updated_at?: string
           vorname?: string | null
@@ -971,6 +974,7 @@ export type Database = {
     Enums: {
       approval_status: "pending" | "approved" | "rejected"
       recurrence_interval: "none" | "weekly" | "biweekly" | "monthly"
+      standort: "Hannover"
       termin_status:
         | "unassigned"
         | "scheduled"
@@ -1107,6 +1111,7 @@ export const Constants = {
     Enums: {
       approval_status: ["pending", "approved", "rejected"],
       recurrence_interval: ["none", "weekly", "biweekly", "monthly"],
+      standort: ["Hannover"],
       termin_status: [
         "unassigned",
         "scheduled",
