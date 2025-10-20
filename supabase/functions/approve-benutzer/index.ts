@@ -63,15 +63,18 @@ Deno.serve(async (req) => {
 
     console.log('Approving registration:', { registration_id, email });
 
-    // Get registration details
-    const { data: registration, error: registrationError } = await supabaseAdmin
-      .from('pending_registrations')
-      .select('*')
-      .eq('id', registration_id)
-      .eq('status', 'pending')
-      .single();
+    // Get registration details via SECURITY DEFINER function to avoid any RLS/table permission issues
+    const { data: regData, error: regErr } = await supabaseAdmin
+      .rpc('get_pending_registration', { p_registration_id: registration_id });
 
-    if (registrationError || !registration) {
+    if (regErr) {
+      console.error('get_pending_registration RPC error:', regErr);
+      throw new Error(`Registration lookup failed: ${regErr.message}`);
+    }
+
+    const registration = (Array.isArray(regData) ? regData[0] : regData) as { email: string; vorname?: string; nachname?: string } | null;
+
+    if (!registration) {
       throw new Error('Registration not found or already processed');
     }
 
