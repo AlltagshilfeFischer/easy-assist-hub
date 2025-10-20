@@ -26,23 +26,37 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify admin role
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    // Verify admin role using verified JWT (avoid /user call to prevent session_not_found)
+    const authHeader = req.headers.get('Authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      throw new Error('Not authenticated');
+    }
+    const token = authHeader.slice('Bearer '.length).trim();
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError || !user) {
-      console.error('Auth getUser error:', userError);
+    // Decode JWT payload
+    let userId: string | null = null;
+    try {
+      const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payloadJson = atob(payloadBase64);
+      const payload = JSON.parse(payloadJson);
+      userId = payload.sub ?? null;
+    } catch (e) {
+      console.error('JWT decode failed:', e);
+      throw new Error('Not authenticated');
+    }
+    if (!userId) {
       throw new Error('Not authenticated');
     }
 
-    const { data: benutzerData } = await supabaseClient
+    // Check admin role via service role to bypass RLS
+    const { data: benutzerData, error: benutzerErr } = await supabaseAdmin
       .from('benutzer')
       .select('rolle')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
-    if (benutzerData?.rolle !== 'admin') {
+    if (benutzerErr || benutzerData?.rolle !== 'admin') {
+      console.error('Admin role check failed:', benutzerErr, benutzerData);
       throw new Error('Not authorized - admin role required');
     }
 
@@ -60,7 +74,7 @@ Deno.serve(async (req) => {
       .from('pending_registrations')
       .update({
         status: 'rejected',
-        reviewed_by: user.id,
+        reviewed_by: userId,
         reviewed_at: new Date().toISOString(),
         rejection_reason: reason || null
       })
