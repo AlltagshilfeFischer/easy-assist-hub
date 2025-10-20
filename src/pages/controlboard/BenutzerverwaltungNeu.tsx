@@ -213,7 +213,7 @@ export default function BenutzerverwaltungNeu() {
           <TabsTrigger value="pending">
             Ausstehend {pendingBenutzer.length > 0 && `(${pendingBenutzer.length})`}
           </TabsTrigger>
-          <TabsTrigger value="processed">Bearbeitet ({processedBenutzer.length})</TabsTrigger>
+          <TabsTrigger value="processed">Verlauf ({processedBenutzer.length})</TabsTrigger>
           <TabsTrigger value="mitarbeiter">Mitarbeiter ({mitarbeiter.length})</TabsTrigger>
         </TabsList>
 
@@ -282,7 +282,8 @@ export default function BenutzerverwaltungNeu() {
         <TabsContent value="processed">
           <Card>
             <CardHeader>
-              <CardTitle>Bearbeitete Benutzer</CardTitle>
+              <CardTitle>Verlauf</CardTitle>
+              <CardDescription>Historie aller genehmigten und abgelehnten Registrierungen</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {processedBenutzer.length > 0 ? (
@@ -301,7 +302,7 @@ export default function BenutzerverwaltungNeu() {
                 ))
               ) : (
                 <p className="text-center text-muted-foreground py-8">
-                  Keine bearbeiteten Benutzer
+                  Kein Verlauf vorhanden
                 </p>
               )}
             </CardContent>
