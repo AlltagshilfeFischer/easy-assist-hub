@@ -181,19 +181,22 @@ export function CalendarGrid({
               const dayAppointments = getAppointmentsForDate(employee.id, date);
               const dropZoneId = `employee-${employee.id}-${dayIndex}`;
               const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+              const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
               return (
                  <div 
                    key={`${employee.id}-day-${dayIndex}`} 
                    className={cn(
                      "min-h-[100px] border-r border-muted last:border-r-0 p-2 box-border",
-                     isToday && "bg-red-100/60 border-red-300"
+                     isToday && "bg-red-100/60 border-red-300",
+                     isWeekend && "bg-muted/50 opacity-60"
                    )}
                    style={{ width: `${dayColumnWidth}px`, minWidth: `${dayColumnWidth}px`, maxWidth: `${dayColumnWidth}px` }}
                  >
                     <EnhancedDropZone
                       id={dropZoneId}
                       isEmpty={dayAppointments.length === 0}
+                      isWeekend={isWeekend}
                       employeeName={employee.name}
                       date={format(date, 'dd.MM.yyyy')}
                       className={cn(

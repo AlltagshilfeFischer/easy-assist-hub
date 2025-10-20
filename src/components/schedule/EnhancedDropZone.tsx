@@ -9,6 +9,7 @@ interface EnhancedDropZoneProps {
   children?: React.ReactNode;
   className?: string;
   isEmpty?: boolean;
+  isWeekend?: boolean;
   employeeName?: string;
   date?: string;
   workloadInfo?: {
@@ -25,7 +26,8 @@ export function EnhancedDropZone({
   id, 
   children, 
   className, 
-  isEmpty = false, 
+  isEmpty = false,
+  isWeekend = false,
   employeeName, 
   date,
   workloadInfo,
@@ -41,12 +43,21 @@ export function EnhancedDropZone({
       onClick={onClick}
       className={cn(
         'relative transition-all duration-200 overflow-hidden',
-        isOver && 'bg-primary/10 border-primary ring-2 ring-primary shadow-lg',
+        isOver && !isWeekend && 'bg-primary/10 border-primary ring-2 ring-primary shadow-lg',
+        isOver && isWeekend && 'bg-warning/10 border-warning ring-2 ring-warning shadow-lg',
         workloadInfo?.isOverbooked && 'bg-destructive/5 border-destructive/20',
         className
       )}
     >
-      {isOver && (
+      {isOver && isWeekend && (
+        <div className="absolute inset-0 bg-warning/10 border-2 border-warning border-dashed rounded-lg animate-pulse z-10 flex items-center justify-center">
+          <div className="text-warning-foreground font-semibold text-xs px-2 py-1 bg-background/90 rounded flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Wochenende - Termin mit Hinweis
+          </div>
+        </div>
+      )}
+      {isOver && !isWeekend && (
         <div className="absolute inset-0 bg-primary/5 border-2 border-primary border-dashed rounded-lg animate-pulse z-10 flex items-center justify-center">
           <div className="text-primary font-semibold text-xs px-2 py-1 bg-background/90 rounded">
             Zuweisen zu {employeeName}
