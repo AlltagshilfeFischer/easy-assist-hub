@@ -3,118 +3,217 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus, Building2, Save, Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UserPlus, Building2, Save, Plus, Trash2, Clock, Download } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
+interface Zeitfenster {
+  wochentag: number;
+  von: string;
+  bis: string;
+  prioritaet: number;
+}
+
 export default function NewEntries() {
   const [newCustomer, setNewCustomer] = useState({
-    vorname: '',
-    nachname: '',
-    geburtsdatum: '',
-    adresse: '',
-    telefon: '',
+    name: '',
+    telefonnr: '',
     email: '',
-    notfallkontakt_name: '',
-    notfallkontakt_telefon: '',
-    notizen: ''
+    adresse: '',
+    stadtteil: '',
+    geburtsdatum: '',
+    pflegekasse: '',
+    versichertennummer: '',
+    pflegegrad: '',
+    status: 'Aktiv',
+    stunden_kontingent_monat: '',
+    sollstunden: '',
+    startdatum: '',
+    notfall_name: '',
+    notfall_telefon: '',
+    angehoerige_ansprechpartner: '',
+    sonstiges: '',
+    kasse_privat: '',
+    verhinderungspflege_status: '',
+    begruendung: '',
+    kopie_lw_vorhanden: '',
+    aktiv: true
   });
 
-  const [newEmployee, setNewEmployee] = useState({
-    position: '',
-    mitarbeiter_nummer: '',
-    stundenlohn: '',
-    qualifikationen: '',
-    notizen: ''
+  const [zeitfenster, setZeitfenster] = useState<Zeitfenster[]>([]);
+  const [currentZeitfenster, setCurrentZeitfenster] = useState<Zeitfenster>({
+    wochentag: 1,
+    von: '09:00',
+    bis: '17:00',
+    prioritaet: 3
   });
 
-  const [bulkCustomerText, setBulkCustomerText] = useState(`Aysegül Domke-Schreck		1	Försterkamp 5f, 30539 Hannover	Bemerode	12.12.1963	AOK Niedersachsen	F267085117	Nicht beantragt		Kasse		Aktiv	3	Mo-So				Apr-24	Sep-24	Beidseitiges Einverständnis/ Putzfirma und keine Betreuung sondern Ruhe	
-Brockmann Edelgard	Jil	1	Lauenauer Str 17, 30459 Hannover	Ricklingen	23.07.1938	Barmer	U937118259			Kasse		Aktiv	3	Nicht Mo, Di nur 1-3				Jun-24			
-Dr Walter Neumann	Florian	0	Am Listholze 29B, 30177 Hannover	List	11.10.1947			-		Privat		Aktiv	6	Fr				May-24			
-Hoffmann Vera	Siska	2	Escherstraße 22A, 30159 Hannover	Mitte	8/27/1931	AOK Niedersachsen	R964342919	Ja 		Kasse	Mail an Bruder	Aktiv	6				Herr Tinschert	Jun-24			
-von Ungern-Sternberg Ingrid 	Sabino	2	Bernwardstraße 36, 30519 Hannover	Döhren-Wülfel	11.04.1936	Techniker	X329978694	Fehlt	0511 83 14 81	Kasse		Aktiv	6					Jun-24			
-Müller Karin	Jil	2	Bonhoeffer Str. 3, 30457 Hannover	Ricklingen	28.12.1956	Mobil Krankenkasse	Z211685368	Ja 	0179 939 8838	Kasse		Aktiv	6					Jun-24			
-Willsch Edith	Nadine	2	Bandelstraße 10, 30171 Hannover	Südstadt	30.04.1930	Barmer	C349772798			Kasse		Aktiv	3	Do		Frau		Jun-24			
-Niemeyer Vera	Jil	2	Friedländer Weg 27, 30459 Hannover	Ricklingen	20.09.1943	AOK Niedersachsen	S301857797	Ja	0511 447767	Kasse	Ja	Aktiv	12	Do				Aug-24			
-Pinkepank Edda	Sabino	2	Davenstedter Holz 60, 30455 Hannover	Davenstedt	25.04.1941	Techniker	N289967540	-	0511 59 04 749	Kasse/Privat		Aktiv	6	Do			Sandra Jamm (Tochter)	Aug-24			
-Rosebrock Ursel Marianne 	Sallinger	2	Louise-Schröder Straße 3, 30627 Hannover	Groß-Buchholz	31.01.1943	AOK Niedersachsen	N667509742	Ja 	0511 27 17 907	Kasse		Aktiv	6	Mi				Oct-24			
-Rosebrock Hans- Hermann Werner 	Sallinger	2	Louise-Schröder Straße 3, 30627 Hannover	Groß-Buchholz	20.06.1940	AOK Niedersachsen	H274216549		0511 27 17 907	Kasse		Aktiv	0	Mi				Oct-24			
-Neubauer Inge	Alina	2	Gollstraße 65, 30559 Hannover	Anderten	08.10.1940	IKK Classic	U880015963	Person fehlt		Kasse		Aktiv	3	Mo-Fr				Oct-24			
-Dieckmann Ingelore	Alina	2	Kötnerhof 18, 30559 Hannover	Anderten	10.07.1941	AOK Niedersachsen	Y460957542		0511 54410455 / 0175 9807838	Kasse	Mail an Tochter	Aktiv	3	Di-Mi		Top	Ariana Tami ( Tochter) 0175 9783546	Nov-24			
-Jacke Sabine	Nasja	1	Feldstraße 6, 31275 Lehrte	Lehrte	03.12.1956	AOK Niedersachsen	P535609661		05132 92 84 868	Kasse		Aktiv	3	Nicht Donnerstags, gerne Vormittags				Nov-24			
-Sören Seebold	Jil	3	Ferdinand-Wilhelm-Fricke Weg 10, 30169 Hannover	Ricklingen	19.08.2003	TK	P589144338		0152 5422 7046	Kasse		Aktiv	3					Aug-24			
-Jannes Günther	Jil	3	Ferdinand-Wilhelm-Fricke Weg 10, 30169 Hannover	Ricklingen	03.05.2003	VIACTIV	L177638266		0152 2752 3387	Kasse		Aktiv	3	Nicht Di 1,2, nicht Mi 2				Aug-24			
-Köper Christine	Ilka	3	Hauptstraße 70B, 30916 Isernhagen	Isernhagen	10/4/1941	DKV 	KV203961575	Ja	05139 9588420	Kasse		Aktiv	6	Tag egal, am liebsten 10:15			Markus Köper (Sohn, 01725224180)	Nov-24			
-Härtel Marlis	Gaby	2	Klabundestr. 3A, 30627 Hannover	Groß-Buchholz	08.02.1935	Barmer	N353186997	Fehlt	0511 57 28 94	Beihilfe		Aktiv	6	Morgens (Fr)			Katrin Härtel (Tochter) 0175 9028 060	Nov-24			
-Schmidtmann Heinz	Gaby	2	Widemannstraße 3, 30625 Hannover	Kleefeld	26/03/1937	BARMER	T971668027		0511 633 763	Kasse		Aktiv	3	nicht Mi nicht morgens			0179 6666 878 Stühmann Kerstin, Tochter	Nov-24			
-Rosenbaum Edelgard	Nadine	3	Böhmerstraße 31, 30173 Hannover	Südstadt	17/07/1938	AOK Niedersachsen	A984226266		0511 3735 7417;     0151 501 89 269	Kasse		Aktiv	3	Mi 15:30			0511 592 256 Rosenbaum-Wollers Birgit, Tochter	Nov-24		Ab November alle 2 Wochen Sabino um 15:30	
-Schulze Ruth	Gaby	2	Müdener Weg 2, 30625 Hannover	Groß-Buchholz	6/7/1937	TK	N140088039		0511 575 673;          0151 288 88654	Kasse		Aktiv	3	Alle 2 W, Tag egal, 8:30			0163 563 7333 Schulze Stephan, Sohn	Nov-24			
-Brandt Fred	Gaby	2	Rotekreuzstr. 46A, 30627 Hannover	Groß-Buchholz	2/7/1939	AOK Niedersachsen	H679873096	Ja 	0511 577 386;          0175 709 1850	Kasse		Aktiv	6	Tag egal 2,5			  Brandt Margarete, Ehefrau	Nov-24			
-Brandt Margarete	Gaby	2	Rotekreuzstr. 46A, 30627 Hannover	Groß-Buchholz	29/06/1935	AOK Niedersachsen	K307377165	Ja 	0511 577 386;          0175 709 1850	Kasse		Aktiv	0	Tag egal 2,5			0511 6064 4715 Grauwinkel Monika, Tochter	Nov-24			
-Hennemann Ursula	Alina	2	Zieglerhof 10, 30655 Hannover	Groß-Buchholz	6/1/1939	AOK Niedersachsen	Y488663211	Ja 	0511 549 0376;      0157 542 06508	Kasse		Aktiv	6	Nicht Di, lieber Morgens/Vormittags			0178 938 8904 Fuchs Oliver, Sohn	Nov-24		Termin noch verschieben	
-Düsterdiek Wilfried	Sallinger	2	Kurt-Schumacher-Ring 7, 30627 Hannover	Groß-Buchholz	26/12/1938	TK	K370752702	Person fehlt	0511 572 114	Kasse		Aktiv	6	Mi 3		Sallinger	  Düsterdiek Erika, Ehefrau	Nov-24			
-Bruns Gerhard	Gaby	2	Schweriner Str. 11, 30625 Hannover	Kleefeld	2/6/1936	DAK-Gesundheit	C380993125		0511 5551 87;        0160 997 04615	Kasse		Aktiv	3	tag egal: 15:30-1700			0157 516 79008 Lechler Viktoria, Enkeltochter	Nov-24			
-Rademacher Rosemarie	Alina	1	Efeuhof 5, 30655 Hannover	Misburg	1/8/1946	DAK-Gesundheit	W007754611	-	0511 5911 05;        0152 519 83571	Kasse		Aktiv	3	Nicht Mo oder Do, erst ab 10		Direkt hintereinander mit Bloch	0172 298 4866 Swirczek Claudia, Tochter	Nov-24		Erstgespräch vereinbart`);
+  const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
 
-  const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Load existing customers to check for duplicates
-  const loadCustomers = async () => {
-    // This would be used to refresh the customer list after import
-    // Implementation depends on your existing data loading strategy
+  const weekdays = [
+    { value: 0, label: 'Sonntag' },
+    { value: 1, label: 'Montag' },
+    { value: 2, label: 'Dienstag' },
+    { value: 3, label: 'Mittwoch' },
+    { value: 4, label: 'Donnerstag' },
+    { value: 5, label: 'Freitag' },
+    { value: 6, label: 'Samstag' }
+  ];
+
+  const addZeitfenster = () => {
+    setZeitfenster([...zeitfenster, currentZeitfenster]);
+    setCurrentZeitfenster({
+      wochentag: 1,
+      von: '09:00',
+      bis: '17:00',
+      prioritaet: 3
+    });
+  };
+
+  const removeZeitfenster = (index: number) => {
+    setZeitfenster(zeitfenster.filter((_, i) => i !== index));
   };
 
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: any) => {
-      const { error } = await (supabase as any)
+      // Step 1: Create customer
+      const { data: kunde, error: kundeError } = await supabase
         .from('kunden')
-        .insert([customerData]);
+        .insert([{
+          name: customerData.name,
+          telefonnr: customerData.telefonnr,
+          email: customerData.email,
+          adresse: customerData.adresse,
+          stadtteil: customerData.stadtteil,
+          geburtsdatum: customerData.geburtsdatum || null,
+          pflegekasse: customerData.pflegekasse,
+          versichertennummer: customerData.versichertennummer,
+          pflegegrad: customerData.pflegegrad ? parseInt(customerData.pflegegrad) : null,
+          status: customerData.status,
+          stunden_kontingent_monat: customerData.stunden_kontingent_monat ? parseFloat(customerData.stunden_kontingent_monat) : null,
+          sollstunden: customerData.sollstunden ? parseInt(customerData.sollstunden) : null,
+          startdatum: customerData.startdatum || null,
+          notfall_name: customerData.notfall_name,
+          notfall_telefon: customerData.notfall_telefon,
+          angehoerige_ansprechpartner: customerData.angehoerige_ansprechpartner,
+          sonstiges: customerData.sonstiges,
+          kasse_privat: customerData.kasse_privat,
+          verhinderungspflege_status: customerData.verhinderungspflege_status,
+          begruendung: customerData.begruendung,
+          kopie_lw_vorhanden: customerData.kopie_lw_vorhanden,
+          aktiv: customerData.aktiv
+        }])
+        .select()
+        .single();
       
-      if (error) throw error;
+      if (kundeError) throw kundeError;
+      
+      // Step 2: Create Zeitfenster
+      if (zeitfenster.length > 0) {
+        const zeitfensterData = zeitfenster.map(zf => ({
+          kunden_id: kunde.id,
+          wochentag: zf.wochentag,
+          von: zf.von,
+          bis: zf.bis,
+          prioritaet: zf.prioritaet
+        }));
+
+        const { error: zeitfensterError } = await supabase
+          .from('kunden_zeitfenster')
+          .insert(zeitfensterData);
+        
+        if (zeitfensterError) throw zeitfensterError;
+      }
+
+      return kunde;
     },
-    onSuccess: () => {
+    onSuccess: async (kunde) => {
       queryClient.invalidateQueries({ queryKey: ['kunden'] });
-      setNewCustomer({
-        vorname: '',
-        nachname: '',
-        geburtsdatum: '',
-        adresse: '',
-        telefon: '',
-        email: '',
-        notfallkontakt_name: '',
-        notfallkontakt_telefon: '',
-        notizen: ''
-      });
+      
       toast({
-        title: 'Erfolg',
-        description: 'Neuer Kunde wurde erstellt',
+        title: 'Kunde angelegt',
+        description: 'Kunde wurde erfolgreich erstellt. Starte KI-Mitarbeiterzuweisung...',
       });
+
+      // Step 3: Call n8n webhook for contract download
+      if (n8nWebhookUrl) {
+        try {
+          await fetch(n8nWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              kunde_id: kunde.id,
+              name: kunde.name,
+              adresse: kunde.adresse
+            })
+          });
+        } catch (error) {
+          console.error('n8n webhook error:', error);
+        }
+      }
+
+      // Step 4: AI-based employee assignment
+      try {
+        const { data, error } = await supabase.functions.invoke('assign-employee-to-customer', {
+          body: {
+            kunden_id: kunde.id,
+            zeitfenster: zeitfenster
+          }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: 'Mitarbeiter zugewiesen',
+          description: `${data.employee_name} wurde zugewiesen (Score: ${data.match_score}/100)\n${data.reasoning}`,
+        });
+      } catch (error) {
+        console.error('Employee assignment error:', error);
+        toast({
+          title: 'Hinweis',
+          description: 'Kunde wurde angelegt, aber Mitarbeiterzuweisung fehlgeschlagen. Bitte manuell zuweisen.',
+          variant: 'destructive',
+        });
+      }
+
+      // Reset form
+      setNewCustomer({
+        name: '',
+        telefonnr: '',
+        email: '',
+        adresse: '',
+        stadtteil: '',
+        geburtsdatum: '',
+        pflegekasse: '',
+        versichertennummer: '',
+        pflegegrad: '',
+        status: 'Aktiv',
+        stunden_kontingent_monat: '',
+        sollstunden: '',
+        startdatum: '',
+        notfall_name: '',
+        notfall_telefon: '',
+        angehoerige_ansprechpartner: '',
+        sonstiges: '',
+        kasse_privat: '',
+        verhinderungspflege_status: '',
+        begruendung: '',
+        kopie_lw_vorhanden: '',
+        aktiv: true
+      });
+      setZeitfenster([]);
     },
     onError: (error) => {
+      console.error('Customer creation error:', error);
       toast({
         title: 'Fehler',
         description: 'Kunde konnte nicht erstellt werden',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const createEmployeeMutation = useMutation({
-    mutationFn: async (employeeData: any) => {
-      // Hinweis: Für neue Mitarbeiter müsste normalerweise ein User Account erstellt werden
-      // Dies ist eine vereinfachte Version
-      console.log('Employee creation would require user account setup:', employeeData);
-      throw new Error('Mitarbeiter-Erstellung erfordert vollständige Benutzerregistrierung');
-    },
-    onError: (error) => {
-      toast({
-        title: 'Hinweis',
-        description: 'Mitarbeiter-Erstellung erfordert vollständige Benutzerregistrierung und wird in einer zukünftigen Version implementiert',
         variant: 'destructive',
       });
     },
@@ -125,327 +224,405 @@ Rademacher Rosemarie	Alina	1	Efeuhof 5, 30655 Hannover	Misburg	1/8/1946	DAK-Gesu
     createCustomerMutation.mutate(newCustomer);
   };
 
-  const handleCreateEmployee = (e: React.FormEvent) => {
-    e.preventDefault();
-    const employeeData = {
-      ...newEmployee,
-      stundenlohn: newEmployee.stundenlohn ? parseFloat(newEmployee.stundenlohn) : null,
-      qualifikationen: newEmployee.qualifikationen.split(',').map(q => q.trim()).filter(q => q)
-    };
-    createEmployeeMutation.mutate(employeeData);
-  };
-
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Neukunden & Neumitarbeiter</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Neuen Kunden anlegen</h1>
         <p className="text-muted-foreground">
-          Erfassen Sie neue Kunden und Mitarbeiter in das System
+          Erfassen Sie alle Kundendaten, Zeitfenster und erhalten Sie automatisch einen passenden Mitarbeiter
         </p>
       </div>
 
-      <Tabs defaultValue="customers" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="customers">Neuer Kunde</TabsTrigger>
-          <TabsTrigger value="employees">Neuer Mitarbeiter</TabsTrigger>
-        </TabsList>
-
-        {/* Neuer Kunde Tab */}
-        <TabsContent value="customers">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Neuen Kunden anlegen
-              </CardTitle>
-              <CardDescription>
-                Erfassen Sie alle relevanten Informationen für den neuen Kunden
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateCustomer} className="space-y-6">
-                {/* Persönliche Daten */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Persönliche Daten</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="customer_first_name">Vorname *</Label>
-                      <Input
-                        id="customer_first_name"
-                        value={newCustomer.vorname}
-                        onChange={(e) => setNewCustomer({
-                          ...newCustomer,
-                          vorname: e.target.value
-                        })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customer_last_name">Nachname *</Label>
-                      <Input
-                        id="customer_last_name"
-                        value={newCustomer.nachname}
-                        onChange={(e) => setNewCustomer({
-                          ...newCustomer,
-                          nachname: e.target.value
-                        })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="customer_birth_date">Geburtsdatum</Label>
-                    <Input
-                      id="customer_birth_date"
-                      type="date"
-                      value={newCustomer.geburtsdatum}
-                      onChange={(e) => setNewCustomer({
-                        ...newCustomer,
-                        geburtsdatum: e.target.value
-                      })}
-                    />
-                  </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Kundendaten
+          </CardTitle>
+          <CardDescription>
+            Nach dem Anlegen wird automatisch ein passender Mitarbeiter zugewiesen
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreateCustomer} className="space-y-8">
+            {/* Basis-Informationen */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Basis-Informationen</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Name (Vor- und Nachname) *</Label>
+                  <Input
+                    id="name"
+                    value={newCustomer.name}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                    placeholder="Max Mustermann"
+                    required
+                  />
                 </div>
-
-                {/* Kontaktdaten */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Kontaktdaten</h3>
-                  <div>
-                    <Label htmlFor="customer_address">Adresse</Label>
-                    <Textarea
-                      id="customer_address"
-                      value={newCustomer.adresse}
-                      onChange={(e) => setNewCustomer({
-                        ...newCustomer,
-                        adresse: e.target.value
-                      })}
-                      rows={2}
-                      placeholder="Straße, Hausnummer, PLZ, Ort"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="customer_phone">Telefon</Label>
-                      <Input
-                        id="customer_phone"
-                        value={newCustomer.telefon}
-                        onChange={(e) => setNewCustomer({
-                          ...newCustomer,
-                          telefon: e.target.value
-                        })}
-                        placeholder="+49 123 456789"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="customer_email">E-Mail</Label>
-                      <Input
-                        id="customer_email"
-                        type="email"
-                        value={newCustomer.email}
-                        onChange={(e) => setNewCustomer({
-                          ...newCustomer,
-                          email: e.target.value
-                        })}
-                        placeholder="kunde@beispiel.de"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
+                  <Input
+                    id="geburtsdatum"
+                    type="date"
+                    value={newCustomer.geburtsdatum}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, geburtsdatum: e.target.value })}
+                  />
                 </div>
+              </div>
+            </div>
 
-                {/* Notfallkontakt */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Notfallkontakt</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="emergency_contact_name">Name</Label>
-                      <Input
-                        id="emergency_contact_name"
-                        value={newCustomer.notfallkontakt_name}
-                        onChange={(e) => setNewCustomer({
-                          ...newCustomer,
-                          notfallkontakt_name: e.target.value
-                        })}
-                        placeholder="Max Mustermann"
-                      />
+            {/* Kontaktdaten */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Kontaktdaten</h3>
+              <div>
+                <Label htmlFor="adresse">Adresse *</Label>
+                <Textarea
+                  id="adresse"
+                  value={newCustomer.adresse}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, adresse: e.target.value })}
+                  placeholder="Straße, Hausnummer, PLZ, Ort"
+                  rows={2}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="stadtteil">Stadtteil</Label>
+                  <Input
+                    id="stadtteil"
+                    value={newCustomer.stadtteil}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, stadtteil: e.target.value })}
+                    placeholder="z.B. Linden, Mitte"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="telefonnr">Telefon</Label>
+                  <Input
+                    id="telefonnr"
+                    value={newCustomer.telefonnr}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, telefonnr: e.target.value })}
+                    placeholder="0511 123456"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">E-Mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newCustomer.email}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                    placeholder="kunde@email.de"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Pflege-Informationen */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Pflege-Informationen</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="pflegekasse">Pflegekasse</Label>
+                  <Input
+                    id="pflegekasse"
+                    value={newCustomer.pflegekasse}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, pflegekasse: e.target.value })}
+                    placeholder="AOK, Barmer, etc."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="versichertennummer">Versichertennummer</Label>
+                  <Input
+                    id="versichertennummer"
+                    value={newCustomer.versichertennummer}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, versichertennummer: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pflegegrad">Pflegegrad</Label>
+                  <Select
+                    value={newCustomer.pflegegrad}
+                    onValueChange={(value) => setNewCustomer({ ...newCustomer, pflegegrad: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="3">3</SelectItem>
+                      <SelectItem value="4">4</SelectItem>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="6">6</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="kasse_privat">Kasse/Privat</Label>
+                  <Input
+                    id="kasse_privat"
+                    value={newCustomer.kasse_privat}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, kasse_privat: e.target.value })}
+                    placeholder="Kasse, Privat, Beides"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="verhinderungspflege_status">Verhinderungspflege Status</Label>
+                  <Input
+                    id="verhinderungspflege_status"
+                    value={newCustomer.verhinderungspflege_status}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, verhinderungspflege_status: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="kopie_lw_vorhanden">Kopie LW vorhanden</Label>
+                  <Input
+                    id="kopie_lw_vorhanden"
+                    value={newCustomer.kopie_lw_vorhanden}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, kopie_lw_vorhanden: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Stunden & Termine */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Stunden & Termine</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="stunden_kontingent_monat">Stunden-Kontingent/Monat</Label>
+                  <Input
+                    id="stunden_kontingent_monat"
+                    type="number"
+                    step="0.5"
+                    value={newCustomer.stunden_kontingent_monat}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, stunden_kontingent_monat: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="sollstunden">Sollstunden</Label>
+                  <Input
+                    id="sollstunden"
+                    type="number"
+                    value={newCustomer.sollstunden}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, sollstunden: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="startdatum">Startdatum</Label>
+                  <Input
+                    id="startdatum"
+                    type="date"
+                    value={newCustomer.startdatum}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, startdatum: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Zeitfenster */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Zeitfenster des Kunden
+                </h3>
+              </div>
+              
+              {/* Existing Zeitfenster */}
+              {zeitfenster.length > 0 && (
+                <div className="space-y-2">
+                  {zeitfenster.map((zf, index) => (
+                    <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+                      <span className="flex-1">
+                        {weekdays.find(w => w.value === zf.wochentag)?.label}: {zf.von} - {zf.bis} (Priorität: {zf.prioritaet})
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeZeitfenster(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div>
-                      <Label htmlFor="emergency_contact_phone">Telefon</Label>
-                      <Input
-                        id="emergency_contact_phone"
-                        value={newCustomer.notfallkontakt_telefon}
-                        onChange={(e) => setNewCustomer({
-                          ...newCustomer,
-                          notfallkontakt_telefon: e.target.value
-                        })}
-                        placeholder="+49 123 456789"
-                      />
-                    </div>
-                  </div>
+                  ))}
                 </div>
+              )}
 
-                {/* Besondere Hinweise */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Besondere Hinweise</h3>
-                  <div>
-                    <Label htmlFor="customer_notes">Notizen</Label>
-                    <Textarea
-                      id="customer_notes"
-                      value={newCustomer.notizen}
-                      onChange={(e) => setNewCustomer({
-                        ...newCustomer,
-                        notizen: e.target.value
-                      })}
-                      rows={4}
-                      placeholder="Allergien, besondere Bedürfnisse, Medikamente, etc."
-                    />
-                  </div>
+              {/* Add new Zeitfenster */}
+              <div className="grid grid-cols-5 gap-4 p-4 border rounded-lg">
+                <div>
+                  <Label htmlFor="wochentag">Wochentag</Label>
+                  <Select
+                    value={currentZeitfenster.wochentag.toString()}
+                    onValueChange={(value) => setCurrentZeitfenster({ 
+                      ...currentZeitfenster, 
+                      wochentag: parseInt(value) 
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {weekdays.map(day => (
+                        <SelectItem key={day.value} value={day.value.toString()}>
+                          {day.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={createCustomerMutation.isPending}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {createCustomerMutation.isPending ? 'Speichern...' : 'Kunden anlegen'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-
-        {/* Neuer Mitarbeiter Tab */}
-        <TabsContent value="employees">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5" />
-                Neuen Mitarbeiter anlegen
-              </CardTitle>
-              <CardDescription>
-                Hinweis: Die vollständige Mitarbeiterregistrierung erfordert einen Benutzeraccount und wird in einer zukünftigen Version implementiert
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateEmployee} className="space-y-6">
-                {/* Stelleninformationen */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Stelleninformationen</h3>
-                  <div>
-                    <Label htmlFor="employee_position">Position *</Label>
-                    <Input
-                      id="employee_position"
-                      value={newEmployee.position}
-                      onChange={(e) => setNewEmployee({
-                        ...newEmployee,
-                        position: e.target.value
-                      })}
-                      placeholder="Pflegekraft, Haushaltshilfe, etc."
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="employee_number">Mitarbeiternummer</Label>
-                      <Input
-                        id="employee_number"
-                        value={newEmployee.mitarbeiter_nummer}
-                        onChange={(e) => setNewEmployee({
-                          ...newEmployee,
-                          mitarbeiter_nummer: e.target.value
-                        })}
-                        placeholder="MA001"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="employee_hourly_rate">Stundenlohn (€)</Label>
-                      <Input
-                        id="employee_hourly_rate"
-                        type="number"
-                        step="0.01"
-                        value={newEmployee.stundenlohn}
-                        onChange={(e) => setNewEmployee({
-                          ...newEmployee,
-                          stundenlohn: e.target.value
-                        })}
-                        placeholder="15.00"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <Label htmlFor="von">Von</Label>
+                  <Input
+                    id="von"
+                    type="time"
+                    value={currentZeitfenster.von}
+                    onChange={(e) => setCurrentZeitfenster({ 
+                      ...currentZeitfenster, 
+                      von: e.target.value 
+                    })}
+                  />
                 </div>
-
-                {/* Qualifikationen */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Qualifikationen</h3>
-                  <div>
-                    <Label htmlFor="employee_qualifications">Qualifikationen</Label>
-                    <Input
-                      id="employee_qualifications"
-                      value={newEmployee.qualifikationen}
-                      onChange={(e) => setNewEmployee({
-                        ...newEmployee,
-                        qualifikationen: e.target.value
-                      })}
-                      placeholder="Altenpflege, Erste Hilfe, Demenzbetreuung (durch Komma getrennt)"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Mehrere Qualifikationen durch Komma trennen
-                    </p>
-                  </div>
+                <div>
+                  <Label htmlFor="bis">Bis</Label>
+                  <Input
+                    id="bis"
+                    type="time"
+                    value={currentZeitfenster.bis}
+                    onChange={(e) => setCurrentZeitfenster({ 
+                      ...currentZeitfenster, 
+                      bis: e.target.value 
+                    })}
+                  />
                 </div>
-
-                {/* Notizen */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Zusätzliche Informationen</h3>
-                  <div>
-                    <Label htmlFor="employee_notes">Notizen</Label>
-                    <Textarea
-                      id="employee_notes"
-                      value={newEmployee.notizen}
-                      onChange={(e) => setNewEmployee({
-                        ...newEmployee,
-                        notizen: e.target.value
-                      })}
-                      rows={4}
-                      placeholder="Besondere Fähigkeiten, Verfügbarkeit, etc."
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="prioritaet">Priorität</Label>
+                  <Select
+                    value={currentZeitfenster.prioritaet.toString()}
+                    onValueChange={(value) => setCurrentZeitfenster({ 
+                      ...currentZeitfenster, 
+                      prioritaet: parseInt(value) 
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 (Hoch)</SelectItem>
+                      <SelectItem value="2">2 (Mittel)</SelectItem>
+                      <SelectItem value="3">3 (Normal)</SelectItem>
+                      <SelectItem value="4">4 (Niedrig)</SelectItem>
+                      <SelectItem value="5">5 (Optional)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="text-yellow-600">⚠️</div>
-                    <div>
-                      <h4 className="font-medium text-yellow-800">Hinweis zur Mitarbeiterregistrierung</h4>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        Die vollständige Registrierung neuer Mitarbeiter erfordert die Erstellung eines Benutzeraccounts 
-                        mit E-Mail-Verifizierung und Passwort-Setup. Diese Funktion wird in einer zukünftigen Version 
-                        der Anwendung implementiert.
-                      </p>
-                    </div>
-                  </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addZeitfenster}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Hinzufügen
+                  </Button>
                 </div>
+              </div>
+            </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={createEmployeeMutation.isPending}
-                  variant="outline"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Mitarbeiter anlegen (Demo)
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            {/* Notfall & Angehörige */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Notfall & Angehörige</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="notfall_name">Notfallkontakt Name</Label>
+                  <Input
+                    id="notfall_name"
+                    value={newCustomer.notfall_name}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, notfall_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="notfall_telefon">Notfallkontakt Telefon</Label>
+                  <Input
+                    id="notfall_telefon"
+                    value={newCustomer.notfall_telefon}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, notfall_telefon: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="angehoerige_ansprechpartner">Angehörige/Ansprechpartner</Label>
+                <Textarea
+                  id="angehoerige_ansprechpartner"
+                  value={newCustomer.angehoerige_ansprechpartner}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, angehoerige_ansprechpartner: e.target.value })}
+                  rows={3}
+                  placeholder="Name, Beziehung, Telefon"
+                />
+              </div>
+            </div>
+
+            {/* Sonstiges */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Weitere Informationen</h3>
+              <div>
+                <Label htmlFor="begruendung">Begründung</Label>
+                <Textarea
+                  id="begruendung"
+                  value={newCustomer.begruendung}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, begruendung: e.target.value })}
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label htmlFor="sonstiges">Sonstiges/Notizen</Label>
+                <Textarea
+                  id="sonstiges"
+                  value={newCustomer.sonstiges}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, sonstiges: e.target.value })}
+                  rows={3}
+                  placeholder="Besondere Hinweise, Allergien, Vorlieben, etc."
+                />
+              </div>
+            </div>
+
+            {/* n8n Webhook URL */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Vertragsdownload (optional)
+              </h3>
+              <div>
+                <Label htmlFor="n8n_webhook">n8n Webhook URL für Vertragserstellung</Label>
+                <Input
+                  id="n8n_webhook"
+                  value={n8nWebhookUrl}
+                  onChange={(e) => setN8nWebhookUrl(e.target.value)}
+                  placeholder="https://your-n8n-instance.com/webhook/..."
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Optional: URL zu einem n8n Webhook für automatische Vertragserstellung
+                </p>
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={createCustomerMutation.isPending}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {createCustomerMutation.isPending ? 'Speichern & Mitarbeiter zuweisen...' : 'Kunden anlegen & Mitarbeiter zuweisen'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

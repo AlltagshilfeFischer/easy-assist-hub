@@ -230,6 +230,7 @@ export type Database = {
       }
       mitarbeiter: {
         Row: {
+          adresse: string | null
           benutzer_id: string | null
           created_at: string
           farbe_kalender: string | null
@@ -242,8 +243,10 @@ export type Database = {
           telefon: string | null
           updated_at: string
           vorname: string | null
+          zustaendigkeitsbereich: string | null
         }
         Insert: {
+          adresse?: string | null
           benutzer_id?: string | null
           created_at?: string
           farbe_kalender?: string | null
@@ -256,8 +259,10 @@ export type Database = {
           telefon?: string | null
           updated_at?: string
           vorname?: string | null
+          zustaendigkeitsbereich?: string | null
         }
         Update: {
+          adresse?: string | null
           benutzer_id?: string | null
           created_at?: string
           farbe_kalender?: string | null
@@ -270,6 +275,7 @@ export type Database = {
           telefon?: string | null
           updated_at?: string
           vorname?: string | null
+          zustaendigkeitsbereich?: string | null
         }
         Relationships: [
           {
