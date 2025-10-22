@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone, Settings2, Sparkles } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone, Settings2, Sparkles, ChevronDown } from 'lucide-react';
 import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from '@/components/schedule/gridConfig';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -90,6 +91,7 @@ const ScheduleBuilder = () => {
   const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(new Set());
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSectionOpen, setAiSectionOpen] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollToToday = () => {
     const today = new Date();
@@ -834,65 +836,77 @@ const ScheduleBuilder = () => {
 
 
         {/* AI Agent Section */}
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Sparkles className="h-5 w-5 text-primary" />
+        <Collapsible open={aiSectionOpen} onOpenChange={setAiSectionOpen}>
+          <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-primary/5 transition-colors p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">KI-Assistent für Terminplanung</CardTitle>
+                      <p className="text-sm text-muted-foreground font-normal">Beschreiben Sie, welche Termine erstellt werden sollen</p>
+                    </div>
+                  </div>
+                  <ChevronDown className={cn(
+                    "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                    aiSectionOpen && "transform rotate-180"
+                  )} />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">KI-Assistent für Terminplanung</h3>
-                  <p className="text-sm text-muted-foreground">Beschreiben Sie, welche Termine erstellt werden sollen</p>
+              </CardHeader>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent>
+              <CardContent className="p-6 pt-0">
+                <div className="space-y-3">
+                  <Textarea
+                    placeholder="z.B. 'Erstelle einen Termin für Max Mustermann am Montag um 14:00 Uhr'"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    className="min-h-[100px] resize-none"
+                    disabled={aiLoading}
+                  />
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs text-muted-foreground">Beispiele:</span>
+                    {examplePrompts.map((prompt, idx) => (
+                      <Button
+                        key={idx}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAiPrompt(prompt)}
+                        disabled={aiLoading}
+                        className="text-xs h-7"
+                      >
+                        {prompt}
+                      </Button>
+                    ))}
+                  </div>
+
+                  <Button 
+                    onClick={handleAiRequest}
+                    disabled={aiLoading || !aiPrompt.trim()}
+                    className="w-full"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                        Termine werden erstellt...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Termine mit KI erstellen
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <Textarea
-                  placeholder="z.B. 'Erstelle einen Termin für Max Mustermann am Montag um 14:00 Uhr'"
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  className="min-h-[100px] resize-none"
-                  disabled={aiLoading}
-                />
-
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-xs text-muted-foreground">Beispiele:</span>
-                  {examplePrompts.map((prompt, idx) => (
-                    <Button
-                      key={idx}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAiPrompt(prompt)}
-                      disabled={aiLoading}
-                      className="text-xs h-7"
-                    >
-                      {prompt}
-                    </Button>
-                  ))}
-                </div>
-
-                <Button 
-                  onClick={handleAiRequest}
-                  disabled={aiLoading || !aiPrompt.trim()}
-                  className="w-full"
-                >
-                  {aiLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      Termine werden erstellt...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Termine mit KI erstellen
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
