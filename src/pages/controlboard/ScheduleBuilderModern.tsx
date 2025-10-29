@@ -919,6 +919,7 @@ const ScheduleBuilderModern = () => {
                   onEditAppointment={setEditingAppointment}
                   onSlotClick={handleSlotClick}
                   conflictingAppointments={conflictingAppointments}
+                  onCut={handleCutAppointment}
                 />
               </CardContent>
             </Card>
@@ -965,7 +966,6 @@ const ScheduleBuilderModern = () => {
           employees={employees}
           customers={customers}
           customerTimeWindows={editingAppointment ? customerTimeWindows.filter(tw => tw.kunden_id === editingAppointment.kunden_id) : []}
-          onCut={handleCutAppointment}
           onUpdate={async (appointment) => {
             try {
               const updateData: any = {

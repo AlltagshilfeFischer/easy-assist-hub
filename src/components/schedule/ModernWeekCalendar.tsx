@@ -31,6 +31,7 @@ interface ModernWeekCalendarProps {
   onEditAppointment: (appointment: Appointment) => void;
   onSlotClick: (employeeId: string, date: Date) => void;
   conflictingAppointments: Set<string>;
+  onCut: (appointment: Appointment) => void;
 }
 
 export function ModernWeekCalendar({
@@ -40,7 +41,8 @@ export function ModernWeekCalendar({
   activeAppointmentId,
   onEditAppointment,
   onSlotClick,
-  conflictingAppointments
+  conflictingAppointments,
+  onCut
 }: ModernWeekCalendarProps) {
   const weekdays = weekDates.slice(0, 5); // Mo-Fr
   const weekendDays = weekDates.slice(5); // Sa-So
@@ -191,6 +193,7 @@ export function ModernWeekCalendar({
                           isDragging={activeAppointmentId === appointment.id}
                           isConflicting={conflictingAppointments.has(appointment.id)}
                           onClick={() => onEditAppointment(appointment)}
+                          onCut={() => onCut(appointment)}
                         />
                       ))}
                     </EnhancedDropZone>
@@ -224,6 +227,7 @@ export function ModernWeekCalendar({
                           isDragging={activeAppointmentId === appointment.id}
                           isConflicting={conflictingAppointments.has(appointment.id)}
                           onClick={() => onEditAppointment(appointment)}
+                          onCut={() => onCut(appointment)}
                         />
                       ))}
                     </EnhancedDropZone>

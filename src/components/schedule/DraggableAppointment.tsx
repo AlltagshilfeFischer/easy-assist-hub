@@ -3,6 +3,13 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { Scissors } from "lucide-react";
 
 interface Customer {
   id: string;
@@ -24,13 +31,15 @@ interface DraggableAppointmentProps {
   isDragging?: boolean;
   isConflicting?: boolean;
   onClick?: () => void;
+  onCut?: () => void;
 }
 
 export function DraggableAppointment({
   appointment,
   isDragging,
   isConflicting,
-  onClick
+  onClick,
+  onCut
 }: DraggableAppointmentProps) {
   const {
     attributes,
@@ -48,42 +57,55 @@ export function DraggableAppointment({
   const customerColor = appointment.customer?.farbe_kalender || '#10B981';
 
   return (
-    <div
-      ref={setNodeRef}
-      style={{
-        ...style,
-        backgroundColor: customerColor,
-        opacity: isDragging ? 0.5 : 1
-      }}
-      className={cn(
-        "cursor-grab active:cursor-grabbing transition-all duration-200",
-        "border border-white/20 rounded-md p-1.5 shadow-sm",
-        "text-xs w-full min-h-[32px] flex-shrink-0 box-border overflow-hidden",
-        isDragging && "scale-95 z-50",
-        isConflicting && "border-destructive border-2"
-      )}
-      {...attributes}
-      {...listeners}
-      onClick={onClick}
-    >
-      {/* Compact layout for more appointments */}
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-white truncate text-xs drop-shadow-sm">
-            {appointment.customer?.name}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={setNodeRef}
+          style={{
+            ...style,
+            backgroundColor: customerColor,
+            opacity: isDragging ? 0.5 : 1
+          }}
+          className={cn(
+            "cursor-grab active:cursor-grabbing transition-all duration-200",
+            "border border-white/20 rounded-md p-1.5 shadow-sm",
+            "text-xs w-full min-h-[32px] flex-shrink-0 box-border overflow-hidden",
+            isDragging && "scale-95 z-50",
+            isConflicting && "border-destructive border-2"
+          )}
+          {...attributes}
+          {...listeners}
+          onClick={onClick}
+        >
+          {/* Compact layout for more appointments */}
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-white truncate text-xs drop-shadow-sm">
+                {appointment.customer?.name}
+              </div>
+            </div>
+            <div className="text-white/90 text-xs flex-shrink-0 font-medium drop-shadow-sm">
+              {format(new Date(appointment.start_at), 'HH:mm')}
+            </div>
           </div>
-        </div>
-        <div className="text-white/90 text-xs flex-shrink-0 font-medium drop-shadow-sm">
-          {format(new Date(appointment.start_at), 'HH:mm')}
-        </div>
-      </div>
 
-      {/* Title if meaningful - optional second line */}
-      {appointment.titel && appointment.titel !== 'Aktueller Termin' && (
-        <div className="text-white/80 mt-0.5 truncate text-xs drop-shadow-sm">
-          {appointment.titel}
+          {/* Title if meaningful - optional second line */}
+          {appointment.titel && appointment.titel !== 'Aktueller Termin' && (
+            <div className="text-white/80 mt-0.5 truncate text-xs drop-shadow-sm">
+              {appointment.titel}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={(e) => {
+          e.stopPropagation();
+          onCut?.();
+        }}>
+          <Scissors className="mr-2 h-4 w-4" />
+          Ausschneiden
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
