@@ -215,24 +215,16 @@ export function ModernWeekCalendar({
                       employeeName={employee.name}
                       date={format(date, 'dd.MM.yyyy')}
                       onClick={() => onSlotClick(employee.id, date)}
-                      className="min-h-[120px] p-1"
+                      className="min-h-[120px] p-1 space-y-1"
                     >
                       {dayAppointments.map((appointment) => (
-                        <div
+                        <DraggableAppointment
                           key={appointment.id}
-                          className="text-xs p-1 bg-warning/10 border border-warning/20 rounded cursor-pointer hover:bg-warning/20 transition-colors mb-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditAppointment(appointment);
-                          }}
-                        >
-                          <div className="truncate font-medium">
-                            {appointment.customer?.name || 'Ohne Kunde'}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {format(new Date(appointment.start_at), 'HH:mm')}
-                          </div>
-                        </div>
+                          appointment={appointment}
+                          isDragging={activeAppointmentId === appointment.id}
+                          isConflicting={conflictingAppointments.has(appointment.id)}
+                          onClick={() => onEditAppointment(appointment)}
+                        />
                       ))}
                     </EnhancedDropZone>
                   </div>
