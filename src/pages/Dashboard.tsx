@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import DashboardHome from './DashboardHome';
-import ScheduleBuilder from './controlboard/ScheduleBuilder';
+import ScheduleBuilderModern from './controlboard/ScheduleBuilderModern';
 import MasterData from './controlboard/MasterData';
 import NewEntries from './controlboard/NewEntries';
 import BenutzerverwaltungNeu from './controlboard/BenutzerverwaltungNeu';
@@ -10,7 +10,6 @@ import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import MitarbeiterStart from './MitarbeiterStart';
 import PendingApproval from './PendingApproval';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useAuth } from '@/hooks/useAuth';
 
 export default function Dashboard() {
   const { role, loading } = useUserRole();
@@ -45,7 +44,7 @@ export default function Dashboard() {
     <DashboardLayout>
       <Routes>
         <Route path="/" element={<DashboardHome />} />
-        <Route path="/controlboard/schedule-builder" element={<ScheduleBuilder />} />
+        <Route path="/controlboard/schedule-builder" element={<ScheduleBuilderModern />} />
         <Route path="/controlboard/master-data" element={<MasterData />} />
         <Route path="/controlboard/new-entries" element={<NewEntries />} />
         <Route path="/controlboard/admin" element={<BenutzerverwaltungNeu />} />
