@@ -357,17 +357,17 @@ export function AppointmentDetailDialog({
                 <div>
                   {isEditing ? (
                     <Select
-                      value={editedAppointment.mitarbeiter_id}
+                      value={editedAppointment.mitarbeiter_id || "unassigned"}
                       onValueChange={(value) => setEditedAppointment({
                         ...editedAppointment,
-                        mitarbeiter_id: value
+                        mitarbeiter_id: value === "unassigned" ? null : value
                       })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nicht zugewiesen</SelectItem>
+                        <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
                         {employees.map((employee) => (
                           <SelectItem key={employee.id} value={employee.id}>
                             <div className="flex items-center gap-2">
