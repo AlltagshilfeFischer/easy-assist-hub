@@ -86,17 +86,17 @@ export function EmployeeFilterSidebar({
         </div>
 
         {/* Quick actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={() => employees.forEach(e => {
               if (!hiddenEmployeeIds.has(e.id)) onToggleEmployee(e.id);
             })}
-            className="flex-1 h-8 text-xs"
+            className="flex-1 h-8 text-xs whitespace-nowrap"
           >
-            <EyeOff className="h-3 w-3 mr-1" />
-            Alle ausblenden
+            <EyeOff className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="truncate">Alle ausblenden</span>
           </Button>
           <Button
             variant="outline"
@@ -104,10 +104,10 @@ export function EmployeeFilterSidebar({
             onClick={() => employees.forEach(e => {
               if (hiddenEmployeeIds.has(e.id)) onToggleEmployee(e.id);
             })}
-            className="flex-1 h-8 text-xs"
+            className="flex-1 h-8 text-xs whitespace-nowrap"
           >
-            <Eye className="h-3 w-3 mr-1" />
-            Alle anzeigen
+            <Eye className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="truncate">Alle anzeigen</span>
           </Button>
         </div>
 
