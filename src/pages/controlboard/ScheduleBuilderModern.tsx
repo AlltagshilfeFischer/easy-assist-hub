@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSidebar } from '@/components/ui/sidebar';
 import { ModernWeekCalendar } from '@/components/schedule/ModernWeekCalendar';
 import { WeekNavigationBar } from '@/components/schedule/WeekNavigationBar';
 import { CalendarLegend } from '@/components/schedule/CalendarLegend';
 import { EmployeeFilterSidebar } from '@/components/schedule/EmployeeFilterSidebar';
 import { CalendarStats } from '@/components/schedule/CalendarStats';
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
+import { AppointmentApprovalBar } from '@/components/schedule/AppointmentApprovalBar';
 import { AppointmentDetailDialog } from '@/components/schedule/AppointmentDetailDialog';
 import { CreateAppointmentDialog } from '@/components/schedule/CreateAppointmentDialog';
 import { CreateRecurringAppointmentDialog } from '@/components/schedule/CreateRecurringAppointmentDialog';
@@ -97,6 +99,12 @@ const ScheduleBuilderModern = () => {
   });
   
   const { toast } = useToast();
+  const { setOpen } = useSidebar();
+
+  // Auto-collapse sidebar when calendar is used
+  useEffect(() => {
+    setOpen(false);
+  }, [setOpen]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -489,32 +497,35 @@ const ScheduleBuilderModern = () => {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-full flex flex-col gap-4 p-6 bg-gradient-to-br from-background to-muted/20">
+      <div className="h-[calc(100vh-4rem)] flex flex-col gap-3 p-4 bg-gradient-to-br from-background to-muted/20 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-shrink-0">
           <div>
-            <h1 className="text-3xl font-bold">Dienstplan & Terminverwaltung</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl font-bold">Dienstplan & Terminverwaltung</h1>
+            <p className="text-sm text-muted-foreground">
               Professionelle Wochenansicht mit Drag & Drop
             </p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setShowCreateAppointment(true)}>
+            <Button onClick={() => setShowCreateAppointment(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Neuer Termin
             </Button>
-            <Button variant="outline" onClick={() => setShowCreateRecurring(true)}>
+            <Button variant="outline" onClick={() => setShowCreateRecurring(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Serientermin
             </Button>
           </div>
         </div>
 
+        {/* Approval Bar */}
+        <AppointmentApprovalBar />
+
         {/* Stats */}
         <CalendarStats {...stats} />
 
         {/* Navigation */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-shrink-0">
           <WeekNavigationBar
             currentWeek={currentWeek}
             onPreviousWeek={() => setCurrentWeek(prev => subWeeks(prev, 1))}
@@ -524,10 +535,10 @@ const ScheduleBuilderModern = () => {
           <CalendarLegend />
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex gap-4 min-h-0">
+        {/* Main Content - No Scrolling */}
+        <div className="flex-1 flex gap-3 min-h-0 overflow-hidden">
           {/* Sidebar */}
-          <div className="w-80 flex-shrink-0">
+          <div className="w-64 flex-shrink-0">
             <EmployeeFilterSidebar
               employees={employees}
               hiddenEmployeeIds={hiddenEmployeeIds}
@@ -548,7 +559,7 @@ const ScheduleBuilderModern = () => {
           </div>
 
           {/* Calendar */}
-          <div className="flex-1 flex flex-col gap-4 min-w-0">
+          <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-hidden">
             {/* Unassigned Bar */}
             <UnassignedAppointmentsBar
               appointments={appointments}
@@ -557,9 +568,9 @@ const ScheduleBuilderModern = () => {
               onEditAppointment={setEditingAppointment}
             />
 
-            {/* Calendar Grid */}
-            <Card className="flex-1 shadow-lg overflow-hidden">
-              <CardContent className="p-0 h-full">
+            {/* Calendar Grid - Fixed Height */}
+            <Card className="flex-1 shadow-lg overflow-auto">
+              <CardContent className="p-0">
                 <ModernWeekCalendar
                   employees={filteredEmployees}
                   appointments={appointments}
