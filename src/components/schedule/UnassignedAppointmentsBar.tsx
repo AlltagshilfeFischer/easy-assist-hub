@@ -62,10 +62,6 @@ export function UnassignedAppointmentsBar({
   const weekdays = weekDates.slice(0, 5); // Mo-Fr
   const weekendDays = weekDates.slice(5); // Sa-So
 
-  if (totalUnassigned === 0) {
-    return null; // Don't show bar if no unassigned appointments
-  }
-
   return (
     <div className="bg-muted/30 border-b shadow-sm">
       {/* Header */}
