@@ -510,9 +510,40 @@ const ScheduleBuilderModern = () => {
   };
 
   const handleCreateRecurringAppointment = async (data: any) => {
-    // Implementation for recurring appointments
-    await handleCreateAppointment(data);
-    setShowCreateRecurring(false);
+    try {
+      const { error } = await supabase
+        .from('termin_vorlagen')
+        .insert([{
+          titel: data.titel,
+          kunden_id: data.kunden_id,
+          mitarbeiter_id: data.mitarbeiter_id,
+          wochentag: data.wochentag,
+          start_zeit: data.start_zeit,
+          dauer_minuten: data.dauer_minuten,
+          intervall: data.intervall,
+          gueltig_von: data.gueltig_von,
+          gueltig_bis: data.gueltig_bis,
+          notizen: data.notizen,
+          ist_aktiv: true
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Erfolg',
+        description: 'Regeltermin wurde erstellt.'
+      });
+
+      await loadData();
+      setShowCreateRecurring(false);
+    } catch (error) {
+      console.error('Error creating recurring appointment:', error);
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Erstellen des Regeltermins.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleSlotSingleAppointment = async (data: any) => {
