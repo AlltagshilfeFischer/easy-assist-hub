@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Clock, User } from 'lucide-react';
@@ -56,6 +56,7 @@ export function ConflictWarningDialog({
             <AlertTriangle className="h-5 w-5" />
             Terminkonflikt erkannt
           </DialogTitle>
+          <DialogDescription className="sr-only">Konfliktwarnung beim Zuweisen eines Termins</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -139,6 +139,7 @@ export function AppointmentDetailDialog({
               </Badge>
             )}
           </DialogTitle>
+          <DialogDescription className="sr-only">Details eines einzelnen Termins anzeigen und bearbeiten</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
