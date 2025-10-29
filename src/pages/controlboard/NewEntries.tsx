@@ -19,6 +19,7 @@ interface Zeitfenster {
 
 export default function NewEntries() {
   const [newCustomer, setNewCustomer] = useState({
+    kategorie: 'Kunde',
     name: '',
     telefonnr: '',
     email: '',
@@ -95,6 +96,7 @@ export default function NewEntries() {
       const { data: kunde, error: kundeError } = await supabase
         .from('kunden')
         .insert([{
+          kategorie: customerData.kategorie,
           name: customerData.name,
           telefonnr: customerData.telefonnr,
           email: customerData.email,
@@ -239,7 +241,22 @@ export default function NewEntries() {
             {/* Basis-Informationen */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Basis-Informationen</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="kategorie">Kategorie *</Label>
+                  <Select
+                    value={newCustomer.kategorie}
+                    onValueChange={(value) => setNewCustomer({ ...newCustomer, kategorie: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Interessent">Interessent</SelectItem>
+                      <SelectItem value="Kunde">Kunde</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label htmlFor="name">Name (Vor- und Nachname) *</Label>
                   <Input

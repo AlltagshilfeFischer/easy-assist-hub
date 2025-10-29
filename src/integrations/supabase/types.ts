@@ -98,6 +98,7 @@ export type Database = {
           geburtsdatum: string | null
           id: string
           kasse_privat: string | null
+          kategorie: string | null
           kopie_lw_vorhanden: string | null
           mitarbeiter: string | null
           mitarbeiters: string | null
@@ -132,6 +133,7 @@ export type Database = {
           geburtsdatum?: string | null
           id?: string
           kasse_privat?: string | null
+          kategorie?: string | null
           kopie_lw_vorhanden?: string | null
           mitarbeiter?: string | null
           mitarbeiters?: string | null
@@ -166,6 +168,7 @@ export type Database = {
           geburtsdatum?: string | null
           id?: string
           kasse_privat?: string | null
+          kategorie?: string | null
           kopie_lw_vorhanden?: string | null
           mitarbeiter?: string | null
           mitarbeiters?: string | null

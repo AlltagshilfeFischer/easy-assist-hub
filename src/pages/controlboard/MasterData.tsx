@@ -133,6 +133,31 @@ export default function MasterData() {
     },
   });
 
+  const convertToCustomerMutation = useMutation({
+    mutationFn: async (kundenId: string) => {
+      const { error } = await (supabase as any)
+        .from('kunden')
+        .update({ kategorie: 'Kunde' })
+        .eq('id', kundenId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({
+        title: 'Erfolg',
+        description: 'Interessent wurde zu Kunde umgewandelt',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Fehler',
+        description: 'Umwandlung fehlgeschlagen',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const updateEmployeeMutation = useMutation({
     mutationFn: async (employeeData: any) => {
       const { error } = await (supabase as any)
@@ -490,24 +515,25 @@ export default function MasterData() {
                              Name
                            </SortButton>
                          </TableHead>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="status" 
-                             currentSort={customerSort} 
-                             onClick={(key) => handleSort(key, 'customer')}
-                           >
-                             Status
-                           </SortButton>
-                         </TableHead>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="telefon" 
-                             currentSort={customerSort} 
-                             onClick={(key) => handleSort(key, 'customer')}
-                           >
-                             Telefon
-                           </SortButton>
-                         </TableHead>
+                          <TableHead>
+                            <SortButton 
+                              sortKey="status" 
+                              currentSort={customerSort} 
+                              onClick={(key) => handleSort(key, 'customer')}
+                            >
+                              Status
+                            </SortButton>
+                          </TableHead>
+                          <TableHead>Kategorie</TableHead>
+                          <TableHead>
+                            <SortButton 
+                              sortKey="telefon" 
+                              currentSort={customerSort} 
+                              onClick={(key) => handleSort(key, 'customer')}
+                            >
+                              Telefon
+                            </SortButton>
+                          </TableHead>
                          <TableHead>
                            <SortButton 
                              sortKey="email" 
@@ -553,21 +579,26 @@ export default function MasterData() {
                             <TableCell className="font-medium">
                               {customer.name}
                             </TableCell>
-                            <TableCell>
-                              <Badge variant={customer.aktiv ? "default" : "secondary"}>
-                                {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {customer.telefonnr ? (
-                                <div className="flex items-center gap-1">
-                                  <Phone className="h-3 w-3" />
-                                  {customer.telefonnr}
-                                </div>
-                              ) : (
-                                '-'
-                              )}
-                            </TableCell>
+                             <TableCell>
+                               <Badge variant={customer.aktiv ? "default" : "secondary"}>
+                                 {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
+                               </Badge>
+                             </TableCell>
+                             <TableCell>
+                               <Badge variant={customer.kategorie === 'Interessent' ? "outline" : "default"}>
+                                 {customer.kategorie || 'Kunde'}
+                               </Badge>
+                             </TableCell>
+                             <TableCell>
+                               {customer.telefonnr ? (
+                                 <div className="flex items-center gap-1">
+                                   <Phone className="h-3 w-3" />
+                                   {customer.telefonnr}
+                                 </div>
+                               ) : (
+                                 '-'
+                               )}
+                             </TableCell>
                            <TableCell>
                              {customer.email ? (
                                <div className="flex items-center gap-1">
@@ -587,15 +618,27 @@ export default function MasterData() {
                            <TableCell>
                              {formatDate(customer.geburtsdatum)}
                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditCustomer(customer)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
+                             <TableCell>
+                               <div className="flex gap-2">
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => handleEditCustomer(customer)}
+                                 >
+                                   <Edit className="h-3 w-3" />
+                                 </Button>
+                                 {customer.kategorie === 'Interessent' && (
+                                   <Button
+                                     variant="default"
+                                     size="sm"
+                                     onClick={() => convertToCustomerMutation.mutate(customer.id)}
+                                     disabled={convertToCustomerMutation.isPending}
+                                   >
+                                     Zu Kunde
+                                   </Button>
+                                 )}
+                               </div>
+                             </TableCell>
                          </TableRow>
                        ))}
                     </TableBody>
@@ -751,34 +794,52 @@ export default function MasterData() {
           {editingCustomer && (
             <form onSubmit={handleSaveCustomer} className="space-y-6">
               {/* Persönliche Daten */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Persönliche Daten</h3>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <Label htmlFor="name">Name</Label>
-                     <Input
-                       id="name"
-                       value={editingCustomer.name || ''}
-                       onChange={(e) => setEditingCustomer({
-                         ...editingCustomer,
-                         name: e.target.value
-                       })}
-                       required
-                     />
-                   </div>
-                   <div>
-                     <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
-                     <Input
-                       id="geburtsdatum"
-                       type="date"
-                       value={editingCustomer.geburtsdatum || ''}
-                       onChange={(e) => setEditingCustomer({
-                         ...editingCustomer,
-                         geburtsdatum: e.target.value
-                       })}
-                     />
-                   </div>
-                 </div>
+               <div className="space-y-4">
+                 <h3 className="text-lg font-semibold">Persönliche Daten</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="kategorie">Kategorie</Label>
+                      <Select
+                        value={editingCustomer.kategorie || 'Kunde'}
+                        onValueChange={(value) => setEditingCustomer({
+                          ...editingCustomer,
+                          kategorie: value
+                        })}
+                      >
+                        <SelectTrigger id="kategorie">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Interessent">Interessent</SelectItem>
+                          <SelectItem value="Kunde">Kunde</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        id="name"
+                        value={editingCustomer.name || ''}
+                        onChange={(e) => setEditingCustomer({
+                          ...editingCustomer,
+                          name: e.target.value
+                        })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
+                      <Input
+                        id="geburtsdatum"
+                        type="date"
+                        value={editingCustomer.geburtsdatum || ''}
+                        onChange={(e) => setEditingCustomer({
+                          ...editingCustomer,
+                          geburtsdatum: e.target.value
+                        })}
+                      />
+                    </div>
+                  </div>
 
                  <div className="grid grid-cols-2 gap-4">
                    <div>

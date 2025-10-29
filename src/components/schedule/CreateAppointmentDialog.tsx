@@ -50,13 +50,34 @@ export function CreateAppointmentDialog({
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [loading, setLoading] = useState(false);
+  const [isNewInteressent, setIsNewInteressent] = useState(false);
+  const [newInteressentName, setNewInteressentName] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !kundenId) return;
+    if (!date || (!kundenId && !isNewInteressent) || (isNewInteressent && !newInteressentName.trim())) return;
 
     setLoading(true);
     try {
+      let finalKundenId = kundenId;
+
+      // If creating new Interessent, create them first
+      if (isNewInteressent && newInteressentName.trim()) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data: newKunde, error: kundeError } = await supabase
+          .from('kunden')
+          .insert([{
+            name: newInteressentName.trim(),
+            kategorie: 'Interessent',
+            aktiv: true
+          }])
+          .select()
+          .single();
+
+        if (kundeError) throw kundeError;
+        finalKundenId = newKunde.id;
+      }
+
       const startAt = new Date(date);
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       startAt.setHours(startHours, startMinutes, 0, 0);
@@ -67,7 +88,7 @@ export function CreateAppointmentDialog({
 
       await onSubmit({
         titel,
-        kunden_id: kundenId,
+        kunden_id: finalKundenId,
         mitarbeiter_id: mitarbeiterId === 'unassigned' ? null : mitarbeiterId || null,
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),
@@ -80,6 +101,8 @@ export function CreateAppointmentDialog({
       setDate(undefined);
       setStartTime('09:00');
       setEndTime('10:00');
+      setIsNewInteressent(false);
+      setNewInteressentName('');
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating appointment:', error);
@@ -108,19 +131,46 @@ export function CreateAppointmentDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="kunde">Kunde</Label>
-              <Select value={kundenId} onValueChange={setKundenId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Kunde auswählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="kunde">Kunde / Interessent</Label>
+              <div className="flex gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={!isNewInteressent ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsNewInteressent(false)}
+                >
+                  Bestandskunde
+                </Button>
+                <Button
+                  type="button"
+                  variant={isNewInteressent ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsNewInteressent(true)}
+                >
+                  Neuer Interessent
+                </Button>
+              </div>
+              {!isNewInteressent ? (
+                <Select value={kundenId} onValueChange={setKundenId} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kunde auswählen..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={newInteressentName}
+                  onChange={(e) => setNewInteressentName(e.target.value)}
+                  placeholder="Name des Interessenten eingeben..."
+                  required
+                />
+              )}
             </div>
           </div>
 
@@ -206,8 +256,11 @@ export function CreateAppointmentDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Abbrechen
             </Button>
-            <Button type="submit" disabled={loading || !date || !kundenId}>
-              {loading ? 'Erstelle...' : 'Termin erstellen'}
+            <Button 
+              type="submit" 
+              disabled={loading || !date || (!kundenId && !isNewInteressent) || (isNewInteressent && !newInteressentName.trim())}
+            >
+              {loading ? 'Erstelle...' : isNewInteressent ? 'Interessent & Termin erstellen' : 'Termin erstellen'}
             </Button>
           </DialogFooter>
         </form>
