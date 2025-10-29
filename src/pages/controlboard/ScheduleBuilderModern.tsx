@@ -554,7 +554,8 @@ const ScheduleBuilderModern = () => {
 
   const handleCreateRecurringAppointment = async (data: any) => {
     try {
-      const { error } = await supabase
+      // 1) Create template and return its id
+      const { data: template, error } = await supabase
         .from('termin_vorlagen')
         .insert([{ 
           titel: data.titel,
@@ -568,11 +569,13 @@ const ScheduleBuilderModern = () => {
           gueltig_bis: data.gueltig_bis,
           notizen: data.notizen,
           ist_aktiv: true
-        }]);
+        }])
+        .select('id')
+        .single();
 
       if (error) throw error;
 
-      // After creating the template, generate concrete appointments for a reasonable horizon
+      // 2) Try server-side generation first
       const fromDate = data.gueltig_von as string; // 'yyyy-MM-dd'
       const toDate = (data.gueltig_bis as string) || (() => {
         const d = new Date(fromDate);
@@ -587,7 +590,53 @@ const ScheduleBuilderModern = () => {
 
       if (genError) throw genError;
 
-      const created = Number(genCount ?? 0);
+      let created = Number(genCount ?? 0);
+
+      // 3) If nothing generated (likely wegen Zeitfenster/Verfügbarkeit), fall back to client-side generation
+      if (created === 0) {
+        // Only a hint to the user, but do not block creation
+        toast({
+          title: 'Hinweis',
+          description: 'Es wurden keine Termine durch die Regeln erzeugt. Erzeuge Termine trotzdem (Zeitfenster ignoriert).',
+        });
+
+        const start = new Date(`${fromDate}T00:00:00`);
+        const end = new Date(`${toDate}T00:00:00`);
+        const targetDow = ((Number(data.wochentag) % 7) + 7) % 7; // normalisiere auf 0-6
+
+        // Find first occurrence on/after start matching weekday
+        const first = new Date(start);
+        while (first.getDay() !== targetDow) first.setDate(first.getDate() + 1);
+
+        const stepDays = data.intervall === 'biweekly' ? 14 : data.intervall === 'monthly' ? 28 : 7;
+        const [hh, mm] = String(data.start_zeit || '09:00').split(':').map((n: string) => parseInt(n, 10));
+        const duration = Number(data.dauer_minuten || 60);
+
+        const rows: any[] = [];
+        for (let d = new Date(first); d <= end; d.setDate(d.getDate() + stepDays)) {
+          const startAt = new Date(d);
+          startAt.setHours(hh, mm, 0, 0);
+          const endAt = new Date(startAt.getTime() + duration * 60_000);
+
+          rows.push({
+            titel: data.titel,
+            kunden_id: data.kunden_id,
+            mitarbeiter_id: data.mitarbeiter_id ?? null,
+            start_at: startAt.toISOString(),
+            end_at: endAt.toISOString(),
+            status: data.mitarbeiter_id ? 'scheduled' : 'unassigned',
+            vorlage_id: template?.id ?? null,
+            notizen: data.notizen ?? null,
+          });
+        }
+
+        if (rows.length > 0) {
+          const { error: insertErr } = await supabase.from('termine').insert(rows);
+          if (insertErr) throw insertErr;
+          created = rows.length;
+        }
+      }
+
       if (created === 0) {
         toast({
           title: 'Hinweis',
@@ -596,7 +645,7 @@ const ScheduleBuilderModern = () => {
       } else {
         toast({
           title: 'Erfolg',
-          description: `Regeltermin erstellt. ${created} Termine erzeugt.`
+          description: `Regeltermin erstellt. ${created} Termine erzeugt.`,
         });
       }
 
