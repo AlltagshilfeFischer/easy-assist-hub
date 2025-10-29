@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPlus, Building2, Save, Plus, Trash2, Clock, Download } from 'lucide-react';
+import { UserPlus, Building2, Save, Plus, Trash2, Clock } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -51,17 +51,6 @@ export default function NewEntries() {
     bis: '17:00',
     prioritaet: 3
   });
-
-  const [n8nWebhookUrl, setN8nWebhookUrl] = useState('');
-  const [webhookResponse, setWebhookResponse] = useState<{
-    vertrag_url?: string;
-    mitarbeiter_vorschlaege?: Array<{
-      name: string;
-      score: number;
-      entfernung: string;
-      zustaendigkeitsbereich: string;
-    }>;
-  } | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -152,30 +141,10 @@ export default function NewEntries() {
         description: 'Kunde wurde erfolgreich erstellt. Starte KI-Mitarbeiterzuweisung...',
       });
 
-      // Step 3: Call n8n webhook for contract download and employee suggestions
-      if (n8nWebhookUrl) {
-        try {
-          const webhookResponse = await fetch(n8nWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              kunde_id: kunde.id,
-              name: kunde.name,
-              adresse: kunde.adresse,
-              zeitfenster: zeitfenster
-            })
-          });
-          
-          if (webhookResponse.ok) {
-            const data = await webhookResponse.json();
-            setWebhookResponse(data);
-          }
-        } catch (error) {
-          console.error('n8n webhook error:', error);
-        }
-      }
+      // TODO: Automatische Vertragsbereitstellung hier implementieren
+      // Placeholder für zukünftige automatische Vertragsgenerierung
 
-      // Step 4: AI-based employee assignment
+      // Step 3: AI-based employee assignment
       try {
         const { data, error } = await supabase.functions.invoke('assign-employee-to-customer', {
           body: {
@@ -617,26 +586,6 @@ export default function NewEntries() {
               </div>
             </div>
 
-            {/* n8n Webhook URL */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Download className="h-5 w-5" />
-                Vertragsdownload (optional)
-              </h3>
-              <div>
-                <Label htmlFor="n8n_webhook">n8n Webhook URL für Vertragserstellung</Label>
-                <Input
-                  id="n8n_webhook"
-                  value={n8nWebhookUrl}
-                  onChange={(e) => setN8nWebhookUrl(e.target.value)}
-                  placeholder="https://your-n8n-instance.com/webhook/..."
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  Optional: URL zu einem n8n Webhook für automatische Vertragserstellung
-                </p>
-              </div>
-            </div>
-
             <Button 
               type="submit" 
               className="w-full"
@@ -648,80 +597,6 @@ export default function NewEntries() {
           </form>
         </CardContent>
       </Card>
-
-      {/* Results Boxes - shown after customer creation */}
-      {webhookResponse && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Contract Download Box */}
-          {webhookResponse.vertrag_url && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Download className="h-5 w-5" />
-                  Vertrag
-                </CardTitle>
-                <CardDescription>
-                  Der Vertrag wurde erstellt und steht zum Download bereit
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  className="w-full" 
-                  onClick={() => window.open(webhookResponse.vertrag_url, '_blank')}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Vertrag als PDF herunterladen
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Employee Suggestions Box */}
-          {webhookResponse.mitarbeiter_vorschlaege && webhookResponse.mitarbeiter_vorschlaege.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserPlus className="h-5 w-5" />
-                  Passende Mitarbeiter
-                </CardTitle>
-                <CardDescription>
-                  Basierend auf Standort, Verfügbarkeit und Zuständigkeitsbereich
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {webhookResponse.mitarbeiter_vorschlaege.map((mitarbeiter, index) => (
-                    <div 
-                      key={index} 
-                      className="p-3 border rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <p className="font-semibold">{mitarbeiter.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {mitarbeiter.zustaendigkeitsbereich}
-                          </p>
-                          <p className="text-sm">
-                            📍 {mitarbeiter.entfernung}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-primary">
-                            {mitarbeiter.score}%
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Match
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
     </div>
   );
 }
