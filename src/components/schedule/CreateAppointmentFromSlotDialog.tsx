@@ -69,6 +69,8 @@ export function CreateAppointmentFromSlotDialog({
   // Single appointment state
   const [titel, setTitel] = useState('');
   const [kundenId, setKundenId] = useState('');
+  const [isNewInteressent, setIsNewInteressent] = useState(false);
+  const [newInteressentName, setNewInteressentName] = useState('');
   const [mitarbeiterId, setMitarbeiterId] = useState(prefilledData.employeeId);
   const [date, setDate] = useState<Date>(prefilledData.date);
   const [startTime, setStartTime] = useState('09:00');
@@ -89,6 +91,8 @@ export function CreateAppointmentFromSlotDialog({
   const resetForm = () => {
     setTitel('');
     setKundenId('');
+    setIsNewInteressent(false);
+    setNewInteressentName('');
     setMitarbeiterId(prefilledData.employeeId);
     setDate(prefilledData.date);
     setStartTime('09:00');
@@ -108,10 +112,29 @@ export function CreateAppointmentFromSlotDialog({
   };
 
   const handleSubmitSingle = async () => {
-    if (!date || !kundenId) return;
+    if (!date || (!kundenId && !isNewInteressent) || (isNewInteressent && !newInteressentName.trim())) return;
 
     setLoading(true);
     try {
+      let finalKundenId = kundenId;
+
+      // If creating new Interessent, create them first
+      if (isNewInteressent && newInteressentName.trim()) {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data: newKunde, error: kundeError } = await supabase
+          .from('kunden')
+          .insert([{
+            name: newInteressentName.trim(),
+            kategorie: 'Interessent',
+            aktiv: true
+          }])
+          .select()
+          .single();
+
+        if (kundeError) throw kundeError;
+        finalKundenId = newKunde.id;
+      }
+
       const startDateTime = new Date(date);
       const [startHour, startMinute] = startTime.split(':');
       startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0);
@@ -122,7 +145,7 @@ export function CreateAppointmentFromSlotDialog({
 
       await onSubmitSingle({
         titel,
-        kunden_id: kundenId,
+        kunden_id: finalKundenId,
         mitarbeiter_id: mitarbeiterId,
         start_at: startDateTime.toISOString(),
         end_at: endDateTime.toISOString(),
@@ -215,13 +238,40 @@ export function CreateAppointmentFromSlotDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="single-kunde">Kunde *</Label>
-              <CustomerSearchCombobox
-                customers={customers}
-                value={kundenId}
-                onValueChange={setKundenId}
-                placeholder="Kunde suchen..."
-              />
+              <Label htmlFor="single-kunde">Kunde / Interessent *</Label>
+              <div className="flex gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={!isNewInteressent ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsNewInteressent(false)}
+                >
+                  Bestandskunde
+                </Button>
+                <Button
+                  type="button"
+                  variant={isNewInteressent ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsNewInteressent(true)}
+                >
+                  Neuer Interessent
+                </Button>
+              </div>
+              {!isNewInteressent ? (
+                <CustomerSearchCombobox
+                  customers={customers}
+                  value={kundenId}
+                  onValueChange={setKundenId}
+                  placeholder="Kunde suchen..."
+                />
+              ) : (
+                <Input
+                  value={newInteressentName}
+                  onChange={(e) => setNewInteressentName(e.target.value)}
+                  placeholder="Name des Interessenten eingeben..."
+                  required
+                />
+              )}
             </div>
 
             <div className="space-y-2">

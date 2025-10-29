@@ -46,6 +46,7 @@ export default function MasterData() {
   const [searchQuery, setSearchQuery] = useState('');
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [customerKategorieFilter, setCustomerKategorieFilter] = useState<'all' | 'Kunde' | 'Interessent'>('all');
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -332,6 +333,13 @@ export default function MasterData() {
       filtered = filtered.filter((customer: any) => customer.aktiv === false);
     }
     
+    // Filter by kategorie
+    if (customerKategorieFilter === 'Kunde') {
+      filtered = filtered.filter((customer: any) => customer.kategorie === 'Kunde');
+    } else if (customerKategorieFilter === 'Interessent') {
+      filtered = filtered.filter((customer: any) => customer.kategorie === 'Interessent');
+    }
+    
     // Then sort
     return [...filtered].sort((a, b) => {
       const { key, direction } = customerSort;
@@ -478,26 +486,53 @@ export default function MasterData() {
             </CardHeader>
             <CardContent>
               {/* Search and Filter Bar */}
-              <div className="mb-4 flex gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Kunden suchen (Name, Telefon, E-Mail, Adresse, Notfallkontakt...)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+              <div className="mb-4 space-y-3">
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Kunden suchen (Name, Telefon, E-Mail, Adresse, Notfallkontakt...)"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={customerStatusFilter} onValueChange={(value: any) => setCustomerStatusFilter(value)}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle anzeigen</SelectItem>
+                      <SelectItem value="active">Nur Aktive</SelectItem>
+                      <SelectItem value="inactive">Nur Inaktive</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={customerStatusFilter} onValueChange={(value: any) => setCustomerStatusFilter(value)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Alle anzeigen</SelectItem>
-                    <SelectItem value="active">Nur Aktive</SelectItem>
-                    <SelectItem value="inactive">Nur Inaktive</SelectItem>
-                  </SelectContent>
-                </Select>
+                
+                {/* Kategorie Filter Buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    variant={customerKategorieFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCustomerKategorieFilter('all')}
+                  >
+                    Alle ({customers?.length || 0})
+                  </Button>
+                  <Button
+                    variant={customerKategorieFilter === 'Kunde' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCustomerKategorieFilter('Kunde')}
+                  >
+                    Kunden ({customers?.filter((c: any) => c.kategorie === 'Kunde').length || 0})
+                  </Button>
+                  <Button
+                    variant={customerKategorieFilter === 'Interessent' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCustomerKategorieFilter('Interessent')}
+                  >
+                    Interessenten ({customers?.filter((c: any) => c.kategorie === 'Interessent').length || 0})
+                  </Button>
+                </div>
               </div>
               {customersLoading ? (
                 <div className="text-center py-4">Lade Kundendaten...</div>
@@ -618,27 +653,42 @@ export default function MasterData() {
                            <TableCell>
                              {formatDate(customer.geburtsdatum)}
                            </TableCell>
-                             <TableCell>
-                               <div className="flex gap-2">
-                                 <Button
-                                   variant="outline"
-                                   size="sm"
-                                   onClick={() => handleEditCustomer(customer)}
-                                 >
-                                   <Edit className="h-3 w-3" />
-                                 </Button>
-                                 {customer.kategorie === 'Interessent' && (
-                                   <Button
-                                     variant="default"
-                                     size="sm"
-                                     onClick={() => convertToCustomerMutation.mutate(customer.id)}
-                                     disabled={convertToCustomerMutation.isPending}
-                                   >
-                                     Zu Kunde
-                                   </Button>
-                                 )}
-                               </div>
-                             </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditCustomer(customer)}
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  {customer.kategorie === 'Interessent' && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => convertToCustomerMutation.mutate(customer.id)}
+                                      disabled={convertToCustomerMutation.isPending}
+                                    >
+                                      Zu Kunde
+                                    </Button>
+                                  )}
+                                  {customer.kategorie === 'Kunde' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        toast({
+                                          title: 'Funktion in Entwicklung',
+                                          description: 'Der Vertragsdownload wird bald verfügbar sein.',
+                                        });
+                                      }}
+                                      className="text-xs"
+                                    >
+                                      📄 Vertrag
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
                          </TableRow>
                        ))}
                     </TableBody>
