@@ -102,9 +102,16 @@ const ScheduleBuilderModern = () => {
   const { toast } = useToast();
   const { setOpen } = useSidebar();
 
-  // Auto-collapse sidebar every time when entering schedule builder
+  // Auto-collapse sidebar once per visit to this page
   useEffect(() => {
-    setOpen(false);
+    const KEY = 'autoCollapsed:schedule-builder';
+    if (!sessionStorage.getItem(KEY)) {
+      sessionStorage.setItem(KEY, '1');
+      setOpen(false);
+    }
+    return () => {
+      sessionStorage.removeItem(KEY);
+    };
   }, [setOpen]);
 
   const sensors = useSensors(
