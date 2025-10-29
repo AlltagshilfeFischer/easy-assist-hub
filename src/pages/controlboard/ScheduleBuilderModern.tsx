@@ -427,7 +427,15 @@ const ScheduleBuilderModern = () => {
     // Extract employee ID and date from drop zone ID (format: "employeeId-date")
     const [employeeId] = overId.split('-');
 
-    if (!employeeId) return;
+    // Validate employee ID
+    if (!employeeId || !employees.find(emp => emp.id === employeeId)) {
+      toast({
+        title: 'Fehler',
+        description: 'Ungültiger Zielbereich. Bitte auf einen Mitarbeiter ziehen.',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     const conflicts = checkForConflicts(appointmentId, employeeId);
 
