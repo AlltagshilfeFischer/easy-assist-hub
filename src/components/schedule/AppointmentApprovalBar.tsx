@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, ChevronDown, ChevronUp } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppointmentApprovalDialog } from './AppointmentApprovalDialog';
 import { cn } from '@/lib/utils';
@@ -46,7 +46,6 @@ interface AppointmentChange {
 export function AppointmentApprovalBar() {
   const [pendingChanges, setPendingChanges] = useState<AppointmentChange[]>([]);
   const [showDialog, setShowDialog] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const loadPendingChanges = async () => {
@@ -91,96 +90,26 @@ export function AppointmentApprovalBar() {
 
   return (
     <>
-      <div className={cn(
-        "rounded-lg shadow-sm border transition-colors",
-        hasChanges 
-          ? "bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800"
-          : "bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800"
-      )}>
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Bell className={cn(
-                  "h-5 w-5",
-                  hasChanges ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"
-                )} />
-                {hasChanges && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
-                    {pendingChanges.length}
-                  </span>
-                )}
-              </div>
-              <div>
-                <h3 className={cn(
-                  "font-semibold",
-                  hasChanges ? "text-amber-900 dark:text-amber-100" : "text-green-900 dark:text-green-100"
-                )}>
-                  {hasChanges ? "Genehmigungen ausstehend" : "Keine ausstehenden Genehmigungen"}
-                </h3>
-                <p className={cn(
-                  "text-sm",
-                  hasChanges ? "text-amber-700 dark:text-amber-300" : "text-green-700 dark:text-green-300"
-                )}>
-                  {hasChanges 
-                    ? `${pendingChanges.length} ${pendingChanges.length === 1 ? 'Terminänderung wartet' : 'Terminänderungen warten'} auf Genehmigung`
-                    : "Alle Änderungsanträge wurden bearbeitet"
-                  }
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {hasChanges && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setShowDialog(true)}
-                  className="bg-amber-600 hover:bg-amber-700 text-white"
-                >
-                  Jetzt prüfen
-                  <Badge variant="secondary" className="ml-2 bg-white text-amber-900">
-                    {pendingChanges.length}
-                  </Badge>
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="h-8 w-8"
-              >
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-          
-          {isExpanded && pendingChanges.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-800">
-              <div className="flex flex-wrap gap-2">
-                {pendingChanges.slice(0, 3).map((change) => (
-                  <Badge 
-                    key={change.id} 
-                    variant="outline" 
-                    className="text-xs bg-white dark:bg-amber-950 border-amber-300 dark:border-amber-700"
-                  >
-                    {change.requester?.vorname} {change.requester?.nachname}
-                  </Badge>
-                ))}
-                {pendingChanges.length > 3 && (
-                  <Badge variant="outline" className="text-xs bg-white dark:bg-amber-950">
-                    +{pendingChanges.length - 3} weitere
-                  </Badge>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <Button
+        variant={hasChanges ? "default" : "outline"}
+        size="sm"
+        onClick={() => hasChanges && setShowDialog(true)}
+        className={cn(
+          "relative",
+          hasChanges 
+            ? "bg-amber-600 hover:bg-amber-700 text-white" 
+            : "border-green-500 text-green-700 dark:text-green-400"
+        )}
+        disabled={!hasChanges}
+      >
+        <Bell className="h-4 w-4 mr-2" />
+        Genehmigungen
+        {hasChanges && (
+          <Badge variant="secondary" className="ml-2 bg-white text-amber-900">
+            {pendingChanges.length}
+          </Badge>
+        )}
+      </Button>
 
       <AppointmentApprovalDialog
         isOpen={showDialog}

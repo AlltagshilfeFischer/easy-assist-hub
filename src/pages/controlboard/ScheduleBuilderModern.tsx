@@ -912,7 +912,8 @@ const ScheduleBuilderModern = () => {
               Professionelle Wochenansicht mit Drag & Drop
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <AppointmentApprovalBar />
             <Button onClick={() => setShowCreateAppointment(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Neuer Termin
@@ -923,9 +924,6 @@ const ScheduleBuilderModern = () => {
             </Button>
           </div>
         </div>
-
-        {/* Approval Bar */}
-        <AppointmentApprovalBar />
 
         {/* Stats */}
         <CalendarStats {...stats} />
