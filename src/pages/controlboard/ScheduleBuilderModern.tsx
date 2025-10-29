@@ -99,12 +99,6 @@ const ScheduleBuilderModern = () => {
   });
   
   const { toast } = useToast();
-  const { setOpen } = useSidebar();
-
-  // Auto-collapse sidebar when calendar is used
-  useEffect(() => {
-    setOpen(false);
-  }, [setOpen]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
