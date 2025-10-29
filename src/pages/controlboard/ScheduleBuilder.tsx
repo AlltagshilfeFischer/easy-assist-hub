@@ -11,26 +11,25 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone, Settings2, Sparkles, ChevronDown } from 'lucide-react';
-import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from '@/components/schedule/gridConfig';
+import { CalendarDays, ChevronLeft, ChevronRight, User, Clock, AlertTriangle, Users, Calendar, TrendingUp, Filter, Search, Eye, Bell, GripVertical, MapPin, Phone, Settings2, Sparkles, ChevronDown, Plus, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { AppointmentApprovalDialog } from '@/components/schedule/AppointmentApprovalDialog';
 import { ConflictWarningDialog } from '@/components/schedule/ConflictWarningDialog';
-import { CalendarGrid } from '@/components/schedule/CalendarGrid';
 import { AppointmentDetailDialog } from '@/components/schedule/AppointmentDetailDialog';
 import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
-import { DropZone } from '@/components/schedule/DropZone';
-import { EmployeeCard } from '@/components/schedule/EmployeeCard';
-import { SortableEmployeeCard } from '@/components/schedule/SortableEmployeeCard';
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
 import { CreateAppointmentDialog } from '@/components/schedule/CreateAppointmentDialog';
 import { CreateRecurringAppointmentDialog } from '@/components/schedule/CreateRecurringAppointmentDialog';
 import { CreateAppointmentFromSlotDialog } from '@/components/schedule/CreateAppointmentFromSlotDialog';
+import { ModernWeekCalendar } from '@/components/schedule/ModernWeekCalendar';
+import { WeekNavigationBar } from '@/components/schedule/WeekNavigationBar';
+import { CalendarLegend } from '@/components/schedule/CalendarLegend';
+import { EmployeeFilterSidebar } from '@/components/schedule/EmployeeFilterSidebar';
+import { CalendarStats } from '@/components/schedule/CalendarStats';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 interface Employee {
   id: string;
   vorname?: string;
@@ -79,75 +78,38 @@ interface Appointment {
   employee?: Employee;
 }
 const ScheduleBuilder = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date()); // Always starts with current month
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [searchEmployee, setSearchEmployee] = useState('');
   const [searchAppointment, setSearchAppointment] = useState('');
-  const [sortEmployees, setSortEmployees] = useState('name');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [showEmployeeManager, setShowEmployeeManager] = useState(false);
   const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(new Set());
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSectionOpen, setAiSectionOpen] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const scrollToToday = () => {
-    const today = new Date();
-    setCurrentMonth(today);
-    setCurrentWeek(today);
 
-    // Trigger scroll to center today after change
-    setTimeout(() => {
-      if (scrollAreaRef.current) {
-        const dates = viewMode === 'month' ? getMonthDates() : getWeekDates();
-        const todayIndex = dates.findIndex(date => format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd'));
-        if (todayIndex !== -1) {
-          const cellWidth = DAY_COL_WIDTH;
-          const employeeColumnWidth = EMPLOYEE_COL_WIDTH;
-          const scrollToX = employeeColumnWidth + todayIndex * cellWidth - scrollAreaRef.current.clientWidth / 2 + cellWidth / 2;
-          scrollAreaRef.current.scrollTo({
-            left: Math.max(0, scrollToX),
-            behavior: 'smooth'
-          });
-        }
+  const handleToggleEmployee = (employeeId: string) => {
+    setHiddenEmployeeIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(employeeId)) {
+        newSet.delete(employeeId);
+      } else {
+        newSet.add(employeeId);
       }
-    }, 200);
-  };
-  const scrollByWeeks = (weeks: number) => {
-    if (scrollAreaRef.current) {
-      const scrollViewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollViewport) {
-        const cellWidth = DAY_COL_WIDTH;
-        const scrollAmount = cellWidth * 7 * weeks; // 7 days per week
-
-        scrollViewport.scrollBy({
-          left: scrollAmount,
-          behavior: 'smooth'
-        });
-      }
-    }
-  };
-  const scrollToPreviousWeek = () => {
-    scrollByWeeks(-1);
-  };
-  const scrollToNextWeek = () => {
-    scrollByWeeks(1);
-  };
-  const goToPreviousMonth = () => {
-    setCurrentMonth(prev => subMonths(prev, 1));
-  };
-  const goToNextMonth = () => {
-    setCurrentMonth(prev => addMonths(prev, 1));
+      return newSet;
+    });
   };
 
   const goToPreviousWeek = () => {
     setCurrentWeek(prev => subWeeks(prev, 1));
   };
+  
   const goToNextWeek = () => {
     setCurrentWeek(prev => addWeeks(prev, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentWeek(new Date());
   };
 
   // Real data from Supabase

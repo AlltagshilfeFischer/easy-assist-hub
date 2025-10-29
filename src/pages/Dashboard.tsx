@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import DashboardHome from './DashboardHome';
-import ScheduleBuilder from './controlboard/ScheduleBuilder';
+import ScheduleBuilderModern from './controlboard/ScheduleBuilderModern';
 import MasterData from './controlboard/MasterData';
 import NewEntries from './controlboard/NewEntries';
 import BenutzerverwaltungNeu from './controlboard/BenutzerverwaltungNeu';
