@@ -117,6 +117,7 @@ export function CreateAppointmentDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Neuen Termin erstellen</DialogTitle>
+          <p className="sr-only" id="create-appointment-desc">Einzeltermin mit Datum und Uhrzeit anlegen</p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

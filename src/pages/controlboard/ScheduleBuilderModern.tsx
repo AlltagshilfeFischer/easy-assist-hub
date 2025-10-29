@@ -398,8 +398,8 @@ const ScheduleBuilderModern = () => {
     const appointmentId = active.id as string;
     const overId = over.id as string;
 
-    if (overId === 'unassigned-drop-zone') {
-      // Unassign appointment
+    // Handle drop into "Unassigned" bar (ids like "unassigned-YYYY-MM-DD")
+    if (overId.startsWith('unassigned-')) {
       try {
         const { error } = await supabase
           .from('termine')
@@ -424,8 +424,9 @@ const ScheduleBuilderModern = () => {
       return;
     }
 
-    // Extract employee ID from drop zone ID (format: "employee-UUID-dayIndex")
-    if (!overId.startsWith('employee-')) {
+    // Extract employee ID from drop zone ID format: "<employeeId>-YYYY-MM-DD"
+    const match = overId.match(/^(.*)-(\d{4}-\d{2}-\d{2})$/);
+    if (!match) {
       toast({
         title: 'Fehler',
         description: 'Ungültiger Zielbereich. Bitte auf einen Mitarbeiter ziehen.',
@@ -434,10 +435,7 @@ const ScheduleBuilderModern = () => {
       return;
     }
 
-    // Remove "employee-" prefix and extract UUID (remove last dash and dayIndex)
-    const withoutPrefix = overId.replace('employee-', '');
-    const lastDashIndex = withoutPrefix.lastIndexOf('-');
-    const employeeId = withoutPrefix.substring(0, lastDashIndex);
+    const employeeId = match[1];
 
     // Validate employee ID
     if (!employeeId || !employees.find(emp => emp.id === employeeId)) {
