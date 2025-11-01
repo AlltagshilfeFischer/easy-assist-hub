@@ -84,6 +84,18 @@ export function CreateRecurringAppointmentDialog({
 
     setLoading(true);
     try {
+      // Calculate default end date: 10 years from start, but max 2036-12-31
+      let endDate: Date;
+      if (gueltigBis) {
+        endDate = gueltigBis;
+      } else {
+        const tenYearsLater = new Date(gueltigVon);
+        tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
+        
+        const maxDate = new Date('2036-12-31');
+        endDate = tenYearsLater > maxDate ? maxDate : tenYearsLater;
+      }
+
       await onSubmit({
         titel,
         kunden_id: kundenId,
@@ -93,7 +105,7 @@ export function CreateRecurringAppointmentDialog({
         dauer_minuten: dauerMinuten,
         intervall,
         gueltig_von: format(gueltigVon, 'yyyy-MM-dd'),
-        gueltig_bis: gueltigBis ? format(gueltigBis, 'yyyy-MM-dd') : null,
+        gueltig_bis: format(endDate, 'yyyy-MM-dd'),
         notizen: notizen || null,
       });
 
