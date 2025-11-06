@@ -31,6 +31,7 @@ import { CreateRecurringAppointmentDialog } from '@/components/schedule/CreateRe
 import { CreateAppointmentFromSlotDialog } from '@/components/schedule/CreateAppointmentFromSlotDialog';
 import { ConflictWarningDialog } from '@/components/schedule/ConflictWarningDialog';
 import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
+import { AIAppointmentCreator } from '@/components/schedule/AIAppointmentCreator';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 
 interface Employee {
@@ -924,6 +925,9 @@ const ScheduleBuilderModern = () => {
             </Button>
           </div>
         </div>
+
+        {/* AI Appointment Creator */}
+        <AIAppointmentCreator onAppointmentCreated={loadData} />
 
         {/* Stats */}
         <CalendarStats {...stats} />
