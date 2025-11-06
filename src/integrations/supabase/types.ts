@@ -92,8 +92,10 @@ export type Database = {
           groesse_bytes: number
           hochgeladen_von: string
           id: string
-          kunden_id: string
+          kategorie: string
+          kunden_id: string | null
           mime_type: string
+          mitarbeiter_id: string | null
           titel: string
           updated_at: string
         }
@@ -105,8 +107,10 @@ export type Database = {
           groesse_bytes: number
           hochgeladen_von: string
           id?: string
-          kunden_id: string
+          kategorie?: string
+          kunden_id?: string | null
           mime_type: string
+          mitarbeiter_id?: string | null
           titel: string
           updated_at?: string
         }
@@ -118,8 +122,10 @@ export type Database = {
           groesse_bytes?: number
           hochgeladen_von?: string
           id?: string
-          kunden_id?: string
+          kategorie?: string
+          kunden_id?: string | null
           mime_type?: string
+          mitarbeiter_id?: string | null
           titel?: string
           updated_at?: string
         }
@@ -136,6 +142,13 @@ export type Database = {
             columns: ["kunden_id"]
             isOneToOne: false
             referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dokumente_mitarbeiter_id_fkey"
+            columns: ["mitarbeiter_id"]
+            isOneToOne: false
+            referencedRelation: "mitarbeiter"
             referencedColumns: ["id"]
           },
         ]
