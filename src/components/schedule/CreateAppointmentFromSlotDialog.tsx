@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +87,15 @@ export function CreateAppointmentFromSlotDialog({
   const [gueltigVon, setGueltigVon] = useState<Date>(prefilledData.date);
   const [gueltigBis, setGueltigBis] = useState<Date | undefined>();
   const [notizen, setNotizen] = useState('');
+
+  // Update prefilled data when slot changes
+  useEffect(() => {
+    setMitarbeiterId(prefilledData.employeeId);
+    setRecurringMitarbeiterId(prefilledData.employeeId);
+    setDate(prefilledData.date);
+    setGueltigVon(prefilledData.date);
+    setWochentag(prefilledData.date.getDay());
+  }, [prefilledData.employeeId, prefilledData.date]);
 
   const resetForm = () => {
     setTitel('');
