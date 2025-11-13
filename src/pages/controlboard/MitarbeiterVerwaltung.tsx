@@ -90,7 +90,7 @@ export default function MitarbeiterVerwaltung() {
           .from('mitarbeiter')
           .select(`
             *,
-            benutzer:benutzer_id (
+            benutzer!mitarbeiter_benutzer_id_fkey (
               vorname,
               nachname,
               email
