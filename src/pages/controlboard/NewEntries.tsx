@@ -464,13 +464,21 @@ export default function NewEntries() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="kasse_privat">Kasse/Privat</Label>
-                  <Input
-                    id="kasse_privat"
+                  <Label htmlFor="kasse_privat">Pflegekasse</Label>
+                  <Select
                     value={newCustomer.kasse_privat}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, kasse_privat: e.target.value })}
-                    placeholder="Kasse, Privat, Beides"
-                  />
+                    onValueChange={(value) => setNewCustomer({ ...newCustomer, kasse_privat: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Kasse">Kasse</SelectItem>
+                      <SelectItem value="Privat">Privat</SelectItem>
+                      <SelectItem value="Beihilfe">Beihilfe</SelectItem>
+                      <SelectItem value="Abweichende Rechnungsadresse">Abweichende Rechnungsadresse</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="verhinderungspflege_status">Verhinderungspflege Status</Label>
@@ -482,11 +490,18 @@ export default function NewEntries() {
                 </div>
                 <div>
                   <Label htmlFor="kopie_lw_vorhanden">Kopie LW vorhanden</Label>
-                  <Input
-                    id="kopie_lw_vorhanden"
+                  <Select
                     value={newCustomer.kopie_lw_vorhanden}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, kopie_lw_vorhanden: e.target.value })}
-                  />
+                    onValueChange={(value) => setNewCustomer({ ...newCustomer, kopie_lw_vorhanden: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ja">Ja</SelectItem>
+                      <SelectItem value="Nein">Nein</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

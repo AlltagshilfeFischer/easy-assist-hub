@@ -1156,15 +1156,24 @@ export default function MasterData() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="kasse_privat">Kasse Privat</Label>
-                    <Input
-                      id="kasse_privat"
+                    <Label htmlFor="kasse_privat">Pflegekasse</Label>
+                    <Select
                       value={editingCustomer.kasse_privat || ''}
-                      onChange={(e) => setEditingCustomer({
+                      onValueChange={(value) => setEditingCustomer({
                         ...editingCustomer,
-                        kasse_privat: e.target.value
+                        kasse_privat: value
                       })}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Kasse">Kasse</SelectItem>
+                        <SelectItem value="Privat">Privat</SelectItem>
+                        <SelectItem value="Beihilfe">Beihilfe</SelectItem>
+                        <SelectItem value="Abweichende Rechnungsadresse">Abweichende Rechnungsadresse</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="verhinderungspflege_status">Verhinderungspflege Status</Label>
@@ -1264,14 +1273,21 @@ export default function MasterData() {
                   </div>
                   <div>
                     <Label htmlFor="kopie_lw_vorhanden">Kopie LW vorhanden</Label>
-                    <Input
-                      id="kopie_lw_vorhanden"
+                    <Select
                       value={editingCustomer.kopie_lw_vorhanden || ''}
-                      onChange={(e) => setEditingCustomer({
+                      onValueChange={(value) => setEditingCustomer({
                         ...editingCustomer,
-                        kopie_lw_vorhanden: e.target.value
+                        kopie_lw_vorhanden: value
                       })}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Ja">Ja</SelectItem>
+                        <SelectItem value="Nein">Nein</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
