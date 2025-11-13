@@ -129,7 +129,7 @@ export default function Billing() {
             <CardHeader>
               <CardTitle>Kunden Übersicht</CardTitle>
               <CardDescription>
-                Stundenkontingent und tatsächlich geleistete Stunden pro Kunde
+                Stunden und tatsächlich geleistete Stunden pro Kunde
               </CardDescription>
             </CardHeader>
             <CardContent>

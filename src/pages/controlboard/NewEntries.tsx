@@ -509,7 +509,7 @@ export default function NewEntries() {
               <h3 className="text-lg font-semibold">Stunden & Termine</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="stunden_kontingent_monat">Stunden-Kontingent/Monat</Label>
+                  <Label htmlFor="stunden_kontingent_monat">Stunden</Label>
                   <Input
                     id="stunden_kontingent_monat"
                     type="number"

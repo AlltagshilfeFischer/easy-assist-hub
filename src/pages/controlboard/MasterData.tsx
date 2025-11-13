@@ -1115,7 +1115,7 @@ export default function MasterData() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="stunden_kontingent_monat">Stunden Kontingent/Monat</Label>
+                    <Label htmlFor="stunden_kontingent_monat">Stunden</Label>
                     <Input
                       id="stunden_kontingent_monat"
                       type="number"
