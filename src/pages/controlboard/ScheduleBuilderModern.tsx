@@ -219,7 +219,6 @@ const ScheduleBuilderModern = () => {
             notfall_name: (app.customer as any).notfall_name || null,
             notfall_telefon: (app.customer as any).notfall_telefon || null,
             aktiv: (app.customer as any).aktiv || false,
-            status: (app.customer as any).status || null,
             pflegekasse: (app.customer as any).pflegekasse || null,
             versichertennummer: (app.customer as any).versichertennummer || null,
             stunden_kontingent_monat: (app.customer as any).stunden_kontingent_monat || null,

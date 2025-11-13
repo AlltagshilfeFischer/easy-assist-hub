@@ -1248,17 +1248,6 @@ export default function MasterData() {
                       })}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="status">Status (Freitext)</Label>
-                    <Input
-                      id="status"
-                      value={editingCustomer.status || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        status: e.target.value
-                      })}
-                    />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
