@@ -27,7 +27,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2, Search } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2, Search, Power } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
@@ -48,6 +58,7 @@ export default function MasterData() {
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [customerKategorieFilter, setCustomerKategorieFilter] = useState<'all' | 'Kunde' | 'Interessent'>('all');
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -175,6 +186,63 @@ export default function MasterData() {
       toast({
         title: 'Fehler',
         description: 'Umwandlung fehlgeschlagen',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const toggleCustomerStatusMutation = useMutation({
+    mutationFn: async ({ kundenId, currentStatus }: { kundenId: string; currentStatus: boolean }) => {
+      const { error } = await (supabase as any)
+        .from('kunden')
+        .update({ aktiv: !currentStatus })
+        .eq('id', kundenId);
+      
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({
+        title: 'Erfolg',
+        description: variables.currentStatus ? 'Kunde wurde deaktiviert' : 'Kunde wurde aktiviert',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Fehler',
+        description: 'Status konnte nicht geändert werden',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (kundenId: string) => {
+      // First delete related records
+      await (supabase as any).from('kunden_zeitfenster').delete().eq('kunden_id', kundenId);
+      await (supabase as any).from('dokumente').delete().eq('kunden_id', kundenId);
+      await (supabase as any).from('termine').delete().eq('kunden_id', kundenId);
+      
+      // Then delete the customer
+      const { error } = await (supabase as any)
+        .from('kunden')
+        .delete()
+        .eq('id', kundenId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setDeleteCustomerId(null);
+      toast({
+        title: 'Erfolg',
+        description: 'Kunde wurde erfolgreich gelöscht',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Fehler',
+        description: 'Kunde konnte nicht gelöscht werden',
         variant: 'destructive',
       });
     },
@@ -674,42 +742,48 @@ export default function MasterData() {
                            <TableCell>
                              {formatDate(customer.geburtsdatum)}
                            </TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEditCustomer(customer)}
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                  {customer.kategorie === 'Interessent' && (
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => convertToCustomerMutation.mutate(customer.id)}
-                                      disabled={convertToCustomerMutation.isPending}
-                                    >
-                                      Zu Kunde
-                                    </Button>
-                                  )}
-                                  {customer.kategorie === 'Kunde' && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        toast({
-                                          title: 'Funktion in Entwicklung',
-                                          description: 'Der Vertragsdownload wird bald verfügbar sein.',
-                                        });
-                                      }}
-                                      className="text-xs"
-                                    >
-                                      📄 Vertrag
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
+                               <TableCell>
+                                 <div className="flex gap-2">
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => handleEditCustomer(customer)}
+                                     title="Bearbeiten"
+                                   >
+                                     <Edit className="h-3 w-3" />
+                                   </Button>
+                                   <Button
+                                     variant={customer.aktiv ? "outline" : "default"}
+                                     size="sm"
+                                     onClick={() => toggleCustomerStatusMutation.mutate({ 
+                                       kundenId: customer.id, 
+                                       currentStatus: customer.aktiv 
+                                     })}
+                                     disabled={toggleCustomerStatusMutation.isPending}
+                                     title={customer.aktiv ? "Deaktivieren" : "Aktivieren"}
+                                   >
+                                     <Power className="h-3 w-3" />
+                                   </Button>
+                                   <Button
+                                     variant="destructive"
+                                     size="sm"
+                                     onClick={() => setDeleteCustomerId(customer.id)}
+                                     title="Löschen"
+                                   >
+                                     <Trash2 className="h-3 w-3" />
+                                   </Button>
+                                   {customer.kategorie === 'Interessent' && (
+                                     <Button
+                                       variant="default"
+                                       size="sm"
+                                       onClick={() => convertToCustomerMutation.mutate(customer.id)}
+                                       disabled={convertToCustomerMutation.isPending}
+                                     >
+                                       Zu Kunde
+                                     </Button>
+                                   )}
+                                 </div>
+                               </TableCell>
                          </TableRow>
                        ))}
                     </TableBody>
@@ -1492,6 +1566,28 @@ export default function MasterData() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteCustomerId !== null} onOpenChange={(open) => !open && setDeleteCustomerId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Kunde wirklich löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Der Kunde und alle zugehörigen Daten 
+              (Termine, Zeitfenster, Dokumente) werden permanent gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteCustomerId && deleteCustomerMutation.mutate(deleteCustomerId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteCustomerMutation.isPending ? 'Löschen...' : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
