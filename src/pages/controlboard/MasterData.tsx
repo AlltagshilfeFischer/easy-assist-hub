@@ -43,7 +43,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'notfall_name' | 'created_at' | 'pflegegrad' | 'adresse' | 'geburtsdatum';
+type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'adresse' | 'geburtsdatum';
 type SortDirection = 'asc' | 'desc';
 
 export default function MasterData() {
@@ -406,8 +406,6 @@ export default function MasterData() {
           customer.email,
           customer.adresse,
           customer.stadtteil,
-          customer.notfall_name,
-          customer.notfall_telefon,
           customer.pflegekasse,
         ].filter(Boolean).map(f => f.toLowerCase());
         
@@ -451,10 +449,6 @@ export default function MasterData() {
         case 'email':
           aValue = (a.email || '').toLowerCase();
           bValue = (b.email || '').toLowerCase();
-          break;
-        case 'notfall_name':
-          aValue = (a.notfall_name || '').toLowerCase();
-          bValue = (b.notfall_name || '').toLowerCase();
           break;
         case 'pflegegrad':
           aValue = a.pflegegrad || 0;
@@ -1061,35 +1055,6 @@ export default function MasterData() {
                       onChange={(e) => setEditingCustomer({
                         ...editingCustomer,
                         email: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Notfallkontakt */}
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="text-lg font-semibold">Notfallkontakt</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="notfall_name">Name</Label>
-                    <Input
-                      id="notfall_name"
-                      value={editingCustomer.notfall_name || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        notfall_name: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="notfall_telefon">Telefon</Label>
-                    <Input
-                      id="notfall_telefon"
-                      value={editingCustomer.notfall_telefon || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        notfall_telefon: e.target.value
                       })}
                     />
                   </div>

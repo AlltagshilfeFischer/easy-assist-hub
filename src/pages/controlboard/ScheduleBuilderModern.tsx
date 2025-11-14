@@ -60,8 +60,6 @@ interface Customer {
   pflegegrad: number | null;
   adresse: string | null;
   stadtteil: string | null;
-  notfall_name: string | null;
-  notfall_telefon: string | null;
   aktiv: boolean;
   status: string | null;
   pflegekasse: string | null;
@@ -216,8 +214,6 @@ const ScheduleBuilderModern = () => {
             pflegegrad: (app.customer as any).pflegegrad || null,
             adresse: (app.customer as any).adresse || null,
             stadtteil: (app.customer as any).stadtteil || null,
-            notfall_name: (app.customer as any).notfall_name || null,
-            notfall_telefon: (app.customer as any).notfall_telefon || null,
             aktiv: (app.customer as any).aktiv || false,
             pflegekasse: (app.customer as any).pflegekasse || null,
             versichertennummer: (app.customer as any).versichertennummer || null,
@@ -248,8 +244,6 @@ const ScheduleBuilderModern = () => {
         pflegegrad: (cust as any).pflegegrad || null,
         adresse: (cust as any).adresse || null,
         stadtteil: (cust as any).stadtteil || null,
-        notfall_name: (cust as any).notfall_name || null,
-        notfall_telefon: (cust as any).notfall_telefon || null,
         aktiv: (cust as any).aktiv || false,
         status: (cust as any).status || null,
         pflegekasse: (cust as any).pflegekasse || null,

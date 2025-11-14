@@ -42,8 +42,6 @@ interface Customer {
   pflegegrad: number | null;
   adresse: string | null;
   stadtteil: string | null;
-  notfall_name: string | null;
-  notfall_telefon: string | null;
   aktiv: boolean;
   status: string | null;
   pflegekasse: string | null;

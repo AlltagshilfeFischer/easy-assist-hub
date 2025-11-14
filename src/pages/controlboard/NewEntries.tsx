@@ -31,8 +31,6 @@ export default function NewEntries() {
     pflegegrad: '',
     stunden_kontingent_monat: '',
     startdatum: '',
-    notfall_name: '',
-    notfall_telefon: '',
     angehoerige_ansprechpartner: '',
     sonstiges: '',
     kasse_privat: '',
@@ -191,8 +189,6 @@ export default function NewEntries() {
           pflegegrad: customerData.pflegegrad ? parseInt(customerData.pflegegrad) : null,
           stunden_kontingent_monat: customerData.stunden_kontingent_monat ? parseFloat(customerData.stunden_kontingent_monat) : null,
           startdatum: customerData.startdatum || null,
-          notfall_name: customerData.notfall_name,
-          notfall_telefon: customerData.notfall_telefon,
           angehoerige_ansprechpartner: customerData.angehoerige_ansprechpartner,
           sonstiges: customerData.sonstiges,
           kasse_privat: customerData.kasse_privat,
@@ -724,27 +720,9 @@ export default function NewEntries() {
               </div>
             </div>
 
-            {/* Notfall & Angehörige */}
+            {/* Angehörige/Ansprechpartner */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Notfall & Angehörige</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="notfall_name">Notfallkontakt Name</Label>
-                  <Input
-                    id="notfall_name"
-                    value={newCustomer.notfall_name}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, notfall_name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="notfall_telefon">Notfallkontakt Telefon</Label>
-                  <Input
-                    id="notfall_telefon"
-                    value={newCustomer.notfall_telefon}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, notfall_telefon: e.target.value })}
-                  />
-                </div>
-              </div>
+              <h3 className="text-lg font-semibold">Angehörige/Ansprechpartner</h3>
               <div>
                 <Label htmlFor="angehoerige_ansprechpartner">Angehörige/Ansprechpartner</Label>
                 <Textarea
