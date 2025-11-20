@@ -47,7 +47,6 @@ interface Customer {
   pflegekasse: string | null;
   versichertennummer: string | null;
   stunden_kontingent_monat: number | null;
-  tage: string | null;
   mitarbeiter: string | null;
   angehoerige_ansprechpartner: string | null;
   farbe_kalender?: string;

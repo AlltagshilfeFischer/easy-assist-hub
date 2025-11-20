@@ -173,17 +173,6 @@ const ScheduleBuilderModern = () => {
       
       if (appointmentsError) throw appointmentsError;
 
-      // Load customer time windows
-      const { data: timeWindowsData, error: timeWindowsError } = await supabase
-        .from('kunden_zeitfenster')
-        .select('*');
-      
-      if (timeWindowsError) {
-        console.error('Error loading time windows:', timeWindowsError);
-      } else {
-        setCustomerTimeWindows(timeWindowsData || []);
-      }
-
       const transformedEmployees = employeesData?.map(emp => {
         const benutzer = (emp as any).benutzer;
         const fullName = benutzer?.vorname && benutzer?.nachname 
@@ -218,7 +207,6 @@ const ScheduleBuilderModern = () => {
             pflegekasse: (app.customer as any).pflegekasse || null,
             versichertennummer: (app.customer as any).versichertennummer || null,
             stunden_kontingent_monat: (app.customer as any).stunden_kontingent_monat || null,
-            tage: (app.customer as any).tage || null,
             mitarbeiter: (app.customer as any).mitarbeiter || null,
             angehoerige_ansprechpartner: (app.customer as any).angehoerige_ansprechpartner || null,
             farbe_kalender: (app.customer as any).farbe_kalender || '#10B981'
@@ -249,7 +237,6 @@ const ScheduleBuilderModern = () => {
         pflegekasse: (cust as any).pflegekasse || null,
         versichertennummer: (cust as any).versichertennummer || null,
         stunden_kontingent_monat: (cust as any).stunden_kontingent_monat || null,
-        tage: (cust as any).tage || null,
         mitarbeiter: (cust as any).mitarbeiter || null,
         angehoerige_ansprechpartner: (cust as any).angehoerige_ansprechpartner || null
       }) as Customer) || [];

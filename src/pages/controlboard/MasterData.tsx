@@ -70,7 +70,6 @@ export default function MasterData() {
         .from('kunden')
         .select(`
           *,
-          zeitfenster:kunden_zeitfenster(*),
           hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname)
         `)
         .order('name');
@@ -124,29 +123,6 @@ export default function MasterData() {
         .eq('id', kundenData.id);
       
       if (kundenError) throw kundenError;
-
-      // Delete existing zeitfenster
-      const { error: deleteError } = await (supabase as any)
-        .from('kunden_zeitfenster')
-        .delete()
-        .eq('kunden_id', kundenData.id);
-      
-      if (deleteError) throw deleteError;
-
-      // Insert new zeitfenster if any
-      if (zeitfenster && zeitfenster.length > 0) {
-        const { error: insertError } = await (supabase as any)
-          .from('kunden_zeitfenster')
-          .insert(zeitfenster.map((z: any) => ({
-            kunden_id: kundenData.id,
-            wochentag: z.wochentag,
-            von: z.von,
-            bis: z.bis,
-            prioritaet: z.prioritaet || 3
-          })));
-        
-        if (insertError) throw insertError;
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -219,7 +195,6 @@ export default function MasterData() {
   const deleteCustomerMutation = useMutation({
     mutationFn: async (kundenId: string) => {
       // First delete related records
-      await (supabase as any).from('kunden_zeitfenster').delete().eq('kunden_id', kundenId);
       await (supabase as any).from('dokumente').delete().eq('kunden_id', kundenId);
       await (supabase as any).from('termine').delete().eq('kunden_id', kundenId);
       
@@ -1225,17 +1200,6 @@ export default function MasterData() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="tage">Tage</Label>
-                    <Input
-                      id="tage"
-                      value={editingCustomer.tage || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        tage: e.target.value
-                      })}
-                    />
-                  </div>
                   <div>
                     <Label htmlFor="kopie_lw_vorhanden">Kopie LW vorhanden</Label>
                     <Select

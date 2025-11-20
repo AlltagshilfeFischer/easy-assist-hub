@@ -10,12 +10,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-interface Zeitfenster {
-  wochentag: number;
-  von: string;
-  bis: string;
-  prioritaet: number;
-}
 
 export default function NewEntries() {
   const [newCustomer, setNewCustomer] = useState({
@@ -40,136 +34,9 @@ export default function NewEntries() {
     aktiv: true
   });
 
-  const [zeitfenster, setZeitfenster] = useState<Zeitfenster[]>([]);
-  const [currentZeitfenster, setCurrentZeitfenster] = useState<Zeitfenster>({
-    wochentag: 1,
-    von: '09:00',
-    bis: '17:00',
-    prioritaet: 3
-  });
-  const [zeitfensterText, setZeitfensterText] = useState('');
-  const [isGeneratingZeitfenster, setIsGeneratingZeitfenster] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const weekdays = [
-    { value: 0, label: 'Sonntag' },
-    { value: 1, label: 'Montag' },
-    { value: 2, label: 'Dienstag' },
-    { value: 3, label: 'Mittwoch' },
-    { value: 4, label: 'Donnerstag' },
-    { value: 5, label: 'Freitag' },
-    { value: 6, label: 'Samstag' }
-  ];
-
-  const addZeitfenster = () => {
-    setZeitfenster([...zeitfenster, currentZeitfenster]);
-    setCurrentZeitfenster({
-      wochentag: 1,
-      von: '09:00',
-      bis: '17:00',
-      prioritaet: 3
-    });
-  };
-
-  const removeZeitfenster = (index: number) => {
-    setZeitfenster(zeitfenster.filter((_, i) => i !== index));
-    if (editingIndex === index) {
-      setEditingIndex(null);
-      setCurrentZeitfenster({
-        wochentag: 1,
-        von: '09:00',
-        bis: '17:00',
-        prioritaet: 3
-      });
-    }
-  };
-
-  const startEditZeitfenster = (index: number) => {
-    setEditingIndex(index);
-    setCurrentZeitfenster(zeitfenster[index]);
-  };
-
-  const saveEditZeitfenster = () => {
-    if (editingIndex !== null) {
-      const updated = [...zeitfenster];
-      updated[editingIndex] = currentZeitfenster;
-      setZeitfenster(updated);
-      setEditingIndex(null);
-      setCurrentZeitfenster({
-        wochentag: 1,
-        von: '09:00',
-        bis: '17:00',
-        prioritaet: 3
-      });
-    }
-  };
-
-  const cancelEdit = () => {
-    setEditingIndex(null);
-    setCurrentZeitfenster({
-      wochentag: 1,
-      von: '09:00',
-      bis: '17:00',
-      prioritaet: 3
-    });
-  };
-
-  const generateZeitfensterFromText = async () => {
-    if (!zeitfensterText.trim()) {
-      toast({
-        title: 'Fehler',
-        description: 'Bitte geben Sie eine Beschreibung ein',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsGeneratingZeitfenster(true);
-    try {
-      const response = await fetch('https://k01-2025-u36730.vm.elestio.app/webhook/3feaf29e-9fb8-49b6-9d24-f69f2a0b41dc', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: zeitfensterText
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('KI-Generierung fehlgeschlagen');
-      }
-
-      const data = await response.json();
-      
-      // n8n wraps response in output object: { output: { zeitfenster: Array<Zeitfenster> } }
-      const zeitfensterData = data.output?.zeitfenster || data.zeitfenster;
-      
-      if (zeitfensterData && Array.isArray(zeitfensterData)) {
-        setZeitfenster(zeitfensterData);
-        toast({
-          title: 'Zeitfenster generiert',
-          description: `${zeitfensterData.length} Zeitfenster wurden erfolgreich erstellt`,
-        });
-        setZeitfensterText('');
-      } else {
-        console.error('Invalid response format:', data);
-        throw new Error('Ungültiges Antwortformat');
-      }
-    } catch (error) {
-      console.error('Zeitfenster generation error:', error);
-      toast({
-        title: 'Fehler',
-        description: 'Zeitfenster konnten nicht generiert werden',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGeneratingZeitfenster(false);
-    }
-  };
 
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: any) => {
@@ -201,23 +68,6 @@ export default function NewEntries() {
         .single();
       
       if (kundeError) throw kundeError;
-      
-      // Step 2: Create Zeitfenster
-      if (zeitfenster.length > 0) {
-        const zeitfensterData = zeitfenster.map(zf => ({
-          kunden_id: kunde.id,
-          wochentag: zf.wochentag,
-          von: zf.von,
-          bis: zf.bis,
-          prioritaet: zf.prioritaet
-        }));
-
-        const { error: zeitfensterError } = await supabase
-          .from('kunden_zeitfenster')
-          .insert(zeitfensterData);
-        
-        if (zeitfensterError) throw zeitfensterError;
-      }
 
       return kunde;
     },
@@ -236,8 +86,7 @@ export default function NewEntries() {
       try {
         const { data, error } = await supabase.functions.invoke('assign-employee-to-customer', {
           body: {
-            kunden_id: kunde.id,
-            zeitfenster: zeitfenster
+            kunden_id: kunde.id
           }
         });
 
@@ -279,7 +128,7 @@ export default function NewEntries() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Neuen Kunden anlegen</h1>
         <p className="text-muted-foreground">
-          Erfassen Sie alle Kundendaten, Zeitfenster und erhalten Sie automatisch einen passenden Mitarbeiter
+          Erfassen Sie alle Kundendaten und erhalten Sie automatisch einen passenden Mitarbeiter
         </p>
       </div>
 
@@ -526,238 +375,6 @@ export default function NewEntries() {
               </div>
             </div>
 
-            {/* Zeitfenster */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Zeitfenster des Kunden
-                </h3>
-              </div>
-
-              {/* KI-basierte Zeitfenster-Eingabe */}
-              <div className="space-y-3 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
-                <div>
-                  <Label htmlFor="zeitfenster-text">Zeitfenster beschreiben (KI-gestützt)</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Beispiel: "Mo-Di von 8-14" oder "Montag bis Freitag 9:00-17:00, Samstag 10-12"
-                  </p>
-                  <Textarea
-                    id="zeitfenster-text"
-                    value={zeitfensterText}
-                    onChange={(e) => setZeitfensterText(e.target.value)}
-                    placeholder="Beschreiben Sie die gewünschten Zeitfenster in natürlicher Sprache..."
-                    rows={2}
-                    disabled={isGeneratingZeitfenster}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  onClick={generateZeitfensterFromText}
-                  disabled={isGeneratingZeitfenster || !zeitfensterText.trim()}
-                  className="w-full"
-                >
-                  {isGeneratingZeitfenster ? (
-                    <>
-                      <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      KI generiert Zeitfenster...
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="h-4 w-4 mr-2" />
-                      Zeitfenster mit KI generieren
-                    </>
-                  )}
-                </Button>
-              </div>
-              
-              {/* Liste der Zeitfenster */}
-              {zeitfenster.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Zeitfenster ({zeitfenster.length})</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setZeitfenster([]);
-                        setEditingIndex(null);
-                      }}
-                    >
-                      Alle löschen
-                    </Button>
-                  </div>
-                  {zeitfenster.map((zf, index) => (
-                    <div key={index} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
-                      <span className="flex-1">
-                        {weekdays.find(w => w.value === zf.wochentag)?.label}: {zf.von} - {zf.bis} (Priorität: {zf.prioritaet})
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEditZeitfenster(index)}
-                      >
-                        Bearbeiten
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeZeitfenster(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Zeitfenster hinzufügen/bearbeiten */}
-              <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
-                <Label>{editingIndex !== null ? 'Zeitfenster bearbeiten' : 'Neues Zeitfenster hinzufügen'}</Label>
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label htmlFor="wochentag">Wochentag</Label>
-                    <Select
-                      value={currentZeitfenster.wochentag.toString()}
-                      onValueChange={(value) => setCurrentZeitfenster({ 
-                        ...currentZeitfenster, 
-                        wochentag: parseInt(value) 
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {weekdays.map(day => (
-                          <SelectItem key={day.value} value={day.value.toString()}>
-                            {day.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="von">Von</Label>
-                    <Input
-                      id="von"
-                      type="time"
-                      value={currentZeitfenster.von}
-                      onChange={(e) => setCurrentZeitfenster({ 
-                        ...currentZeitfenster, 
-                        von: e.target.value 
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="bis">Bis</Label>
-                    <Input
-                      id="bis"
-                      type="time"
-                      value={currentZeitfenster.bis}
-                      onChange={(e) => setCurrentZeitfenster({ 
-                        ...currentZeitfenster, 
-                        bis: e.target.value 
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="prioritaet">Priorität</Label>
-                    <Select
-                      value={currentZeitfenster.prioritaet.toString()}
-                      onValueChange={(value) => setCurrentZeitfenster({ 
-                        ...currentZeitfenster, 
-                        prioritaet: parseInt(value) 
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 (Hoch)</SelectItem>
-                        <SelectItem value="2">2 (Mittel)</SelectItem>
-                        <SelectItem value="3">3 (Normal)</SelectItem>
-                        <SelectItem value="4">4 (Niedrig)</SelectItem>
-                        <SelectItem value="5">5 (Optional)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {editingIndex !== null ? (
-                    <>
-                      <Button
-                        type="button"
-                        variant="default"
-                        onClick={saveEditZeitfenster}
-                        className="flex-1"
-                      >
-                        Speichern
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={cancelEdit}
-                        className="flex-1"
-                      >
-                        Abbrechen
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addZeitfenster}
-                      className="w-full"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Hinzufügen
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Angehörige/Ansprechpartner */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Angehörige/Ansprechpartner</h3>
-              <div>
-                <Label htmlFor="angehoerige_ansprechpartner">Angehörige/Ansprechpartner</Label>
-                <Textarea
-                  id="angehoerige_ansprechpartner"
-                  value={newCustomer.angehoerige_ansprechpartner}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, angehoerige_ansprechpartner: e.target.value })}
-                  rows={3}
-                  placeholder="Name, Beziehung, Telefon"
-                />
-              </div>
-            </div>
-
-            {/* Sonstiges */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Weitere Informationen</h3>
-              <div>
-                <Label htmlFor="begruendung">Begründung</Label>
-                <Textarea
-                  id="begruendung"
-                  value={newCustomer.begruendung}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, begruendung: e.target.value })}
-                  rows={2}
-                />
-              </div>
-              <div>
-                <Label htmlFor="sonstiges">Sonstiges/Notizen</Label>
-                <Textarea
-                  id="sonstiges"
-                  value={newCustomer.sonstiges}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, sonstiges: e.target.value })}
-                  rows={3}
-                  placeholder="Besondere Hinweise, Allergien, Vorlieben, etc."
-                />
-              </div>
-            </div>
 
             <Button 
               type="submit" 
