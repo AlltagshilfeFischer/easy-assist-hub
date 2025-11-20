@@ -15,23 +15,24 @@ export default function NewEntries() {
   const [newCustomer, setNewCustomer] = useState({
     kategorie: 'Kunde',
     name: '',
-    telefonnr: '',
-    email: '',
+    geburtsdatum: '',
     adresse: '',
     stadtteil: '',
-    geburtsdatum: '',
+    telefonnr: '',
+    email: '',
     pflegekasse: '',
     versichertennummer: '',
     pflegegrad: '',
-    stunden_kontingent_monat: '',
-    startdatum: '',
-    angehoerige_ansprechpartner: '',
-    sonstiges: '',
     kasse_privat: '',
     verhinderungspflege_status: '',
-    begruendung: '',
     kopie_lw: '',
-    aktiv: true
+    stunden_kontingent_monat: '',
+    startdatum: '',
+    eintritt: '',
+    austritt: '',
+    notfall_name: '',
+    notfall_telefon: '',
+    angehoerige_ansprechpartner: ''
   });
 
 
@@ -56,13 +57,14 @@ export default function NewEntries() {
           pflegegrad: customerData.pflegegrad ? parseInt(customerData.pflegegrad) : null,
           stunden_kontingent_monat: customerData.stunden_kontingent_monat ? parseFloat(customerData.stunden_kontingent_monat) : null,
           startdatum: customerData.startdatum || null,
+          eintritt: customerData.eintritt || null,
+          austritt: customerData.austritt || null,
+          notfall_name: customerData.notfall_name,
+          notfall_telefon: customerData.notfall_telefon,
           angehoerige_ansprechpartner: customerData.angehoerige_ansprechpartner,
-          sonstiges: customerData.sonstiges,
           kasse_privat: customerData.kasse_privat,
           verhinderungspflege_status: customerData.verhinderungspflege_status,
-          begruendung: customerData.begruendung,
-          kopie_lw: customerData.kopie_lw,
-          aktiv: customerData.aktiv
+          kopie_lw: customerData.kopie_lw
         }])
         .select()
         .single();
