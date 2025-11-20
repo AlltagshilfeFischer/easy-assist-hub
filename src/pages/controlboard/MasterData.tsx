@@ -377,6 +377,8 @@ export default function MasterData() {
       filtered = customers.filter((customer: any) => {
         const searchableFields = [
           customer.name,
+          customer.vorname,
+          customer.nachname,
           customer.telefonnr,
           customer.email,
           customer.adresse,
@@ -670,9 +672,9 @@ export default function MasterData() {
                        {sortedCustomers.map((customer: any) => (
                           <TableRow key={customer.id}>
                             <TableCell className="font-medium">
-                              {customer.name}
+                              {customer.vorname} {customer.nachname}
                             </TableCell>
-                             <TableCell>
+                            <TableCell>
                                <Badge variant={customer.aktiv ? "default" : "secondary"}>
                                  {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
                                </Badge>
@@ -930,13 +932,25 @@ export default function MasterData() {
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="name">Name</Label>
+                      <Label htmlFor="vorname">Vorname</Label>
                       <Input
-                        id="name"
-                        value={editingCustomer.name || ''}
+                        id="vorname"
+                        value={editingCustomer.vorname || ''}
                         onChange={(e) => setEditingCustomer({
                           ...editingCustomer,
-                          name: e.target.value
+                          vorname: e.target.value
+                        })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="nachname">Nachname</Label>
+                      <Input
+                        id="nachname"
+                        value={editingCustomer.nachname || ''}
+                        onChange={(e) => setEditingCustomer({
+                          ...editingCustomer,
+                          nachname: e.target.value
                         })}
                         required
                       />

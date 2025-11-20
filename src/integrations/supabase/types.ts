@@ -172,7 +172,8 @@ export type Database = {
           kopie_lw: string | null
           mitarbeiter: string | null
           mitarbeiters: string | null
-          name: string
+          nachname: string | null
+          name: string | null
           notfall_name: string | null
           notfall_telefon: string | null
           pflegegrad: number | null
@@ -188,6 +189,7 @@ export type Database = {
           updated_at: string | null
           verhinderungspflege_status: string | null
           versichertennummer: string | null
+          vorname: string | null
         }
         Insert: {
           adresse?: string | null
@@ -207,7 +209,8 @@ export type Database = {
           kopie_lw?: string | null
           mitarbeiter?: string | null
           mitarbeiters?: string | null
-          name: string
+          nachname?: string | null
+          name?: string | null
           notfall_name?: string | null
           notfall_telefon?: string | null
           pflegegrad?: number | null
@@ -223,6 +226,7 @@ export type Database = {
           updated_at?: string | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
+          vorname?: string | null
         }
         Update: {
           adresse?: string | null
@@ -242,7 +246,8 @@ export type Database = {
           kopie_lw?: string | null
           mitarbeiter?: string | null
           mitarbeiters?: string | null
-          name?: string
+          nachname?: string | null
+          name?: string | null
           notfall_name?: string | null
           notfall_telefon?: string | null
           pflegegrad?: number | null
@@ -258,6 +263,7 @@ export type Database = {
           updated_at?: string | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
+          vorname?: string | null
         }
         Relationships: [
           {

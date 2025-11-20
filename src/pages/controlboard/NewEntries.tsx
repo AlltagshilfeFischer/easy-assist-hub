@@ -14,7 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 export default function NewEntries() {
   const [newCustomer, setNewCustomer] = useState({
     kategorie: 'Kunde',
-    name: '',
+    vorname: '',
+    nachname: '',
     geburtsdatum: '',
     adresse: '',
     stadtteil: '',
@@ -46,7 +47,8 @@ export default function NewEntries() {
         .from('kunden')
         .insert([{
           kategorie: customerData.kategorie,
-          name: customerData.name,
+          vorname: customerData.vorname,
+          nachname: customerData.nachname,
           telefonnr: customerData.telefonnr,
           email: customerData.email,
           adresse: customerData.adresse,
@@ -197,14 +199,24 @@ export default function NewEntries() {
             {/* Basis-Informationen */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Basis-Informationen</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="name">Name (Vor- und Nachname) *</Label>
+                  <Label htmlFor="vorname">Vorname *</Label>
                   <Input
-                    id="name"
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                    placeholder="Max Mustermann"
+                    id="vorname"
+                    value={newCustomer.vorname}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, vorname: e.target.value })}
+                    placeholder="Max"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nachname">Nachname *</Label>
+                  <Input
+                    id="nachname"
+                    value={newCustomer.nachname}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, nachname: e.target.value })}
+                    placeholder="Mustermann"
                     required
                   />
                 </div>

@@ -65,10 +65,17 @@ export function CreateAppointmentDialog({
       // If creating new Interessent, create them first
       if (isNewInteressent && newInteressentName.trim()) {
         const { supabase } = await import('@/integrations/supabase/client');
+        
+        // Split name into vorname and nachname (first word = vorname, rest = nachname)
+        const nameParts = newInteressentName.trim().split(' ');
+        const vorname = nameParts[0];
+        const nachname = nameParts.slice(1).join(' ') || '';
+        
         const { data: newKunde, error: kundeError } = await supabase
           .from('kunden')
           .insert([{
-            name: newInteressentName.trim(),
+            vorname: vorname,
+            nachname: nachname,
             kategorie: 'Interessent',
             aktiv: true
           }])

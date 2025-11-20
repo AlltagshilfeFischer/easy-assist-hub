@@ -19,7 +19,9 @@ import Fuse from 'fuse.js';
 
 interface Customer {
   id: string;
-  name: string;
+  vorname?: string;
+  nachname?: string;
+  name: string; // Generated from vorname + nachname
 }
 
 interface CustomerSearchComboboxProps {
