@@ -1110,7 +1110,6 @@ export default function MasterData() {
                       <SelectContent>
                         <SelectItem value="Kasse">Kasse</SelectItem>
                         <SelectItem value="Privat">Privat</SelectItem>
-                        <SelectItem value="Beihilfe">Beihilfe</SelectItem>
                         <SelectItem value="Abweichende Rechnungsadresse">Abweichende Rechnungsadresse</SelectItem>
                       </SelectContent>
                     </Select>
