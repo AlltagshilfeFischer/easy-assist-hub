@@ -1129,41 +1129,27 @@ export default function MasterData() {
                 </div>
               </div>
 
-              {/* Status und Austrittsinformationen */}
+              {/* Status */}
               <div className="space-y-4 border-t pt-4">
-                <h3 className="text-lg font-semibold">Status und Austrittsinformationen</h3>
+                <h3 className="text-lg font-semibold">Status</h3>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="aktiv" className="text-base font-medium">Status</Label>
-                    <Select
-                      value={editingCustomer.aktiv ? 'true' : 'false'}
-                      onValueChange={(value) => setEditingCustomer({
-                        ...editingCustomer,
-                        aktiv: value === 'true'
-                      })}
-                    >
-                      <SelectTrigger id="aktiv">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">Aktiv</SelectItem>
-                        <SelectItem value="false">Nicht aktiv</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="austritt">Austrittsdatum</Label>
-                    <Input
-                      id="austritt"
-                      type="date"
-                      value={editingCustomer.austritt || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        austritt: e.target.value
-                      })}
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="aktiv" className="text-base font-medium">Status</Label>
+                  <Select
+                    value={editingCustomer.aktiv ? 'true' : 'false'}
+                    onValueChange={(value) => setEditingCustomer({
+                      ...editingCustomer,
+                      aktiv: value === 'true'
+                    })}
+                  >
+                    <SelectTrigger id="aktiv">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Aktiv</SelectItem>
+                      <SelectItem value="false">Nicht aktiv</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -1181,9 +1167,9 @@ export default function MasterData() {
                 </div>
               </div>
 
-              {/* Weitere Informationen */}
+              {/* Ein- und Austrittsdaten */}
               <div className="space-y-4 border-t pt-4">
-                <h3 className="text-lg font-semibold">Weitere Informationen</h3>
+                <h3 className="text-lg font-semibold">Ein- und Austrittsdaten</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="eintritt">Eintrittsdatum</Label>
@@ -1197,16 +1183,28 @@ export default function MasterData() {
                       })}
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="austritt">Austrittsdatum</Label>
+                    <Input
+                      id="austritt"
+                      type="date"
+                      value={editingCustomer.austritt || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        austritt: e.target.value
+                      })}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="kopie_lw_vorhanden">Kopie LW vorhanden</Label>
+                    <Label htmlFor="kopie_lw">Kopie LW</Label>
                     <Select
-                      value={editingCustomer.kopie_lw_vorhanden || ''}
+                      value={editingCustomer.kopie_lw || ''}
                       onValueChange={(value) => setEditingCustomer({
                         ...editingCustomer,
-                        kopie_lw_vorhanden: value
+                        kopie_lw: value
                       })}
                     >
                       <SelectTrigger>

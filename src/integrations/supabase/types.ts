@@ -169,7 +169,7 @@ export type Database = {
           id: string
           kasse_privat: string | null
           kategorie: string | null
-          kopie_lw_vorhanden: string | null
+          kopie_lw: string | null
           mitarbeiter: string | null
           mitarbeiters: string | null
           name: string
@@ -204,7 +204,7 @@ export type Database = {
           id?: string
           kasse_privat?: string | null
           kategorie?: string | null
-          kopie_lw_vorhanden?: string | null
+          kopie_lw?: string | null
           mitarbeiter?: string | null
           mitarbeiters?: string | null
           name: string
@@ -239,7 +239,7 @@ export type Database = {
           id?: string
           kasse_privat?: string | null
           kategorie?: string | null
-          kopie_lw_vorhanden?: string | null
+          kopie_lw?: string | null
           mitarbeiter?: string | null
           mitarbeiters?: string | null
           name?: string

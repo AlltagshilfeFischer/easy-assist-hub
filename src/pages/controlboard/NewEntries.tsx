@@ -30,7 +30,7 @@ export default function NewEntries() {
     kasse_privat: '',
     verhinderungspflege_status: '',
     begruendung: '',
-    kopie_lw_vorhanden: '',
+    kopie_lw: '',
     aktiv: true
   });
 
@@ -61,7 +61,7 @@ export default function NewEntries() {
           kasse_privat: customerData.kasse_privat,
           verhinderungspflege_status: customerData.verhinderungspflege_status,
           begruendung: customerData.begruendung,
-          kopie_lw_vorhanden: customerData.kopie_lw_vorhanden,
+          kopie_lw: customerData.kopie_lw,
           aktiv: customerData.aktiv
         }])
         .select()
@@ -332,10 +332,10 @@ export default function NewEntries() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="kopie_lw_vorhanden">Kopie LW vorhanden</Label>
+                  <Label htmlFor="kopie_lw">Kopie LW</Label>
                   <Select
-                    value={newCustomer.kopie_lw_vorhanden}
-                    onValueChange={(value) => setNewCustomer({ ...newCustomer, kopie_lw_vorhanden: value })}
+                    value={newCustomer.kopie_lw}
+                    onValueChange={(value) => setNewCustomer({ ...newCustomer, kopie_lw: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Auswählen" />
