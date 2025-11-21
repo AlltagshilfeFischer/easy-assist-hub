@@ -17,7 +17,9 @@ export default function NewEntries() {
     vorname: '',
     nachname: '',
     geburtsdatum: '',
-    adresse: '',
+    strasse: '',
+    stadt: '',
+    plz: '',
     stadtteil: '',
     telefonnr: '',
     email: '',
@@ -51,7 +53,9 @@ export default function NewEntries() {
           nachname: customerData.nachname,
           telefonnr: customerData.telefonnr,
           email: customerData.email,
-          adresse: customerData.adresse,
+          strasse: customerData.strasse,
+          stadt: customerData.stadt,
+          plz: customerData.plz,
           stadtteil: customerData.stadtteil,
           geburtsdatum: customerData.geburtsdatum || null,
           pflegekasse: customerData.pflegekasse,
@@ -235,16 +239,37 @@ export default function NewEntries() {
             {/* Kontaktdaten */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Kontaktdaten</h3>
-              <div>
-                <Label htmlFor="adresse">Adresse *</Label>
-                <Textarea
-                  id="adresse"
-                  value={newCustomer.adresse}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, adresse: e.target.value })}
-                  placeholder="Straße, Hausnummer, PLZ, Ort"
-                  rows={2}
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2 col-span-3">
+                  <Label htmlFor="strasse">Straße *</Label>
+                  <Input
+                    id="strasse"
+                    value={newCustomer.strasse}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, strasse: e.target.value })}
+                    placeholder="Straße und Hausnummer"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="plz">PLZ *</Label>
+                  <Input
+                    id="plz"
+                    value={newCustomer.plz}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, plz: e.target.value })}
+                    placeholder="PLZ"
+                    required
+                  />
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="stadt">Stadt *</Label>
+                  <Input
+                    id="stadt"
+                    value={newCustomer.stadt}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, stadt: e.target.value })}
+                    placeholder="Stadt"
+                    required
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>

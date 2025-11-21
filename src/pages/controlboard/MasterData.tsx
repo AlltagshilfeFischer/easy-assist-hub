@@ -43,11 +43,45 @@ import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'adresse' | 'geburtsdatum' | 'eintritt';
+type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
 type SortDirection = 'asc' | 'desc';
 
 export default function MasterData() {
-  const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [editingCustomer, setEditingCustomer] = useState<{
+    id: string;
+    name: string | null;
+    vorname: string | null;
+    nachname: string | null;
+    geburtsdatum: string | null;
+    kategorie: string | null;
+    strasse: string | null;
+    stadt: string | null;
+    plz: string | null;
+    stadtteil: string | null;
+    telefonnr: string | null;
+    email: string | null;
+    pflegekasse: string | null;
+    versichertennummer: string | null;
+    pflegegrad: number | null;
+    kasse_privat: string | null;
+    kopie_lw: string | null;
+    verhinderungspflege_status: string | null;
+    eintritt: string | null;
+    austritt: string | null;
+    begruendung: string | null;
+    aktiv: boolean;
+    status: string | null;
+    angehoerige_ansprechpartner: string | null;
+    sonstiges: string | null;
+    notfall_name: string | null;
+    notfall_telefon: string | null;
+    sollstunden: number | null;
+    startdatum: string | null;
+    stunden_kontingent_monat: number | null;
+    tage: string | null;
+    mitarbeiter: string | null;
+    zeitfenster?: any[];
+  } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [customerSort, setCustomerSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'eintritt', direction: 'asc' });
   const [searchQuery, setSearchQuery] = useState('');
@@ -346,7 +380,9 @@ export default function MasterData() {
           customer.nachname,
           customer.telefonnr,
           customer.email,
-          customer.adresse,
+          customer.strasse,
+          customer.stadt,
+          customer.plz,
           customer.stadtteil,
           customer.pflegekasse,
         ].filter(Boolean).map(f => f.toLowerCase());
@@ -432,9 +468,9 @@ export default function MasterData() {
           aValue = a.pflegegrad || 0;
           bValue = b.pflegegrad || 0;
           break;
-        case 'adresse':
-          aValue = (a.adresse || '').toLowerCase();
-          bValue = (b.adresse || '').toLowerCase();
+        case 'strasse':
+          aValue = (a.strasse || '').toLowerCase();
+          bValue = (b.strasse || '').toLowerCase();
           break;
         case 'geburtsdatum':
           aValue = new Date(a.geburtsdatum || 0).getTime();
@@ -608,15 +644,15 @@ export default function MasterData() {
                                Pflegegrad
                              </SortButton>
                            </TableHead>
-                           <TableHead>
-                             <SortButton 
-                               sortKey="adresse" 
-                               currentSort={customerSort} 
-                               onClick={(key) => handleSort(key)}
-                             >
-                               Adresse
-                             </SortButton>
-                           </TableHead>
+                            <TableHead>
+                              <SortButton 
+                                sortKey="strasse" 
+                                currentSort={customerSort} 
+                                onClick={(key) => handleSort(key)}
+                              >
+                                Straße
+                              </SortButton>
+                            </TableHead>
                            <TableHead>
                              <SortButton 
                                sortKey="geburtsdatum" 
@@ -668,9 +704,9 @@ export default function MasterData() {
                            <TableCell>
                              {customer.pflegegrad || '-'}
                            </TableCell>
-                           <TableCell>
-                             {customer.adresse || '-'}
-                           </TableCell>
+                            <TableCell>
+                              {[customer.strasse, customer.plz, customer.stadt].filter(Boolean).join(', ') || '-'}
+                            </TableCell>
                            <TableCell>
                              {formatDate(customer.geburtsdatum)}
                            </TableCell>
@@ -827,15 +863,40 @@ export default function MasterData() {
                  </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="adresse">Adresse</Label>
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="edit-strasse">Straße</Label>
                     <Input
-                      id="adresse"
-                      value={editingCustomer.adresse || ''}
+                      id="edit-strasse"
+                      value={editingCustomer.strasse || ''}
                       onChange={(e) => setEditingCustomer({
                         ...editingCustomer,
-                        adresse: e.target.value
+                        strasse: e.target.value
                       })}
+                      placeholder="Straße und Hausnummer"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-plz">PLZ</Label>
+                    <Input
+                      id="edit-plz"
+                      value={editingCustomer.plz || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        plz: e.target.value
+                      })}
+                      placeholder="PLZ"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-stadt">Stadt</Label>
+                    <Input
+                      id="edit-stadt"
+                      value={editingCustomer.stadt || ''}
+                      onChange={(e) => setEditingCustomer({
+                        ...editingCustomer,
+                        stadt: e.target.value
+                      })}
+                      placeholder="Stadt"
                     />
                   </div>
                   <div>
@@ -909,7 +970,7 @@ export default function MasterData() {
                       value={editingCustomer.stunden_kontingent_monat || ''}
                       onChange={(e) => setEditingCustomer({
                         ...editingCustomer,
-                        stunden_kontingent_monat: e.target.value
+                        stunden_kontingent_monat: e.target.value ? parseFloat(e.target.value) : null
                       })}
                     />
                   </div>

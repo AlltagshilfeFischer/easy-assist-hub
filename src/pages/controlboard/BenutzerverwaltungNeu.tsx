@@ -28,7 +28,9 @@ interface Mitarbeiter {
   nachname: string | null;
   ist_aktiv: boolean;
   telefon: string | null;
-  adresse: string | null;
+  strasse: string | null;
+  stadt: string | null;
+  plz: string | null;
   farbe_kalender: string | null;
   standort: 'Hannover' | null;
   zustaendigkeitsbereich: string | null;
@@ -260,7 +262,9 @@ export default function BenutzerverwaltungNeu() {
           vorname: editingMitarbeiter.vorname,
           nachname: editingMitarbeiter.nachname,
           telefon: editingMitarbeiter.telefon,
-          adresse: editingMitarbeiter.adresse,
+          strasse: editingMitarbeiter.strasse,
+          stadt: editingMitarbeiter.stadt,
+          plz: editingMitarbeiter.plz,
           farbe_kalender: editingMitarbeiter.farbe_kalender,
           standort: editingMitarbeiter.standort,
           zustaendigkeitsbereich: editingMitarbeiter.zustaendigkeitsbereich,
@@ -545,13 +549,34 @@ export default function BenutzerverwaltungNeu() {
                   onChange={(e) => setEditingMitarbeiter({ ...editingMitarbeiter, telefon: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-adresse">Adresse</Label>
-                <Textarea
-                  id="edit-adresse"
-                  value={editingMitarbeiter.adresse || ''}
-                  onChange={(e) => setEditingMitarbeiter({ ...editingMitarbeiter, adresse: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-strasse">Straße</Label>
+                  <Input
+                    id="edit-strasse"
+                    value={editingMitarbeiter.strasse || ''}
+                    onChange={(e) => setEditingMitarbeiter({ ...editingMitarbeiter, strasse: e.target.value })}
+                    placeholder="Straße und Hausnummer"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-plz">PLZ</Label>
+                  <Input
+                    id="edit-plz"
+                    value={editingMitarbeiter.plz || ''}
+                    onChange={(e) => setEditingMitarbeiter({ ...editingMitarbeiter, plz: e.target.value })}
+                    placeholder="PLZ"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-stadt">Stadt</Label>
+                  <Input
+                    id="edit-stadt"
+                    value={editingMitarbeiter.stadt || ''}
+                    onChange={(e) => setEditingMitarbeiter({ ...editingMitarbeiter, stadt: e.target.value })}
+                    placeholder="Stadt"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
