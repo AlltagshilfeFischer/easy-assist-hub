@@ -67,7 +67,6 @@ export function CreateAppointmentFromSlotDialog({
   const [loading, setLoading] = useState(false);
 
   // Single appointment state
-  const [titel, setTitel] = useState('');
   const [kundenId, setKundenId] = useState('');
   const [isNewInteressent, setIsNewInteressent] = useState(false);
   const [newInteressentName, setNewInteressentName] = useState('');
@@ -77,7 +76,6 @@ export function CreateAppointmentFromSlotDialog({
   const [endTime, setEndTime] = useState('10:00');
 
   // Recurring appointment state
-  const [recurringTitel, setRecurringTitel] = useState('');
   const [recurringKundenId, setRecurringKundenId] = useState('');
   const [recurringMitarbeiterId, setRecurringMitarbeiterId] = useState(prefilledData.employeeId);
   const [wochentag, setWochentag] = useState(prefilledData.date.getDay());
@@ -98,7 +96,6 @@ export function CreateAppointmentFromSlotDialog({
   }, [prefilledData.employeeId, prefilledData.date]);
 
   const resetForm = () => {
-    setTitel('');
     setKundenId('');
     setIsNewInteressent(false);
     setNewInteressentName('');
@@ -107,7 +104,6 @@ export function CreateAppointmentFromSlotDialog({
     setStartTime('09:00');
     setEndTime('10:00');
     
-    setRecurringTitel('');
     setRecurringKundenId('');
     setRecurringMitarbeiterId(prefilledData.employeeId);
     setWochentag(prefilledData.date.getDay());
@@ -159,8 +155,13 @@ export function CreateAppointmentFromSlotDialog({
       const [endHour, endMinute] = endTime.split(':');
       endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0);
 
+      // Get customer name for titel
+      const customerName = isNewInteressent 
+        ? newInteressentName.trim() 
+        : customers.find(c => c.id === finalKundenId)?.name || 'Unbekannt';
+
       await onSubmitSingle({
-        titel,
+        titel: `Termin: ${customerName}`,
         kunden_id: finalKundenId,
         mitarbeiter_id: mitarbeiterId,
         start_at: startDateTime.toISOString(),
@@ -181,8 +182,11 @@ export function CreateAppointmentFromSlotDialog({
 
     setLoading(true);
     try {
+      // Get customer name for titel
+      const customerName = customers.find(c => c.id === recurringKundenId)?.name || 'Unbekannt';
+      
       await onSubmitRecurring({
-        titel: recurringTitel,
+        titel: `Termin: ${customerName}`,
         kunden_id: recurringKundenId,
         mitarbeiter_id: recurringMitarbeiterId,
         wochentag,
@@ -241,16 +245,6 @@ export function CreateAppointmentFromSlotDialog({
                 Ein Einzeltermin wird nur einmalig am gewählten Datum erstellt.
               </AlertDescription>
             </Alert>
-
-            <div className="space-y-2">
-              <Label htmlFor="single-titel">Titel</Label>
-              <Input
-                id="single-titel"
-                value={titel}
-                onChange={(e) => setTitel(e.target.value)}
-                placeholder="z.B. Pflege, Betreuung..."
-              />
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="single-kunde">Kunde / Interessent *</Label>
@@ -382,16 +376,6 @@ export function CreateAppointmentFromSlotDialog({
                 individuell verschoben oder angepasst werden, ohne die Serie zu beeinflussen.
               </AlertDescription>
             </Alert>
-
-            <div className="space-y-2">
-              <Label htmlFor="recurring-titel">Titel</Label>
-              <Input
-                id="recurring-titel"
-                value={recurringTitel}
-                onChange={(e) => setRecurringTitel(e.target.value)}
-                placeholder="z.B. Wöchentliche Pflege"
-              />
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="recurring-kunde">Kunde *</Label>

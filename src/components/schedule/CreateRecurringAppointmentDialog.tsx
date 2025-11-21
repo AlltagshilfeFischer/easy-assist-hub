@@ -71,7 +71,6 @@ export function CreateRecurringAppointmentDialog({
   onSubmit,
   editingTemplate = null,
 }: CreateRecurringAppointmentDialogProps) {
-  const [titel, setTitel] = useState('');
   const [kundenId, setKundenId] = useState('');
   const [mitarbeiterId, setMitarbeiterId] = useState<string>('unassigned');
   const [wochentag, setWochentag] = useState<number>(1);
@@ -86,7 +85,6 @@ export function CreateRecurringAppointmentDialog({
   // Load template data when editing
   React.useEffect(() => {
     if (editingTemplate) {
-      setTitel(editingTemplate.titel);
       setKundenId(editingTemplate.kunden_id);
       setMitarbeiterId(editingTemplate.mitarbeiter_id || 'unassigned');
       setWochentag(editingTemplate.wochentag);
@@ -117,9 +115,12 @@ export function CreateRecurringAppointmentDialog({
         endDate = tenYearsLater > maxDate ? maxDate : tenYearsLater;
       }
 
+      // Get customer name for titel
+      const customerName = customers.find(c => c.id === kundenId)?.name || 'Unbekannt';
+
       await onSubmit({
         ...(editingTemplate?.id && { id: editingTemplate.id }),
-        titel,
+        titel: `Termin: ${customerName}`,
         kunden_id: kundenId,
         mitarbeiter_id: mitarbeiterId === 'unassigned' ? null : mitarbeiterId || null,
         wochentag,
@@ -132,7 +133,6 @@ export function CreateRecurringAppointmentDialog({
       });
 
       // Reset form
-      setTitel('');
       setKundenId('');
       setMitarbeiterId('unassigned');
       setWochentag(1);
@@ -163,18 +163,7 @@ export function CreateRecurringAppointmentDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="titel">Titel</Label>
-              <Input
-                id="titel"
-                value={titel}
-                onChange={(e) => setTitel(e.target.value)}
-                placeholder="z.B. Wöchentlicher Hausbesuch"
-                required
-              />
-            </div>
-
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="kunde">Kunde</Label>
               <CustomerSearchCombobox
