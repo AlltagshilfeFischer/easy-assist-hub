@@ -57,6 +57,8 @@ export default function MasterData() {
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [customerKategorieFilter, setCustomerKategorieFilter] = useState<'all' | 'Kunde' | 'Interessent'>('all');
+  const [stadtteilFilter, setStadtteilFilter] = useState<string>('all');
+  const [eintrittsdatumFilter, setEintrittsdatumFilter] = useState<string>('all');
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -404,6 +406,42 @@ export default function MasterData() {
       filtered = filtered.filter((customer: any) => customer.kategorie === 'Interessent');
     }
     
+    // Filter by stadtteil
+    if (stadtteilFilter !== 'all' && stadtteilFilter) {
+      filtered = filtered.filter((customer: any) => customer.stadtteil === stadtteilFilter);
+    }
+    
+    // Filter by eintrittsdatum
+    if (eintrittsdatumFilter !== 'all' && eintrittsdatumFilter) {
+      const now = new Date();
+      const filterDate = new Date();
+      
+      switch (eintrittsdatumFilter) {
+        case 'last_month':
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'last_3_months':
+          filterDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'last_6_months':
+          filterDate.setMonth(now.getMonth() - 6);
+          break;
+        case 'last_year':
+          filterDate.setFullYear(now.getFullYear() - 1);
+          break;
+        case 'this_year':
+          filterDate.setMonth(0);
+          filterDate.setDate(1);
+          break;
+      }
+      
+      filtered = filtered.filter((customer: any) => {
+        if (!customer.eintritt) return false;
+        const eintritt = new Date(customer.eintritt);
+        return eintritt >= filterDate;
+      });
+    }
+    
     // Then sort
     return [...filtered].sort((a, b) => {
       const { key, direction } = customerSort;
@@ -451,7 +489,7 @@ export default function MasterData() {
       if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter]);
+  }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter]);
 
   const sortedEmployees = useMemo(() => {
     if (!employees) return [];
@@ -565,6 +603,32 @@ export default function MasterData() {
                       <SelectItem value="all">Alle anzeigen</SelectItem>
                       <SelectItem value="active">Nur Aktive</SelectItem>
                       <SelectItem value="inactive">Nur Inaktive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={stadtteilFilter} onValueChange={setStadtteilFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Stadtteil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle Stadtteile</SelectItem>
+                      {Array.from(new Set(customers?.map((c: any) => c.stadtteil).filter(Boolean))).sort().map((stadtteil: any) => (
+                        <SelectItem key={stadtteil} value={stadtteil}>
+                          {stadtteil}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={eintrittsdatumFilter} onValueChange={setEintrittsdatumFilter}>
+                    <SelectTrigger className="w-full sm:w-[200px]">
+                      <SelectValue placeholder="Eintrittsdatum" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle Eintrittsdaten</SelectItem>
+                      <SelectItem value="last_month">Letzter Monat</SelectItem>
+                      <SelectItem value="last_3_months">Letzte 3 Monate</SelectItem>
+                      <SelectItem value="last_6_months">Letzte 6 Monate</SelectItem>
+                      <SelectItem value="this_year">Dieses Jahr</SelectItem>
+                      <SelectItem value="last_year">Letztes Jahr+</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
