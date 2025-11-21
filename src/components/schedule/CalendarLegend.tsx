@@ -3,7 +3,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   CheckCircle2, 
-  Clock, 
   AlertTriangle, 
   Circle,
   XCircle 
@@ -16,12 +15,6 @@ export function CalendarLegend() {
       label: 'Bestätigt',
       color: 'text-success',
       bg: 'bg-success/10'
-    },
-    {
-      icon: <Clock className="h-4 w-4" />,
-      label: 'Geplant',
-      color: 'text-primary',
-      bg: 'bg-primary/10'
     },
     {
       icon: <AlertTriangle className="h-4 w-4" />,
@@ -49,7 +42,7 @@ export function CalendarLegend() {
         <div className="text-xs font-medium text-muted-foreground mb-3">
           Legende
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {statusItems.map((item, index) => (
             <div
               key={index}
