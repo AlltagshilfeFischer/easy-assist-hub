@@ -48,18 +48,13 @@ type SortDirection = 'asc' | 'desc';
 
 export default function MasterData() {
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
-  const [editingEmployee, setEditingEmployee] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [customerSort, setCustomerSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'eintritt', direction: 'asc' });
-  const [employeeSort, setEmployeeSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
   const [searchQuery, setSearchQuery] = useState('');
-  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [customerKategorieFilter, setCustomerKategorieFilter] = useState<'all' | 'Kunde' | 'Interessent'>('all');
   const [stadtteilFilter, setStadtteilFilter] = useState<string>('all');
   const [eintrittsdatumFilter, setEintrittsdatumFilter] = useState<string>('all');
-  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -81,36 +76,14 @@ export default function MasterData() {
     },
   });
 
-  const { data: employees, isLoading: employeesLoading } = useQuery({
+  const { data: employees } = useQuery({
     queryKey: ['employees'],
     queryFn: async () => {
-      // Load employees first
       const { data: mitData, error: mitError } = await (supabase as any)
         .from('mitarbeiter')
         .select('*');
       if (mitError) throw mitError;
-
-      const benutzerIds = (mitData || [])
-        .map((m: any) => m.benutzer_id)
-        .filter((id: string | null) => !!id);
-
-      if (benutzerIds.length === 0) return mitData;
-
-      // Load related user data to get email
-      const { data: benData, error: benError } = await (supabase as any)
-        .from('benutzer')
-        .select('id, email, vorname, nachname')
-        .in('id', benutzerIds);
-      if (benError) throw benError;
-
-      const byId = new Map((benData || []).map((b: any) => [b.id, b]));
-      const enriched = (mitData || []).map((m: any) => ({
-        ...m,
-        email: m.email ?? (m.benutzer_id ? (byId.get(m.benutzer_id) as any)?.email : undefined),
-        benutzer: m.benutzer_id ? (byId.get(m.benutzer_id) as any) : undefined,
-      }));
-
-      return enriched;
+      return mitData;
     },
   });
 
@@ -225,32 +198,6 @@ export default function MasterData() {
     },
   });
 
-  const updateEmployeeMutation = useMutation({
-    mutationFn: async (employeeData: any) => {
-      const { error } = await (supabase as any)
-        .from('mitarbeiter')
-        .update(employeeData)
-        .eq('id', employeeData.id);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      setIsEmployeeDialogOpen(false);
-      setEditingEmployee(null);
-      toast({
-        title: 'Erfolg',
-        description: 'Mitarbeiterdaten wurden aktualisiert',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Fehler',
-        description: 'Mitarbeiterdaten konnten nicht aktualisiert werden',
-        variant: 'destructive',
-      });
-    },
-  });
 
   const handleEditCustomer = (customer: any) => {
     setEditingCustomer({
@@ -272,17 +219,6 @@ export default function MasterData() {
     }
   };
 
-  const handleEditEmployee = (employee: any) => {
-    setEditingEmployee(employee);
-    setIsEmployeeDialogOpen(true);
-  };
-
-  const handleSaveEmployee = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingEmployee) {
-      updateEmployeeMutation.mutate(editingEmployee);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
@@ -362,18 +298,11 @@ export default function MasterData() {
     );
   };
 
-  const handleSort = (key: SortKey, type: 'customer' | 'employee') => {
-    if (type === 'customer') {
-      setCustomerSort(prev => ({
-        key,
-        direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-      }));
-    } else {
-      setEmployeeSort(prev => ({
-        key,
-        direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-      }));
-    }
+  const handleSort = (key: SortKey) => {
+    setCustomerSort(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
   };
 
   const SortButton = ({ sortKey, currentSort, onClick, children }: {
@@ -529,88 +458,18 @@ export default function MasterData() {
     });
   }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter]);
 
-  const sortedEmployees = useMemo(() => {
-    if (!employees) return [];
-    
-    // First filter by search query
-    let filtered = employees;
-    if (employeeSearchQuery.trim()) {
-      const query = employeeSearchQuery.toLowerCase();
-      filtered = employees.filter((employee: any) => {
-        const searchableFields = [
-          employee.vorname,
-          employee.nachname,
-          employee.email,
-          employee.telefon,
-        ].filter(Boolean).map(f => f.toLowerCase());
-        
-        return searchableFields.some(field => field.includes(query));
-      });
-    }
-    
-    // Filter by status
-    if (employeeStatusFilter === 'active') {
-      filtered = filtered.filter((employee: any) => employee.ist_aktiv === true);
-    } else if (employeeStatusFilter === 'inactive') {
-      filtered = filtered.filter((employee: any) => employee.ist_aktiv === false);
-    }
-    
-    // Then sort
-    return [...filtered].sort((a, b) => {
-      const { key, direction } = employeeSort;
-      let aValue: string | number = '';
-      let bValue: string | number = '';
-
-      switch (key) {
-        case 'name':
-          aValue = `${a.vorname || ''} ${a.nachname || ''}`.trim().toLowerCase();
-          bValue = `${b.vorname || ''} ${b.nachname || ''}`.trim().toLowerCase();
-          break;
-        case 'email':
-          aValue = (a.email || '').toLowerCase();
-          bValue = (b.email || '').toLowerCase();
-          break;
-        case 'telefon':
-          aValue = (a.telefon || '').toLowerCase();
-          bValue = (b.telefon || '').toLowerCase();
-          break;
-        case 'status':
-          aValue = a.ist_aktiv ? 'aktiv' : 'inaktiv';
-          bValue = b.ist_aktiv ? 'aktiv' : 'inaktiv';
-          break;
-        case 'created_at':
-          aValue = new Date(a.created_at || 0).getTime();
-          bValue = new Date(b.created_at || 0).getTime();
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [employees, employeeSort, employeeSearchQuery, employeeStatusFilter]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Stammdatenverwaltung</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Kunden/Neukunden</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Verwalten Sie Kunden- und Mitarbeiterdaten
+          Verwalten Sie Kundendaten und Neukundenkontakte
         </p>
       </div>
 
-      <Tabs defaultValue="customers" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="customers" className="text-sm sm:text-base">Kunden</TabsTrigger>
-          <TabsTrigger value="employees" className="text-sm sm:text-base">Mitarbeiter</TabsTrigger>
-        </TabsList>
-
-        {/* Kunden Tab */}
-        <TabsContent value="customers">
-          <Card>
+        <Card>
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <Building className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -704,69 +563,69 @@ export default function MasterData() {
                      <TableHeader>
                        <TableRow>
                          <TableHead>
-                           <SortButton 
-                             sortKey="name" 
-                             currentSort={customerSort} 
-                             onClick={(key) => handleSort(key, 'customer')}
-                           >
-                             Name
-                           </SortButton>
-                         </TableHead>
-                          <TableHead>
                             <SortButton 
-                              sortKey="status" 
+                              sortKey="name" 
                               currentSort={customerSort} 
-                              onClick={(key) => handleSort(key, 'customer')}
+                              onClick={(key) => handleSort(key)}
                             >
-                              Status
+                              Name
                             </SortButton>
                           </TableHead>
-                          <TableHead>Kategorie</TableHead>
+                           <TableHead>
+                             <SortButton 
+                               sortKey="status" 
+                               currentSort={customerSort} 
+                               onClick={(key) => handleSort(key)}
+                             >
+                               Status
+                             </SortButton>
+                           </TableHead>
+                           <TableHead>Kategorie</TableHead>
+                           <TableHead>
+                             <SortButton 
+                               sortKey="telefon" 
+                               currentSort={customerSort} 
+                               onClick={(key) => handleSort(key)}
+                             >
+                               Telefon
+                             </SortButton>
+                           </TableHead>
                           <TableHead>
                             <SortButton 
-                              sortKey="telefon" 
+                              sortKey="email" 
                               currentSort={customerSort} 
-                              onClick={(key) => handleSort(key, 'customer')}
+                              onClick={(key) => handleSort(key)}
                             >
-                              Telefon
+                              E-Mail
                             </SortButton>
                           </TableHead>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="email" 
-                             currentSort={customerSort} 
-                             onClick={(key) => handleSort(key, 'customer')}
-                           >
-                             E-Mail
-                           </SortButton>
-                         </TableHead>
-                          <TableHead>
-                            <SortButton 
-                              sortKey="pflegegrad" 
-                              currentSort={customerSort} 
-                              onClick={(key) => handleSort(key, 'customer')}
-                            >
-                              Pflegegrad
-                            </SortButton>
-                          </TableHead>
-                          <TableHead>
-                            <SortButton 
-                              sortKey="adresse" 
-                              currentSort={customerSort} 
-                              onClick={(key) => handleSort(key, 'customer')}
-                            >
-                              Adresse
-                            </SortButton>
-                          </TableHead>
-                          <TableHead>
-                            <SortButton 
-                              sortKey="geburtsdatum" 
-                              currentSort={customerSort} 
-                              onClick={(key) => handleSort(key, 'customer')}
-                            >
-                              Geburtsdatum
-                            </SortButton>
-                          </TableHead>
+                           <TableHead>
+                             <SortButton 
+                               sortKey="pflegegrad" 
+                               currentSort={customerSort} 
+                               onClick={(key) => handleSort(key)}
+                             >
+                               Pflegegrad
+                             </SortButton>
+                           </TableHead>
+                           <TableHead>
+                             <SortButton 
+                               sortKey="adresse" 
+                               currentSort={customerSort} 
+                               onClick={(key) => handleSort(key)}
+                             >
+                               Adresse
+                             </SortButton>
+                           </TableHead>
+                           <TableHead>
+                             <SortButton 
+                               sortKey="geburtsdatum" 
+                               currentSort={customerSort} 
+                               onClick={(key) => handleSort(key)}
+                             >
+                               Geburtsdatum
+                             </SortButton>
+                           </TableHead>
                           <TableHead>Aktionen</TableHead>
                        </TableRow>
                      </TableHeader>
@@ -869,135 +728,6 @@ export default function MasterData() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Mitarbeiter Tab */}
-        <TabsContent value="employees">
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-                Mitarbeiterverwaltung
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Übersicht aller registrierten Mitarbeiter
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6">
-              {/* Search and Filter Bar */}
-              <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Mitarbeiter suchen..."
-                    value={employeeSearchQuery}
-                    onChange={(e) => setEmployeeSearchQuery(e.target.value)}
-                    className="pl-10 text-sm"
-                  />
-                </div>
-                <Select value={employeeStatusFilter} onValueChange={(value: any) => setEmployeeStatusFilter(value)}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Alle anzeigen</SelectItem>
-                    <SelectItem value="active">Nur Aktive</SelectItem>
-                    <SelectItem value="inactive">Nur Inaktive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {employeesLoading ? (
-                <div className="text-center py-4">Lade Mitarbeiterdaten...</div>
-              ) : employees && employees.length > 0 ? (
-                <div className="rounded-md border overflow-x-auto">
-                   <Table className="min-w-[700px]">
-                     <TableHeader>
-                       <TableRow>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="name" 
-                             currentSort={employeeSort} 
-                             onClick={(key) => handleSort(key, 'employee')}
-                           >
-                             Name
-                           </SortButton>
-                         </TableHead>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="email" 
-                             currentSort={employeeSort} 
-                             onClick={(key) => handleSort(key, 'employee')}
-                           >
-                             E-Mail
-                           </SortButton>
-                         </TableHead>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="telefon" 
-                             currentSort={employeeSort} 
-                             onClick={(key) => handleSort(key, 'employee')}
-                           >
-                             Telefon
-                           </SortButton>
-                         </TableHead>
-                         <TableHead>
-                           <SortButton 
-                             sortKey="status" 
-                             currentSort={employeeSort} 
-                             onClick={(key) => handleSort(key, 'employee')}
-                           >
-                             Status
-                           </SortButton>
-                         </TableHead>
-                          <TableHead>
-                            <SortButton 
-                              sortKey="created_at" 
-                              currentSort={employeeSort} 
-                              onClick={(key) => handleSort(key, 'employee')}
-                            >
-                              Erstellt am
-                            </SortButton>
-                          </TableHead>
-                          <TableHead>Aktionen</TableHead>
-                        </TableRow>
-                     </TableHeader>
-                     <TableBody>
-                       {sortedEmployees.map((employee: any) => (
-                        <TableRow key={employee.id}>
-                          <TableCell className="font-medium">
-                            {employee.vorname} {employee.nachname}
-                          </TableCell>
-                           <TableCell>{employee.email || '-'}</TableCell>
-                           <TableCell>{employee.telefon || '-'}</TableCell>
-                           <TableCell>
-                             <Badge variant={employee.ist_aktiv ? 'default' : 'secondary'}>
-                               {employee.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
-                             </Badge>
-                           </TableCell>
-                           <TableCell>{formatDate(employee.created_at)}</TableCell>
-                           <TableCell>
-                             <Button
-                               variant="outline"
-                               size="sm"
-                               onClick={() => handleEditEmployee(employee)}
-                             >
-                               <Edit className="h-3 w-3" />
-                             </Button>
-                           </TableCell>
-                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Keine Mitarbeiter gefunden
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
 
       {/* Edit Customer Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -1465,148 +1195,6 @@ export default function MasterData() {
                   disabled={updateCustomerMutation.isPending}
                 >
                   {updateCustomerMutation.isPending ? 'Speichern...' : 'Speichern'}
-                </Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Employee Dialog */}
-      <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Mitarbeiterdaten bearbeiten</DialogTitle>
-            <DialogDescription>
-              Bearbeiten Sie die Informationen für {editingEmployee?.vorname} {editingEmployee?.nachname}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingEmployee && (
-            <form onSubmit={handleSaveEmployee} className="space-y-6">
-              {/* Persönliche Daten */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Persönliche Daten</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="vorname">Vorname</Label>
-                    <Input
-                      id="vorname"
-                      value={editingEmployee.vorname || ''}
-                      onChange={(e) => setEditingEmployee({
-                        ...editingEmployee,
-                        vorname: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="nachname">Nachname</Label>
-                    <Input
-                      id="nachname"
-                      value={editingEmployee.nachname || ''}
-                      onChange={(e) => setEditingEmployee({
-                        ...editingEmployee,
-                        nachname: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Kontaktdaten */}
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="text-lg font-semibold">Kontaktdaten</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="emp_telefon">Telefon</Label>
-                    <Input
-                      id="emp_telefon"
-                      value={editingEmployee.telefon || ''}
-                      onChange={(e) => setEditingEmployee({
-                        ...editingEmployee,
-                        telefon: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="farbe_kalender">Kalenderfarbe</Label>
-                    <Input
-                      id="farbe_kalender"
-                      type="color"
-                      value={editingEmployee.farbe_kalender || '#3B82F6'}
-                      onChange={(e) => setEditingEmployee({
-                        ...editingEmployee,
-                        farbe_kalender: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Status und Arbeitszeit */}
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="text-lg font-semibold">Status und Arbeitszeit</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="ist_aktiv">Status</Label>
-                    <Select
-                      value={editingEmployee.ist_aktiv ? 'true' : 'false'}
-                      onValueChange={(value) => setEditingEmployee({
-                        ...editingEmployee,
-                        ist_aktiv: value === 'true'
-                      })}
-                    >
-                      <SelectTrigger id="ist_aktiv">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">Aktiv</SelectItem>
-                        <SelectItem value="false">Nicht aktiv</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="soll_wochenstunden">Soll-Wochenstunden</Label>
-                    <Input
-                      id="soll_wochenstunden"
-                      type="number"
-                      step="0.5"
-                      value={editingEmployee.soll_wochenstunden || ''}
-                      onChange={(e) => setEditingEmployee({
-                        ...editingEmployee,
-                        soll_wochenstunden: e.target.value ? parseFloat(e.target.value) : null
-                      })}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="max_termine_pro_tag">Max. Termine pro Tag</Label>
-                  <Input
-                    id="max_termine_pro_tag"
-                    type="number"
-                    value={editingEmployee.max_termine_pro_tag || ''}
-                    onChange={(e) => setEditingEmployee({
-                      ...editingEmployee,
-                      max_termine_pro_tag: e.target.value ? parseInt(e.target.value) : null
-                    })}
-                  />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEmployeeDialogOpen(false)}
-                >
-                  Abbrechen
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={updateEmployeeMutation.isPending}
-                >
-                  {updateEmployeeMutation.isPending ? 'Speichern...' : 'Speichern'}
                 </Button>
               </div>
             </form>
