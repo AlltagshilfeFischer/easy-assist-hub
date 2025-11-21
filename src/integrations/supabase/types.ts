@@ -177,11 +177,14 @@ export type Database = {
           notfall_telefon: string | null
           pflegegrad: number | null
           pflegekasse: string | null
+          plz: string | null
           sollstunden: number | null
           sonstiges: string | null
+          stadt: string | null
           stadtteil: string | null
           startdatum: string | null
           status: string | null
+          strasse: string | null
           stunden_kontingent_monat: number | null
           tage: string | null
           telefonnr: string | null
@@ -213,11 +216,14 @@ export type Database = {
           notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
+          plz?: string | null
           sollstunden?: number | null
           sonstiges?: string | null
+          stadt?: string | null
           stadtteil?: string | null
           startdatum?: string | null
           status?: string | null
+          strasse?: string | null
           stunden_kontingent_monat?: number | null
           tage?: string | null
           telefonnr?: string | null
@@ -249,11 +255,14 @@ export type Database = {
           notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
+          plz?: string | null
           sollstunden?: number | null
           sonstiges?: string | null
+          stadt?: string | null
           stadtteil?: string | null
           startdatum?: string | null
           status?: string | null
+          strasse?: string | null
           stunden_kontingent_monat?: number | null
           tage?: string | null
           telefonnr?: string | null
@@ -317,8 +326,11 @@ export type Database = {
           ist_aktiv: boolean
           max_termine_pro_tag: number | null
           nachname: string | null
+          plz: string | null
           soll_wochenstunden: number | null
+          stadt: string | null
           standort: Database["public"]["Enums"]["standort"] | null
+          strasse: string | null
           telefon: string | null
           updated_at: string
           vorname: string | null
@@ -333,8 +345,11 @@ export type Database = {
           ist_aktiv?: boolean
           max_termine_pro_tag?: number | null
           nachname?: string | null
+          plz?: string | null
           soll_wochenstunden?: number | null
+          stadt?: string | null
           standort?: Database["public"]["Enums"]["standort"] | null
+          strasse?: string | null
           telefon?: string | null
           updated_at?: string
           vorname?: string | null
@@ -349,8 +364,11 @@ export type Database = {
           ist_aktiv?: boolean
           max_termine_pro_tag?: number | null
           nachname?: string | null
+          plz?: string | null
           soll_wochenstunden?: number | null
+          stadt?: string | null
           standort?: Database["public"]["Enums"]["standort"] | null
+          strasse?: string | null
           telefon?: string | null
           updated_at?: string
           vorname?: string | null
