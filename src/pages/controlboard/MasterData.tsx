@@ -253,14 +253,22 @@ export default function MasterData() {
   });
 
   const handleEditCustomer = (customer: any) => {
-    setEditingCustomer(customer);
+    setEditingCustomer({
+      ...customer,
+      eintritt: customer.eintritt || getCurrentMonth(),
+    });
     setIsDialogOpen(true);
   };
 
   const handleSaveCustomer = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingCustomer) {
-      updateCustomerMutation.mutate(editingCustomer);
+      const customerData = {
+        ...editingCustomer,
+        eintritt: monthToDate(editingCustomer.eintritt),
+        austritt: monthToDate(editingCustomer.austritt),
+      };
+      updateCustomerMutation.mutate(customerData);
     }
   };
 
@@ -279,6 +287,32 @@ export default function MasterData() {
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('de-DE');
+  };
+
+  const formatMonthYear = (dateString: string) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit' });
+  };
+
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+
+  const dateToMonth = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+
+  const monthToDate = (monthString: string) => {
+    if (!monthString) return null;
+    return `${monthString}-01`;
   };
 
   const getWeekdayName = (day: number): string => {
@@ -1253,11 +1287,11 @@ export default function MasterData() {
                 <h3 className="text-lg font-semibold">Ein- und Austrittsdaten</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="eintritt">Eintrittsdatum</Label>
+                    <Label htmlFor="eintritt">Eintrittsmonat</Label>
                     <Input
                       id="eintritt"
-                      type="date"
-                      value={editingCustomer.eintritt || ''}
+                      type="month"
+                      value={dateToMonth(editingCustomer.eintritt) || getCurrentMonth()}
                       onChange={(e) => setEditingCustomer({
                         ...editingCustomer,
                         eintritt: e.target.value
@@ -1265,11 +1299,11 @@ export default function MasterData() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="austritt">Austrittsdatum</Label>
+                    <Label htmlFor="austritt">Austrittsmonat</Label>
                     <Input
                       id="austritt"
-                      type="date"
-                      value={editingCustomer.austritt || ''}
+                      type="month"
+                      value={dateToMonth(editingCustomer.austritt) || ''}
                       onChange={(e) => setEditingCustomer({
                         ...editingCustomer,
                         austritt: e.target.value

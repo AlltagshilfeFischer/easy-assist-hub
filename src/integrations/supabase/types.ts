@@ -171,7 +171,6 @@ export type Database = {
           kategorie: string | null
           kopie_lw: string | null
           mitarbeiter: string | null
-          mitarbeiters: string | null
           nachname: string | null
           name: string | null
           notfall_name: string | null
@@ -208,7 +207,6 @@ export type Database = {
           kategorie?: string | null
           kopie_lw?: string | null
           mitarbeiter?: string | null
-          mitarbeiters?: string | null
           nachname?: string | null
           name?: string | null
           notfall_name?: string | null
@@ -245,7 +243,6 @@ export type Database = {
           kategorie?: string | null
           kopie_lw?: string | null
           mitarbeiter?: string | null
-          mitarbeiters?: string | null
           nachname?: string | null
           name?: string | null
           notfall_name?: string | null
