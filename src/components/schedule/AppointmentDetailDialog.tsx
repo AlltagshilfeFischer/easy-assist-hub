@@ -105,6 +105,12 @@ export function AppointmentDetailDialog({
   const [seriesAction, setSeriesAction] = useState<'single' | 'all'>('single');
   const [showEditTemplateDialog, setShowEditTemplateDialog] = useState(false);
   const [templateData, setTemplateData] = useState<any>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [showCustomerFaultDialog, setShowCustomerFaultDialog] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [customerFaultNote, setCustomerFaultNote] = useState('');
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -291,6 +297,112 @@ export function AppointmentDetailDialog({
     }
   };
 
+  const handleCancelAppointment = async () => {
+    if (!editedAppointment) return;
+    
+    setLoading(true);
+    try {
+      await onUpdate({
+        ...editedAppointment,
+        status: 'cancelled'
+      });
+      
+      toast({
+        title: 'Erfolg',
+        description: 'Der Termin wurde abgesagt.',
+      });
+      
+      setShowCancelDialog(false);
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Fehler',
+        description: 'Termin konnte nicht abgesagt werden.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!editedAppointment || !rescheduleDate || !rescheduleTime) {
+      toast({
+        title: 'Fehler',
+        description: 'Bitte Datum und Uhrzeit angeben.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const currentStart = new Date(editedAppointment.start_at);
+      const currentEnd = new Date(editedAppointment.end_at);
+      const duration = currentEnd.getTime() - currentStart.getTime();
+      
+      const [hours, minutes] = rescheduleTime.split(':');
+      const newStart = new Date(rescheduleDate);
+      newStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const newEnd = new Date(newStart.getTime() + duration);
+      
+      await onUpdate({
+        ...editedAppointment,
+        start_at: newStart.toISOString(),
+        end_at: newEnd.toISOString()
+      });
+      
+      toast({
+        title: 'Erfolg',
+        description: 'Der Termin wurde verschoben.',
+      });
+      
+      setShowRescheduleDialog(false);
+      setRescheduleDate('');
+      setRescheduleTime('');
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Fehler',
+        description: 'Termin konnte nicht verschoben werden.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCustomerFault = async () => {
+    if (!editedAppointment) return;
+    
+    setLoading(true);
+    try {
+      await onUpdate({
+        ...editedAppointment,
+        status: 'cancelled',
+        ausnahme_grund: `Nicht geklappt zuschulden des Kunden${customerFaultNote ? ': ' + customerFaultNote : ''}`
+      });
+      
+      toast({
+        title: 'Erfolg',
+        description: 'Der Termin wurde als "nicht geklappt zuschulden des Kunden" markiert.',
+      });
+      
+      setShowCustomerFaultDialog(false);
+      setCustomerFaultNote('');
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Fehler',
+        description: 'Aktion konnte nicht durchgeführt werden.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -313,6 +425,42 @@ export function AppointmentDetailDialog({
           </DialogTitle>
           <DialogDescription className="sr-only">Details eines einzelnen Termins anzeigen und bearbeiten</DialogDescription>
         </DialogHeader>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-3 gap-2 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowCancelDialog(true)}
+            disabled={loading || editedAppointment.status === 'cancelled'}
+            className="w-full"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Absagen
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              const startDate = new Date(editedAppointment.start_at);
+              setRescheduleDate(format(startDate, 'yyyy-MM-dd'));
+              setRescheduleTime(format(startDate, 'HH:mm'));
+              setShowRescheduleDialog(true);
+            }}
+            disabled={loading || editedAppointment.status === 'cancelled'}
+            className="w-full"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Verschieben
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowCustomerFaultDialog(true)}
+            disabled={loading || editedAppointment.status === 'cancelled'}
+            className="w-full"
+          >
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Kunde schuld
+          </Button>
+        </div>
 
         <div className="space-y-6">
           {/* Status and Basic Info */}
@@ -673,6 +821,102 @@ export function AppointmentDetailDialog({
           editingTemplate={templateData}
         />
       )}
+
+      {/* Cancel Appointment Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Termin absagen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie den Termin wirklich absagen? Der Status wird auf "Abgesagt" gesetzt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleCancelAppointment} 
+              disabled={loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? 'Wird abgesagt...' : 'Termin absagen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reschedule Appointment Dialog */}
+      <AlertDialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Termin verschieben</AlertDialogTitle>
+            <AlertDialogDescription>
+              Geben Sie das neue Datum und die neue Uhrzeit für den Termin an.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-date">Neues Datum</Label>
+              <Input
+                id="reschedule-date"
+                type="date"
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-time">Neue Uhrzeit</Label>
+              <Input
+                id="reschedule-time"
+                type="time"
+                value={rescheduleTime}
+                onChange={(e) => setRescheduleTime(e.target.value)}
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleReschedule} 
+              disabled={loading || !rescheduleDate || !rescheduleTime}
+            >
+              {loading ? 'Wird verschoben...' : 'Termin verschieben'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Customer Fault Dialog */}
+      <AlertDialog open={showCustomerFaultDialog} onOpenChange={setShowCustomerFaultDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Nicht geklappt zuschulden des Kunden</AlertDialogTitle>
+            <AlertDialogDescription>
+              Der Termin wird als abgesagt markiert und mit dem Vermerk "Nicht geklappt zuschulden des Kunden" versehen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer-fault-note">Optionale Notiz</Label>
+              <Textarea
+                id="customer-fault-note"
+                placeholder="z.B. Kunde war nicht zu Hause, Kunde hat vergessen..."
+                value={customerFaultNote}
+                onChange={(e) => setCustomerFaultNote(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleCustomerFault} 
+              disabled={loading}
+            >
+              {loading ? 'Wird gespeichert...' : 'Markieren'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
