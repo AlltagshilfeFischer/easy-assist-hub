@@ -83,7 +83,7 @@ export default function MasterData() {
     zeitfenster?: any[];
   } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [customerSort, setCustomerSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'eintritt', direction: 'asc' });
+  const [customerSort, setCustomerSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'created_at', direction: 'desc' });
   const [searchQuery, setSearchQuery] = useState('');
   const [customerStatusFilter, setCustomerStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [customerKategorieFilter, setCustomerKategorieFilter] = useState<'all' | 'Kunde' | 'Interessent'>('all');
