@@ -91,13 +91,6 @@ export function DraggableAppointment({
               {format(new Date(appointment.start_at), 'HH:mm')}
             </div>
           </div>
-
-          {/* Title if meaningful - optional second line */}
-          {appointment.titel && appointment.titel !== 'Aktueller Termin' && (
-            <div className="text-white/80 mt-0.5 truncate text-xs drop-shadow-sm">
-              {appointment.titel}
-            </div>
-          )}
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>

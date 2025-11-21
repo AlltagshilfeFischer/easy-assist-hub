@@ -44,7 +44,6 @@ export function CreateAppointmentDialog({
   employees,
   onSubmit,
 }: CreateAppointmentDialogProps) {
-  const [titel, setTitel] = useState('');
   const [kundenId, setKundenId] = useState('');
   const [mitarbeiterId, setMitarbeiterId] = useState<string>('unassigned');
   const [date, setDate] = useState<Date>();
@@ -94,8 +93,13 @@ export function CreateAppointmentDialog({
       const [endHours, endMinutes] = endTime.split(':').map(Number);
       endAt.setHours(endHours, endMinutes, 0, 0);
 
+      // Get customer name for titel
+      const customerName = isNewInteressent 
+        ? newInteressentName.trim() 
+        : customers.find(c => c.id === finalKundenId)?.name || 'Unbekannt';
+
       await onSubmit({
-        titel,
+        titel: `Termin: ${customerName}`,
         kunden_id: finalKundenId,
         mitarbeiter_id: mitarbeiterId === 'unassigned' ? null : mitarbeiterId || null,
         start_at: startAt.toISOString(),
@@ -103,7 +107,6 @@ export function CreateAppointmentDialog({
       });
 
       // Reset form
-      setTitel('');
       setKundenId('');
       setMitarbeiterId('unassigned');
       setDate(undefined);
@@ -127,18 +130,7 @@ export function CreateAppointmentDialog({
           <p className="sr-only" id="create-appointment-desc">Einzeltermin mit Datum und Uhrzeit anlegen</p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="titel">Titel</Label>
-              <Input
-                id="titel"
-                value={titel}
-                onChange={(e) => setTitel(e.target.value)}
-                placeholder="z.B. Hausbesuch"
-                required
-              />
-            </div>
-
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="kunde">Kunde / Interessent</Label>
               <div className="flex gap-2 mb-2">

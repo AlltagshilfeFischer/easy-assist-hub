@@ -336,22 +336,6 @@ export function AppointmentDetailDialog({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Titel</Label>
-                  {isEditing ? (
-                    <Input
-                      value={editedAppointment.titel}
-                      onChange={(e) => setEditedAppointment({
-                        ...editedAppointment,
-                        titel: e.target.value
-                      })}
-                      className="mt-1"
-                    />
-                  ) : (
-                    <p className="text-sm font-medium mt-1">{editedAppointment.titel}</p>
-                  )}
-                </div>
-
-                <div>
                   <Label className="text-sm font-medium text-muted-foreground">Status</Label>
                   {isEditing ? (
                     <Select
