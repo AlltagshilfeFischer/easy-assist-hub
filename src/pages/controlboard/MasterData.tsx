@@ -92,6 +92,15 @@ export default function MasterData() {
   const [stadtteilFilter, setStadtteilFilter] = useState<string>('all');
   const [eintrittsdatumFilter, setEintrittsdatumFilter] = useState<string>('all');
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
+  
+  // Column filters
+  const [nameFilter, setNameFilter] = useState<string>('');
+  const [telefonFilter, setTelefonFilter] = useState<string>('');
+  const [emailFilter, setEmailFilter] = useState<string>('');
+  const [pflegegradFilter, setPflegegradFilter] = useState<string>('');
+  const [strasseFilter, setStrasseFilter] = useState<string>('');
+  const [plzFilter, setPlzFilter] = useState<string>('');
+  const [stadtFilter, setStadtFilter] = useState<string>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -393,6 +402,56 @@ export default function MasterData() {
       });
     }
     
+    // Column filters
+    if (nameFilter.trim()) {
+      const query = nameFilter.toLowerCase();
+      filtered = filtered.filter((customer: any) => {
+        const fullName = `${customer.vorname || ''} ${customer.nachname || ''}`.toLowerCase();
+        return fullName.includes(query);
+      });
+    }
+    
+    if (telefonFilter.trim()) {
+      const query = telefonFilter.toLowerCase();
+      filtered = filtered.filter((customer: any) => 
+        customer.telefonnr?.toLowerCase().includes(query)
+      );
+    }
+    
+    if (emailFilter.trim()) {
+      const query = emailFilter.toLowerCase();
+      filtered = filtered.filter((customer: any) => 
+        customer.email?.toLowerCase().includes(query)
+      );
+    }
+    
+    if (pflegegradFilter.trim()) {
+      filtered = filtered.filter((customer: any) => 
+        customer.pflegegrad?.toString().includes(pflegegradFilter)
+      );
+    }
+    
+    if (strasseFilter.trim()) {
+      const query = strasseFilter.toLowerCase();
+      filtered = filtered.filter((customer: any) => 
+        customer.strasse?.toLowerCase().includes(query)
+      );
+    }
+    
+    if (plzFilter.trim()) {
+      const query = plzFilter.toLowerCase();
+      filtered = filtered.filter((customer: any) => 
+        customer.plz?.toLowerCase().includes(query)
+      );
+    }
+    
+    if (stadtFilter.trim()) {
+      const query = stadtFilter.toLowerCase();
+      filtered = filtered.filter((customer: any) => 
+        customer.stadt?.toLowerCase().includes(query)
+      );
+    }
+    
     // Filter by status
     if (customerStatusFilter === 'active') {
       filtered = filtered.filter((customer: any) => customer.aktiv === true);
@@ -507,7 +566,7 @@ export default function MasterData() {
       if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter, dateFromFilter, dateToFilter]);
+  }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter, dateFromFilter, dateToFilter, nameFilter, telefonFilter, emailFilter, pflegegradFilter, strasseFilter, plzFilter, stadtFilter]);
 
 
   return (
@@ -694,6 +753,8 @@ export default function MasterData() {
                                Pflegegrad
                              </SortButton>
                            </TableHead>
+                            <TableHead>PLZ</TableHead>
+                            <TableHead>Stadt</TableHead>
                             <TableHead>
                               <SortButton 
                                 sortKey="strasse" 
@@ -722,6 +783,69 @@ export default function MasterData() {
                              </SortButton>
                            </TableHead>
                           <TableHead>Aktionen</TableHead>
+                       </TableRow>
+                       <TableRow>
+                         <TableHead>
+                           <Input
+                             placeholder="Name filtern..."
+                             value={nameFilter}
+                             onChange={(e) => setNameFilter(e.target.value)}
+                             className="h-8 text-xs"
+                           />
+                         </TableHead>
+                         <TableHead></TableHead>
+                         <TableHead></TableHead>
+                         <TableHead>
+                           <Input
+                             placeholder="Telefon filtern..."
+                             value={telefonFilter}
+                             onChange={(e) => setTelefonFilter(e.target.value)}
+                             className="h-8 text-xs"
+                           />
+                         </TableHead>
+                         <TableHead>
+                           <Input
+                             placeholder="E-Mail filtern..."
+                             value={emailFilter}
+                             onChange={(e) => setEmailFilter(e.target.value)}
+                             className="h-8 text-xs"
+                           />
+                         </TableHead>
+                         <TableHead>
+                           <Input
+                             placeholder="Pflegegrad..."
+                             value={pflegegradFilter}
+                             onChange={(e) => setPflegegradFilter(e.target.value)}
+                             className="h-8 text-xs w-20"
+                           />
+                         </TableHead>
+                         <TableHead>
+                           <Input
+                             placeholder="PLZ..."
+                             value={plzFilter}
+                             onChange={(e) => setPlzFilter(e.target.value)}
+                             className="h-8 text-xs w-24"
+                           />
+                         </TableHead>
+                         <TableHead>
+                           <Input
+                             placeholder="Stadt..."
+                             value={stadtFilter}
+                             onChange={(e) => setStadtFilter(e.target.value)}
+                             className="h-8 text-xs"
+                           />
+                         </TableHead>
+                         <TableHead>
+                           <Input
+                             placeholder="Straße..."
+                             value={strasseFilter}
+                             onChange={(e) => setStrasseFilter(e.target.value)}
+                             className="h-8 text-xs"
+                           />
+                         </TableHead>
+                         <TableHead></TableHead>
+                         <TableHead></TableHead>
+                         <TableHead></TableHead>
                        </TableRow>
                      </TableHeader>
                      <TableBody>
@@ -761,11 +885,17 @@ export default function MasterData() {
                              )}
                            </TableCell>
                            <TableCell>
-                             {customer.pflegegrad || '-'}
-                           </TableCell>
-                            <TableCell>
-                              {[customer.strasse, customer.plz, customer.stadt].filter(Boolean).join(', ') || '-'}
+                              {customer.pflegegrad || '-'}
                             </TableCell>
+                            <TableCell>
+                              {customer.plz || '-'}
+                            </TableCell>
+                            <TableCell>
+                              {customer.stadt || '-'}
+                            </TableCell>
+                             <TableCell>
+                               {customer.strasse || '-'}
+                             </TableCell>
                            <TableCell>
                              {formatDate(customer.geburtsdatum)}
                            </TableCell>
