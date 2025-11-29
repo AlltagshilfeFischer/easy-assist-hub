@@ -1,124 +1,215 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Card } from '@/components/ui/card';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { AIAppointmentSuggestionsDialog } from './AIAppointmentSuggestionsDialog';
+import { parse } from 'date-fns';
 
 interface AIAppointmentCreatorProps {
-  onAppointmentCreated?: () => void;
+  onAppointmentCreated: () => void;
 }
 
 export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCreatorProps) {
   const [prompt, setPrompt] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const { toast } = useToast();
 
-  const examplePrompts = [
-    "Jeden Montag um 14:00",
-    "Mittwoch 10:00 Hauswirtschaft",
-    "Täglich 8:00-9:00 für 2 Wochen",
-    "Di + Do 16:00 Behandlungspflege"
-  ];
+  const loadCustomersAndEmployees = async () => {
+    try {
+      const [customersData, employeesData] = await Promise.all([
+        supabase.from('kunden').select('id, name, vorname, nachname').eq('aktiv', true),
+        supabase.from('mitarbeiter').select('id, vorname, nachname, benutzer:benutzer!inner(vorname, nachname)').eq('ist_aktiv', true)
+      ]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+      if (customersData.error) throw customersData.error;
+      if (employeesData.error) throw employeesData.error;
+
+      const transformedCustomers = customersData.data?.map(c => ({
+        id: c.id,
+        name: c.vorname && c.nachname ? `${c.vorname} ${c.nachname}` : c.name || 'Unbekannt'
+      })) || [];
+
+      const transformedEmployees = employeesData.data?.map(e => {
+        const benutzer = (e as any).benutzer;
+        return {
+          id: e.id,
+          name: e.vorname && e.nachname 
+            ? `${e.vorname} ${e.nachname}`
+            : benutzer?.vorname && benutzer?.nachname
+            ? `${benutzer.vorname} ${benutzer.nachname}`
+            : 'Unbekannt'
+        };
+      }) || [];
+
+      setCustomers(transformedCustomers);
+      setEmployees(transformedEmployees);
+
+      return { customers: transformedCustomers, employees: transformedEmployees };
+    } catch (error) {
+      console.error('Error loading data:', error);
+      return { customers: [], employees: [] };
+    }
+  };
+
+  const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast({
-        title: 'Fehler',
-        description: 'Bitte geben Sie eine Beschreibung ein.',
-        variant: 'destructive',
+        title: 'Eingabe erforderlich',
+        description: 'Bitte beschreibe die Termine, die erstellt werden sollen.',
+        variant: 'destructive'
       });
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     try {
-      const response = await fetch('https://k01-2025-u36730.vm.elestio.app/webhook/020c0892-ebaf-4746-bfa1-3ead30e499c2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: prompt,
-          timestamp: new Date().toISOString(),
-        }),
+      const { customers: loadedCustomers, employees: loadedEmployees } = await loadCustomersAndEmployees();
+
+      const { data, error } = await supabase.functions.invoke('parse-appointment-text', {
+        body: { 
+          text: prompt,
+          customers: loadedCustomers,
+          employees: loadedEmployees
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Webhook-Anfrage fehlgeschlagen');
+      if (error) throw error;
+
+      if (!data?.termine || data.termine.length === 0) {
+        toast({
+          title: 'Keine Termine gefunden',
+          description: 'Die AI konnte keine Termine aus dem Text extrahieren.',
+          variant: 'destructive'
+        });
+        return;
       }
 
-      const data = await response.json();
+      setSuggestions(data.termine);
+      setShowSuggestions(true);
       
+    } catch (error: any) {
+      console.error('Error generating appointments:', error);
+      
+      if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
+        toast({
+          title: 'Rate Limit erreicht',
+          description: 'Zu viele Anfragen. Bitte versuche es später erneut.',
+          variant: 'destructive'
+        });
+      } else if (error.message?.includes('Payment') || error.message?.includes('402')) {
+        toast({
+          title: 'Guthaben aufgebraucht',
+          description: 'Bitte füge Lovable AI Guthaben hinzu.',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Fehler beim Generieren der Termine: ' + (error.message || 'Unbekannter Fehler'),
+          variant: 'destructive'
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmSuggestions = async (selectedSuggestions: any[]) => {
+    try {
+      const appointments = selectedSuggestions.map(suggestion => {
+        const [hours, minutes] = suggestion.startzeit.split(':').map(Number);
+        const startDate = parse(suggestion.datum, 'yyyy-MM-dd', new Date());
+        startDate.setHours(hours, minutes, 0, 0);
+        
+        const endDate = new Date(startDate);
+        endDate.setMinutes(endDate.getMinutes() + suggestion.dauer_minuten);
+
+        return {
+          titel: `Termin mit ${customers.find(c => c.id === suggestion.kunde_id)?.name || 'Kunde'}`,
+          kunden_id: suggestion.kunde_id,
+          mitarbeiter_id: suggestion.mitarbeiter_id,
+          start_at: startDate.toISOString(),
+          end_at: endDate.toISOString(),
+          status: (suggestion.mitarbeiter_id ? 'scheduled' : 'unassigned') as 'scheduled' | 'unassigned',
+          notizen: suggestion.notizen
+        };
+      });
+
+      const { error } = await supabase
+        .from('termine')
+        .insert(appointments);
+
+      if (error) throw error;
+
       toast({
         title: 'Erfolg',
-        description: 'Termin wird erstellt...',
+        description: `${appointments.length} Termin(e) wurde(n) erstellt.`
       });
 
       setPrompt('');
-      
-      // Notify parent to reload data
-      if (onAppointmentCreated) {
-        onAppointmentCreated();
-      }
-    } catch (error: any) {
-      console.error('AI appointment creation error:', error);
+      onAppointmentCreated();
+    } catch (error) {
+      console.error('Error creating appointments:', error);
       toast({
         title: 'Fehler',
-        description: error.message || 'Termin konnte nicht erstellt werden.',
-        variant: 'destructive',
+        description: 'Fehler beim Erstellen der Termine.',
+        variant: 'destructive'
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-      <CardContent className="p-3 space-y-2">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
-          <Input
+    <>
+      <Card className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-purple-600" />
+            <h3 className="font-semibold text-purple-900">AI Terminassistent</h3>
+          </div>
+          
+          <Textarea
+            placeholder="Beschreibe die Termine in natürlicher Sprache... z.B. 'Erstelle morgen um 14 Uhr einen Termin für Frau Müller mit Mitarbeiter Schmidt für 90 Minuten' oder 'Nächste Woche Montag bis Freitag jeweils um 10 Uhr Termin bei Herr Weber'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="KI: Beschreiben Sie den Termin in natürlicher Sprache..."
-            className="flex-1 h-8 text-sm"
-            disabled={loading}
+            className="min-h-[80px] bg-white"
+            disabled={isLoading}
           />
-          <Button 
-            type="submit" 
-            size="sm" 
-            className="h-8"
-            disabled={loading || !prompt.trim()}
+          
+          <Button
+            onClick={handleGenerate}
+            disabled={isLoading || !prompt.trim()}
+            className="self-end"
           >
-            {loading ? (
+            {isLoading ? (
               <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Erstellen...
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Analysiere...
               </>
             ) : (
-              'Erstellen'
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Vorschläge generieren
+              </>
             )}
           </Button>
-        </form>
-        
-        <div className="flex flex-wrap gap-1.5">
-          <span className="text-xs text-muted-foreground">Beispiele:</span>
-          {examplePrompts.map((example, index) => (
-            <Badge
-              key={index}
-              variant="secondary"
-              className="cursor-pointer hover:bg-primary/20 text-xs py-0.5 px-2"
-              onClick={() => setPrompt(example)}
-            >
-              {example}
-            </Badge>
-          ))}
         </div>
-      </CardContent>
-    </Card>
+      </Card>
+
+      <AIAppointmentSuggestionsDialog
+        open={showSuggestions}
+        onOpenChange={setShowSuggestions}
+        suggestions={suggestions}
+        customers={customers}
+        employees={employees}
+        onConfirm={handleConfirmSuggestions}
+      />
+    </>
   );
 }

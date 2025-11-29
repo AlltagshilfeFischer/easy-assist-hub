@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.reject-benutzer]
 verify_jwt = true
+
+[functions.parse-appointment-text]
+verify_jwt = false
