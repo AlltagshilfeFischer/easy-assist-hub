@@ -4,6 +4,7 @@ import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { DraggableAppointment } from './DraggableAppointment';
 import { EnhancedDropZone } from './EnhancedDropZone';
+import { EMPLOYEE_COL_WIDTH } from './gridConfig';
 
 interface Employee {
   id: string;
@@ -79,7 +80,7 @@ export function ModernWeekCalendar({
         <div className="sticky top-0 z-20 bg-background border-b shadow-sm">
           <div className="flex">
             {/* Spacer for employee column */}
-            <div className="w-64 flex-shrink-0 border-r" />
+            <div className="flex-shrink-0 border-r" style={{ width: `${EMPLOYEE_COL_WIDTH}px` }} />
             
             {/* Weekdays Mo-Fr */}
             {weekdays.map((date) => {
@@ -145,7 +146,7 @@ export function ModernWeekCalendar({
               className="flex border-b hover:bg-muted/20 transition-colors"
             >
               {/* Employee info column - fixed left */}
-              <div className="w-64 flex-shrink-0 p-4 border-r bg-card sticky left-0 z-10">
+              <div className="flex-shrink-0 p-4 border-r bg-card sticky left-0 z-10" style={{ width: `${EMPLOYEE_COL_WIDTH}px` }}>
                 <div className="flex items-center gap-3">
                   <div
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md"

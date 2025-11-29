@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { DraggableAppointment } from './DraggableAppointment';
 import { EnhancedDropZone } from './EnhancedDropZone';
+import { EMPLOYEE_COL_WIDTH } from './gridConfig';
 
 interface Customer {
   id: string;
@@ -77,7 +78,7 @@ export function UnassignedAppointmentsBar({
       {/* Grid aligned with ModernWeekCalendar */}
       <div className="flex">
         {/* Spacer for employee column - matches ModernWeekCalendar exactly */}
-        <div className="w-64 flex-shrink-0 border-r bg-card" />
+        <div className="flex-shrink-0 border-r bg-card" style={{ width: `${EMPLOYEE_COL_WIDTH}px` }} />
         
         {/* Weekdays Mo-Fr */}
         {weekdays.map((date) => {
