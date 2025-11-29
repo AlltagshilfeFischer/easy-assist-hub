@@ -23,10 +23,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, Clock, User, Edit2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CustomerSearchCombobox } from './CustomerSearchCombobox';
 
 interface Customer {
   id: string;
   name: string;
+  vorname?: string;
+  nachname?: string;
 }
 
 interface Employee {
@@ -135,21 +138,12 @@ export function AIAppointmentSuggestionsDialog({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label>Kunde</Label>
-                        <Select
+                        <CustomerSearchCombobox
+                          customers={customers}
                           value={suggestion.kunde_id}
                           onValueChange={(value) => updateSuggestion(index, 'kunde_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Kunde suchen..."
+                        />
                       </div>
                       
                       <div>

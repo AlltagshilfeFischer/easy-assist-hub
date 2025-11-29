@@ -53,6 +53,8 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
 
       const transformedCustomers = customersData.data?.map(c => ({
         id: c.id,
+        vorname: c.vorname,
+        nachname: c.nachname,
         name: c.vorname && c.nachname ? `${c.vorname} ${c.nachname}` : c.name || 'Unbekannt'
       })) || [];
 
