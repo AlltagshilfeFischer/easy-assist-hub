@@ -1176,17 +1176,6 @@ export default function MasterData() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="pflegekasse">Pflegekasse</Label>
-                    <Input
-                      id="pflegekasse"
-                      value={editingCustomer.pflegekasse || ''}
-                      onChange={(e) => setEditingCustomer({
-                        ...editingCustomer,
-                        pflegekasse: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="versichertennummer">Versichertennummer</Label>
                     <Input
                       id="versichertennummer"
@@ -1215,6 +1204,7 @@ export default function MasterData() {
                       <SelectContent>
                         <SelectItem value="Kasse">Kasse</SelectItem>
                         <SelectItem value="Privat">Privat</SelectItem>
+                        <SelectItem value="Verordnung">Verordnung</SelectItem>
                         <SelectItem value="Abweichende Rechnungsadresse">Abweichende Rechnungsadresse</SelectItem>
                       </SelectContent>
                     </Select>
