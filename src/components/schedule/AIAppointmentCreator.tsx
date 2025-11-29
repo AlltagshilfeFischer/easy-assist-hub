@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +21,23 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
   const [customers, setCustomers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const { toast } = useToast();
+
+  const exampleSnippets = [
+    "morgen um 14 Uhr",
+    "jeden Montag um 10 Uhr",
+    "nächste Woche Dienstag 15:30",
+    "Mittwoch 9 Uhr",
+    "täglich um 8 Uhr",
+    "jeden Donnerstag 16 Uhr",
+    "Freitag nachmittag",
+    "für 60 Minuten",
+    "90 Minuten",
+    "für 2 Stunden",
+  ];
+
+  const addSnippet = (snippet: string) => {
+    setPrompt(prev => prev ? `${prev} ${snippet}` : snippet);
+  };
 
   const loadCustomersAndEmployees = async () => {
     try {
@@ -175,12 +193,26 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
           </div>
           
           <Textarea
-            placeholder="Beschreibe die Termine in natürlicher Sprache... z.B. 'Erstelle morgen um 14 Uhr einen Termin für Frau Müller mit Mitarbeiter Schmidt für 90 Minuten' oder 'Nächste Woche Montag bis Freitag jeweils um 10 Uhr Termin bei Herr Weber'"
+            placeholder="Beschreibe die Termine in natürlicher Sprache... z.B. 'Erstelle morgen um 14 Uhr einen Termin für Frau Müller mit Mitarbeiter Schmidt für 90 Minuten'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="min-h-[80px] bg-white"
             disabled={isLoading}
           />
+
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-xs text-muted-foreground">Schnellauswahl:</span>
+            {exampleSnippets.map((snippet, index) => (
+              <Badge
+                key={index}
+                variant="secondary"
+                className="cursor-pointer hover:bg-purple-200 hover:text-purple-900 transition-colors text-xs py-0.5 px-2"
+                onClick={() => addSnippet(snippet)}
+              >
+                {snippet}
+              </Badge>
+            ))}
+          </div>
           
           <Button
             onClick={handleGenerate}
