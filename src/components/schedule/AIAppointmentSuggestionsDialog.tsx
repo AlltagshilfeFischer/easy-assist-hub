@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, parse } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
@@ -65,6 +65,11 @@ export function AIAppointmentSuggestionsDialog({
   const [suggestions, setSuggestions] = useState<AppointmentSuggestion[]>(
     initialSuggestions.map(s => ({ ...s, checked: true, editing: false }))
   );
+
+  // Update suggestions when initialSuggestions changes
+  useEffect(() => {
+    setSuggestions(initialSuggestions.map(s => ({ ...s, checked: true, editing: false })));
+  }, [initialSuggestions]);
 
   const toggleCheck = (index: number) => {
     setSuggestions(prev =>
