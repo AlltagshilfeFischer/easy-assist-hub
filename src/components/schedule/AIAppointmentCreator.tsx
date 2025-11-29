@@ -7,7 +7,8 @@ import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AIAppointmentSuggestionsDialog } from './AIAppointmentSuggestionsDialog';
-import { parse } from 'date-fns';
+import { parse, startOfWeek, format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 interface AIAppointmentCreatorProps {
   onAppointmentCreated: () => void;
@@ -21,6 +22,7 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
   const [customers, setCustomers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const exampleSnippets = [
     "morgen um 14 Uhr",
@@ -171,7 +173,17 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
         description: `${appointments.length} Termin(e) wurde(n) erstellt.`
       });
 
+      // Navigate to the first appointment's week
+      if (appointments.length > 0) {
+        const firstAppointment = appointments[0];
+        const appointmentDate = new Date(firstAppointment.start_at);
+        const weekStart = startOfWeek(appointmentDate, { weekStartsOn: 1 }); // Monday
+        const weekParam = format(weekStart, 'yyyy-MM-dd');
+        navigate(`/dashboard/controlboard/schedule-builder?week=${weekParam}`);
+      }
+
       setPrompt('');
+      setShowSuggestions(false);
       onAppointmentCreated();
     } catch (error) {
       console.error('Error creating appointments:', error);
@@ -193,10 +205,10 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
           </div>
           
           <Textarea
-            placeholder="Beschreibe die Termine in natürlicher Sprache... z.B. 'Erstelle morgen um 14 Uhr einen Termin für Frau Müller mit Mitarbeiter Schmidt für 90 Minuten'"
+            placeholder="z.B. 'Jeden Mo um 12 Uhr mit Frau Klemme' oder 'Am 12.12. Termin Arztbesuch'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="min-h-[80px] bg-white"
+            className="min-h-[60px] bg-white"
             disabled={isLoading}
           />
 
