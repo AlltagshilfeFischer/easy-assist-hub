@@ -20,6 +20,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Dialog,
   DialogContent,
@@ -95,6 +96,8 @@ export default function MasterData() {
   const [eintrittsdatumFilter, setEintrittsdatumFilter] = useState<string>('all');
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const [showAITimeWindows, setShowAITimeWindows] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState<any>(null);
   
   // Column filters
   const [nameFilter, setNameFilter] = useState<string>('');
@@ -247,6 +250,7 @@ export default function MasterData() {
       // First delete related records
       await (supabase as any).from('dokumente').delete().eq('kunden_id', kundenId);
       await (supabase as any).from('termine').delete().eq('kunden_id', kundenId);
+      await (supabase as any).from('kunden_zeitfenster').delete().eq('kunden_id', kundenId);
       
       // Then delete the customer
       const { error } = await (supabase as any)
@@ -272,6 +276,96 @@ export default function MasterData() {
       });
     },
   });
+
+  const createCustomerMutation = useMutation({
+    mutationFn: async (customerData: any) => {
+      const { zeitfenster, has_regular_appointments, ...kundenData } = customerData;
+      
+      // Create customer data
+      const insertData = {
+        kategorie: kundenData.kategorie,
+        vorname: kundenData.vorname,
+        nachname: kundenData.nachname,
+        telefonnr: kundenData.telefonnr,
+        email: kundenData.email,
+        strasse: kundenData.strasse,
+        stadt: kundenData.stadt,
+        plz: kundenData.plz,
+        stadtteil: kundenData.stadtteil,
+        geburtsdatum: kundenData.geburtsdatum || null,
+        pflegekasse: kundenData.pflegekasse,
+        versichertennummer: kundenData.versichertennummer,
+        pflegegrad: kundenData.pflegegrad ? parseInt(kundenData.pflegegrad) : null,
+        stunden_kontingent_monat: kundenData.stunden_kontingent_monat ? parseFloat(kundenData.stunden_kontingent_monat) : null,
+        startdatum: kundenData.startdatum || null,
+        eintritt: monthToDate(kundenData.eintritt),
+        austritt: monthToDate(kundenData.austritt),
+        notfall_name: kundenData.notfall_name,
+        notfall_telefon: kundenData.notfall_telefon,
+        angehoerige_ansprechpartner: kundenData.angehoerige_ansprechpartner,
+        kasse_privat: kundenData.kasse_privat,
+        verhinderungspflege_status: kundenData.verhinderungspflege_status,
+        kopie_lw: kundenData.kopie_lw,
+        mitarbeiter: has_regular_appointments && kundenData.mitarbeiter ? kundenData.mitarbeiter : null
+      };
+
+      const { data, error } = await (supabase as any)
+        .from('kunden')
+        .insert([insertData])
+        .select()
+        .single();
+      
+      if (error) throw error;
+
+      // Insert time windows if provided
+      if (zeitfenster && Array.isArray(zeitfenster) && zeitfenster.length > 0) {
+        const windowsToInsert = zeitfenster.map((w: any) => ({
+          kunden_id: data.id,
+          wochentag: w.wochentag,
+          von: w.von,
+          bis: w.bis,
+          prioritaet: w.prioritaet || 3
+        }));
+
+        const { error: zeitfensterError } = await (supabase as any)
+          .from('kunden_zeitfenster')
+          .insert(windowsToInsert);
+
+        if (zeitfensterError) throw zeitfensterError;
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setIsCreatingCustomer(false);
+      setNewCustomerData(null);
+      toast({
+        title: 'Erfolg',
+        description: 'Kunde wurde erfolgreich angelegt',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Fehler',
+        description: error.message || 'Kunde konnte nicht angelegt werden',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleCreateCustomer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newCustomerData) {
+      createCustomerMutation.mutate(newCustomerData);
+    }
+  };
+
+  const handleOpenCreateDialog = () => {
+    setNewCustomerData(getInitialCustomerData());
+    setIsCreatingCustomer(true);
+    setShowAITimeWindows(false);
+  };
 
 
   const handleEditCustomer = async (customer: any) => {
@@ -334,6 +428,35 @@ export default function MasterData() {
     if (!monthString) return null;
     return `${monthString}-01`;
   };
+
+  const getInitialCustomerData = () => ({
+    kategorie: 'Kunde',
+    vorname: '',
+    nachname: '',
+    geburtsdatum: '',
+    strasse: '',
+    stadt: '',
+    plz: '',
+    stadtteil: '',
+    telefonnr: '',
+    email: '',
+    pflegekasse: '',
+    versichertennummer: '',
+    pflegegrad: '',
+    kasse_privat: '',
+    verhinderungspflege_status: '',
+    kopie_lw: '',
+    stunden_kontingent_monat: '',
+    startdatum: '',
+    eintritt: getCurrentMonth(),
+    austritt: '',
+    notfall_name: '',
+    notfall_telefon: '',
+    angehoerige_ansprechpartner: '',
+    has_regular_appointments: false,
+    mitarbeiter: '',
+    zeitfenster: []
+  });
 
   const getWeekdayName = (day: number): string => {
     const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -618,7 +741,7 @@ export default function MasterData() {
             Verwalten Sie Kundendaten und Neukundenkontakte
           </p>
         </div>
-        <Button onClick={() => navigate('/dashboard/controlboard/new-entries')} className="gap-2">
+        <Button onClick={handleOpenCreateDialog} className="gap-2">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Neuen Kunden anlegen</span>
           <span className="sm:hidden">Neu</span>
@@ -1530,8 +1653,8 @@ export default function MasterData() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* AI Time Windows Dialog */}
-      <Dialog open={showAITimeWindows} onOpenChange={setShowAITimeWindows}>
+      {/* AI Time Windows Dialog for Editing */}
+      <Dialog open={showAITimeWindows && editingCustomer !== null} onOpenChange={setShowAITimeWindows}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>KI-Zeitfenster generieren</DialogTitle>
@@ -1554,6 +1677,476 @@ export default function MasterData() {
               }}
               onCancel={() => setShowAITimeWindows(false)}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Time Windows Dialog for Creating */}
+      <Dialog open={showAITimeWindows && isCreatingCustomer} onOpenChange={setShowAITimeWindows}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>KI-Zeitfenster generieren</DialogTitle>
+            <DialogDescription>
+              Beschreiben Sie die gewünschten Zeitfenster in natürlicher Sprache
+            </DialogDescription>
+          </DialogHeader>
+          {newCustomerData && (
+            <AITimeWindowsCreator
+              onConfirm={(windows) => {
+                setNewCustomerData({
+                  ...newCustomerData,
+                  zeitfenster: windows
+                });
+                setShowAITimeWindows(false);
+                toast({
+                  title: 'Zeitfenster generiert',
+                  description: 'Die KI hat Zeitfenster erstellt. Bitte überprüfen Sie diese und speichern Sie dann.',
+                });
+              }}
+              onCancel={() => setShowAITimeWindows(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Customer Dialog */}
+      <Dialog open={isCreatingCustomer} onOpenChange={setIsCreatingCustomer}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Neuen Kunden anlegen</DialogTitle>
+            <DialogDescription>
+              Erfassen Sie alle Kundendaten
+            </DialogDescription>
+          </DialogHeader>
+          {newCustomerData && (
+            <form onSubmit={handleCreateCustomer} className="space-y-6">
+              {/* Kategorie-Auswahl */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Was möchten Sie anlegen?</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setNewCustomerData({ ...newCustomerData, kategorie: 'Interessent' })}
+                    className={`p-6 border-2 rounded-lg transition-all hover:scale-105 ${
+                      newCustomerData.kategorie === 'Interessent'
+                        ? 'border-primary bg-primary/10 shadow-lg'
+                        : 'border-muted bg-background hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="text-center space-y-2">
+                      <div className={`text-2xl font-bold ${
+                        newCustomerData.kategorie === 'Interessent' ? 'text-primary' : 'text-foreground'
+                      }`}>
+                        Interessent
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Für potenzielle neue Kunden
+                      </p>
+                    </div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setNewCustomerData({ ...newCustomerData, kategorie: 'Kunde' })}
+                    className={`p-6 border-2 rounded-lg transition-all hover:scale-105 ${
+                      newCustomerData.kategorie === 'Kunde'
+                        ? 'border-primary bg-primary/10 shadow-lg'
+                        : 'border-muted bg-background hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="text-center space-y-2">
+                      <div className={`text-2xl font-bold ${
+                        newCustomerData.kategorie === 'Kunde' ? 'text-primary' : 'text-foreground'
+                      }`}>
+                        Kunde
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Für bestehende Kunden
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Basis-Informationen */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Basis-Informationen</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="new-vorname">Vorname *</Label>
+                    <Input
+                      id="new-vorname"
+                      value={newCustomerData.vorname}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, vorname: e.target.value })}
+                      placeholder="Max"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-nachname">Nachname *</Label>
+                    <Input
+                      id="new-nachname"
+                      value={newCustomerData.nachname}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, nachname: e.target.value })}
+                      placeholder="Mustermann"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-geburtsdatum">Geburtsdatum</Label>
+                    <Input
+                      id="new-geburtsdatum"
+                      type="date"
+                      value={newCustomerData.geburtsdatum}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, geburtsdatum: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Kontaktdaten */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Kontaktdaten</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2 col-span-3">
+                    <Label htmlFor="new-strasse">Straße *</Label>
+                    <Input
+                      id="new-strasse"
+                      value={newCustomerData.strasse}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, strasse: e.target.value })}
+                      placeholder="Straße und Hausnummer"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-plz">PLZ *</Label>
+                    <Input
+                      id="new-plz"
+                      value={newCustomerData.plz}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, plz: e.target.value })}
+                      placeholder="PLZ"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label htmlFor="new-stadt">Stadt *</Label>
+                    <Input
+                      id="new-stadt"
+                      value={newCustomerData.stadt}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, stadt: e.target.value })}
+                      placeholder="Stadt"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="new-stadtteil">Stadtteil</Label>
+                    <Input
+                      id="new-stadtteil"
+                      value={newCustomerData.stadtteil}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, stadtteil: e.target.value })}
+                      placeholder="z.B. Linden, Mitte"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-telefonnr">Telefon</Label>
+                    <Input
+                      id="new-telefonnr"
+                      value={newCustomerData.telefonnr}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, telefonnr: e.target.value })}
+                      placeholder="0511 123456"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-email">E-Mail</Label>
+                    <Input
+                      id="new-email"
+                      type="email"
+                      value={newCustomerData.email}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+                      placeholder="kunde@email.de"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Pflege-Informationen */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Pflege-Informationen</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="new-pflegekasse">Pflegekasse</Label>
+                    <Input
+                      id="new-pflegekasse"
+                      value={newCustomerData.pflegekasse}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, pflegekasse: e.target.value })}
+                      placeholder="AOK, Barmer, etc."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-versichertennummer">Versichertennummer</Label>
+                    <Input
+                      id="new-versichertennummer"
+                      value={newCustomerData.versichertennummer}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, versichertennummer: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-pflegegrad">Pflegegrad</Label>
+                    <Select
+                      value={newCustomerData.pflegegrad}
+                      onValueChange={(value) => setNewCustomerData({ ...newCustomerData, pflegegrad: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">0</SelectItem>
+                        <SelectItem value="1">1</SelectItem>
+                        <SelectItem value="2">2</SelectItem>
+                        <SelectItem value="3">3</SelectItem>
+                        <SelectItem value="4">4</SelectItem>
+                        <SelectItem value="5">5</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="new-kasse_privat">Pflegekasse</Label>
+                    <Select
+                      value={newCustomerData.kasse_privat}
+                      onValueChange={(value) => setNewCustomerData({ ...newCustomerData, kasse_privat: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Kasse">Kasse</SelectItem>
+                        <SelectItem value="Privat">Privat</SelectItem>
+                        <SelectItem value="Abweichende Rechnungsadresse">Abweichende Rechnungsadresse</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="new-verhinderungspflege_status">Verhinderungspflege Status</Label>
+                    <Input
+                      id="new-verhinderungspflege_status"
+                      value={newCustomerData.verhinderungspflege_status}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, verhinderungspflege_status: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-kopie_lw">Kopie LW</Label>
+                    <Select
+                      value={newCustomerData.kopie_lw}
+                      onValueChange={(value) => setNewCustomerData({ ...newCustomerData, kopie_lw: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Ja">Ja</SelectItem>
+                        <SelectItem value="Nein">Nein</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stunden & Termine */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Stunden & Termine</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="new-stunden_kontingent_monat">Stunden</Label>
+                    <Input
+                      id="new-stunden_kontingent_monat"
+                      type="number"
+                      step="0.5"
+                      value={newCustomerData.stunden_kontingent_monat}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, stunden_kontingent_monat: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-startdatum">Startdatum</Label>
+                    <Input
+                      id="new-startdatum"
+                      type="date"
+                      value={newCustomerData.startdatum}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, startdatum: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Betreuung */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Betreuung</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="new-has_regular_appointments"
+                      checked={newCustomerData.has_regular_appointments}
+                      onCheckedChange={(checked) => 
+                        setNewCustomerData({ 
+                          ...newCustomerData, 
+                          has_regular_appointments: checked as boolean,
+                          mitarbeiter: checked ? newCustomerData.mitarbeiter : ''
+                        })
+                      }
+                    />
+                    <Label htmlFor="new-has_regular_appointments" className="cursor-pointer">
+                      Kunde hat regelmäßige Termine
+                    </Label>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="new-hauptbetreuer">Hauptbetreuer</Label>
+                    <Select
+                      value={newCustomerData.mitarbeiter}
+                      onValueChange={(value) => setNewCustomerData({ ...newCustomerData, mitarbeiter: value })}
+                      disabled={!newCustomerData.has_regular_appointments}
+                    >
+                      <SelectTrigger 
+                        id="new-hauptbetreuer"
+                        className={!newCustomerData.has_regular_appointments ? 'opacity-50 cursor-not-allowed' : ''}
+                      >
+                        <SelectValue placeholder="Mitarbeiter auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees?.filter((e: any) => e.ist_aktiv).map((emp: any) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.vorname} {emp.nachname}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Zeitfenster Section */}
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-lg font-semibold">Zeitfenster</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAITimeWindows(true)}
+                    >
+                      <Sparkles className="h-4 w-4 mr-1" />
+                      KI-Zeitfenster
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const zeitfenster = newCustomerData.zeitfenster || [];
+                        setNewCustomerData({
+                          ...newCustomerData,
+                          zeitfenster: [...zeitfenster, {
+                            wochentag: 1,
+                            von: '08:00',
+                            bis: '12:00',
+                            prioritaet: 3
+                          }]
+                        });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Manuell hinzufügen
+                    </Button>
+                  </div>
+                </div>
+
+                {(newCustomerData.zeitfenster || []).map((zeitfenster: any, index: number) => (
+                  <div key={index} className="grid grid-cols-[1fr,1fr,1fr,auto] gap-2 items-end p-3 border rounded-lg">
+                    <div>
+                      <Label className="text-xs">Wochentag</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                        value={zeitfenster.wochentag}
+                        onChange={(e) => {
+                          const updated = [...(newCustomerData.zeitfenster || [])];
+                          updated[index] = { ...updated[index], wochentag: parseInt(e.target.value) };
+                          setNewCustomerData({ ...newCustomerData, zeitfenster: updated });
+                        }}
+                      >
+                        <option value="0">Sonntag</option>
+                        <option value="1">Montag</option>
+                        <option value="2">Dienstag</option>
+                        <option value="3">Mittwoch</option>
+                        <option value="4">Donnerstag</option>
+                        <option value="5">Freitag</option>
+                        <option value="6">Samstag</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Von</Label>
+                      <Input
+                        type="time"
+                        value={zeitfenster.von || ''}
+                        onChange={(e) => {
+                          const updated = [...(newCustomerData.zeitfenster || [])];
+                          updated[index] = { ...updated[index], von: e.target.value };
+                          setNewCustomerData({ ...newCustomerData, zeitfenster: updated });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Bis</Label>
+                      <Input
+                        type="time"
+                        value={zeitfenster.bis || ''}
+                        onChange={(e) => {
+                          const updated = [...(newCustomerData.zeitfenster || [])];
+                          updated[index] = { ...updated[index], bis: e.target.value };
+                          setNewCustomerData({ ...newCustomerData, zeitfenster: updated });
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const updated = (newCustomerData.zeitfenster || []).filter((_: any, i: number) => i !== index);
+                        setNewCustomerData({ ...newCustomerData, zeitfenster: updated });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+
+                {(!newCustomerData.zeitfenster || newCustomerData.zeitfenster.length === 0) && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Keine Zeitfenster definiert
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsCreatingCustomer(false)}
+                >
+                  Abbrechen
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createCustomerMutation.isPending}
+                >
+                  {createCustomerMutation.isPending ? 'Speichern...' : 'Kunden anlegen'}
+                </Button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>
