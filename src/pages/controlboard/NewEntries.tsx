@@ -4,11 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPlus, Building2, Save, Plus, Trash2, Clock } from 'lucide-react';
+import { UserPlus, Building2, Save, Plus, Trash2, Clock, ArrowLeft } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 
 export default function NewEntries() {
@@ -41,6 +42,7 @@ export default function NewEntries() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: any) => {
@@ -133,11 +135,17 @@ export default function NewEntries() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Neuen Kunden anlegen</h1>
-        <p className="text-muted-foreground">
-          Erfassen Sie alle Kundendaten und erhalten Sie automatisch einen passenden Mitarbeiter
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Neuen Kunden anlegen</h1>
+          <p className="text-muted-foreground">
+            Erfassen Sie alle Kundendaten und erhalten Sie automatisch einen passenden Mitarbeiter
+          </p>
+        </div>
+        <Button onClick={() => navigate('/dashboard/controlboard/master-data')} variant="outline" className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Zurück
+        </Button>
       </div>
 
       <Card>
