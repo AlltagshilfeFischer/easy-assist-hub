@@ -37,12 +37,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2, Search, Power } from 'lucide-react';
+import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2, Search, Power, Sparkles } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
 
 type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
 type SortDirection = 'asc' | 'desc';
@@ -93,6 +94,7 @@ export default function MasterData() {
   const [stadtteilFilter, setStadtteilFilter] = useState<string>('all');
   const [eintrittsdatumFilter, setEintrittsdatumFilter] = useState<string>('all');
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
+  const [showAITimeWindows, setShowAITimeWindows] = useState(false);
   
   // Column filters
   const [nameFilter, setNameFilter] = useState<string>('');
@@ -145,6 +147,32 @@ export default function MasterData() {
         .eq('id', kundenData.id);
       
       if (kundenError) throw kundenError;
+
+      // Update zeitfenster if provided
+      if (zeitfenster && Array.isArray(zeitfenster)) {
+        // Delete existing time windows
+        await (supabase as any)
+          .from('kunden_zeitfenster')
+          .delete()
+          .eq('kunden_id', kundenData.id);
+
+        // Insert new time windows
+        if (zeitfenster.length > 0) {
+          const windowsToInsert = zeitfenster.map((w: any) => ({
+            kunden_id: kundenData.id,
+            wochentag: w.wochentag,
+            von: w.von,
+            bis: w.bis,
+            prioritaet: w.prioritaet || 3
+          }));
+
+          const { error: zeitfensterError } = await (supabase as any)
+            .from('kunden_zeitfenster')
+            .insert(windowsToInsert);
+
+          if (zeitfensterError) throw zeitfensterError;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -246,12 +274,21 @@ export default function MasterData() {
   });
 
 
-  const handleEditCustomer = (customer: any) => {
+  const handleEditCustomer = async (customer: any) => {
+    // Fetch time windows for this customer
+    const { data: zeitfensterData } = await (supabase as any)
+      .from('kunden_zeitfenster')
+      .select('*')
+      .eq('kunden_id', customer.id)
+      .order('wochentag');
+
     setEditingCustomer({
       ...customer,
       eintritt: customer.eintritt || getCurrentMonth(),
+      zeitfenster: zeitfensterData || []
     });
     setIsDialogOpen(true);
+    setShowAITimeWindows(false);
   };
 
   const handleSaveCustomer = (e: React.FormEvent) => {
@@ -1351,26 +1388,37 @@ export default function MasterData() {
               <div className="space-y-3 border-t pt-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-lg font-semibold">Zeitfenster</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const zeitfenster = editingCustomer.zeitfenster || [];
-                      setEditingCustomer({
-                        ...editingCustomer,
-                        zeitfenster: [...zeitfenster, {
-                          wochentag: 1,
-                          von: '08:00',
-                          bis: '12:00',
-                          prioritaet: 3
-                        }]
-                      });
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Zeitfenster hinzufügen
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAITimeWindows(true)}
+                    >
+                      <Sparkles className="h-4 w-4 mr-1" />
+                      KI-Zeitfenster
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const zeitfenster = editingCustomer.zeitfenster || [];
+                        setEditingCustomer({
+                          ...editingCustomer,
+                          zeitfenster: [...zeitfenster, {
+                            wochentag: 1,
+                            von: '08:00',
+                            bis: '12:00',
+                            prioritaet: 3
+                          }]
+                        });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Manuell hinzufügen
+                    </Button>
+                  </div>
                 </div>
 
                 {(editingCustomer.zeitfenster || []).map((zeitfenster: any, index: number) => (
@@ -1481,6 +1529,34 @@ export default function MasterData() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Time Windows Dialog */}
+      <Dialog open={showAITimeWindows} onOpenChange={setShowAITimeWindows}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>KI-Zeitfenster generieren</DialogTitle>
+            <DialogDescription>
+              Beschreiben Sie die gewünschten Zeitfenster in natürlicher Sprache
+            </DialogDescription>
+          </DialogHeader>
+          {editingCustomer && (
+            <AITimeWindowsCreator
+              onConfirm={(windows) => {
+                setEditingCustomer({
+                  ...editingCustomer,
+                  zeitfenster: windows
+                });
+                setShowAITimeWindows(false);
+                toast({
+                  title: 'Zeitfenster generiert',
+                  description: 'Die KI hat Zeitfenster erstellt. Bitte überprüfen Sie diese und speichern Sie dann.',
+                });
+              }}
+              onCancel={() => setShowAITimeWindows(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
