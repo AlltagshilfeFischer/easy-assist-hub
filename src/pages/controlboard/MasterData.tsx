@@ -42,6 +42,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
 type SortDirection = 'asc' | 'desc';
@@ -103,6 +104,7 @@ export default function MasterData() {
   const [stadtFilter, setStadtFilter] = useState<string>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Using type assertion to work with German table names - fetch ALL customers (active and inactive)
   const { data: customers, isLoading: customersLoading } = useQuery({
@@ -572,11 +574,18 @@ export default function MasterData() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Kunden/Neukunden</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Verwalten Sie Kundendaten und Neukundenkontakte
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Kunden/Neukunden</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Verwalten Sie Kundendaten und Neukundenkontakte
+          </p>
+        </div>
+        <Button onClick={() => navigate('/dashboard/controlboard/new-entries')} className="gap-2">
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Neuen Kunden anlegen</span>
+          <span className="sm:hidden">Neu</span>
+        </Button>
       </div>
 
         <Card>
