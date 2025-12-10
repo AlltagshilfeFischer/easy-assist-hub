@@ -29,14 +29,14 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `Du bist ein Assistent für Pflegedienstplanung. Deine Aufgabe ist es, aus natürlicher Sprache Zeitfenster für Kunden zu extrahieren.
+const systemPrompt = `Du bist ein Assistent für Pflegedienstplanung. Deine Aufgabe ist es, aus natürlicher Sprache Zeitfenster für Kunden zu extrahieren.
 
 WICHTIGE SCHICHT-DEFINITIONEN:
 - Schicht 1: 08:30 - 10:00 Uhr
-- Schicht 2: 10:00 - 12:00 Uhr  
-- Schicht 3: 12:00 - 14:00 Uhr
-- Schicht 4: 14:00 - 16:00 Uhr
-- Schicht 5: 16:00 - 18:00 Uhr
+- Schicht 2: 10:15 - 11:45 Uhr  
+- Schicht 3: 12:00 - 13:30 Uhr
+- Schicht 4: 13:45 - 15:15 Uhr
+- Schicht 5: 15:30 - 17:00 Uhr
 
 WOCHENTAGE (als Nummer):
 - Montag: 1

@@ -763,6 +763,7 @@ export type Database = {
         }[]
       }
       freischalte_mitarbeiter:
+        | { Args: { p_email: string; p_user_id: string }; Returns: undefined }
         | {
             Args: {
               p_email: string
@@ -773,7 +774,6 @@ export type Database = {
             }
             Returns: undefined
           }
-        | { Args: { p_email: string; p_user_id: string }; Returns: undefined }
       generate_termine_from_vorlagen: {
         Args: { p_from: string; p_to: string }
         Returns: number

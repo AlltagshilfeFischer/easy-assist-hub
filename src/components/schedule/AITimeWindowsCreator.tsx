@@ -147,17 +147,6 @@ export default function AITimeWindowsCreator({ onConfirm, onCancel }: AITimeWind
             ))}
           </div>
 
-          <div className="bg-muted/50 p-3 rounded-lg text-sm">
-            <p className="font-medium mb-2">Schicht-Definitionen:</p>
-            <ul className="space-y-1 text-muted-foreground">
-              <li>• Schicht 1: 08:30 - 10:00 Uhr</li>
-              <li>• Schicht 2: 10:00 - 12:00 Uhr</li>
-              <li>• Schicht 3: 12:00 - 14:00 Uhr</li>
-              <li>• Schicht 4: 14:00 - 16:00 Uhr</li>
-              <li>• Schicht 5: 16:00 - 18:00 Uhr</li>
-            </ul>
-          </div>
-
           <Button
             onClick={handleGenerate}
             disabled={loading || !prompt.trim()}
