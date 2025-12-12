@@ -89,7 +89,7 @@ export function ModernWeekCalendar({
                 <div
                   key={date.toISOString()}
                   className={cn(
-                    "flex-1 min-w-[180px] p-4 text-center border-r",
+                    "flex-1 min-w-[180px] p-2 text-center border-r",
                     isToday && "bg-primary/5"
                   )}
                 >
