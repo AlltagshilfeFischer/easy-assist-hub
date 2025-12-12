@@ -56,7 +56,6 @@ interface CustomerTimeWindow {
   wochentag: number;
   von: string;
   bis: string;
-  prioritaet: number;
 }
 
 interface Appointment {

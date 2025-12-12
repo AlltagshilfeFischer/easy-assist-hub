@@ -29,7 +29,6 @@ interface TimeWindow {
   wochentag: number;
   von: string;
   bis: string;
-  prioritaet?: number;
 }
 
 interface EmployeeSuggestion {
@@ -206,8 +205,7 @@ export default function CreateCustomerWizard({
           kunden_id: customer.id,
           wochentag: w.wochentag,
           von: w.von,
-          bis: w.bis,
-          prioritaet: w.prioritaet || 3
+          bis: w.bis
         }));
 
         const { error: zeitfensterError } = await (supabase as any)
@@ -697,8 +695,7 @@ export default function CreateCustomerWizard({
                         zeitfenster: [...customerData.zeitfenster, {
                           wochentag: 1,
                           von: '08:00',
-                          bis: '12:00',
-                          prioritaet: 3
+                          bis: '12:00'
                         }]
                       });
                     }}

@@ -12,7 +12,6 @@ interface TimeWindow {
   wochentag: number;
   von: string;
   bis: string;
-  prioritaet?: number;
 }
 
 interface AITimeWindowsCreatorProps {
@@ -177,31 +176,19 @@ export default function AITimeWindowsCreator({ onConfirm, onCancel }: AITimeWind
             {suggestions.map((window, index) => (
               <div key={index} className="border rounded-lg p-3">
                 {editingIndex === index ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs">Wochentag</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="6"
-                          value={editForm?.wochentag}
-                          onChange={(e) => setEditForm(prev => prev ? { ...prev, wochentag: parseInt(e.target.value) } : null)}
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {WEEKDAY_NAMES[editForm?.wochentag || 0]}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Priorität</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="5"
-                          value={editForm?.prioritaet || 3}
-                          onChange={(e) => setEditForm(prev => prev ? { ...prev, prioritaet: parseInt(e.target.value) } : null)}
-                        />
-                      </div>
+                    <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Wochentag</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="6"
+                        value={editForm?.wochentag}
+                        onChange={(e) => setEditForm(prev => prev ? { ...prev, wochentag: parseInt(e.target.value) } : null)}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {WEEKDAY_NAMES[editForm?.wochentag || 0]}
+                      </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -239,7 +226,7 @@ export default function AITimeWindowsCreator({ onConfirm, onCancel }: AITimeWind
                         {WEEKDAY_NAMES[window.wochentag]}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {window.von} - {window.bis} Uhr • Priorität: {window.prioritaet || 3}
+                        {window.von} - {window.bis} Uhr
                       </p>
                     </div>
                     <div className="flex gap-2">
