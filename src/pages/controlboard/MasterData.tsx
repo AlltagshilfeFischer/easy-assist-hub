@@ -165,8 +165,7 @@ export default function MasterData() {
             kunden_id: kundenData.id,
             wochentag: w.wochentag,
             von: w.von,
-            bis: w.bis,
-            prioritaet: w.prioritaet || 3
+            bis: w.bis
           }));
 
           const { error: zeitfensterError } = await (supabase as any)
@@ -1422,8 +1421,7 @@ export default function MasterData() {
                           zeitfenster: [...zeitfenster, {
                             wochentag: 1,
                             von: '08:00',
-                            bis: '12:00',
-                            prioritaet: 3
+                            bis: '12:00'
                           }]
                         });
                       }}

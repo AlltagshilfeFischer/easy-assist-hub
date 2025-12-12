@@ -130,8 +130,7 @@ export default function NewEntries() {
         kunden_id: savedCustomerId,
         wochentag: w.wochentag,
         von: w.von,
-        bis: w.bis,
-        prioritaet: w.prioritaet || 3
+        bis: w.bis
       }));
 
       const { error } = await supabase

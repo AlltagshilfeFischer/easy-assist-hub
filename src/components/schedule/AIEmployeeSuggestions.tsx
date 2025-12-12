@@ -13,7 +13,6 @@ interface TimeWindow {
   wochentag: number;
   von: string;
   bis: string;
-  prioritaet?: number;
 }
 
 interface EmployeeSuggestion {
