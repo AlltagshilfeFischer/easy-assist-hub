@@ -363,7 +363,7 @@ export default function CreateCustomerWizard({
       if (!open) handleClose();
       else onOpenChange(open);
     }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {step === 'customer' && 'Schritt 1: Kundendaten'}
