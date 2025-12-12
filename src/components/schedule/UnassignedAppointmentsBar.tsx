@@ -90,7 +90,7 @@ export function UnassignedAppointmentsBar({
             <div
               key={dateKey}
               className={cn(
-                "flex-1 min-w-[180px] border-r",
+                "flex-1 min-w-[180px] p-2 border-r",
                 isToday && "bg-primary/5"
               )}
             >
@@ -99,7 +99,7 @@ export function UnassignedAppointmentsBar({
                 isEmpty={dayAppointments.length === 0}
                 onClick={() => onSlotClick?.(date)}
                 className={cn(
-                  "min-h-[80px] p-2 space-y-1",
+                  "min-h-[64px] space-y-1",
                   dayAppointments.length === 0 && "border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
                 )}
               >
@@ -134,7 +134,7 @@ export function UnassignedAppointmentsBar({
             <div
               key={dateKey}
               className={cn(
-                "w-24 flex-shrink-0 border-r bg-muted/30",
+                "w-24 flex-shrink-0 p-2 border-r bg-muted/30",
                 isToday && "bg-primary/10"
               )}
             >
@@ -143,7 +143,7 @@ export function UnassignedAppointmentsBar({
                 isEmpty={dayAppointments.length === 0}
                 onClick={() => onSlotClick?.(date)}
                 className={cn(
-                  "min-h-[80px] p-1 space-y-1",
+                  "min-h-[64px] space-y-1",
                   dayAppointments.length === 0 && "border border-dashed border-muted-foreground/20 rounded flex items-center justify-center cursor-pointer"
                 )}
               >
