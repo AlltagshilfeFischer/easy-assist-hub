@@ -3,7 +3,7 @@ import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks } from 'dat
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, X, AlertCircle } from 'lucide-react';
+import { Plus, X, AlertCircle, Users } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +21,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { ModernWeekCalendar } from '@/components/schedule/ModernWeekCalendar';
 import { WeekNavigationBar } from '@/components/schedule/WeekNavigationBar';
 import { CalendarLegend } from '@/components/schedule/CalendarLegend';
-import { EmployeeFilterSidebar } from '@/components/schedule/EmployeeFilterSidebar';
+import { EmployeeManagementDialog } from '@/components/schedule/EmployeeManagementDialog';
 import { CalendarStats } from '@/components/schedule/CalendarStats';
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
 import { AppointmentApprovalBar } from '@/components/schedule/AppointmentApprovalBar';
@@ -99,6 +99,7 @@ const ScheduleBuilderModern = () => {
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
   const [showCreateRecurring, setShowCreateRecurring] = useState(false);
+  const [showEmployeeDialog, setShowEmployeeDialog] = useState(false);
   const [showSlotDialog, setShowSlotDialog] = useState(false);
   const [slotDialogData, setSlotDialogData] = useState<{ employeeId: string; date: Date } | null>(null);
   const [conflictWarning, setConflictWarning] = useState<{
@@ -895,6 +896,10 @@ const ScheduleBuilderModern = () => {
           </div>
           <div className="flex gap-2 items-center flex-wrap">
             <AppointmentApprovalBar />
+            <Button variant="outline" onClick={() => setShowEmployeeDialog(true)} size="sm">
+              <Users className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Mitarbeiter</span>
+            </Button>
             <Button onClick={() => setShowCreateAppointment(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Neuer Termin</span>
@@ -925,30 +930,8 @@ const ScheduleBuilderModern = () => {
           <CalendarLegend />
         </div>
 
-        {/* Main Content - Responsive Layout */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-full lg:w-64 flex-shrink-0 max-h-[300px] lg:max-h-none overflow-y-auto lg:overflow-y-visible">
-            <EmployeeFilterSidebar
-              employees={employees}
-              hiddenEmployeeIds={hiddenEmployeeIds}
-              onToggleEmployee={(id) => {
-                setHiddenEmployeeIds(prev => {
-                  const newSet = new Set(prev);
-                  if (newSet.has(id)) {
-                    newSet.delete(id);
-                  } else {
-                    newSet.add(id);
-                  }
-                  return newSet;
-                });
-              }}
-              onReorderEmployees={handleReorderEmployees}
-              searchQuery={searchEmployee}
-              onSearchChange={setSearchEmployee}
-            />
-          </div>
-
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Calendar */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {/* Calendar Grid - Fixed Height */}
@@ -1165,6 +1148,27 @@ const ScheduleBuilderModern = () => {
           customers={customers}
           employees={employees}
           onSubmit={handleCreateRecurringAppointment}
+        />
+
+        <EmployeeManagementDialog
+          open={showEmployeeDialog}
+          onOpenChange={setShowEmployeeDialog}
+          employees={employees}
+          hiddenEmployeeIds={hiddenEmployeeIds}
+          onToggleEmployee={(id) => {
+            setHiddenEmployeeIds(prev => {
+              const newSet = new Set(prev);
+              if (newSet.has(id)) {
+                newSet.delete(id);
+              } else {
+                newSet.add(id);
+              }
+              return newSet;
+            });
+          }}
+          onReorderEmployees={handleReorderEmployees}
+          searchQuery={searchEmployee}
+          onSearchChange={setSearchEmployee}
         />
 
         {slotDialogData && (
