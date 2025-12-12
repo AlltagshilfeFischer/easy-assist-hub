@@ -896,10 +896,6 @@ const ScheduleBuilderModern = () => {
           </div>
           <div className="flex gap-2 items-center flex-wrap">
             <AppointmentApprovalBar />
-            <Button variant="outline" onClick={() => setShowEmployeeDialog(true)} size="sm">
-              <Users className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Mitarbeiter</span>
-            </Button>
             <Button onClick={() => setShowCreateAppointment(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Neuer Termin</span>
@@ -921,12 +917,18 @@ const ScheduleBuilderModern = () => {
 
         {/* Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 flex-shrink-0">
-          <WeekNavigationBar
-            currentWeek={currentWeek}
-            onPreviousWeek={() => setCurrentWeek(prev => subWeeks(prev, 1))}
-            onNextWeek={() => setCurrentWeek(prev => addWeeks(prev, 1))}
-            onToday={() => setCurrentWeek(new Date())}
-          />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setShowEmployeeDialog(true)} size="sm">
+              <Users className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Mitarbeiter</span>
+            </Button>
+            <WeekNavigationBar
+              currentWeek={currentWeek}
+              onPreviousWeek={() => setCurrentWeek(prev => subWeeks(prev, 1))}
+              onNextWeek={() => setCurrentWeek(prev => addWeeks(prev, 1))}
+              onToday={() => setCurrentWeek(new Date())}
+            />
+          </div>
           <CalendarLegend />
         </div>
 
