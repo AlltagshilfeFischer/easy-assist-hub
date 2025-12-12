@@ -100,6 +100,8 @@ export function AppointmentDetailDialog({
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDeleteSeriesDialog, setShowDeleteSeriesDialog] = useState(false);
+  const [deleteSeriesAction, setDeleteSeriesAction] = useState<'single' | 'all'>('single');
   const [showSeriesDialog, setShowSeriesDialog] = useState(false);
   const [seriesAction, setSeriesAction] = useState<'single' | 'all'>('single');
   const [showEditTemplateDialog, setShowEditTemplateDialog] = useState(false);
@@ -214,6 +216,16 @@ export function AppointmentDetailDialog({
     setIsEditing(false);
   };
 
+  const handleDeleteClick = () => {
+    // Check if this is part of a recurring series
+    if (appointment.vorlage_id && !appointment.ist_ausnahme) {
+      setDeleteSeriesAction('single');
+      setShowDeleteSeriesDialog(true);
+    } else {
+      setShowDeleteDialog(true);
+    }
+  };
+
   const handleDelete = async () => {
     setLoading(true);
     try {
@@ -222,6 +234,51 @@ export function AppointmentDetailDialog({
       onClose();
     } catch (error: any) {
       // Error handling is done in onDelete callback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSeries = async () => {
+    setLoading(true);
+    try {
+      if (deleteSeriesAction === 'single') {
+        // Delete only this appointment
+        await onDelete(appointment.id);
+      } else {
+        // Delete the entire series (template and all future appointments)
+        if (appointment.vorlage_id) {
+          // First deactivate the template
+          const { error: templateError } = await supabase
+            .from('termin_vorlagen')
+            .update({ ist_aktiv: false })
+            .eq('id', appointment.vorlage_id);
+
+          if (templateError) throw templateError;
+
+          // Delete all future appointments from this series
+          const { error: appointmentsError } = await supabase
+            .from('termine')
+            .delete()
+            .eq('vorlage_id', appointment.vorlage_id)
+            .gte('start_at', new Date().toISOString());
+
+          if (appointmentsError) throw appointmentsError;
+
+          toast({
+            title: 'Erfolg',
+            description: 'Die Terminserie wurde gelöscht.',
+          });
+        }
+      }
+      setShowDeleteSeriesDialog(false);
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Löschen: ' + error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -702,7 +759,7 @@ export function AppointmentDetailDialog({
             <>
               <Button 
                 variant="destructive" 
-                onClick={() => setShowDeleteDialog(true)}
+                onClick={handleDeleteClick}
                 className="mr-auto"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -756,6 +813,58 @@ export function AppointmentDetailDialog({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {loading ? 'Wird gelöscht...' : 'Termin löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Series Dialog */}
+      <AlertDialog open={showDeleteSeriesDialog} onOpenChange={setShowDeleteSeriesDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Serientermin löschen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dieser Termin ist Teil einer Terminserie. Was möchten Sie löschen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 py-4">
+            <button
+              onClick={() => setDeleteSeriesAction('single')}
+              className={cn(
+                "w-full p-4 text-left rounded-lg border-2 transition-colors",
+                deleteSeriesAction === 'single' 
+                  ? "border-destructive bg-destructive/5" 
+                  : "border-border hover:border-destructive/50"
+              )}
+            >
+              <div className="font-medium">Nur diesen Termin</div>
+              <div className="text-sm text-muted-foreground mt-1">
+                Nur dieser einzelne Termin wird gelöscht. Die Serie wird normal fortgesetzt.
+              </div>
+            </button>
+            <button
+              onClick={() => setDeleteSeriesAction('all')}
+              className={cn(
+                "w-full p-4 text-left rounded-lg border-2 transition-colors",
+                deleteSeriesAction === 'all' 
+                  ? "border-destructive bg-destructive/5" 
+                  : "border-border hover:border-destructive/50"
+              )}
+            >
+              <div className="font-medium">Gesamte Serie löschen</div>
+              <div className="text-sm text-muted-foreground mt-1">
+                Die Vorlage wird deaktiviert und alle zukünftigen Termine dieser Serie werden gelöscht.
+              </div>
+            </button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteSeries} 
+              disabled={loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? 'Wird gelöscht...' : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
