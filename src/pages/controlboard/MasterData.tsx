@@ -1023,7 +1023,7 @@ export default function MasterData() {
 
       {/* Edit Customer Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Kundendaten bearbeiten</DialogTitle>
             <DialogDescription>

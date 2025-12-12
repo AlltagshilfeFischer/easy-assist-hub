@@ -514,7 +514,7 @@ export default function BenutzerverwaltungNeu() {
       </AlertDialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Mitarbeiter bearbeiten</DialogTitle>
             <DialogDescription>
