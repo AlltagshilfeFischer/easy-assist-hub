@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useSettings } from '@/hooks/useSettings';
 import {
   Calendar,
   Home,
@@ -45,6 +46,7 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
   const { role } = useUserRole();
+  const { settings } = useSettings();
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -59,8 +61,11 @@ export function AppSidebar() {
       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground";
   };
 
+  // When auto-collapse is disabled, use "none" to prevent collapsing entirely
+  const collapsibleMode = settings.sidebarAutoCollapse ? "offcanvas" : "none";
+
   return (
-    <Sidebar>
+    <Sidebar collapsible={collapsibleMode}>
       <SidebarContent className="border-r">
         {/* Logo */}
         <div className="p-4 border-b">
