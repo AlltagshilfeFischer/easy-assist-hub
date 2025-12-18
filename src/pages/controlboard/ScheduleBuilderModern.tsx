@@ -17,7 +17,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { useSidebar } from '@/components/ui/sidebar';
 import { ModernWeekCalendar } from '@/components/schedule/ModernWeekCalendar';
 import { WeekNavigationBar } from '@/components/schedule/WeekNavigationBar';
 import { CalendarLegend } from '@/components/schedule/CalendarLegend';
@@ -123,18 +122,6 @@ const ScheduleBuilderModern = () => {
   } | null>(null);
   
   const { toast } = useToast();
-  const { setOpen } = useSidebar();
-
-  useEffect(() => {
-    const KEY = 'autoCollapsed:schedule-builder';
-    if (!sessionStorage.getItem(KEY)) {
-      sessionStorage.setItem(KEY, '1');
-      setTimeout(() => setOpen(false), 0);
-    }
-    return () => {
-      sessionStorage.removeItem(KEY);
-    };
-  }, []); // intentionally run once per mount
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
