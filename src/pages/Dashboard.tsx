@@ -9,6 +9,7 @@ import Billing from './controlboard/Billing';
 import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import MitarbeiterStart from './MitarbeiterStart';
 import PendingApproval from './PendingApproval';
+import Settings from './Settings';
 import { useUserRole } from '@/hooks/useUserRole';
 
 export default function Dashboard() {
@@ -33,6 +34,7 @@ export default function Dashboard() {
       <DashboardLayout>
         <Routes>
           <Route path="/" element={<MitarbeiterStart />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </DashboardLayout>
@@ -50,6 +52,7 @@ export default function Dashboard() {
         <Route path="/controlboard/admin" element={<BenutzerverwaltungNeu />} />
         <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
         <Route path="/controlboard/billing" element={<Billing />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </DashboardLayout>

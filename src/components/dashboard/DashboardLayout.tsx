@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { useAuth } from '@/hooks/useAuth';
+import { useSettings } from '@/hooks/useSettings';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
 
 function DashboardContent({ children }: DashboardLayoutProps) {
   const { user, loading } = useAuth();
-
+  const { settings } = useSettings();
 
   if (loading) {
     return (
@@ -25,8 +25,11 @@ function DashboardContent({ children }: DashboardLayoutProps) {
     return <Navigate to="/" replace />;
   }
 
+  // When auto-collapse is disabled, sidebar always starts expanded and doesn't auto-collapse
+  const sidebarDefaultOpen = settings.sidebarAutoCollapse ? undefined : true;
+
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={sidebarDefaultOpen}>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <SidebarInset className="flex flex-col w-full">
