@@ -3,7 +3,7 @@ import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks } from 'dat
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, X, AlertCircle, Users, AlertTriangle } from 'lucide-react';
+import { Plus, X, AlertCircle, Users } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +31,7 @@ import { CreateAppointmentFromSlotDialog } from '@/components/schedule/CreateApp
 import { ConflictWarningDialog } from '@/components/schedule/ConflictWarningDialog';
 import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
 import { AIAppointmentCreator } from '@/components/schedule/AIAppointmentCreator';
+import { ConflictsNavigationCard } from '@/components/schedule/ConflictsNavigationCard';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 
 interface Employee {
@@ -115,6 +116,7 @@ const ScheduleBuilderModern = () => {
     targetDate: undefined
   });
   const [cutAppointment, setCutAppointment] = useState<Appointment | null>(null);
+  const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null);
   const [seriesMoveDialog, setSeriesMoveDialog] = useState<{
     appointment: Appointment;
     employeeId: string;
@@ -900,16 +902,29 @@ const ScheduleBuilderModern = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 flex-shrink-0">
           <AIAppointmentCreator onAppointmentCreated={loadData} />
           
-          {/* Conflicts Card */}
-          <Card className={`p-2 ${stats.conflictCount > 0 ? 'bg-destructive/5 border-destructive/30' : 'bg-muted/30'}`}>
-            <div className="flex items-center gap-2 h-full">
-              <AlertTriangle className={`h-4 w-4 flex-shrink-0 ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
-              <span className="text-xs text-muted-foreground">Konflikte:</span>
-              <span className={`text-sm font-bold ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                {stats.conflictCount}
-              </span>
-            </div>
-          </Card>
+          <ConflictsNavigationCard
+            appointments={appointments}
+            onNavigateToConflict={(appointmentId) => {
+              const appointment = appointments.find(a => a.id === appointmentId);
+              if (appointment) {
+                // Navigate to the week of the conflict if needed
+                const appointmentDate = new Date(appointment.start_at);
+                const appointmentWeekStart = startOfWeek(appointmentDate, { weekStartsOn: 1 });
+                const currentWeekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
+                
+                if (appointmentWeekStart.getTime() !== currentWeekStart.getTime()) {
+                  setCurrentWeek(appointmentDate);
+                }
+                
+                // Highlight the appointment and open detail dialog
+                setHighlightedAppointmentId(appointmentId);
+                setEditingAppointment(appointment);
+                
+                // Clear highlight after 3 seconds
+                setTimeout(() => setHighlightedAppointmentId(null), 3000);
+              }
+            }}
+          />
         </div>
 
         {/* Navigation */}
