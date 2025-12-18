@@ -46,6 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
 import CreateCustomerWizard from '@/components/customers/CreateCustomerWizard';
+import { CustomerImportExport } from '@/components/customers/CustomerImportExport';
 
 type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
 type SortDirection = 'asc' | 'desc';
@@ -630,11 +631,14 @@ export default function MasterData() {
             Verwalten Sie Kundendaten und Neukundenkontakte
           </p>
         </div>
-        <Button onClick={handleOpenCreateDialog} className="gap-2">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Neuen Kunden anlegen</span>
-          <span className="sm:hidden">Neu</span>
-        </Button>
+        <div className="flex gap-2 items-center flex-wrap">
+          <CustomerImportExport customers={customers || []} />
+          <Button onClick={handleOpenCreateDialog} className="gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Neuen Kunden anlegen</span>
+            <span className="sm:hidden">Neu</span>
+          </Button>
+        </div>
       </div>
 
         <Card>
