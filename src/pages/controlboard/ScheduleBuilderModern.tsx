@@ -289,7 +289,19 @@ const ScheduleBuilderModern = () => {
   };
 
   const unassignedAppointments = useMemo(() => {
-    return appointments.filter(app => !app.mitarbeiter_id);
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    return appointments.filter(app => {
+      if (app.mitarbeiter_id) return false;
+      
+      const appointmentDate = new Date(app.start_at);
+      const isInFuture = appointmentDate > now;
+      const isInCurrentMonth = appointmentDate.getMonth() === currentMonth && appointmentDate.getFullYear() === currentYear;
+      
+      return isInFuture && isInCurrentMonth;
+    });
   }, [appointments]);
 
   const conflictingAppointments = useMemo(() => {
