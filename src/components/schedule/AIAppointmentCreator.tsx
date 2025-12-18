@@ -199,28 +199,28 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
 
   return (
     <>
-      <Card className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-        <div className="flex flex-col gap-3">
+      <Card className="p-3 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            <h3 className="font-semibold text-purple-900">AI Terminassistent</h3>
+            <Sparkles className="h-4 w-4 text-purple-600" />
+            <h3 className="font-medium text-sm text-purple-900">AI Terminassistent</h3>
           </div>
           
           <Textarea
-            placeholder="z.B. 'Jeden Mo um 12 Uhr mit Frau Klemme' oder 'Am 12.12. Termin Arztbesuch'"
+            placeholder="z.B. 'Jeden Mo um 12 Uhr mit Frau Klemme'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="min-h-[60px] bg-white"
+            className="min-h-[40px] bg-white text-sm resize-none"
             disabled={isLoading}
+            rows={2}
           />
 
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-xs text-muted-foreground">Schnellauswahl:</span>
-            {exampleSnippets.map((snippet, index) => (
+          <div className="flex flex-wrap gap-1">
+            {exampleSnippets.slice(0, 5).map((snippet, index) => (
               <Badge
                 key={index}
                 variant="secondary"
-                className="cursor-pointer hover:bg-purple-200 hover:text-purple-900 transition-colors text-xs py-0.5 px-2"
+                className="cursor-pointer hover:bg-purple-200 hover:text-purple-900 transition-colors text-[10px] py-0 px-1.5"
                 onClick={() => addSnippet(snippet)}
               >
                 {snippet}
@@ -231,17 +231,18 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
           <Button
             onClick={handleGenerate}
             disabled={isLoading || !prompt.trim()}
-            className="self-end"
+            size="sm"
+            className="self-end h-7 text-xs"
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 Analysiere...
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Vorschläge generieren
+                <Sparkles className="h-3 w-3 mr-1" />
+                Generieren
               </>
             )}
           </Button>

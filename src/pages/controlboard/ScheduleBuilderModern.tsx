@@ -3,7 +3,7 @@ import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks } from 'dat
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, X, AlertCircle, Users } from 'lucide-react';
+import { Plus, X, AlertCircle, Users, AlertTriangle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +21,7 @@ import { ModernWeekCalendar } from '@/components/schedule/ModernWeekCalendar';
 import { WeekNavigationBar } from '@/components/schedule/WeekNavigationBar';
 import { CalendarLegend } from '@/components/schedule/CalendarLegend';
 import { EmployeeManagementDialog } from '@/components/schedule/EmployeeManagementDialog';
-import { CalendarStats } from '@/components/schedule/CalendarStats';
+
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
 import { AppointmentApprovalBar } from '@/components/schedule/AppointmentApprovalBar';
 import { AppointmentDetailDialog } from '@/components/schedule/AppointmentDetailDialog';
@@ -896,14 +896,33 @@ const ScheduleBuilderModern = () => {
           </div>
         </div>
 
-        {/* AI Appointment Creator */}
-        <AIAppointmentCreator onAppointmentCreated={loadData} />
-
-        {/* Stats */}
-        <CalendarStats {...stats} />
+        {/* AI Appointment Creator + Conflicts */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-shrink-0">
+          <AIAppointmentCreator onAppointmentCreated={loadData} />
+          
+          {/* Conflicts Card */}
+          <Card className={`p-3 ${stats.conflictCount > 0 ? 'bg-destructive/5 border-destructive/30' : 'bg-muted/30'}`}>
+            <div className="flex items-center gap-3 h-full">
+              <div className={`p-2 rounded-lg ${stats.conflictCount > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
+                <AlertTriangle className={`h-5 w-5 ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Konflikte diese Woche</div>
+                <div className={`text-2xl font-bold ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  {stats.conflictCount}
+                </div>
+              </div>
+              {stats.conflictCount > 0 && (
+                <div className="ml-auto text-xs text-destructive/80">
+                  Überschneidende Termine
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
 
         {/* Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 flex-shrink-0">
+        <div className="flex items-center justify-between gap-2 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setShowEmployeeDialog(true)} size="sm">
               <Users className="h-4 w-4 mr-2" />
