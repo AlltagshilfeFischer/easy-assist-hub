@@ -897,26 +897,23 @@ const ScheduleBuilderModern = () => {
         </div>
 
         {/* AI Appointment Creator + Conflicts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-shrink-0">
-          <AIAppointmentCreator onAppointmentCreated={loadData} />
+        <div className="flex gap-2 flex-shrink-0">
+          <div className="w-64">
+            <AIAppointmentCreator onAppointmentCreated={loadData} />
+          </div>
           
           {/* Conflicts Card */}
-          <Card className={`p-3 ${stats.conflictCount > 0 ? 'bg-destructive/5 border-destructive/30' : 'bg-muted/30'}`}>
-            <div className="flex items-center gap-3 h-full">
-              <div className={`p-2 rounded-lg ${stats.conflictCount > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
-                <AlertTriangle className={`h-5 w-5 ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+          <Card className={`p-2 w-40 ${stats.conflictCount > 0 ? 'bg-destructive/5 border-destructive/30' : 'bg-muted/30'}`}>
+            <div className="flex items-center gap-2 h-full">
+              <div className={`p-1.5 rounded-lg ${stats.conflictCount > 0 ? 'bg-destructive/10' : 'bg-muted'}`}>
+                <AlertTriangle className={`h-4 w-4 ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Konflikte diese Woche</div>
-                <div className={`text-2xl font-bold ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                <div className="text-[10px] text-muted-foreground">Konflikte</div>
+                <div className={`text-lg font-bold ${stats.conflictCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                   {stats.conflictCount}
                 </div>
               </div>
-              {stats.conflictCount > 0 && (
-                <div className="ml-auto text-xs text-destructive/80">
-                  Überschneidende Termine
-                </div>
-              )}
             </div>
           </Card>
         </div>
