@@ -1,3 +1,4 @@
+/* @refresh reset */
 import { useEffect, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
