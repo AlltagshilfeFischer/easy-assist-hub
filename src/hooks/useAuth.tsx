@@ -64,6 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Check if user already exists (Supabase returns user with empty identities array)
+    if (!error && data?.user && data.user.identities?.length === 0) {
+      return { 
+        error: { 
+          message: 'Diese E-Mail-Adresse ist bereits registriert. Bitte melden Sie sich an oder setzen Sie Ihr Passwort zurück.' 
+        } 
+      };
+    }
+
     // If signup succeeded, update pending_registrations with the names
     if (!error && data?.user) {
       await supabase
