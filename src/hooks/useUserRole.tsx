@@ -19,34 +19,40 @@ export function useUserRole() {
       }
 
       try {
-        // Fetch user from benutzer table
+        // Fetch user from benutzer table (role + approval status)
         const { data: benutzerData, error: benutzerError } = await supabase
           .from('benutzer')
-          .select('rolle, id')
+          .select('rolle, status, id')
           .eq('id', user.id)
           .maybeSingle();
 
         if (benutzerError) throw benutzerError;
 
-        if (benutzerData) {
-          setRole(benutzerData.rolle as UserRole);
+        // Not in benutzer table OR not approved yet => treat as not authorized for dashboard
+        if (!benutzerData || benutzerData.status !== 'approved') {
+          setRole(null);
+          setMitarbeiterId(null);
+          return;
+        }
 
-          // If user is mitarbeiter, get their mitarbeiter_id
-          if (benutzerData.rolle === 'mitarbeiter') {
-            const { data: mitarbeiterData } = await supabase
-              .from('mitarbeiter')
-              .select('id')
-              .eq('benutzer_id', user.id)
-              .single();
+        setRole(benutzerData.rolle as UserRole);
 
-            if (mitarbeiterData) {
-              setMitarbeiterId(mitarbeiterData.id);
-            }
+        // If user is mitarbeiter, get their mitarbeiter_id
+        if (benutzerData.rolle === 'mitarbeiter') {
+          const { data: mitarbeiterData } = await supabase
+            .from('mitarbeiter')
+            .select('id')
+            .eq('benutzer_id', user.id)
+            .single();
+
+          if (mitarbeiterData) {
+            setMitarbeiterId(mitarbeiterData.id);
           }
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
         setRole(null);
+        setMitarbeiterId(null);
       } finally {
         setLoading(false);
       }
