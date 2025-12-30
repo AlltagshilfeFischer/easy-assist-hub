@@ -10,10 +10,27 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Download, Upload, AlertCircle, Check, Plus, Trash2, X, Sparkles } from 'lucide-react';
+import { Download, Upload, AlertCircle, Check, Plus, Trash2, X, Sparkles, Loader2, Edit2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+interface TimeWindow {
+  wochentag: number;
+  von: string;
+  bis: string;
+}
+
+interface CustomerTimeWindows {
+  customerId: string;
+  customerName: string;
+  originalText: string;
+  windows: TimeWindow[];
+  loading?: boolean;
+  error?: string;
+}
 
 interface CustomerRow {
   id: string;
@@ -33,6 +50,8 @@ interface CustomerRow {
   zeitfenster_text: string;
   errors: string[];
 }
+
+const WEEKDAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 interface CustomerImportExportProps {
   customers: any[];
@@ -94,6 +113,14 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
   const queryClient = useQueryClient();
   const tableRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // State for AI time window processing
+  const [showTimeWindowDialog, setShowTimeWindowDialog] = useState(false);
+  const [timeWindowSuggestions, setTimeWindowSuggestions] = useState<CustomerTimeWindows[]>([]);
+  const [processingTimeWindows, setProcessingTimeWindows] = useState(false);
+  const [editingTimeWindow, setEditingTimeWindow] = useState<{customerIndex: number; windowIndex: number} | null>(null);
+  const [editTimeWindowForm, setEditTimeWindowForm] = useState<TimeWindow | null>(null);
+  const [insertedCustomerIds, setInsertedCustomerIds] = useState<Map<string, string>>(new Map());
 
   // Focus input when editing
   useEffect(() => {
@@ -392,17 +419,42 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
         eintritt: new Date().toISOString().slice(0, 10),
       }));
 
-      const { error } = await supabase.from('kunden').insert(customersToInsert);
+      const { data: insertedData, error } = await supabase
+        .from('kunden')
+        .insert(customersToInsert)
+        .select('id, vorname, nachname');
+      
       if (error) throw error;
 
-      toast({
-        title: 'Import erfolgreich',
-        description: `${customersToInsert.length} Kunde(n) importiert.`,
+      // Map row IDs to inserted customer IDs
+      const customerIdMap = new Map<string, string>();
+      validRows.forEach((row, idx) => {
+        if (insertedData && insertedData[idx]) {
+          customerIdMap.set(row.id, insertedData[idx].id);
+        }
       });
+      setInsertedCustomerIds(customerIdMap);
 
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      setShowImportDialog(false);
-      setRows(createInitialRows(20));
+      // Check if any rows have time window text
+      const rowsWithTimeWindows = validRows.filter(row => row.zeitfenster_text.trim());
+      
+      if (rowsWithTimeWindows.length > 0) {
+        toast({
+          title: 'Kunden importiert',
+          description: `${customersToInsert.length} Kunde(n) importiert. Verarbeite Zeitfenster...`,
+        });
+        
+        // Start AI time window processing
+        await processTimeWindows(rowsWithTimeWindows, customerIdMap, insertedData || []);
+      } else {
+        toast({
+          title: 'Import erfolgreich',
+          description: `${customersToInsert.length} Kunde(n) importiert.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        setShowImportDialog(false);
+        setRows(createInitialRows(20));
+      }
     } catch (error: any) {
       toast({
         title: 'Import fehlgeschlagen',
@@ -412,6 +464,163 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
     } finally {
       setIsImporting(false);
     }
+  };
+
+  const processTimeWindows = async (
+    rowsWithTimeWindows: CustomerRow[], 
+    customerIdMap: Map<string, string>,
+    insertedData: { id: string; vorname: string; nachname: string }[]
+  ) => {
+    setProcessingTimeWindows(true);
+    setShowTimeWindowDialog(true);
+    
+    // Initialize suggestions with loading state
+    const initialSuggestions: CustomerTimeWindows[] = rowsWithTimeWindows.map(row => {
+      const customerId = customerIdMap.get(row.id) || '';
+      return {
+        customerId,
+        customerName: `${row.vorname} ${row.nachname}`,
+        originalText: row.zeitfenster_text,
+        windows: [],
+        loading: true,
+      };
+    });
+    setTimeWindowSuggestions(initialSuggestions);
+
+    // Process each row sequentially to avoid overwhelming the API
+    for (let i = 0; i < rowsWithTimeWindows.length; i++) {
+      const row = rowsWithTimeWindows[i];
+      try {
+        const { data, error } = await supabase.functions.invoke('parse-time-windows', {
+          body: { text: row.zeitfenster_text }
+        });
+
+        if (error) throw error;
+
+        setTimeWindowSuggestions(prev => prev.map((s, idx) => {
+          if (idx === i) {
+            return {
+              ...s,
+              windows: data?.windows || [],
+              loading: false,
+              error: (!data?.windows || data.windows.length === 0) ? 'Keine Zeitfenster erkannt' : undefined,
+            };
+          }
+          return s;
+        }));
+      } catch (error: any) {
+        console.error('Error parsing time windows:', error);
+        setTimeWindowSuggestions(prev => prev.map((s, idx) => {
+          if (idx === i) {
+            return {
+              ...s,
+              loading: false,
+              error: error.message?.includes('Rate limit') 
+                ? 'Rate Limit erreicht' 
+                : error.message?.includes('credits')
+                ? 'Keine Credits'
+                : 'Fehler bei KI-Verarbeitung',
+            };
+          }
+          return s;
+        }));
+      }
+      
+      // Small delay between requests
+      if (i < rowsWithTimeWindows.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+    
+    setProcessingTimeWindows(false);
+  };
+
+  const startEditTimeWindow = (customerIndex: number, windowIndex: number) => {
+    setEditingTimeWindow({ customerIndex, windowIndex });
+    setEditTimeWindowForm({ ...timeWindowSuggestions[customerIndex].windows[windowIndex] });
+  };
+
+  const cancelEditTimeWindow = () => {
+    setEditingTimeWindow(null);
+    setEditTimeWindowForm(null);
+  };
+
+  const saveEditTimeWindow = () => {
+    if (editingTimeWindow && editTimeWindowForm) {
+      setTimeWindowSuggestions(prev => prev.map((s, cIdx) => {
+        if (cIdx === editingTimeWindow.customerIndex) {
+          const updatedWindows = [...s.windows];
+          updatedWindows[editingTimeWindow.windowIndex] = editTimeWindowForm;
+          return { ...s, windows: updatedWindows };
+        }
+        return s;
+      }));
+      setEditingTimeWindow(null);
+      setEditTimeWindowForm(null);
+    }
+  };
+
+  const removeTimeWindow = (customerIndex: number, windowIndex: number) => {
+    setTimeWindowSuggestions(prev => prev.map((s, cIdx) => {
+      if (cIdx === customerIndex) {
+        return { ...s, windows: s.windows.filter((_, wIdx) => wIdx !== windowIndex) };
+      }
+      return s;
+    }));
+  };
+
+  const confirmAllTimeWindows = async () => {
+    setProcessingTimeWindows(true);
+    
+    try {
+      // Insert all time windows for all customers
+      for (const suggestion of timeWindowSuggestions) {
+        if (suggestion.windows.length > 0 && suggestion.customerId) {
+          const timeWindowsToInsert = suggestion.windows.map(w => ({
+            kunden_id: suggestion.customerId,
+            wochentag: w.wochentag,
+            von: w.von,
+            bis: w.bis,
+          }));
+          
+          const { error } = await supabase.from('kunden_zeitfenster').insert(timeWindowsToInsert);
+          if (error) {
+            console.error('Error inserting time windows:', error);
+          }
+        }
+      }
+      
+      toast({
+        title: 'Zeitfenster gespeichert',
+        description: `Zeitfenster für ${timeWindowSuggestions.filter(s => s.windows.length > 0).length} Kunde(n) gespeichert.`,
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setShowTimeWindowDialog(false);
+      setShowImportDialog(false);
+      setRows(createInitialRows(20));
+      setTimeWindowSuggestions([]);
+    } catch (error: any) {
+      toast({
+        title: 'Fehler beim Speichern',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingTimeWindows(false);
+    }
+  };
+
+  const skipTimeWindows = () => {
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
+    setShowTimeWindowDialog(false);
+    setShowImportDialog(false);
+    setRows(createInitialRows(20));
+    setTimeWindowSuggestions([]);
+    toast({
+      title: 'Import abgeschlossen',
+      description: 'Kunden importiert ohne Zeitfenster.',
+    });
   };
 
   const escapeCSVField = (value: string | number | null | undefined): string => {
@@ -623,6 +832,155 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
             </Button>
             <Button onClick={handleImport} disabled={!hasValidRows || isImporting}>
               {isImporting ? 'Importiere...' : `${validRowCount} Kunde(n) importieren`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Time Window Suggestions Dialog */}
+      <Dialog open={showTimeWindowDialog} onOpenChange={setShowTimeWindowDialog}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              KI-Zeitfenster Vorschläge
+            </DialogTitle>
+            <DialogDescription>
+              Überprüfen und bestätigen Sie die erkannten Zeitfenster für jeden Kunden
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-4">
+              {timeWindowSuggestions.map((suggestion, customerIndex) => (
+                <div 
+                  key={suggestion.customerId || customerIndex} 
+                  className="border rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium">{suggestion.customerName}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Eingabe: "{suggestion.originalText}"
+                      </p>
+                    </div>
+                    {suggestion.loading && (
+                      <div className="flex items-center gap-2 text-purple-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Verarbeite...</span>
+                      </div>
+                    )}
+                    {suggestion.error && (
+                      <Badge variant="destructive">{suggestion.error}</Badge>
+                    )}
+                  </div>
+
+                  {suggestion.windows.length > 0 && (
+                    <div className="space-y-2">
+                      {suggestion.windows.map((window, windowIndex) => {
+                        const isEditingThis = editingTimeWindow?.customerIndex === customerIndex && editingTimeWindow?.windowIndex === windowIndex;
+                        
+                        return (
+                          <div key={windowIndex} className="border rounded-md p-3 bg-muted/30">
+                            {isEditingThis && editTimeWindowForm ? (
+                              <div className="space-y-3">
+                                <div>
+                                  <Label className="text-xs">Wochentag</Label>
+                                  <select
+                                    className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                                    value={editTimeWindowForm.wochentag}
+                                    onChange={(e) => setEditTimeWindowForm(prev => prev ? { ...prev, wochentag: parseInt(e.target.value) } : null)}
+                                  >
+                                    {WEEKDAY_NAMES.map((name, idx) => (
+                                      <option key={idx} value={idx}>{name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <Label className="text-xs">Von</Label>
+                                    <Input
+                                      type="time"
+                                      value={editTimeWindowForm.von}
+                                      onChange={(e) => setEditTimeWindowForm(prev => prev ? { ...prev, von: e.target.value } : null)}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Bis</Label>
+                                    <Input
+                                      type="time"
+                                      value={editTimeWindowForm.bis}
+                                      onChange={(e) => setEditTimeWindowForm(prev => prev ? { ...prev, bis: e.target.value } : null)}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={saveEditTimeWindow}>
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Speichern
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={cancelEditTimeWindow}>
+                                    <X className="h-4 w-4 mr-1" />
+                                    Abbrechen
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {WEEKDAY_NAMES[window.wochentag]}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {window.von} - {window.bis} Uhr
+                                  </p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditTimeWindow(customerIndex, windowIndex)}>
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-destructive" onClick={() => removeTimeWindow(customerIndex, windowIndex)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {!suggestion.loading && suggestion.windows.length === 0 && !suggestion.error && (
+                    <p className="text-sm text-muted-foreground italic">Keine Zeitfenster erkannt</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="pt-4 border-t">
+            <div className="flex-1 text-xs text-muted-foreground">
+              {processingTimeWindows 
+                ? 'Zeitfenster werden verarbeitet...' 
+                : `${timeWindowSuggestions.filter(s => s.windows.length > 0).length} Kunde(n) mit Zeitfenstern`
+              }
+            </div>
+            <Button variant="outline" onClick={skipTimeWindows} disabled={processingTimeWindows}>
+              Überspringen
+            </Button>
+            <Button 
+              onClick={confirmAllTimeWindows} 
+              disabled={processingTimeWindows || timeWindowSuggestions.every(s => s.windows.length === 0)}
+            >
+              {processingTimeWindows ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Verarbeite...
+                </>
+              ) : (
+                'Zeitfenster speichern'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
