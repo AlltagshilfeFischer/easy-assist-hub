@@ -270,6 +270,16 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
     }
   };
 
+  const escapeCSVField = (value: string | number | null | undefined): string => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    // Escape fields containing comma, quotes, or newlines
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
   const handleExport = () => {
     if (!customers || customers.length === 0) {
       toast({
@@ -280,17 +290,17 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
       return;
     }
 
-    const headers = COLUMNS.map(col => col.label).join('\t');
+    const headers = COLUMNS.map(col => escapeCSVField(col.label)).join(',');
     
     const dataRows = customers.map((customer: any) => {
       return COLUMNS.map(col => {
         const value = customer[col.key];
         if (col.key === 'geburtsdatum' && value) {
           const date = new Date(value);
-          return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+          return escapeCSVField(`${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`);
         }
-        return value ?? '';
-      }).join('\t');
+        return escapeCSVField(value);
+      }).join(',');
     }).join('\n');
 
     const csvContent = `${headers}\n${dataRows}`;
@@ -425,14 +435,14 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
                               </Select>
                             ) : col.key === 'pflegegrad' ? (
                               <Select
-                                value={row.pflegegrad || ''}
-                                onValueChange={(value) => updateRow(row.id, 'pflegegrad', value)}
+                                value={row.pflegegrad || '__none__'}
+                                onValueChange={(value) => updateRow(row.id, 'pflegegrad', value === '__none__' ? '' : value)}
                               >
                                 <SelectTrigger className="h-8 text-xs">
                                   <SelectValue placeholder="-" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">-</SelectItem>
+                                  <SelectItem value="__none__">-</SelectItem>
                                   {[0, 1, 2, 3, 4, 5].map(grade => (
                                     <SelectItem key={grade} value={grade.toString()}>{grade}</SelectItem>
                                   ))}
