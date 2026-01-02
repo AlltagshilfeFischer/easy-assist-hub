@@ -42,24 +42,39 @@ export function UnassignedAppointmentsBar({
   onCut,
   onSlotClick
 }: UnassignedAppointmentsBarProps) {
+  // Filter unassigned appointments for future + current month only
+  const filteredUnassignedAppointments = React.useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    return appointments.filter(app => {
+      if (app.mitarbeiter_id) return false;
+      
+      const appointmentDate = new Date(app.start_at);
+      const isInFuture = appointmentDate > now;
+      const isInCurrentMonth = appointmentDate.getMonth() === currentMonth && appointmentDate.getFullYear() === currentYear;
+      
+      return isInFuture && isInCurrentMonth;
+    });
+  }, [appointments]);
+
   // Group unassigned appointments by date
   const groupedAppointments = React.useMemo(() => {
     const groups: { [key: string]: Appointment[] } = {};
     
-    appointments
-      .filter(app => !app.mitarbeiter_id)
-      .forEach(appointment => {
-        const dateKey = format(new Date(appointment.start_at), 'yyyy-MM-dd');
-        if (!groups[dateKey]) {
-          groups[dateKey] = [];
-        }
-        groups[dateKey].push(appointment);
-      });
+    filteredUnassignedAppointments.forEach(appointment => {
+      const dateKey = format(new Date(appointment.start_at), 'yyyy-MM-dd');
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(appointment);
+    });
     
     return groups;
-  }, [appointments]);
+  }, [filteredUnassignedAppointments]);
 
-  const totalUnassigned = appointments.filter(app => !app.mitarbeiter_id).length;
+  const totalUnassigned = filteredUnassignedAppointments.length;
   const weekdays = weekDates.slice(0, 5); // Mo-Fr
   const weekendDays = weekDates.slice(5); // Sa-So
 
