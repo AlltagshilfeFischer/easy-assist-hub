@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Progress } from '@/components/ui/progress';
 import { 
   FileText, Download, Trash2, Upload, Search, Calendar, User, Users, Building2, 
-  ChevronRight, ChevronDown, FolderOpen, File, Eye
+  ChevronRight, ChevronDown, FolderOpen, File, Eye, X, FileImage, FileIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -57,6 +58,15 @@ interface Mitarbeiter {
   nachname: string | null;
 }
 
+interface PendingFile {
+  file: File;
+  titel: string;
+  beschreibung: string;
+  status: 'pending' | 'uploading' | 'done' | 'error';
+  progress: number;
+  error?: string;
+}
+
 export default function Dokumentenverwaltung() {
   const [dokumente, setDokumente] = useState<Dokument[]>([]);
   const [kunden, setKunden] = useState<Kunde[]>([]);
@@ -70,15 +80,17 @@ export default function Dokumentenverwaltung() {
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  // Upload form state
-  const [uploadForm, setUploadForm] = useState({
-    titel: '',
-    beschreibung: '',
-    kategorie: 'kunde' as DokumentKategorie,
-    kunden_id: '',
-    mitarbeiter_id: '',
-    file: null as File | null,
-  });
+  // Multi-file upload state
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [uploadKategorie, setUploadKategorie] = useState<DokumentKategorie>('kunde');
+  const [uploadKundenId, setUploadKundenId] = useState('');
+  const [uploadMitarbeiterId, setUploadMitarbeiterId] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Preview state
+  const [previewDokument, setPreviewDokument] = useState<Dokument | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     loadKunden();
@@ -160,17 +172,67 @@ export default function Dokumentenverwaltung() {
     setLoading(false);
   };
 
-  const handleUpload = async () => {
-    if (!uploadForm.file || !uploadForm.titel) {
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    addFiles(files);
+  }, []);
+
+  const addFiles = (files: File[]) => {
+    const newPendingFiles: PendingFile[] = files.map((file) => ({
+      file,
+      titel: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for default title
+      beschreibung: '',
+      status: 'pending',
+      progress: 0,
+    }));
+    setPendingFiles((prev) => [...prev, ...newPendingFiles]);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      addFiles(Array.from(e.target.files));
+    }
+    e.target.value = ''; // Reset to allow same file selection
+  };
+
+  const updatePendingFile = (index: number, updates: Partial<PendingFile>) => {
+    setPendingFiles((prev) =>
+      prev.map((pf, i) => (i === index ? { ...pf, ...updates } : pf))
+    );
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMultiUpload = async () => {
+    if (pendingFiles.length === 0) {
       toast({
         title: 'Fehler',
-        description: 'Bitte Titel und Datei auswählen',
+        description: 'Bitte mindestens eine Datei hinzufügen',
         variant: 'destructive',
       });
       return;
     }
 
-    if (uploadForm.kategorie === 'kunde' && !uploadForm.kunden_id) {
+    if (uploadKategorie === 'kunde' && !uploadKundenId) {
       toast({
         title: 'Fehler',
         description: 'Bitte einen Kunden auswählen',
@@ -179,7 +241,7 @@ export default function Dokumentenverwaltung() {
       return;
     }
 
-    if (uploadForm.kategorie === 'mitarbeiter' && !uploadForm.mitarbeiter_id) {
+    if (uploadKategorie === 'mitarbeiter' && !uploadMitarbeiterId) {
       toast({
         title: 'Fehler',
         description: 'Bitte einen Mitarbeiter auswählen',
@@ -190,68 +252,103 @@ export default function Dokumentenverwaltung() {
 
     setUploading(true);
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Nicht angemeldet');
-
-      const fileExt = uploadForm.file.name.split('.').pop();
-      let folderPath = '';
-      if (uploadForm.kategorie === 'kunde') {
-        folderPath = `kunden/${uploadForm.kunden_id}`;
-      } else if (uploadForm.kategorie === 'mitarbeiter') {
-        folderPath = `mitarbeiter/${uploadForm.mitarbeiter_id}`;
-      } else {
-        folderPath = 'intern';
-      }
-      const fileName = `${folderPath}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('dokumente')
-        .upload(fileName, uploadForm.file);
-
-      if (uploadError) throw uploadError;
-
-      const { error: metadataError } = await supabase
-        .from('dokumente')
-        .insert({
-          titel: uploadForm.titel,
-          beschreibung: uploadForm.beschreibung || null,
-          dateiname: uploadForm.file.name,
-          dateipfad: fileName,
-          mime_type: uploadForm.file.type,
-          groesse_bytes: uploadForm.file.size,
-          kategorie: uploadForm.kategorie,
-          kunden_id: uploadForm.kategorie === 'kunde' ? uploadForm.kunden_id : null,
-          mitarbeiter_id: uploadForm.kategorie === 'mitarbeiter' ? uploadForm.mitarbeiter_id : null,
-          hochgeladen_von: user.id,
-        });
-
-      if (metadataError) throw metadataError;
-
-      toast({
-        title: 'Erfolg',
-        description: 'Dokument erfolgreich hochgeladen',
-      });
-
-      setUploadDialogOpen(false);
-      setUploadForm({
-        titel: '',
-        beschreibung: '',
-        kategorie: 'kunde',
-        kunden_id: '',
-        mitarbeiter_id: '',
-        file: null,
-      });
-      loadDokumente();
-    } catch (error: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       toast({
         title: 'Fehler',
-        description: error.message || 'Upload fehlgeschlagen',
+        description: 'Nicht angemeldet',
         variant: 'destructive',
       });
-    } finally {
       setUploading(false);
+      return;
     }
+
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const pf = pendingFiles[i];
+      if (pf.status !== 'pending') continue;
+
+      updatePendingFile(i, { status: 'uploading', progress: 0 });
+
+      try {
+        const fileExt = pf.file.name.split('.').pop();
+        let folderPath = '';
+        if (uploadKategorie === 'kunde') {
+          folderPath = `kunden/${uploadKundenId}`;
+        } else if (uploadKategorie === 'mitarbeiter') {
+          folderPath = `mitarbeiter/${uploadMitarbeiterId}`;
+        } else {
+          folderPath = 'intern';
+        }
+        const fileName = `${folderPath}/${Date.now()}_${i}.${fileExt}`;
+
+        updatePendingFile(i, { progress: 30 });
+
+        const { error: uploadError } = await supabase.storage
+          .from('dokumente')
+          .upload(fileName, pf.file);
+
+        if (uploadError) throw uploadError;
+
+        updatePendingFile(i, { progress: 70 });
+
+        const { error: metadataError } = await supabase
+          .from('dokumente')
+          .insert({
+            titel: pf.titel || pf.file.name,
+            beschreibung: pf.beschreibung || null,
+            dateiname: pf.file.name,
+            dateipfad: fileName,
+            mime_type: pf.file.type,
+            groesse_bytes: pf.file.size,
+            kategorie: uploadKategorie,
+            kunden_id: uploadKategorie === 'kunde' ? uploadKundenId : null,
+            mitarbeiter_id: uploadKategorie === 'mitarbeiter' ? uploadMitarbeiterId : null,
+            hochgeladen_von: user.id,
+          });
+
+        if (metadataError) throw metadataError;
+
+        updatePendingFile(i, { status: 'done', progress: 100 });
+      } catch (error: any) {
+        updatePendingFile(i, { status: 'error', error: error.message || 'Upload fehlgeschlagen' });
+      }
+    }
+
+    setUploading(false);
+
+    const successCount = pendingFiles.filter((pf) => pf.status === 'done').length;
+    const errorCount = pendingFiles.filter((pf) => pf.status === 'error').length;
+
+    if (successCount > 0) {
+      toast({
+        title: 'Erfolg',
+        description: `${successCount} Dokument${successCount !== 1 ? 'e' : ''} erfolgreich hochgeladen`,
+      });
+      loadDokumente();
+    }
+
+    if (errorCount > 0) {
+      toast({
+        title: 'Warnung',
+        description: `${errorCount} Upload${errorCount !== 1 ? 's' : ''} fehlgeschlagen`,
+        variant: 'destructive',
+      });
+    }
+
+    // Clear successful uploads
+    setPendingFiles((prev) => prev.filter((pf) => pf.status !== 'done'));
+    
+    if (pendingFiles.every((pf) => pf.status === 'done')) {
+      setUploadDialogOpen(false);
+      resetUploadForm();
+    }
+  };
+
+  const resetUploadForm = () => {
+    setPendingFiles([]);
+    setUploadKategorie('kunde');
+    setUploadKundenId('');
+    setUploadMitarbeiterId('');
   };
 
   const handleDownload = async (dokument: Dokument) => {
@@ -314,6 +411,43 @@ export default function Dokumentenverwaltung() {
         variant: 'destructive',
       });
     }
+  };
+
+  // Preview functionality
+  const handlePreview = async (dokument: Dokument) => {
+    setPreviewDokument(dokument);
+    setPreviewLoading(true);
+    setPreviewUrl(null);
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(dokument.dateipfad, 3600); // 1 hour
+
+      if (error) throw error;
+
+      setPreviewUrl(data.signedUrl);
+    } catch (error: any) {
+      toast({
+        title: 'Fehler',
+        description: 'Vorschau konnte nicht geladen werden',
+        variant: 'destructive',
+      });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewDokument(null);
+    setPreviewUrl(null);
+  };
+
+  const canPreview = (mimeType: string) => {
+    return (
+      mimeType.includes('pdf') ||
+      mimeType.includes('image')
+    );
   };
 
   const formatFileSize = (bytes: number) => {
@@ -412,159 +546,281 @@ export default function Dokumentenverwaltung() {
             Dokumente nach Kunden und Mitarbeitern organisiert
           </p>
         </div>
-        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
+          setUploadDialogOpen(open);
+          if (!open) resetUploadForm();
+        }}>
           <DialogTrigger asChild>
             <Button size="lg">
               <Upload className="mr-2 h-5 w-5" />
-              Dokument hochladen
+              Dokumente hochladen
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
-              <DialogTitle>Neues Dokument hochladen</DialogTitle>
+              <DialogTitle>Dokumente hochladen</DialogTitle>
               <DialogDescription>
-                Laden Sie ein Dokument hoch und ordnen Sie es zu
+                Ziehen Sie Dateien hierher oder klicken Sie zum Auswählen
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="upload-kategorie">Kategorie *</Label>
-                <Select
-                  value={uploadForm.kategorie}
-                  onValueChange={(value: DokumentKategorie) =>
-                    setUploadForm({ ...uploadForm, kategorie: value, kunden_id: '', mitarbeiter_id: '' })
-                  }
-                >
-                  <SelectTrigger id="upload-kategorie">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kunde">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        Kunden-Dokument
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="mitarbeiter">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Mitarbeiter-Dokument
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="intern">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        Internes Dokument
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="upload-titel">Titel *</Label>
-                <Input
-                  id="upload-titel"
-                  value={uploadForm.titel}
-                  onChange={(e) =>
-                    setUploadForm({ ...uploadForm, titel: e.target.value })
-                  }
-                  placeholder="z.B. Pflegevertrag 2025"
-                />
-              </div>
-              <div>
-                <Label htmlFor="upload-beschreibung">Beschreibung</Label>
-                <Textarea
-                  id="upload-beschreibung"
-                  value={uploadForm.beschreibung}
-                  onChange={(e) =>
-                    setUploadForm({ ...uploadForm, beschreibung: e.target.value })
-                  }
-                  placeholder="Optionale Beschreibung..."
-                  rows={3}
-                />
-              </div>
-              
-              {uploadForm.kategorie === 'kunde' && (
+            
+            <div className="flex-1 overflow-y-auto space-y-4">
+              {/* Category Selection */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="upload-kunde">Kunde *</Label>
+                  <Label>Kategorie *</Label>
                   <Select
-                    value={uploadForm.kunden_id}
-                    onValueChange={(value) =>
-                      setUploadForm({ ...uploadForm, kunden_id: value })
-                    }
+                    value={uploadKategorie}
+                    onValueChange={(value: DokumentKategorie) => {
+                      setUploadKategorie(value);
+                      setUploadKundenId('');
+                      setUploadMitarbeiterId('');
+                    }}
                   >
-                    <SelectTrigger id="upload-kunde">
-                      <SelectValue placeholder="Kunde auswählen..." />
+                    <SelectTrigger>
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {kunden.map((kunde) => (
-                        <SelectItem key={kunde.id} value={kunde.id}>
-                          {getEntityFullName(kunde)}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="kunde">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Kunde
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="mitarbeiter">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          Mitarbeiter
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="intern">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Intern
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
-              {uploadForm.kategorie === 'mitarbeiter' && (
-                <div>
-                  <Label htmlFor="upload-mitarbeiter">Mitarbeiter *</Label>
-                  <Select
-                    value={uploadForm.mitarbeiter_id}
-                    onValueChange={(value) =>
-                      setUploadForm({ ...uploadForm, mitarbeiter_id: value })
-                    }
-                  >
-                    <SelectTrigger id="upload-mitarbeiter">
-                      <SelectValue placeholder="Mitarbeiter auswählen..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mitarbeiter.map((ma) => (
-                        <SelectItem key={ma.id} value={ma.id}>
-                          {getEntityFullName(ma)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+                {uploadKategorie === 'kunde' && (
+                  <div className="col-span-2">
+                    <Label>Kunde *</Label>
+                    <Select
+                      value={uploadKundenId}
+                      onValueChange={setUploadKundenId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Kunde auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {kunden.map((kunde) => (
+                          <SelectItem key={kunde.id} value={kunde.id}>
+                            {getEntityFullName(kunde)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
-              <div>
-                <Label htmlFor="upload-file">Datei *</Label>
-                <Input
-                  id="upload-file"
-                  type="file"
-                  onChange={(e) =>
-                    setUploadForm({
-                      ...uploadForm,
-                      file: e.target.files?.[0] || null,
-                    })
-                  }
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
-                />
-                {uploadForm.file && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {uploadForm.file.name} ({formatFileSize(uploadForm.file.size)})
-                  </p>
+                {uploadKategorie === 'mitarbeiter' && (
+                  <div className="col-span-2">
+                    <Label>Mitarbeiter *</Label>
+                    <Select
+                      value={uploadMitarbeiterId}
+                      onValueChange={setUploadMitarbeiterId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Mitarbeiter auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mitarbeiter.map((ma) => (
+                          <SelectItem key={ma.id} value={ma.id}>
+                            {getEntityFullName(ma)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </div>
+
+              {/* Drag and Drop Zone */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragging
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted-foreground/25 hover:border-primary/50'
+                }`}
+              >
+                <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  Dateien hierher ziehen oder
+                </p>
+                <label>
+                  <Input
+                    type="file"
+                    multiple
+                    onChange={handleFileInputChange}
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                  />
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <span className="cursor-pointer">Dateien auswählen</span>
+                  </Button>
+                </label>
+                <p className="text-xs text-muted-foreground mt-2">
+                  PDF, JPG, PNG, DOC, DOCX, XLS, XLSX
+                </p>
+              </div>
+
+              {/* Pending Files List */}
+              {pendingFiles.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Zu hochladende Dateien ({pendingFiles.length})</Label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {pendingFiles.map((pf, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center gap-3 p-3 rounded-lg border ${
+                          pf.status === 'done'
+                            ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
+                            : pf.status === 'error'
+                            ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
+                            : 'bg-card'
+                        }`}
+                      >
+                        <span className="text-xl flex-shrink-0">
+                          {getMimeTypeIcon(pf.file.type)}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            value={pf.titel}
+                            onChange={(e) => updatePendingFile(index, { titel: e.target.value })}
+                            placeholder="Titel"
+                            className="h-8 mb-1"
+                            disabled={pf.status !== 'pending'}
+                          />
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="truncate">{pf.file.name}</span>
+                            <span>•</span>
+                            <span>{formatFileSize(pf.file.size)}</span>
+                          </div>
+                          {pf.status === 'uploading' && (
+                            <Progress value={pf.progress} className="h-1 mt-1" />
+                          )}
+                          {pf.status === 'error' && (
+                            <p className="text-xs text-destructive mt-1">{pf.error}</p>
+                          )}
+                          {pf.status === 'done' && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              ✓ Erfolgreich hochgeladen
+                            </p>
+                          )}
+                        </div>
+                        {pf.status === 'pending' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => removePendingFile(index)}
+                            className="flex-shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <DialogFooter>
+
+            <DialogFooter className="pt-4 border-t">
               <Button
                 variant="outline"
-                onClick={() => setUploadDialogOpen(false)}
+                onClick={() => {
+                  setUploadDialogOpen(false);
+                  resetUploadForm();
+                }}
                 disabled={uploading}
               >
                 Abbrechen
               </Button>
-              <Button onClick={handleUpload} disabled={uploading}>
-                {uploading ? 'Wird hochgeladen...' : 'Hochladen'}
+              <Button
+                onClick={handleMultiUpload}
+                disabled={uploading || pendingFiles.filter((pf) => pf.status === 'pending').length === 0}
+              >
+                {uploading
+                  ? 'Wird hochgeladen...'
+                  : `${pendingFiles.filter((pf) => pf.status === 'pending').length} Datei${
+                      pendingFiles.filter((pf) => pf.status === 'pending').length !== 1 ? 'en' : ''
+                    } hochladen`}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewDokument} onOpenChange={() => closePreview()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-xl">{previewDokument && getMimeTypeIcon(previewDokument.mime_type)}</span>
+              {previewDokument?.titel}
+            </DialogTitle>
+            <DialogDescription>
+              {previewDokument?.dateiname} • {previewDokument && formatFileSize(previewDokument.groesse_bytes)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-hidden rounded-lg border bg-muted/30">
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-full py-12">
+                <p className="text-muted-foreground">Vorschau wird geladen...</p>
+              </div>
+            ) : previewUrl && previewDokument ? (
+              previewDokument.mime_type.includes('pdf') ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-[60vh]"
+                  title={previewDokument.titel}
+                />
+              ) : previewDokument.mime_type.includes('image') ? (
+                <div className="flex items-center justify-center h-full p-4">
+                  <img
+                    src={previewUrl}
+                    alt={previewDokument.titel}
+                    className="max-w-full max-h-[60vh] object-contain rounded"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full py-12">
+                  <p className="text-muted-foreground">Keine Vorschau verfügbar</p>
+                </div>
+              )
+            ) : (
+              <div className="flex items-center justify-center h-full py-12">
+                <p className="text-muted-foreground">Keine Vorschau verfügbar</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closePreview}>
+              Schließen
+            </Button>
+            {previewDokument && (
+              <Button onClick={() => handleDownload(previewDokument)}>
+                <Download className="mr-2 h-4 w-4" />
+                Herunterladen
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs value={activeTab} onValueChange={(v) => {
         setActiveTab(v as DokumentKategorie);
@@ -763,6 +1019,16 @@ export default function Dokumentenverwaltung() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {canPreview(dokument.mime_type) && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handlePreview(dokument)}
+                                      title="Vorschau"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="ghost"

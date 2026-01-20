@@ -794,6 +794,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_rolle: { Args: { p_user_id: string }; Returns: string }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_employee_for_appointment: {
         Args: { p_termin_id: string }
