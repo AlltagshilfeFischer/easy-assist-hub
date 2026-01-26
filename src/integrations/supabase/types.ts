@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -744,10 +744,6 @@ export type Database = {
     Functions: {
       app_clear_context: { Args: never; Returns: undefined }
       app_set_context: { Args: { p_benutzer_id: string }; Returns: undefined }
-      approve_registration: {
-        Args: { p_email: string; p_password: string; p_registration_id: string }
-        Returns: Json
-      }
       approve_termin_change: {
         Args: { p_request_id: string }
         Returns: boolean
@@ -762,29 +758,19 @@ export type Database = {
           vorname: string
         }[]
       }
-      freischalte_mitarbeiter:
-        | { Args: { p_email: string; p_user_id: string }; Returns: undefined }
-        | {
-            Args: {
-              p_email: string
-              p_geburtsdatum?: string
-              p_nachname?: string
-              p_user_id: string
-              p_vorname?: string
-            }
-            Returns: undefined
-          }
+      freischalte_mitarbeiter: {
+        Args: {
+          p_email: string
+          p_geburtsdatum?: string
+          p_nachname?: string
+          p_user_id: string
+          p_vorname?: string
+        }
+        Returns: undefined
+      }
       generate_termine_from_vorlagen: {
         Args: { p_from: string; p_to: string }
         Returns: number
-      }
-      get_pending_registration: {
-        Args: { p_registration_id: string }
-        Returns: {
-          email: string
-          nachname: string
-          vorname: string
-        }[]
       }
       get_unactivated_users: {
         Args: never
@@ -800,10 +786,6 @@ export type Database = {
         Args: { p_termin_id: string }
         Returns: boolean
       }
-      reject_registration: {
-        Args: { p_reason: string; p_registration_id: string }
-        Returns: Json
-      }
       reject_termin_change: {
         Args: { p_reason: string; p_request_id: string }
         Returns: boolean
@@ -818,10 +800,6 @@ export type Database = {
           p_termin_id: string
         }
         Returns: string
-      }
-      update_registration_status: {
-        Args: { p_registration_id: string; p_reviewer_id: string }
-        Returns: undefined
       }
     }
     Enums: {
