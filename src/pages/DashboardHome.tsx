@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building, AlertCircle, Clock, Calendar } from 'lucide-react';
+import { Building, AlertCircle, Clock, Calendar } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import QuickActionChat from '@/components/dashboard/QuickActionChat';
+
 export default function DashboardHome() {
   const {
     data: customersCount
@@ -145,5 +147,8 @@ export default function DashboardHome() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Action Chat */}
+      <QuickActionChat />
     </div>;
 }
