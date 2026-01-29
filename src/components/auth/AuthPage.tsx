@@ -6,6 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft } from 'lucide-react';
+
+// Platzhalter-URL für die Landing Page - später durch echte URL ersetzen
+const LANDING_PAGE_URL = 'https://alltagshilfe-fischer.de';
 
 const AuthPage = () => {
   const { signIn, signUp, resetPassword } = useAuth();
@@ -117,6 +121,13 @@ const AuthPage = () => {
     <div className="w-full flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader>
+          <a 
+            href={LANDING_PAGE_URL}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4 w-fit"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Zurück zur Website
+          </a>
           <div className="flex items-center gap-3 mb-2">
             <img 
               src="/lovable-uploads/891b224f-e6be-40c4-bfcb-acf04320f118.png" 
