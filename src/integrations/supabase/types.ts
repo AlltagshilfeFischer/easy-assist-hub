@@ -153,6 +153,104 @@ export type Database = {
           },
         ]
       }
+      einsatzorte: {
+        Row: {
+          bezeichnung: string | null
+          created_at: string
+          haushalt_id: string
+          id: string
+          ist_aktiv: boolean
+          ist_haupteinsatzort: boolean
+          plz: string | null
+          stadt: string | null
+          stadtteil: string | null
+          strasse: string | null
+          updated_at: string
+          zugangsinformationen: string | null
+        }
+        Insert: {
+          bezeichnung?: string | null
+          created_at?: string
+          haushalt_id: string
+          id?: string
+          ist_aktiv?: boolean
+          ist_haupteinsatzort?: boolean
+          plz?: string | null
+          stadt?: string | null
+          stadtteil?: string | null
+          strasse?: string | null
+          updated_at?: string
+          zugangsinformationen?: string | null
+        }
+        Update: {
+          bezeichnung?: string | null
+          created_at?: string
+          haushalt_id?: string
+          id?: string
+          ist_aktiv?: boolean
+          ist_haupteinsatzort?: boolean
+          plz?: string | null
+          stadt?: string | null
+          stadtteil?: string | null
+          strasse?: string | null
+          updated_at?: string
+          zugangsinformationen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "einsatzorte_haushalt_id_fkey"
+            columns: ["haushalt_id"]
+            isOneToOne: false
+            referencedRelation: "haushalte"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      haushalte: {
+        Row: {
+          angehoerige_ansprechpartner: string | null
+          created_at: string
+          id: string
+          name: string
+          notfall_name: string | null
+          notfall_telefon: string | null
+          rechnungsempfaenger_name: string | null
+          rechnungsempfaenger_plz: string | null
+          rechnungsempfaenger_stadt: string | null
+          rechnungsempfaenger_strasse: string | null
+          sonstiges: string | null
+          updated_at: string
+        }
+        Insert: {
+          angehoerige_ansprechpartner?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notfall_name?: string | null
+          notfall_telefon?: string | null
+          rechnungsempfaenger_name?: string | null
+          rechnungsempfaenger_plz?: string | null
+          rechnungsempfaenger_stadt?: string | null
+          rechnungsempfaenger_strasse?: string | null
+          sonstiges?: string | null
+          updated_at?: string
+        }
+        Update: {
+          angehoerige_ansprechpartner?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notfall_name?: string | null
+          notfall_telefon?: string | null
+          rechnungsempfaenger_name?: string | null
+          rechnungsempfaenger_plz?: string | null
+          rechnungsempfaenger_stadt?: string | null
+          rechnungsempfaenger_strasse?: string | null
+          sonstiges?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kunden: {
         Row: {
           adresse: string | null
@@ -166,6 +264,7 @@ export type Database = {
           email: string | null
           farbe_kalender: string | null
           geburtsdatum: string | null
+          haushalt_id: string | null
           id: string
           kasse_privat: string | null
           kategorie: string | null
@@ -205,6 +304,7 @@ export type Database = {
           email?: string | null
           farbe_kalender?: string | null
           geburtsdatum?: string | null
+          haushalt_id?: string | null
           id?: string
           kasse_privat?: string | null
           kategorie?: string | null
@@ -244,6 +344,7 @@ export type Database = {
           email?: string | null
           farbe_kalender?: string | null
           geburtsdatum?: string | null
+          haushalt_id?: string | null
           id?: string
           kasse_privat?: string | null
           kategorie?: string | null
@@ -272,6 +373,13 @@ export type Database = {
           vorname?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "kunden_haushalt_id_fkey"
+            columns: ["haushalt_id"]
+            isOneToOne: false
+            referencedRelation: "haushalte"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "kunden_mitarbeiter_fkey"
             columns: ["mitarbeiter"]
@@ -668,6 +776,7 @@ export type Database = {
         Row: {
           ausnahme_grund: string | null
           created_at: string
+          einsatzort_id: string | null
           end_at: string
           id: string
           ist_ausnahme: boolean | null
@@ -684,6 +793,7 @@ export type Database = {
         Insert: {
           ausnahme_grund?: string | null
           created_at?: string
+          einsatzort_id?: string | null
           end_at: string
           id?: string
           ist_ausnahme?: boolean | null
@@ -700,6 +810,7 @@ export type Database = {
         Update: {
           ausnahme_grund?: string | null
           created_at?: string
+          einsatzort_id?: string | null
           end_at?: string
           id?: string
           ist_ausnahme?: boolean | null
@@ -714,6 +825,13 @@ export type Database = {
           vorlage_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "termine_einsatzort_id_fkey"
+            columns: ["einsatzort_id"]
+            isOneToOne: false
+            referencedRelation: "einsatzorte"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "termine_kunden_id_fkey"
             columns: ["kunden_id"]
