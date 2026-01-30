@@ -251,6 +251,57 @@ export type Database = {
         }
         Relationships: []
       }
+      kostentraeger: {
+        Row: {
+          abrechnungs_hinweise: string | null
+          anschrift_plz: string | null
+          anschrift_stadt: string | null
+          anschrift_strasse: string | null
+          ansprechpartner: string | null
+          created_at: string
+          email: string | null
+          id: string
+          ik_nummer: string | null
+          ist_aktiv: boolean
+          name: string
+          telefon: string | null
+          typ: Database["public"]["Enums"]["kostentraeger_typ"]
+          updated_at: string
+        }
+        Insert: {
+          abrechnungs_hinweise?: string | null
+          anschrift_plz?: string | null
+          anschrift_stadt?: string | null
+          anschrift_strasse?: string | null
+          ansprechpartner?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          ik_nummer?: string | null
+          ist_aktiv?: boolean
+          name: string
+          telefon?: string | null
+          typ: Database["public"]["Enums"]["kostentraeger_typ"]
+          updated_at?: string
+        }
+        Update: {
+          abrechnungs_hinweise?: string | null
+          anschrift_plz?: string | null
+          anschrift_stadt?: string | null
+          anschrift_strasse?: string | null
+          ansprechpartner?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          ik_nummer?: string | null
+          ist_aktiv?: boolean
+          name?: string
+          telefon?: string | null
+          typ?: Database["public"]["Enums"]["kostentraeger_typ"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kunden: {
         Row: {
           adresse: string | null
@@ -420,6 +471,174 @@ export type Database = {
             columns: ["kunden_id"]
             isOneToOne: false
             referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leistungen: {
+        Row: {
+          art: Database["public"]["Enums"]["leistungsart"]
+          beantragt_am: string | null
+          beantragt_von: string | null
+          beendet_am: string | null
+          beendet_grund: string | null
+          bemerkungen: string | null
+          bewilligung_aktenzeichen: string | null
+          bewilligung_datum: string | null
+          bewilligung_dokument_id: string | null
+          created_at: string
+          genehmigt_am: string | null
+          genehmigt_von: string | null
+          gueltig_bis: string | null
+          gueltig_von: string
+          id: string
+          kontingent_einheit: string | null
+          kontingent_menge: number | null
+          kontingent_verbraucht: number | null
+          kontingent_zeitraum: string | null
+          kostentraeger_id: string | null
+          kunden_id: string
+          pflegegrad_bei_bewilligung: number | null
+          status: Database["public"]["Enums"]["leistungs_status"]
+          updated_at: string
+          versichertennummer: string | null
+        }
+        Insert: {
+          art: Database["public"]["Enums"]["leistungsart"]
+          beantragt_am?: string | null
+          beantragt_von?: string | null
+          beendet_am?: string | null
+          beendet_grund?: string | null
+          bemerkungen?: string | null
+          bewilligung_aktenzeichen?: string | null
+          bewilligung_datum?: string | null
+          bewilligung_dokument_id?: string | null
+          created_at?: string
+          genehmigt_am?: string | null
+          genehmigt_von?: string | null
+          gueltig_bis?: string | null
+          gueltig_von: string
+          id?: string
+          kontingent_einheit?: string | null
+          kontingent_menge?: number | null
+          kontingent_verbraucht?: number | null
+          kontingent_zeitraum?: string | null
+          kostentraeger_id?: string | null
+          kunden_id: string
+          pflegegrad_bei_bewilligung?: number | null
+          status?: Database["public"]["Enums"]["leistungs_status"]
+          updated_at?: string
+          versichertennummer?: string | null
+        }
+        Update: {
+          art?: Database["public"]["Enums"]["leistungsart"]
+          beantragt_am?: string | null
+          beantragt_von?: string | null
+          beendet_am?: string | null
+          beendet_grund?: string | null
+          bemerkungen?: string | null
+          bewilligung_aktenzeichen?: string | null
+          bewilligung_datum?: string | null
+          bewilligung_dokument_id?: string | null
+          created_at?: string
+          genehmigt_am?: string | null
+          genehmigt_von?: string | null
+          gueltig_bis?: string | null
+          gueltig_von?: string
+          id?: string
+          kontingent_einheit?: string | null
+          kontingent_menge?: number | null
+          kontingent_verbraucht?: number | null
+          kontingent_zeitraum?: string | null
+          kostentraeger_id?: string | null
+          kunden_id?: string
+          pflegegrad_bei_bewilligung?: number | null
+          status?: Database["public"]["Enums"]["leistungs_status"]
+          updated_at?: string
+          versichertennummer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leistungen_beantragt_von_fkey"
+            columns: ["beantragt_von"]
+            isOneToOne: false
+            referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leistungen_bewilligung_dokument_id_fkey"
+            columns: ["bewilligung_dokument_id"]
+            isOneToOne: false
+            referencedRelation: "dokumente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leistungen_genehmigt_von_fkey"
+            columns: ["genehmigt_von"]
+            isOneToOne: false
+            referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leistungen_kostentraeger_id_fkey"
+            columns: ["kostentraeger_id"]
+            isOneToOne: false
+            referencedRelation: "kostentraeger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leistungen_kunden_id_fkey"
+            columns: ["kunden_id"]
+            isOneToOne: false
+            referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leistungs_status_historie: {
+        Row: {
+          alter_status: Database["public"]["Enums"]["leistungs_status"] | null
+          geaendert_am: string
+          geaendert_von: string | null
+          grund: string | null
+          id: string
+          leistung_id: string
+          neuer_status: Database["public"]["Enums"]["leistungs_status"]
+          zusatz_daten: Json | null
+        }
+        Insert: {
+          alter_status?: Database["public"]["Enums"]["leistungs_status"] | null
+          geaendert_am?: string
+          geaendert_von?: string | null
+          grund?: string | null
+          id?: string
+          leistung_id: string
+          neuer_status: Database["public"]["Enums"]["leistungs_status"]
+          zusatz_daten?: Json | null
+        }
+        Update: {
+          alter_status?: Database["public"]["Enums"]["leistungs_status"] | null
+          geaendert_am?: string
+          geaendert_von?: string | null
+          grund?: string | null
+          id?: string
+          leistung_id?: string
+          neuer_status?: Database["public"]["Enums"]["leistungs_status"]
+          zusatz_daten?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leistungs_status_historie_geaendert_von_fkey"
+            columns: ["geaendert_von"]
+            isOneToOne: false
+            referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leistungs_status_historie_leistung_id_fkey"
+            columns: ["leistung_id"]
+            isOneToOne: false
+            referencedRelation: "leistungen"
             referencedColumns: ["id"]
           },
         ]
@@ -923,6 +1142,25 @@ export type Database = {
     Enums: {
       approval_status: "pending" | "approved" | "rejected"
       benutzer_status: "pending" | "approved" | "rejected"
+      kostentraeger_typ:
+        | "pflegekasse"
+        | "krankenkasse"
+        | "kommune"
+        | "privat"
+        | "beihilfe"
+      leistungs_status:
+        | "beantragt"
+        | "genehmigt"
+        | "aktiv"
+        | "pausiert"
+        | "beendet"
+      leistungsart:
+        | "entlastungsleistung"
+        | "verhinderungspflege"
+        | "kurzzeitpflege"
+        | "pflegesachleistung"
+        | "privat"
+        | "sonstige"
       recurrence_interval: "none" | "weekly" | "biweekly" | "monthly"
       standort: "Hannover"
       termin_status:
@@ -1061,6 +1299,28 @@ export const Constants = {
     Enums: {
       approval_status: ["pending", "approved", "rejected"],
       benutzer_status: ["pending", "approved", "rejected"],
+      kostentraeger_typ: [
+        "pflegekasse",
+        "krankenkasse",
+        "kommune",
+        "privat",
+        "beihilfe",
+      ],
+      leistungs_status: [
+        "beantragt",
+        "genehmigt",
+        "aktiv",
+        "pausiert",
+        "beendet",
+      ],
+      leistungsart: [
+        "entlastungsleistung",
+        "verhinderungspflege",
+        "kurzzeitpflege",
+        "pflegesachleistung",
+        "privat",
+        "sonstige",
+      ],
       recurrence_interval: ["none", "weekly", "biweekly", "monthly"],
       standort: ["Hannover"],
       termin_status: [
