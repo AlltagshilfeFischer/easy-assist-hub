@@ -17,9 +17,9 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { ModernWeekCalendar } from '@/components/schedule/ModernWeekCalendar';
-import { WeekNavigationBar } from '@/components/schedule/WeekNavigationBar';
-import { CalendarLegend } from '@/components/schedule/CalendarLegend';
+import { ProScheduleCalendar } from '@/components/schedule/ProScheduleCalendar';
+import { ProScheduleHeader } from '@/components/schedule/ProScheduleHeader';
+import { ProCalendarLegend } from '@/components/schedule/ProCalendarLegend';
 import { EmployeeManagementDialog } from '@/components/schedule/EmployeeManagementDialog';
 
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
@@ -887,40 +887,26 @@ const ScheduleBuilderModern = () => {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-[calc(100vh-4rem)] flex flex-col gap-2 sm:gap-3 p-3 sm:p-4 bg-gradient-to-br from-background to-muted/20 overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 flex-shrink-0">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Dienstplan & Terminverwaltung</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Professionelle Wochenansicht mit Drag & Drop
-            </p>
-          </div>
-          <div className="flex gap-2 items-center flex-wrap">
-            <AppointmentApprovalBar />
-            <Button onClick={() => setShowCreateAppointment(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Neuer Termin</span>
-              <span className="sm:hidden">Neu</span>
-            </Button>
-            <Button variant="outline" onClick={() => setShowCreateRecurring(true)} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Serientermin</span>
-              <span className="sm:hidden">Serie</span>
-            </Button>
-          </div>
-        </div>
+      <div className="h-[calc(100vh-4rem)] flex flex-col gap-3 p-4 bg-background overflow-hidden">
+        {/* Pro Header */}
+        <ProScheduleHeader
+          currentWeek={currentWeek}
+          onPreviousWeek={() => setCurrentWeek(prev => subWeeks(prev, 1))}
+          onNextWeek={() => setCurrentWeek(prev => addWeeks(prev, 1))}
+          onToday={() => setCurrentWeek(new Date())}
+          onEmployeeManagement={() => setShowEmployeeDialog(true)}
+        />
 
-        {/* AI Appointment Creator + Conflicts */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 flex-shrink-0">
-          <AIAppointmentCreator onAppointmentCreated={loadData} />
-          
+        {/* AI Appointment Creator + Conflicts - Compact Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-shrink-0">
+          <div className="lg:col-span-2">
+            <AIAppointmentCreator onAppointmentCreated={loadData} />
+          </div>
           <ConflictsNavigationCard
             appointments={appointments}
             onNavigateToConflict={(appointmentId) => {
               const appointment = appointments.find(a => a.id === appointmentId);
               if (appointment) {
-                // Navigate to the week of the conflict if needed
                 const appointmentDate = new Date(appointment.start_at);
                 const appointmentWeekStart = startOfWeek(appointmentDate, { weekStartsOn: 1 });
                 const currentWeekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -929,81 +915,72 @@ const ScheduleBuilderModern = () => {
                   setCurrentWeek(appointmentDate);
                 }
                 
-                // Highlight the appointment and open detail dialog
                 setHighlightedAppointmentId(appointmentId);
                 setEditingAppointment(appointment);
-                
-                // Clear highlight after 3 seconds
                 setTimeout(() => setHighlightedAppointmentId(null), 3000);
               }
             }}
           />
         </div>
 
-        {/* Navigation */}
+        {/* Action Buttons */}
         <div className="flex items-center justify-between gap-2 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setShowEmployeeDialog(true)} size="sm">
-              <Users className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Mitarbeiter</span>
+          <AppointmentApprovalBar />
+          <div className="flex gap-2">
+            <Button onClick={() => setShowCreateAppointment(true)} size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Neuer Termin
             </Button>
-            <WeekNavigationBar
-              currentWeek={currentWeek}
-              onPreviousWeek={() => setCurrentWeek(prev => subWeeks(prev, 1))}
-              onNextWeek={() => setCurrentWeek(prev => addWeeks(prev, 1))}
-              onToday={() => setCurrentWeek(new Date())}
-            />
+            <Button variant="outline" onClick={() => setShowCreateRecurring(true)} size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Serientermin
+            </Button>
           </div>
-          <CalendarLegend />
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Calendar */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            {/* Calendar Grid - Fixed Height */}
-            <Card className="flex-1 shadow-lg overflow-hidden flex flex-col">
-              <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-                {/* Unassigned Bar - Above Calendar */}
-                <UnassignedAppointmentsBar
-                  appointments={appointments}
-                  weekDates={getWeekDates()}
-                  activeId={activeId}
-                  onEditAppointment={setEditingAppointment}
-                  onCut={handleCutAppointment}
-                  onSlotClick={(date) => {
-                    if (cutAppointment) {
-                      handlePasteAppointment(null, date);
-                    }
-                  }}
-                />
-                
-                {/* Calendar with scroll */}
-                <div className="flex-1 overflow-auto">
-                  <ModernWeekCalendar
-                    employees={filteredEmployees}
-                    appointments={appointments}
-                    weekDates={getWeekDates()}
-                    activeAppointmentId={activeId}
-                    onEditAppointment={setEditingAppointment}
-                    onSlotClick={handleSlotClick}
-                    conflictingAppointments={conflictingAppointments}
-                    onCut={handleCutAppointment}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+        {/* Main Calendar Content */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          {/* Unassigned Bar */}
+          <UnassignedAppointmentsBar
+            appointments={appointments}
+            weekDates={getWeekDates()}
+            activeId={activeId}
+            onEditAppointment={setEditingAppointment}
+            onCut={handleCutAppointment}
+            onSlotClick={(date) => {
+              if (cutAppointment) {
+                handlePasteAppointment(null, date);
+              }
+            }}
+          />
+          
+          {/* Calendar Grid */}
+          <div className="flex-1 overflow-auto">
+            <ProScheduleCalendar
+              employees={filteredEmployees}
+              appointments={appointments}
+              weekDates={getWeekDates()}
+              activeAppointmentId={activeId}
+              onEditAppointment={setEditingAppointment}
+              onSlotClick={handleSlotClick}
+              conflictingAppointments={conflictingAppointments}
+              onCut={handleCutAppointment}
+              highlightedAppointmentId={highlightedAppointmentId}
+            />
           </div>
+          
+          {/* Legend Footer */}
+          <ProCalendarLegend />
         </div>
 
         {/* Cut/Paste Bar */}
         {cutAppointment && (
-          <Card className="flex-shrink-0 bg-amber-50 border-amber-200">
+          <Card className="flex-shrink-0 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="bg-amber-100 p-2 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="bg-amber-100 dark:bg-amber-900/50 p-2 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M scissors" />
                     </svg>
                   </div>
@@ -1020,7 +997,7 @@ const ScheduleBuilderModern = () => {
                   Abbrechen
                 </Button>
               </div>
-              <div className="text-xs text-amber-700 mt-2 flex items-center gap-1">
+              <div className="text-xs text-amber-700 dark:text-amber-300 mt-2 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Klicken Sie auf einen leeren Zeitslot, um den Termin einzufügen
               </div>
