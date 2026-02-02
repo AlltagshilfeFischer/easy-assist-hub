@@ -1077,6 +1077,30 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1120,8 +1144,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_roles: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
       get_user_rolle: { Args: { p_user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_admin_secure: { Args: { _user_id: string }; Returns: boolean }
       is_employee_for_appointment: {
         Args: { p_termin_id: string }
         Returns: boolean
@@ -1143,6 +1179,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "manager" | "mitarbeiter"
       approval_status: "pending" | "approved" | "rejected"
       benutzer_status: "pending" | "approved" | "rejected"
       kostentraeger_typ:
@@ -1300,6 +1337,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "manager", "mitarbeiter"],
       approval_status: ["pending", "approved", "rejected"],
       benutzer_status: ["pending", "approved", "rejected"],
       kostentraeger_typ: [
