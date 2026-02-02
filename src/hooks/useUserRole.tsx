@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -10,13 +10,18 @@ export function useUserRole() {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [mitarbeiterId, setMitarbeiterId] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+    
     async function fetchUserRole() {
       if (!user) {
-        setRole(null);
-        setRoles([]);
-        setLoading(false);
+        if (mountedRef.current) {
+          setRole(null);
+          setRoles([]);
+          setLoading(false);
+        }
         return;
       }
 
@@ -28,6 +33,7 @@ export function useUserRole() {
           .eq('id', user.id)
           .maybeSingle();
 
+        if (!mountedRef.current) return;
         if (benutzerError) throw benutzerError;
 
         // Not in benutzer table OR not approved yet => not authorized
@@ -45,6 +51,7 @@ export function useUserRole() {
           .select('role')
           .eq('user_id', user.id);
 
+        if (!mountedRef.current) return;
         if (rolesError) throw rolesError;
 
         const roleList = (userRoles || []).map(r => r.role as UserRole);
@@ -69,21 +76,29 @@ export function useUserRole() {
             .eq('benutzer_id', user.id)
             .maybeSingle();
 
-          if (mitarbeiterData) {
+          if (mountedRef.current && mitarbeiterData) {
             setMitarbeiterId(mitarbeiterData.id);
           }
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
-        setRole(null);
-        setRoles([]);
-        setMitarbeiterId(null);
+        if (mountedRef.current) {
+          setRole(null);
+          setRoles([]);
+          setMitarbeiterId(null);
+        }
       } finally {
-        setLoading(false);
+        if (mountedRef.current) {
+          setLoading(false);
+        }
       }
     }
 
     fetchUserRole();
+    
+    return () => {
+      mountedRef.current = false;
+    };
   }, [user]);
 
   // Helper functions for role checks
