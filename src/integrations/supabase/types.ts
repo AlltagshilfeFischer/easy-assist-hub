@@ -1209,6 +1209,8 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+        | "abgerechnet"
+        | "bezahlt"
       user_rolle: "admin" | "manager" | "mitarbeiter"
     }
     CompositeTypes: {
@@ -1370,6 +1372,8 @@ export const Constants = {
         "in_progress",
         "completed",
         "cancelled",
+        "abgerechnet",
+        "bezahlt",
       ],
       user_rolle: ["admin", "manager", "mitarbeiter"],
     },
