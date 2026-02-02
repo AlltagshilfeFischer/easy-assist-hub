@@ -3,15 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 
 interface PendingRegistration {
@@ -55,6 +54,10 @@ export default function BenutzerverwaltungNeu() {
   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMitarbeiter, setEditingMitarbeiter] = useState<Mitarbeiter | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ email: '', vorname: '', nachname: '' });
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { toast } = useToast();
 
@@ -96,7 +99,7 @@ export default function BenutzerverwaltungNeu() {
               email
             )
           `)
-          .order('created_at', { ascending: false })
+          .order('nachname', { ascending: true })
       ]);
 
       if (registrationsResponse.error) throw registrationsResponse.error;
@@ -230,7 +233,7 @@ export default function BenutzerverwaltungNeu() {
 
       toast({
         title: 'Erfolgreich',
-        description: 'Mitarbeiter wurde komplett gelöscht (inkl. Auth-User, Termine, Änderungsanträge).',
+        description: 'Mitarbeiter wurde komplett gelöscht.',
       });
 
       setDeleteDialogOpen(false);
@@ -297,18 +300,61 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-500/10"><Clock className="w-3 h-3 mr-1" />Ausstehend</Badge>;
-      case 'approved':
-        return <Badge variant="outline" className="bg-green-500/10"><CheckCircle className="w-3 h-3 mr-1" />Genehmigt</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-500/10"><XCircle className="w-3 h-3 mr-1" />Abgelehnt</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const handleInviteMitarbeiter = async () => {
+    if (!inviteForm.email) {
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: 'E-Mail-Adresse ist erforderlich.',
+      });
+      return;
+    }
+
+    setInviteLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-mitarbeiter', {
+        body: {
+          email: inviteForm.email,
+          vorname: inviteForm.vorname,
+          nachname: inviteForm.nachname
+        },
+      });
+
+      if (error) {
+        const serverMsg = (data as any)?.error || (typeof data === 'string' ? data : null);
+        throw new Error(serverMsg || error.message);
+      }
+
+      toast({
+        title: 'Erfolgreich',
+        description: data?.message || 'Mitarbeiter eingeladen.',
+      });
+
+      setInviteDialogOpen(false);
+      setInviteForm({ email: '', vorname: '', nachname: '' });
+      loadData();
+    } catch (error: any) {
+      console.error('Error inviting:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: error.message || 'Einladung fehlgeschlagen.',
+      });
+    } finally {
+      setInviteLoading(false);
     }
   };
+
+  const filteredMitarbeiter = mitarbeiter.filter(m => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    const fullName = `${m.vorname || ''} ${m.nachname || ''}`.toLowerCase();
+    const email = m.benutzer?.email?.toLowerCase() || '';
+    return fullName.includes(query) || email.includes(query);
+  });
+
+  const activeMitarbeiter = filteredMitarbeiter.filter(m => m.ist_aktiv);
+  const inactiveMitarbeiter = filteredMitarbeiter.filter(m => !m.ist_aktiv);
 
   if (loading) {
     return (
@@ -319,166 +365,180 @@ export default function BenutzerverwaltungNeu() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Benutzerverwaltung</h1>
-        <p className="text-muted-foreground">Registrierungen verwalten und Mitarbeiter freischalten</p>
+    <div className="container mx-auto py-8 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Benutzerverwaltung</h1>
+          <p className="text-muted-foreground">Mitarbeiter verwalten und neue einladen</p>
+        </div>
+        <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
+          <UserPlus className="h-4 w-4" />
+          Mitarbeiter einladen
+        </Button>
       </div>
 
-      <Tabs defaultValue="pending" className="w-full">
-        <TabsList>
-          <TabsTrigger value="pending">
-            Ausstehend {pendingBenutzer.length > 0 && `(${pendingBenutzer.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="mitarbeiter">Mitarbeiter ({mitarbeiter.length})</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="space-y-4">
-          {pendingBenutzer.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Ausstehende Registrierungen</CardTitle>
-                <CardDescription>
-                  Benutzer die auf Genehmigung warten
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {pendingBenutzer.map((benutzer) => (
-                  <Card key={benutzer.id}>
-                    <CardContent className="pt-6">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">
-                              {benutzer.vorname || benutzer.nachname
-                                ? `${benutzer.vorname || ''} ${benutzer.nachname || ''}`.trim()
-                                : 'Kein Name'}
-                            </h3>
-                            {getStatusBadge(benutzer.status)}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{benutzer.email}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Registriert am: {new Date(benutzer.created_at).toLocaleDateString('de-DE')}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleApprove(benutzer)}
-                            disabled={actionLoading === benutzer.id}
-                          >
-                            {actionLoading === benutzer.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Genehmigen
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() => {
-                              setSelectedBenutzer(benutzer.id);
-                              setRejectDialogOpen(true);
-                            }}
-                            disabled={actionLoading === benutzer.id}
-                          >
-                            Ablehnen
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-center text-muted-foreground">
-                Keine ausstehenden Registrierungen
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="mitarbeiter">
+      {/* Main Layout: Two Columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Employee List (2/3 width) */}
+        <div className="lg:col-span-2 space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Alle Mitarbeiter</CardTitle>
-              <CardDescription>Übersicht aller aktiven Mitarbeiter</CardDescription>
+            <CardHeader className="pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-xl">Alle Mitarbeiter</CardTitle>
+                  <Badge variant="secondary">{mitarbeiter.length}</Badge>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Suchen..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 w-full sm:w-64"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {mitarbeiter.length > 0 ? (
-                  mitarbeiter.map((m) => {
-                    const fullName = m.vorname || m.nachname
-                      ? `${m.vorname || ''} ${m.nachname || ''}`.trim()
-                      : 'Unbekannt';
-                    return (
-                    <div key={m.id} className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <AvatarUpload
-                          mitarbeiterId={m.id}
-                          currentAvatarUrl={m.avatar_url}
-                          name={fullName}
-                          color={m.farbe_kalender || '#3B82F6'}
-                          size="md"
-                          onUploadComplete={() => loadData()}
-                          onRemove={() => loadData()}
-                        />
-                        <div>
-                          <p className="font-medium">{fullName}</p>
-                          <p className="text-sm text-muted-foreground">{m.benutzer?.email || 'Keine E-Mail'}</p>
-                          {m.telefon && (
-                            <p className="text-xs text-muted-foreground">{m.telefon}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={m.ist_aktiv ? 'default' : 'secondary'}>
-                          {m.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
-                        </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditMitarbeiter(m)}
-                          disabled={actionLoading === m.id}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant={m.ist_aktiv ? 'outline' : 'default'}
-                          size="sm"
-                          onClick={() => handleToggleActive(m.id, m.ist_aktiv)}
-                          disabled={actionLoading === m.id}
-                        >
-                          {actionLoading === m.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : m.ist_aktiv ? (
-                            <UserX className="h-4 w-4" />
-                          ) : (
-                            <UserCheck className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedMitarbeiter(m.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                          disabled={actionLoading === m.id}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )})
-                ) : (
+              <ScrollArea className="h-[calc(100vh-320px)] pr-4">
+                {/* Active Employees */}
+                {activeMitarbeiter.length > 0 && (
+                  <div className="space-y-2 mb-6">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Aktive Mitarbeiter ({activeMitarbeiter.length})
+                    </h3>
+                    {activeMitarbeiter.map((m) => (
+                      <MitarbeiterRow
+                        key={m.id}
+                        mitarbeiter={m}
+                        actionLoading={actionLoading}
+                        onEdit={handleEditMitarbeiter}
+                        onToggleActive={handleToggleActive}
+                        onDelete={(id) => {
+                          setSelectedMitarbeiter(id);
+                          setDeleteDialogOpen(true);
+                        }}
+                        loadData={loadData}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Inactive Employees */}
+                {inactiveMitarbeiter.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                      Inaktive Mitarbeiter ({inactiveMitarbeiter.length})
+                    </h3>
+                    {inactiveMitarbeiter.map((m) => (
+                      <MitarbeiterRow
+                        key={m.id}
+                        mitarbeiter={m}
+                        actionLoading={actionLoading}
+                        onEdit={handleEditMitarbeiter}
+                        onToggleActive={handleToggleActive}
+                        onDelete={(id) => {
+                          setSelectedMitarbeiter(id);
+                          setDeleteDialogOpen(true);
+                        }}
+                        loadData={loadData}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {filteredMitarbeiter.length === 0 && (
                   <p className="text-center text-muted-foreground py-8">
-                    Keine Mitarbeiter vorhanden
+                    {searchQuery ? 'Keine Mitarbeiter gefunden' : 'Keine Mitarbeiter vorhanden'}
                   </p>
                 )}
-              </div>
+              </ScrollArea>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
 
+        {/* Right: Pending Registrations (1/3 width) */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-amber-500" />
+                <CardTitle className="text-xl">Ausstehend</CardTitle>
+                {pendingBenutzer.length > 0 && (
+                  <Badge variant="destructive">{pendingBenutzer.length}</Badge>
+                )}
+              </div>
+              <CardDescription>
+                Registrierungsanfragen prüfen
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[calc(100vh-380px)]">
+                {pendingBenutzer.length > 0 ? (
+                  <div className="space-y-3">
+                    {pendingBenutzer.map((benutzer) => (
+                      <Card key={benutzer.id} className="bg-muted/50">
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div>
+                              <p className="font-medium">
+                                {benutzer.vorname || benutzer.nachname
+                                  ? `${benutzer.vorname || ''} ${benutzer.nachname || ''}`.trim()
+                                  : 'Kein Name'}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {benutzer.email}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(benutzer.created_at).toLocaleDateString('de-DE')}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApprove(benutzer)}
+                                disabled={actionLoading === benutzer.id}
+                                className="flex-1"
+                              >
+                                {actionLoading === benutzer.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setSelectedBenutzer(benutzer.id);
+                                  setRejectDialogOpen(true);
+                                }}
+                                disabled={actionLoading === benutzer.id}
+                                className="flex-1"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>Keine ausstehenden Anfragen</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Reject Dialog */}
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -505,14 +565,14 @@ export default function BenutzerverwaltungNeu() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mitarbeiter komplett löschen</AlertDialogTitle>
             <AlertDialogDescription>
-              Sind Sie sicher, dass Sie diesen Mitarbeiter dauerhaft löschen möchten? 
-              Dabei werden gelöscht: Auth-User, Benutzer-Eintrag, Mitarbeiter-Eintrag, alle Termine und Änderungsanträge.
-              Diese Aktion kann nicht rückgängig gemacht werden.
+              Sind Sie sicher? Dabei werden gelöscht: Auth-User, Benutzer-Eintrag, 
+              Mitarbeiter-Eintrag, alle Termine und Änderungsanträge.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -529,6 +589,63 @@ export default function BenutzerverwaltungNeu() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Invite Dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Mitarbeiter einladen
+            </DialogTitle>
+            <DialogDescription>
+              Der Mitarbeiter erhält eine E-Mail mit einem Link zur Passwort-Erstellung.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">E-Mail-Adresse *</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                placeholder="mitarbeiter@beispiel.de"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="invite-vorname">Vorname</Label>
+                <Input
+                  id="invite-vorname"
+                  value={inviteForm.vorname}
+                  onChange={(e) => setInviteForm({ ...inviteForm, vorname: e.target.value })}
+                  placeholder="Max"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-nachname">Nachname</Label>
+                <Input
+                  id="invite-nachname"
+                  value={inviteForm.nachname}
+                  onChange={(e) => setInviteForm({ ...inviteForm, nachname: e.target.value })}
+                  placeholder="Mustermann"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleInviteMitarbeiter} disabled={inviteLoading}>
+              {inviteLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Einladung senden
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -680,6 +797,85 @@ export default function BenutzerverwaltungNeu() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Extracted component for employee rows
+function MitarbeiterRow({ 
+  mitarbeiter: m, 
+  actionLoading, 
+  onEdit, 
+  onToggleActive, 
+  onDelete,
+  loadData 
+}: {
+  mitarbeiter: Mitarbeiter;
+  actionLoading: string | null;
+  onEdit: (m: Mitarbeiter) => void;
+  onToggleActive: (id: string, status: boolean) => void;
+  onDelete: (id: string) => void;
+  loadData: () => void;
+}) {
+  const fullName = m.vorname || m.nachname
+    ? `${m.vorname || ''} ${m.nachname || ''}`.trim()
+    : 'Unbekannt';
+
+  return (
+    <div className={`flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors ${!m.ist_aktiv ? 'opacity-60' : ''}`}>
+      <div className="flex items-center gap-4">
+        <AvatarUpload
+          mitarbeiterId={m.id}
+          currentAvatarUrl={m.avatar_url}
+          name={fullName}
+          color={m.farbe_kalender || '#3B82F6'}
+          size="md"
+          onUploadComplete={loadData}
+          onRemove={loadData}
+        />
+        <div>
+          <p className="font-medium">{fullName}</p>
+          <p className="text-sm text-muted-foreground">{m.benutzer?.email || 'Keine E-Mail'}</p>
+          {m.telefon && (
+            <p className="text-xs text-muted-foreground">{m.telefon}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge variant={m.ist_aktiv ? 'default' : 'secondary'}>
+          {m.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
+        </Badge>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onEdit(m)}
+          disabled={actionLoading === m.id}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant={m.ist_aktiv ? 'outline' : 'default'}
+          size="sm"
+          onClick={() => onToggleActive(m.id, m.ist_aktiv)}
+          disabled={actionLoading === m.id}
+        >
+          {actionLoading === m.id ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : m.ist_aktiv ? (
+            <UserX className="h-4 w-4" />
+          ) : (
+            <UserCheck className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => onDelete(m.id)}
+          disabled={actionLoading === m.id}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
