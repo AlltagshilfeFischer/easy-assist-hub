@@ -15,6 +15,7 @@ interface Employee {
   max_termine_pro_tag: number;
   ist_aktiv: boolean;
   soll_wochenstunden?: number;
+  avatar_url?: string | null;
 }
 
 interface Appointment {
@@ -175,12 +176,13 @@ export function ProScheduleCalendar({
                   style={{ '--ring-color': employee.farbe_kalender } as React.CSSProperties}
                 >
                   <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-offset-background" style={{ boxShadow: `0 0 0 2px ${employee.farbe_kalender}` }}>
-                  <AvatarFallback 
-                    className="text-white font-semibold text-sm"
-                    style={{ backgroundColor: employee.farbe_kalender }}
-                  >
-                    {initials}
-                  </AvatarFallback>
+                    <AvatarImage src={employee.avatar_url || undefined} alt={employee.name} />
+                    <AvatarFallback 
+                      className="text-white font-semibold text-sm"
+                      style={{ backgroundColor: employee.farbe_kalender }}
+                    >
+                      {initials}
+                    </AvatarFallback>
                   </Avatar>
                 </div>
                 <div className="flex-1 min-w-0">

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck } from 'lucide-react';
+import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 
 interface PendingRegistration {
   id: string;
@@ -28,6 +29,8 @@ interface Mitarbeiter {
   ist_aktiv: boolean;
   created_at: string;
   benutzer_id: string | null;
+  avatar_url: string | null;
+  farbe_kalender: string | null;
   benutzer?: {
     vorname: string;
     nachname: string;
@@ -456,16 +459,29 @@ export default function MitarbeiterVerwaltung() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {mitarbeiter.map((m) => (
-                  <div key={m.id} className="flex justify-between items-center p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {m.benutzer?.vorname || 'Unbekannt'} {m.benutzer?.nachname || ''}
-                      </p>
-                      <p className="text-sm text-muted-foreground">{m.benutzer?.email}</p>
-                      {m.telefon && (
-                        <p className="text-xs text-muted-foreground">Tel: {m.telefon}</p>
-                      )}
+                {mitarbeiter.map((m) => {
+                  const fullName = `${m.benutzer?.vorname || 'Unbekannt'} ${m.benutzer?.nachname || ''}`.trim();
+                  return (
+                  <div key={m.id} className="flex justify-between items-center p-4 border rounded-lg gap-4">
+                    <div className="flex items-center gap-4">
+                      <AvatarUpload
+                        mitarbeiterId={m.id}
+                        currentAvatarUrl={m.avatar_url}
+                        name={fullName}
+                        color={m.farbe_kalender || '#3B82F6'}
+                        size="md"
+                        onUploadComplete={() => loadData()}
+                        onRemove={() => loadData()}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">
+                          {fullName}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{m.benutzer?.email}</p>
+                        {m.telefon && (
+                          <p className="text-xs text-muted-foreground">Tel: {m.telefon}</p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={m.ist_aktiv ? 'default' : 'secondary'}>
@@ -498,7 +514,8 @@ export default function MitarbeiterVerwaltung() {
                       </Button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

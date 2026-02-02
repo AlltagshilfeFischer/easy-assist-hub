@@ -646,6 +646,7 @@ export type Database = {
       mitarbeiter: {
         Row: {
           adresse: string | null
+          avatar_url: string | null
           benutzer_id: string | null
           created_at: string
           farbe_kalender: string | null
@@ -665,6 +666,7 @@ export type Database = {
         }
         Insert: {
           adresse?: string | null
+          avatar_url?: string | null
           benutzer_id?: string | null
           created_at?: string
           farbe_kalender?: string | null
@@ -684,6 +686,7 @@ export type Database = {
         }
         Update: {
           adresse?: string | null
+          avatar_url?: string | null
           benutzer_id?: string | null
           created_at?: string
           farbe_kalender?: string | null
