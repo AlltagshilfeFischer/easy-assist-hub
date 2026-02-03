@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Upload } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
+import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
 
 interface PendingRegistration {
   id: string;
@@ -48,6 +49,7 @@ export default function MitarbeiterVerwaltung() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<string | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   
   const { toast } = useToast();
 
@@ -358,13 +360,19 @@ export default function MitarbeiterVerwaltung() {
       </div>
 
       <Tabs defaultValue="registrations" className="w-full">
-        <TabsList>
-          <TabsTrigger value="registrations">
-            Registrierungen {pendingRegistrations.length > 0 && `(${pendingRegistrations.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="employees">Mitarbeiter ({mitarbeiter.length})</TabsTrigger>
-          <TabsTrigger value="create">Neuer Mitarbeiter</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between mb-4">
+          <TabsList>
+            <TabsTrigger value="registrations">
+              Registrierungen {pendingRegistrations.length > 0 && `(${pendingRegistrations.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="employees">Mitarbeiter ({mitarbeiter.length})</TabsTrigger>
+            <TabsTrigger value="create">Neuer Mitarbeiter</TabsTrigger>
+          </TabsList>
+          <Button onClick={() => setShowImportDialog(true)} variant="outline">
+            <Upload className="h-4 w-4 mr-2" />
+            Mitarbeiter importieren
+          </Button>
+        </div>
 
         <TabsContent value="registrations" className="space-y-4">
           {pendingRegistrations.length > 0 && (
@@ -592,6 +600,11 @@ export default function MitarbeiterVerwaltung() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <MitarbeiterImport 
+        open={showImportDialog} 
+        onOpenChange={setShowImportDialog} 
+      />
 
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent>

@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2, Search, Power, Sparkles } from 'lucide-react';
+import { Users, Building, Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Plus, Trash2, Search, Power, Sparkles, Upload } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useMemo } from 'react';
@@ -47,6 +47,7 @@ import { useNavigate } from 'react-router-dom';
 import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
 import CreateCustomerWizard from '@/components/customers/CreateCustomerWizard';
 import { CustomerImportExport } from '@/components/customers/CustomerImportExport';
+import { KundenSmartImport } from '@/components/import/KundenSmartImport';
 
 type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
 type SortDirection = 'asc' | 'desc';
@@ -99,6 +100,7 @@ export default function MasterData() {
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const [showAITimeWindows, setShowAITimeWindows] = useState(false);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [showSmartImport, setShowSmartImport] = useState(false);
   
   // Column filters
   const [nameFilter, setNameFilter] = useState<string>('');
@@ -632,6 +634,11 @@ export default function MasterData() {
           </p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
+          <Button variant="outline" onClick={() => setShowSmartImport(true)} className="gap-2">
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline">Smart Import</span>
+            <span className="sm:hidden">Import</span>
+          </Button>
           <CustomerImportExport customers={customers || []} />
           <Button onClick={handleOpenCreateDialog} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -1581,6 +1588,12 @@ export default function MasterData() {
         onOpenChange={setIsCreatingCustomer}
         employees={employees || []}
         onSuccess={handleWizardSuccess}
+      />
+
+      {/* Smart Import Dialog */}
+      <KundenSmartImport
+        open={showSmartImport}
+        onOpenChange={setShowSmartImport}
       />
     </div>
   );
