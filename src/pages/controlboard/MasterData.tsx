@@ -636,8 +636,7 @@ export default function MasterData() {
         <div className="flex gap-2 items-center flex-wrap">
           <Button variant="outline" onClick={() => setShowSmartImport(true)} className="gap-2">
             <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Smart Import</span>
-            <span className="sm:hidden">Import</span>
+            Importieren
           </Button>
           <CustomerImportExport customers={customers || []} />
           <Button onClick={handleOpenCreateDialog} className="gap-2">

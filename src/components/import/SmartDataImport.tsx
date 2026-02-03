@@ -165,7 +165,7 @@ export function SmartDataImport<T extends DataRow>({
   initialRowCount = 20,
   batchSize = 100,
 }: SmartDataImportProps<T>) {
-  const [step, setStep] = useState<'paste' | 'edit'>('paste');
+  const [step, setStep] = useState<'choose' | 'paste' | 'edit'>('choose');
   const [rawInput, setRawInput] = useState('');
   const [rows, setRows] = useState<T[]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -500,7 +500,7 @@ export function SmartDataImport<T extends DataRow>({
       });
 
       onOpenChange(false);
-      setStep('paste');
+      setStep('choose');
       setRawInput('');
       setRows([]);
     } catch (error: any) {
@@ -516,9 +516,18 @@ export function SmartDataImport<T extends DataRow>({
 
   const handleClose = () => {
     onOpenChange(false);
-    setStep('paste');
+    setStep('choose');
     setRawInput('');
     setRows([]);
+  };
+
+  const handleChoosePaste = () => {
+    setStep('paste');
+  };
+
+  const handleChooseDirect = () => {
+    setRows(Array.from({ length: initialRowCount }, createEmptyRow) as T[]);
+    setStep('edit');
   };
 
   return (
@@ -532,7 +541,48 @@ export function SmartDataImport<T extends DataRow>({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {step === 'paste' ? (
+        {step === 'choose' ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-12 gap-8">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-medium">Wie möchten Sie die Daten importieren?</h3>
+              <p className="text-sm text-muted-foreground">Wählen Sie die für Sie passende Methode</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6 max-w-2xl w-full">
+              {/* Option 1: Paste Data */}
+              <button
+                onClick={handleChoosePaste}
+                className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
+              >
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <ClipboardPaste className="h-8 w-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <div className="font-medium text-lg">Daten einfügen</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    CSV, Excel oder Freitext einfügen und automatisch erkennen lassen
+                  </div>
+                </div>
+              </button>
+
+              {/* Option 2: Direct Edit */}
+              <button
+                onClick={handleChooseDirect}
+                className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
+              >
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <FileSpreadsheet className="h-8 w-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <div className="font-medium text-lg">Direkt bearbeiten</div>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    In einer leeren Tabelle manuell Daten eingeben
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        ) : step === 'paste' ? (
           <div className="flex-1 space-y-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <ClipboardPaste className="h-4 w-4" />
@@ -552,8 +602,8 @@ export function SmartDataImport<T extends DataRow>({
                 Die Daten werden automatisch erkannt (CSV, Tab-getrennt, Freitext)
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep('edit')}>
-                  Manuell eingeben
+                <Button variant="outline" onClick={() => setStep('choose')}>
+                  Zurück
                 </Button>
                 <Button onClick={handleParseRawInput}>
                   <Upload className="h-4 w-4 mr-2" />
@@ -577,8 +627,8 @@ export function SmartDataImport<T extends DataRow>({
                 </Badge>
               )}
               <div className="flex-1" />
-              <Button variant="outline" size="sm" onClick={() => setStep('paste')}>
-                Zurück zum Einfügen
+              <Button variant="outline" size="sm" onClick={() => setStep('choose')}>
+                Zurück zur Auswahl
               </Button>
               <Button variant="outline" size="sm" onClick={() => addRows(10)}>
                 <Plus className="h-3 w-3 mr-1" />

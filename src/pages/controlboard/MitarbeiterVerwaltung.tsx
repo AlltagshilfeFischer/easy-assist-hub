@@ -370,7 +370,7 @@ export default function MitarbeiterVerwaltung() {
           </TabsList>
           <Button onClick={() => setShowImportDialog(true)} variant="outline">
             <Upload className="h-4 w-4 mr-2" />
-            Mitarbeiter importieren
+            Importieren
           </Button>
         </div>
 
