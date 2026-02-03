@@ -90,23 +90,28 @@ export function UnassignedAppointmentsBar({
         </div>
       </div>
 
-      {/* Grid aligned with ModernWeekCalendar */}
-      <div className="flex">
-        {/* Spacer for employee column - matches ModernWeekCalendar exactly */}
-        <div className="flex-shrink-0 border-r bg-card" style={{ width: `${EMPLOYEE_COL_WIDTH}px` }} />
+      {/* Grid aligned with ProScheduleCalendar - using same grid template */}
+      <div 
+        className="grid"
+        style={{ gridTemplateColumns: `${EMPLOYEE_COL_WIDTH}px repeat(7, 1fr)` }}
+      >
+        {/* Spacer for employee column - matches ProScheduleCalendar exactly */}
+        <div className="border-r bg-card" />
         
-        {/* Weekdays Mo-Fr */}
-        {weekdays.map((date) => {
+        {/* All 7 days */}
+        {weekDates.map((date) => {
           const dateKey = format(date, 'yyyy-MM-dd');
           const dayAppointments = groupedAppointments[dateKey] || [];
           const isToday = isSameDay(date, new Date());
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
           return (
             <div
               key={dateKey}
               className={cn(
-                "flex-1 min-w-[180px] p-2 border-r",
-                isToday && "bg-primary/5"
+                "p-2 border-r last:border-r-0",
+                isToday && "bg-primary/5",
+                isWeekend && "bg-muted/30"
               )}
             >
               <EnhancedDropZone
@@ -122,48 +127,6 @@ export function UnassignedAppointmentsBar({
                   <div className="text-xs text-muted-foreground/50 text-center">
                     Drop hier
                   </div>
-                ) : (
-                  dayAppointments.map((appointment) => (
-                    <DraggableAppointment
-                      key={appointment.id}
-                      appointment={appointment}
-                      isDragging={activeId === appointment.id}
-                      isConflicting={false}
-                      onClick={() => onEditAppointment(appointment)}
-                      onCut={() => onCut?.(appointment)}
-                    />
-                  ))
-                )}
-              </EnhancedDropZone>
-            </div>
-          );
-        })}
-        
-        {/* Weekend Sa-So (minimized) */}
-        {weekendDays.map((date) => {
-          const dateKey = format(date, 'yyyy-MM-dd');
-          const dayAppointments = groupedAppointments[dateKey] || [];
-          const isToday = isSameDay(date, new Date());
-
-          return (
-            <div
-              key={dateKey}
-              className={cn(
-                "w-24 flex-shrink-0 p-2 border-r bg-muted/30",
-                isToday && "bg-primary/10"
-              )}
-            >
-              <EnhancedDropZone
-                id={`unassigned-${dateKey}`}
-                isEmpty={dayAppointments.length === 0}
-                onClick={() => onSlotClick?.(date)}
-                className={cn(
-                  "min-h-[64px] space-y-1",
-                  dayAppointments.length === 0 && "border border-dashed border-muted-foreground/20 rounded flex items-center justify-center cursor-pointer"
-                )}
-              >
-                {dayAppointments.length === 0 ? (
-                  <div className="text-xs text-muted-foreground/40 text-center">•</div>
                 ) : (
                   dayAppointments.map((appointment) => (
                     <DraggableAppointment

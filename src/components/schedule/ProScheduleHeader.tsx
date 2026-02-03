@@ -2,7 +2,7 @@ import React from 'react';
 import { format, getWeek, startOfWeek, endOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Search, Bell, Filter, Users, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
@@ -72,14 +72,13 @@ export function ProScheduleHeader({
         </Button>
       </div>
       
-      {/* Right: Actions */}
+      {/* Right: View Toggle */}
       <div className="flex items-center gap-2">
-        {/* View Toggle */}
         <ToggleGroup 
           type="single" 
           value={view} 
           onValueChange={(v) => v && onViewChange?.(v as 'day' | 'week' | 'month')}
-          className="bg-muted rounded-lg p-0.5 hidden lg:flex"
+          className="bg-muted rounded-lg p-0.5"
         >
           <ToggleGroupItem 
             value="day" 
@@ -109,21 +108,6 @@ export function ProScheduleHeader({
             Monat
           </ToggleGroupItem>
         </ToggleGroup>
-        
-        {/* Filter */}
-        <Button variant="outline" size="sm" className="gap-1.5 h-8">
-          <Filter className="h-3.5 w-3.5" />
-          <span className="hidden md:inline">Filter</span>
-        </Button>
-
-        {/* Search & Notifications */}
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Search className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
-        </Button>
       </div>
     </div>
   );
