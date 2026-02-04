@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search, Upload } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
+import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
 
 interface PendingRegistration {
   id: string;
@@ -58,6 +59,7 @@ export default function BenutzerverwaltungNeu() {
   const [inviteForm, setInviteForm] = useState({ email: '', vorname: '', nachname: '' });
   const [inviteLoading, setInviteLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -372,11 +374,23 @@ export default function BenutzerverwaltungNeu() {
           <h1 className="text-3xl font-bold">Benutzerverwaltung</h1>
           <p className="text-muted-foreground">Mitarbeiter verwalten und neue einladen</p>
         </div>
-        <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
-          <UserPlus className="h-4 w-4" />
-          Mitarbeiter einladen
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-2">
+            <Upload className="h-4 w-4" />
+            Importieren
+          </Button>
+          <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Mitarbeiter einladen
+          </Button>
+        </div>
       </div>
+
+      {/* Import Dialog */}
+      <MitarbeiterImport 
+        open={importDialogOpen} 
+        onOpenChange={setImportDialogOpen} 
+      />
 
       {/* Main Layout: Two Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
