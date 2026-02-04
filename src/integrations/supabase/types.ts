@@ -1411,6 +1411,7 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: boolean
       }
+      can_delete: { Args: { _user_id: string }; Returns: boolean }
       find_free_mitarbeiter: {
         Args: { p_end: string; p_kunden_id?: string; p_start: string }
         Returns: {
@@ -1456,12 +1457,18 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_admin_or_higher: { Args: { _user_id: string }; Returns: boolean }
       is_admin_secure: { Args: { _user_id: string }; Returns: boolean }
+      is_authenticated_employee: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       is_employee_for_appointment: {
         Args: { p_termin_id: string }
         Returns: boolean
       }
+      is_geschaeftsfuehrer: { Args: { _user_id: string }; Returns: boolean }
       reject_termin_change: {
         Args: { p_reason: string; p_request_id: string }
         Returns: boolean
@@ -1479,7 +1486,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "manager" | "mitarbeiter"
+      app_role: "geschaeftsfuehrer" | "admin" | "mitarbeiter"
       approval_status: "pending" | "approved" | "rejected"
       benutzer_status: "pending" | "approved" | "rejected"
       kostentraeger_typ:
@@ -1517,7 +1524,7 @@ export type Database = {
         | "cancelled"
         | "abgerechnet"
         | "bezahlt"
-      user_rolle: "admin" | "manager" | "mitarbeiter"
+      user_rolle: "geschaeftsfuehrer" | "admin" | "mitarbeiter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1645,7 +1652,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "manager", "mitarbeiter"],
+      app_role: ["geschaeftsfuehrer", "admin", "mitarbeiter"],
       approval_status: ["pending", "approved", "rejected"],
       benutzer_status: ["pending", "approved", "rejected"],
       kostentraeger_typ: [
@@ -1688,7 +1695,7 @@ export const Constants = {
         "abgerechnet",
         "bezahlt",
       ],
-      user_rolle: ["admin", "manager", "mitarbeiter"],
+      user_rolle: ["geschaeftsfuehrer", "admin", "mitarbeiter"],
     },
   },
 } as const

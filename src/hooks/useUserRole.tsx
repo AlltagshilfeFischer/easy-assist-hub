@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'manager' | 'mitarbeiter' | null;
+// Neue Rollen: geschaeftsfuehrer (höchste), admin (ohne Löschrechte), mitarbeiter
+export type UserRole = 'geschaeftsfuehrer' | 'admin' | 'mitarbeiter' | null;
 
 export function useUserRole() {
   const { user } = useAuth();
@@ -58,18 +59,19 @@ export function useUserRole() {
         setRoles(roleList);
 
         // Determine primary role (highest privilege)
-        if (roleList.includes('admin')) {
+        // Hierarchie: geschaeftsfuehrer > admin > mitarbeiter
+        if (roleList.includes('geschaeftsfuehrer')) {
+          setRole('geschaeftsfuehrer');
+        } else if (roleList.includes('admin')) {
           setRole('admin');
-        } else if (roleList.includes('manager')) {
-          setRole('manager');
         } else if (roleList.includes('mitarbeiter')) {
           setRole('mitarbeiter');
         } else {
           setRole(null);
         }
 
-        // 3. If user is mitarbeiter, get their mitarbeiter_id
-        if (roleList.includes('mitarbeiter') || roleList.includes('manager')) {
+        // 3. If user is mitarbeiter or admin, get their mitarbeiter_id
+        if (roleList.includes('mitarbeiter') || roleList.includes('admin') || roleList.includes('geschaeftsfuehrer')) {
           const { data: mitarbeiterData } = await supabase
             .from('mitarbeiter')
             .select('id')
@@ -102,17 +104,56 @@ export function useUserRole() {
   }, [user]);
 
   // Helper functions for role checks
-  const isAdmin = role === 'admin';
-  const isManager = role === 'manager' || role === 'admin';
+  // Geschäftsführer: Voller Zugriff (inkl. Löschen)
+  const isGeschaeftsfuehrer = role === 'geschaeftsfuehrer';
+  
+  // Admin oder höher: Lesen, Erstellen, Bearbeiten (KEIN Löschen)
+  const isAdmin = role === 'geschaeftsfuehrer' || role === 'admin';
+  
+  // Für Rückwärtskompatibilität
+  const isManager = isAdmin;
+  
+  // Kann löschen: Nur Geschäftsführer
+  const canDelete = role === 'geschaeftsfuehrer';
+  
+  // Ist authentifizierter Mitarbeiter
+  const isEmployee = role !== null;
+  
   const hasRole = (checkRole: UserRole) => roles.includes(checkRole);
+
+  // Rollen-Label für UI
+  const getRoleLabel = (r: UserRole): string => {
+    switch (r) {
+      case 'geschaeftsfuehrer': return 'Geschäftsführer';
+      case 'admin': return 'Admin';
+      case 'mitarbeiter': return 'Mitarbeiter';
+      default: return 'Unbekannt';
+    }
+  };
+
+  // Rollen-Badge-Variante für UI
+  const getRoleBadgeVariant = (r: UserRole): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    switch (r) {
+      case 'geschaeftsfuehrer': return 'destructive';
+      case 'admin': return 'default';
+      case 'mitarbeiter': return 'secondary';
+      default: return 'outline';
+    }
+  };
 
   return { 
     role, 
     roles,
     loading, 
     mitarbeiterId,
+    // Neue Helper
+    isGeschaeftsfuehrer,
     isAdmin,
-    isManager,
-    hasRole
+    isManager, // Rückwärtskompatibilität
+    canDelete,
+    isEmployee,
+    hasRole,
+    getRoleLabel,
+    getRoleBadgeVariant
   };
 }

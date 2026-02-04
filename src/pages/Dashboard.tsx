@@ -28,7 +28,7 @@ export default function Dashboard() {
     return <PendingApproval />;
   }
 
-  // Mitarbeiter sehen ihre Startseite
+  // Nur Mitarbeiter (ohne Admin/GF-Rolle) sehen ihre eingeschränkte Startseite
   if (role === 'mitarbeiter') {
     return (
       <DashboardLayout>
@@ -41,7 +41,7 @@ export default function Dashboard() {
     );
   }
 
-  // Admin sieht die vollständige Verwaltungsansicht
+  // Geschäftsführer und Admin sehen die vollständige Verwaltungsansicht
   return (
     <DashboardLayout>
       <Routes>
