@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search, Upload } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search, Upload, Send, MailCheck } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface PendingRegistration {
   id: string;
@@ -38,6 +39,7 @@ interface Mitarbeiter {
   soll_wochenstunden: number | null;
   max_termine_pro_tag: number | null;
   avatar_url: string | null;
+  benutzer_id: string | null;
   benutzer?: {
     email: string;
   };
@@ -48,6 +50,7 @@ export default function BenutzerverwaltungNeu() {
   const [mitarbeiter, setMitarbeiter] = useState<Mitarbeiter[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedBenutzer, setSelectedBenutzer] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -60,6 +63,10 @@ export default function BenutzerverwaltungNeu() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  
+  // Multi-select states
+  const [selectedUninvited, setSelectedUninvited] = useState<Set<string>>(new Set());
+  const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
 
@@ -109,6 +116,26 @@ export default function BenutzerverwaltungNeu() {
 
       setPendingBenutzer(registrationsResponse.data || []);
       setMitarbeiter(mitarbeiterResponse.data || []);
+      
+      // Clear selections that no longer exist
+      setSelectedUninvited(prev => {
+        const newSet = new Set<string>();
+        prev.forEach(id => {
+          if (mitarbeiterResponse.data?.some(m => m.id === id && !m.benutzer_id)) {
+            newSet.add(id);
+          }
+        });
+        return newSet;
+      });
+      setSelectedPending(prev => {
+        const newSet = new Set<string>();
+        prev.forEach(id => {
+          if (registrationsResponse.data?.some(r => r.id === id)) {
+            newSet.add(id);
+          }
+        });
+        return newSet;
+      });
     } catch (error: any) {
       console.error('Error loading data:', error);
       toast({
@@ -120,6 +147,9 @@ export default function BenutzerverwaltungNeu() {
       setLoading(false);
     }
   };
+
+  // Get uninvited employees (have mitarbeiter record but no benutzer_id)
+  const uninvitedMitarbeiter = mitarbeiter.filter(m => !m.benutzer_id);
 
   const handleApprove = async (registration: PendingRegistration) => {
     setActionLoading(registration.id);
@@ -154,6 +184,44 @@ export default function BenutzerverwaltungNeu() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedPending.size === 0) return;
+    
+    setBulkActionLoading(true);
+    const toApprove = pendingBenutzer.filter(p => selectedPending.has(p.id));
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const registration of toApprove) {
+      try {
+        const { data, error } = await supabase.functions.invoke('approve-benutzer', {
+          body: {
+            registration_id: registration.id,
+            email: registration.email,
+            vorname: registration.vorname,
+            nachname: registration.nachname
+          },
+        });
+
+        if (error) throw error;
+        successCount++;
+      } catch (error: any) {
+        console.error('Error approving:', error);
+        errorCount++;
+      }
+    }
+
+    toast({
+      title: 'Massenfreigabe abgeschlossen',
+      description: `${successCount} genehmigt, ${errorCount} fehlgeschlagen`,
+      variant: errorCount > 0 ? 'destructive' : 'default',
+    });
+
+    setSelectedPending(new Set());
+    loadData();
+    setBulkActionLoading(false);
   };
 
   const handleReject = async () => {
@@ -347,6 +415,103 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
+  // Bulk invite uninvited employees
+  const handleBulkInvite = async () => {
+    if (selectedUninvited.size === 0) return;
+    
+    setBulkActionLoading(true);
+    const toInvite = uninvitedMitarbeiter.filter(m => selectedUninvited.has(m.id));
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
+    for (const m of toInvite) {
+      // We need an email to invite - check if there's one stored or skip
+      // For now, we'll need to get email from somewhere - let's check benutzer table
+      try {
+        // Since these are uninvited, they don't have benutzer_id yet
+        // We need to prompt for email or have it stored elsewhere
+        // For imported employees, we should store their email in the mitarbeiter table
+        
+        // Check if we have email info - for now we'll show error if missing
+        if (!m.benutzer?.email) {
+          errors.push(`${m.vorname} ${m.nachname}: Keine E-Mail-Adresse`);
+          errorCount++;
+          continue;
+        }
+
+        const { data, error } = await supabase.functions.invoke('invite-mitarbeiter', {
+          body: {
+            email: m.benutzer.email,
+            vorname: m.vorname,
+            nachname: m.nachname,
+            mitarbeiter_id: m.id
+          },
+        });
+
+        if (error) throw error;
+        successCount++;
+      } catch (error: any) {
+        console.error('Error inviting:', error);
+        errors.push(`${m.vorname} ${m.nachname}: ${error.message}`);
+        errorCount++;
+      }
+    }
+
+    if (errorCount > 0 && errors.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Einladungen teilweise fehlgeschlagen',
+        description: `${successCount} erfolgreich, ${errorCount} fehlgeschlagen. ${errors.slice(0, 3).join('; ')}`,
+      });
+    } else {
+      toast({
+        title: 'Einladungen versendet',
+        description: `${successCount} Einladungen erfolgreich versendet.`,
+      });
+    }
+
+    setSelectedUninvited(new Set());
+    loadData();
+    setBulkActionLoading(false);
+  };
+
+  // Single invite for uninvited employee
+  const handleInviteExistingEmployee = async (m: Mitarbeiter, email: string) => {
+    setActionLoading(m.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-mitarbeiter', {
+        body: {
+          email: email,
+          vorname: m.vorname,
+          nachname: m.nachname,
+          mitarbeiter_id: m.id
+        },
+      });
+
+      if (error) {
+        const serverMsg = (data as any)?.error || (typeof data === 'string' ? data : null);
+        throw new Error(serverMsg || error.message);
+      }
+
+      toast({
+        title: 'Erfolgreich',
+        description: data?.message || 'Einladung versendet.',
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error('Error inviting:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: error.message || 'Einladung fehlgeschlagen.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredMitarbeiter = mitarbeiter.filter(m => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -355,8 +520,51 @@ export default function BenutzerverwaltungNeu() {
     return fullName.includes(query) || email.includes(query);
   });
 
-  const activeMitarbeiter = filteredMitarbeiter.filter(m => m.ist_aktiv);
-  const inactiveMitarbeiter = filteredMitarbeiter.filter(m => !m.ist_aktiv);
+  // Only show invited employees in the main list
+  const invitedMitarbeiter = filteredMitarbeiter.filter(m => m.benutzer_id);
+  const activeMitarbeiter = invitedMitarbeiter.filter(m => m.ist_aktiv);
+  const inactiveMitarbeiter = invitedMitarbeiter.filter(m => !m.ist_aktiv);
+
+  // Toggle selection helpers
+  const toggleUninvitedSelection = (id: string) => {
+    setSelectedUninvited(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllUninvited = () => {
+    if (selectedUninvited.size === uninvitedMitarbeiter.length) {
+      setSelectedUninvited(new Set());
+    } else {
+      setSelectedUninvited(new Set(uninvitedMitarbeiter.map(m => m.id)));
+    }
+  };
+
+  const togglePendingSelection = (id: string) => {
+    setSelectedPending(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllPending = () => {
+    if (selectedPending.size === pendingBenutzer.length) {
+      setSelectedPending(new Set());
+    } else {
+      setSelectedPending(new Set(pendingBenutzer.map(p => p.id)));
+    }
+  };
 
   if (loading) {
     return (
@@ -392,6 +600,67 @@ export default function BenutzerverwaltungNeu() {
         onOpenChange={setImportDialogOpen} 
       />
 
+      {/* Uninvited Employees Section */}
+      {uninvitedMitarbeiter.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-amber-600" />
+                <CardTitle className="text-xl">Noch nicht eingeladen</CardTitle>
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                  {uninvitedMitarbeiter.length}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleAllUninvited}
+                  className="gap-2"
+                >
+                  {selectedUninvited.size === uninvitedMitarbeiter.length ? 'Keine' : 'Alle'} auswählen
+                </Button>
+                <Button
+                  onClick={handleBulkInvite}
+                  disabled={selectedUninvited.size === 0 || bulkActionLoading}
+                  className="gap-2"
+                >
+                  {bulkActionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  {selectedUninvited.size > 0 ? `${selectedUninvited.size} einladen` : 'Ausgewählte einladen'}
+                </Button>
+              </div>
+            </div>
+            <CardDescription>
+              Diese Mitarbeiter wurden importiert, aber haben noch keine Einladung zur Registrierung erhalten.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {uninvitedMitarbeiter.map((m) => (
+                <UninvitedMitarbeiterRow
+                  key={m.id}
+                  mitarbeiter={m}
+                  isSelected={selectedUninvited.has(m.id)}
+                  onToggleSelect={() => toggleUninvitedSelection(m.id)}
+                  actionLoading={actionLoading}
+                  onInvite={handleInviteExistingEmployee}
+                  onEdit={handleEditMitarbeiter}
+                  onDelete={(id) => {
+                    setSelectedMitarbeiter(id);
+                    setDeleteDialogOpen(true);
+                  }}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main Layout: Two Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Employee List (2/3 width) */}
@@ -402,7 +671,7 @@ export default function BenutzerverwaltungNeu() {
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-muted-foreground" />
                   <CardTitle className="text-xl">Alle Mitarbeiter</CardTitle>
-                  <Badge variant="secondary">{mitarbeiter.length}</Badge>
+                  <Badge variant="secondary">{invitedMitarbeiter.length}</Badge>
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -463,9 +732,9 @@ export default function BenutzerverwaltungNeu() {
                   </div>
                 )}
 
-                {filteredMitarbeiter.length === 0 && (
+                {invitedMitarbeiter.length === 0 && (
                   <p className="text-center text-muted-foreground py-8">
-                    {searchQuery ? 'Keine Mitarbeiter gefunden' : 'Keine Mitarbeiter vorhanden'}
+                    {searchQuery ? 'Keine Mitarbeiter gefunden' : 'Keine eingeladenen Mitarbeiter vorhanden'}
                   </p>
                 )}
               </ScrollArea>
@@ -477,11 +746,40 @@ export default function BenutzerverwaltungNeu() {
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-4">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-amber-500" />
-                <CardTitle className="text-xl">Ausstehend</CardTitle>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-amber-500" />
+                    <CardTitle className="text-xl">Ausstehend</CardTitle>
+                    {pendingBenutzer.length > 0 && (
+                      <Badge variant="destructive">{pendingBenutzer.length}</Badge>
+                    )}
+                  </div>
+                </div>
                 {pendingBenutzer.length > 0 && (
-                  <Badge variant="destructive">{pendingBenutzer.length}</Badge>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleAllPending}
+                      className="gap-2"
+                    >
+                      {selectedPending.size === pendingBenutzer.length ? 'Keine' : 'Alle'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleBulkApprove}
+                      disabled={selectedPending.size === 0 || bulkActionLoading}
+                      className="gap-2"
+                    >
+                      {bulkActionLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MailCheck className="h-4 w-4" />
+                      )}
+                      {selectedPending.size > 0 ? `${selectedPending.size} genehmigen` : 'Genehmigen'}
+                    </Button>
+                  </div>
                 )}
               </div>
               <CardDescription>
@@ -489,25 +787,32 @@ export default function BenutzerverwaltungNeu() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[calc(100vh-380px)]">
+              <ScrollArea className="h-[calc(100vh-420px)]">
                 {pendingBenutzer.length > 0 ? (
                   <div className="space-y-3">
                     {pendingBenutzer.map((benutzer) => (
                       <Card key={benutzer.id} className="bg-muted/50">
                         <CardContent className="p-4">
                           <div className="space-y-3">
-                            <div>
-                              <p className="font-medium">
-                                {benutzer.vorname || benutzer.nachname
-                                  ? `${benutzer.vorname || ''} ${benutzer.nachname || ''}`.trim()
-                                  : 'Kein Name'}
-                              </p>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {benutzer.email}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {new Date(benutzer.created_at).toLocaleDateString('de-DE')}
-                              </p>
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                checked={selectedPending.has(benutzer.id)}
+                                onCheckedChange={() => togglePendingSelection(benutzer.id)}
+                                className="mt-1"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium">
+                                  {benutzer.vorname || benutzer.nachname
+                                    ? `${benutzer.vorname || ''} ${benutzer.nachname || ''}`.trim()
+                                    : 'Kein Name'}
+                                </p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {benutzer.email}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {new Date(benutzer.created_at).toLocaleDateString('de-DE')}
+                                </p>
+                              </div>
                             </div>
                             <div className="flex gap-2">
                               <Button
@@ -811,6 +1116,133 @@ export default function BenutzerverwaltungNeu() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Component for uninvited employees
+function UninvitedMitarbeiterRow({ 
+  mitarbeiter: m, 
+  isSelected,
+  onToggleSelect,
+  actionLoading, 
+  onInvite,
+  onEdit, 
+  onDelete,
+}: {
+  mitarbeiter: Mitarbeiter;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  actionLoading: string | null;
+  onInvite: (m: Mitarbeiter, email: string) => void;
+  onEdit: (m: Mitarbeiter) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [emailInput, setEmailInput] = useState('');
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  
+  const fullName = m.vorname || m.nachname
+    ? `${m.vorname || ''} ${m.nachname || ''}`.trim()
+    : 'Unbekannt';
+
+  const handleInviteClick = () => {
+    if (showEmailInput && emailInput) {
+      onInvite(m, emailInput);
+      setShowEmailInput(false);
+      setEmailInput('');
+    } else {
+      setShowEmailInput(true);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 p-4 border rounded-lg bg-background">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+          />
+          <div>
+            <p className="font-medium">{fullName}</p>
+            {m.telefon && (
+              <p className="text-sm text-muted-foreground">{m.telefon}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+            Nicht eingeladen
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(m)}
+            disabled={actionLoading === m.id}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => onDelete(m.id)}
+            disabled={actionLoading === m.id}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      
+      {/* Email input for invitation */}
+      <div className="flex gap-2 items-center pl-8">
+        {showEmailInput ? (
+          <>
+            <Input
+              type="email"
+              placeholder="E-Mail-Adresse eingeben..."
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && emailInput) {
+                  handleInviteClick();
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={handleInviteClick}
+              disabled={!emailInput || actionLoading === m.id}
+            >
+              {actionLoading === m.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setShowEmailInput(false);
+                setEmailInput('');
+              }}
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleInviteClick}
+            className="gap-2"
+          >
+            <Mail className="h-4 w-4" />
+            Einladen
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
