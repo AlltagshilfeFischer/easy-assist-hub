@@ -51,117 +51,72 @@ Deno.serve(async (req) => {
       throw new Error('E-Mail-Adresse ist erforderlich');
     }
 
-    console.log('Inviting new employee:', { email, vorname, nachname });
+    console.log('Creating pending registration for:', { email, vorname, nachname });
 
-    // Check if user already exists
-    const { data: usersPage } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    const existingUser = usersPage?.users?.find((u: any) => 
-      (u.email || '').toLowerCase() === email.toLowerCase()
-    );
+    // Check if already exists in pending_registrations
+    const { data: existingPending } = await supabaseAdmin
+      .from('pending_registrations')
+      .select('id, status')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
 
-    if (existingUser) {
-      // Check if already a mitarbeiter
-      const { data: existingMitarbeiter } = await supabaseAdmin
-        .from('mitarbeiter')
-        .select('id')
-        .eq('benutzer_id', existingUser.id)
-        .maybeSingle();
-
-      if (existingMitarbeiter) {
-        throw new Error('Diese E-Mail-Adresse ist bereits als Mitarbeiter registriert');
+    if (existingPending) {
+      if (existingPending.status === 'pending') {
+        throw new Error('Diese E-Mail-Adresse hat bereits eine ausstehende Registrierungsanfrage');
       }
+      // If rejected, allow re-invite by updating the existing record
     }
 
-    // Create auth user with invite
-    let targetUserId: string;
-    const tempPassword = crypto.randomUUID();
-
-    if (existingUser) {
-      targetUserId = existingUser.id;
-      console.log('Linking to existing auth user:', targetUserId);
-    } else {
-      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: false, // Will need to confirm via invite link
-        user_metadata: {
-          vorname: vorname || '',
-          nachname: nachname || '',
-        }
-      });
-
-      if (createErr) {
-        console.error('Create user error:', createErr);
-        throw new Error(`Benutzer konnte nicht erstellt werden: ${createErr.message}`);
-      }
-
-      targetUserId = created.user.id;
-      console.log('Auth user created:', targetUserId);
-    }
-
-    // Create benutzer entry
-    const { error: benutzerError } = await supabaseAdmin
+    // Check if user already exists as approved benutzer
+    const { data: existingBenutzer } = await supabaseAdmin
       .from('benutzer')
-      .upsert({
-        id: targetUserId,
-        email: email,
-        rolle: 'mitarbeiter',
-        status: 'approved',
-        vorname: vorname || null,
-        nachname: nachname || null
-      }, { onConflict: 'id' });
+      .select('id, status')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
 
-    if (benutzerError) {
-      console.error('Benutzer upsert error:', benutzerError);
-      throw new Error(`Benutzer-Eintrag fehlgeschlagen: ${benutzerError.message}`);
+    if (existingBenutzer && existingBenutzer.status === 'approved') {
+      throw new Error('Diese E-Mail-Adresse ist bereits als Benutzer registriert');
     }
 
-    // Assign mitarbeiter role in user_roles table
-    const { error: roleError } = await supabaseAdmin
-      .from('user_roles')
+    // Create or update pending registration entry
+    // This creates the entry in the "pending" section for admin approval
+    const { error: pendingError } = await supabaseAdmin
+      .from('pending_registrations')
       .upsert({
-        user_id: targetUserId,
-        role: 'mitarbeiter',
-        granted_by: userId
-      }, { onConflict: 'user_id,role' });
-
-    if (roleError) {
-      console.error('Role assignment error:', roleError);
-      // Non-fatal, continue
-    }
-
-    // Create mitarbeiter entry
-    const { error: mitarbeiterError } = await supabaseAdmin
-      .from('mitarbeiter')
-      .upsert({
-        benutzer_id: targetUserId,
+        email: email.toLowerCase(),
         vorname: vorname || null,
         nachname: nachname || null,
-        ist_aktiv: true
-      }, { onConflict: 'benutzer_id' });
+        status: 'pending',
+        ignored: false,
+        rejection_reason: null,
+        reviewed_at: null,
+        reviewed_by: null
+      }, { onConflict: 'email' });
 
-    if (mitarbeiterError) {
-      console.error('Mitarbeiter upsert error:', mitarbeiterError);
-      throw new Error(`Mitarbeiter-Eintrag fehlgeschlagen: ${mitarbeiterError.message}`);
+    if (pendingError) {
+      console.error('Pending registration error:', pendingError);
+      throw new Error(`Registrierungsanfrage konnte nicht erstellt werden: ${pendingError.message}`);
     }
 
-    // Send invite email using inviteUserByEmail (actually sends the email)
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/`,
+    console.log('Pending registration created for:', email);
+
+    // Send invite email so the user knows they were invited
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/auth`,
       data: {
         vorname: vorname || '',
         nachname: nachname || '',
+        invited: true
       }
     });
 
     if (inviteError) {
       console.error('Invite email error:', inviteError);
-      // Still successful, user was created
+      // Still successful - pending registration was created
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'Mitarbeiter erstellt. E-Mail-Einladung konnte nicht gesendet werden - Benutzer kann Passwort über "Passwort vergessen" zurücksetzen.',
-          userId: targetUserId
+          message: 'Mitarbeiter wurde zur Genehmigungsliste hinzugefügt. Einladungs-E-Mail konnte nicht gesendet werden.',
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
@@ -172,8 +127,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Mitarbeiter erstellt und Einladungs-E-Mail wurde gesendet. Der Mitarbeiter kann über den Link sein Passwort festlegen.',
-        userId: targetUserId
+        message: 'Einladung gesendet! Der Mitarbeiter erscheint nach Registrierung in der Genehmigungsliste.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
