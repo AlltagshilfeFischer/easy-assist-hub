@@ -145,17 +145,17 @@ Deno.serve(async (req) => {
       throw new Error(`Mitarbeiter-Eintrag fehlgeschlagen: ${mitarbeiterError.message}`);
     }
 
-    // Generate and send invite link
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: email,
-      options: {
-        redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/`
+    // Send invite email using inviteUserByEmail (actually sends the email)
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app'}/`,
+      data: {
+        vorname: vorname || '',
+        nachname: nachname || '',
       }
     });
 
-    if (linkError) {
-      console.error('Generate link error:', linkError);
+    if (inviteError) {
+      console.error('Invite email error:', inviteError);
       // Still successful, user was created
       return new Response(
         JSON.stringify({ 
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Invite link generated successfully');
+    console.log('Invite email sent successfully to:', email);
 
     return new Response(
       JSON.stringify({ 
