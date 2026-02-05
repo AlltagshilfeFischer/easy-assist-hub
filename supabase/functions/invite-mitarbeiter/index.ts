@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
       throw new Error('Not authenticated');
     }
 
-    // Check admin role
-    const { data: isAdmin, error: isAdminErr } = await supabaseAdmin.rpc('is_admin', { user_id: userId });
+    // Check admin role (use is_admin_or_higher for geschaeftsfuehrer + admin)
+    const { data: isAdmin, error: isAdminErr } = await supabaseAdmin.rpc('is_admin_or_higher', { _user_id: userId });
     if (isAdminErr || !isAdmin) {
       console.error('Admin role check failed:', isAdminErr);
       throw new Error('Not authorized - admin role required');
