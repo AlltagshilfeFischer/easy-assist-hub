@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     }
 
     // Check admin role using SECURITY DEFINER function to avoid table permission issues
-    const { data: isAdmin, error: isAdminErr } = await supabaseAdmin.rpc('is_admin', { user_id: userId });
+    const { data: isAdmin, error: isAdminErr } = await supabaseAdmin.rpc('is_admin_or_higher', { _user_id: userId });
     if (isAdminErr || !isAdmin) {
       console.error('Admin role check failed via is_admin:', isAdminErr);
       throw new Error('Not authorized - admin role required');
@@ -63,16 +63,18 @@ Deno.serve(async (req) => {
 
     console.log('Approving registration:', { registration_id, email });
 
-    // Get registration details via SECURITY DEFINER function to avoid any RLS/table permission issues
-    const { data: regData, error: regErr } = await supabaseAdmin
-      .rpc('get_pending_registration', { p_registration_id: registration_id });
+    // Get registration details directly with admin client (bypasses RLS)
+    const { data: registration, error: regErr } = await supabaseAdmin
+      .from('pending_registrations')
+      .select('*')
+      .eq('id', registration_id)
+      .eq('status', 'pending')
+      .maybeSingle();
 
     if (regErr) {
-      console.error('get_pending_registration RPC error:', regErr);
+      console.error('Registration lookup error:', regErr);
       throw new Error(`Registration lookup failed: ${regErr.message}`);
     }
-
-    const registration = (Array.isArray(regData) ? regData[0] : regData) as { email: string; vorname?: string; nachname?: string } | null;
 
     if (!registration) {
       throw new Error('Registration not found or already processed');
