@@ -206,8 +206,10 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  // Get uninvited employees (have mitarbeiter record but no benutzer_id)
-  const uninvitedMitarbeiter = mitarbeiter.filter(m => !m.benutzer_id);
+  // Get employees without active auth account (no benutzer_id or placeholder)
+  const uninvitedMitarbeiter = mitarbeiter.filter(m => 
+    !m.benutzer_id || m.benutzer?.email?.includes('@placeholder.local')
+  );
 
   const handleApprove = async (registration: PendingRegistration) => {
     setActionLoading(registration.id);
@@ -473,36 +475,27 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  // Bulk invite uninvited employees
-  const handleBulkInvite = async () => {
+  // Bulk activate uninvited employees
+  const handleBulkActivate = async () => {
     if (selectedUninvited.size === 0) return;
     
     setBulkActionLoading(true);
-    const toInvite = uninvitedMitarbeiter.filter(m => selectedUninvited.has(m.id));
+    const toActivate = uninvitedMitarbeiter.filter(m => selectedUninvited.has(m.id));
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
 
-    for (const m of toInvite) {
-      // We need an email to invite - check if there's one stored or skip
-      // For now, we'll need to get email from somewhere - let's check benutzer table
+    for (const m of toActivate) {
       try {
-        // Since these are uninvited, they don't have benutzer_id yet
-        // We need to prompt for email or have it stored elsewhere
-        // For imported employees, we should store their email in the mitarbeiter table
-        
-        // Check if we have email info - for now we'll show error if missing
-        if (!m.benutzer?.email) {
+        if (!m.benutzer?.email || m.benutzer.email.includes('@placeholder.local')) {
           errors.push(`${m.vorname} ${m.nachname}: Keine E-Mail-Adresse`);
           errorCount++;
           continue;
         }
 
-        const { data, error } = await supabase.functions.invoke('invite-mitarbeiter', {
+        const { data, error } = await supabase.functions.invoke('activate-mitarbeiter', {
           body: {
             email: m.benutzer.email,
-            vorname: m.vorname,
-            nachname: m.nachname,
             mitarbeiter_id: m.id
           },
         });
@@ -510,7 +503,7 @@ export default function BenutzerverwaltungNeu() {
         if (error) throw error;
         successCount++;
       } catch (error: any) {
-        console.error('Error inviting:', error);
+        console.error('Error activating:', error);
         errors.push(`${m.vorname} ${m.nachname}: ${error.message}`);
         errorCount++;
       }
@@ -519,13 +512,13 @@ export default function BenutzerverwaltungNeu() {
     if (errorCount > 0 && errors.length > 0) {
       toast({
         variant: 'destructive',
-        title: 'Einladungen teilweise fehlgeschlagen',
+        title: 'Aktivierung teilweise fehlgeschlagen',
         description: `${successCount} erfolgreich, ${errorCount} fehlgeschlagen. ${errors.slice(0, 3).join('; ')}`,
       });
     } else {
       toast({
-        title: 'Einladungen versendet',
-        description: `${successCount} Einladungen erfolgreich versendet.`,
+        title: 'Konten aktiviert',
+        description: `${successCount} Konten erfolgreich aktiviert. Passwort-E-Mails versendet.`,
       });
     }
 
@@ -534,15 +527,13 @@ export default function BenutzerverwaltungNeu() {
     setBulkActionLoading(false);
   };
 
-  // Single invite for uninvited employee
-  const handleInviteExistingEmployee = async (m: Mitarbeiter, email: string) => {
+  // Single activate for uninvited employee
+  const handleActivateEmployee = async (m: Mitarbeiter, email: string) => {
     setActionLoading(m.id);
     try {
-      const { data, error } = await supabase.functions.invoke('invite-mitarbeiter', {
+      const { data, error } = await supabase.functions.invoke('activate-mitarbeiter', {
         body: {
           email: email,
-          vorname: m.vorname,
-          nachname: m.nachname,
           mitarbeiter_id: m.id
         },
       });
@@ -553,17 +544,17 @@ export default function BenutzerverwaltungNeu() {
       }
 
       toast({
-        title: 'Erfolgreich',
-        description: data?.message || 'Einladung versendet.',
+        title: 'Konto aktiviert',
+        description: data?.message || 'Konto wurde erstellt und Passwort-E-Mail versendet.',
       });
 
       loadData();
     } catch (error: any) {
-      console.error('Error inviting:', error);
+      console.error('Error activating:', error);
       toast({
         variant: 'destructive',
         title: 'Fehler',
-        description: error.message || 'Einladung fehlgeschlagen.',
+        description: error.message || 'Aktivierung fehlgeschlagen.',
       });
     } finally {
       setActionLoading(null);
@@ -707,8 +698,10 @@ export default function BenutzerverwaltungNeu() {
     return fullName.includes(query) || email.includes(query);
   });
 
-  // Only show invited employees in the main list
-  const invitedMitarbeiter = filteredMitarbeiter.filter(m => m.benutzer_id);
+  // Show employees with real auth accounts in the main list
+  const invitedMitarbeiter = filteredMitarbeiter.filter(m => 
+    m.benutzer_id && !m.benutzer?.email?.includes('@placeholder.local')
+  );
   const activeMitarbeiter = invitedMitarbeiter.filter(m => m.ist_aktiv);
   const inactiveMitarbeiter = invitedMitarbeiter.filter(m => !m.ist_aktiv);
 
@@ -816,8 +809,8 @@ export default function BenutzerverwaltungNeu() {
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-amber-600" />
-                <CardTitle className="text-xl">Noch nicht eingeladen</CardTitle>
+                <UserPlus className="h-5 w-5 text-amber-600" />
+                <CardTitle className="text-xl">Noch nicht aktiviert</CardTitle>
                 <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
                   {uninvitedMitarbeiter.length}
                 </Badge>
@@ -832,7 +825,7 @@ export default function BenutzerverwaltungNeu() {
                   {selectedUninvited.size === uninvitedMitarbeiter.length ? 'Keine' : 'Alle'} auswählen
                 </Button>
                 <Button
-                  onClick={handleBulkInvite}
+                  onClick={handleBulkActivate}
                   disabled={selectedUninvited.size === 0 || bulkActionLoading}
                   className="gap-2"
                 >
@@ -841,12 +834,12 @@ export default function BenutzerverwaltungNeu() {
                   ) : (
                     <Send className="h-4 w-4" />
                   )}
-                  {selectedUninvited.size > 0 ? `${selectedUninvited.size} einladen` : 'Ausgewählte einladen'}
+                  {selectedUninvited.size > 0 ? `${selectedUninvited.size} aktivieren` : 'Ausgewählte aktivieren'}
                 </Button>
               </div>
             </div>
             <CardDescription>
-              Diese Mitarbeiter wurden importiert, aber haben noch keine Einladung zur Registrierung erhalten.
+              Diese Mitarbeiter wurden angelegt, haben aber noch kein aktives Benutzerkonto.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -858,7 +851,7 @@ export default function BenutzerverwaltungNeu() {
                   isSelected={selectedUninvited.has(m.id)}
                   onToggleSelect={() => toggleUninvitedSelection(m.id)}
                   actionLoading={actionLoading}
-                  onInvite={handleInviteExistingEmployee}
+                  onInvite={handleActivateEmployee}
                   onEdit={handleEditMitarbeiter}
                   onDelete={(id) => {
                     setSelectedMitarbeiter(id);
@@ -1513,7 +1506,7 @@ function UninvitedMitarbeiterRow({
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
-            Nicht eingeladen
+            Nicht aktiviert
           </Badge>
           <Button
             variant="outline"
@@ -1579,8 +1572,8 @@ function UninvitedMitarbeiterRow({
             onClick={handleInviteClick}
             className="gap-2"
           >
-            <Mail className="h-4 w-4" />
-            Einladen
+            <UserPlus className="h-4 w-4" />
+            Konto aktivieren
           </Button>
         )}
       </div>

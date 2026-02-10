@@ -11,6 +11,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, vorname?: string, nachname?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (newPassword: string) => Promise<{ error: any }>;
+  forcePasswordChange: boolean;
   loading: boolean;
 }
 
@@ -134,6 +136,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+      data: { force_password_change: false }
+    });
+    return { error };
+  };
+
+  const forcePasswordChange = !!user?.user_metadata?.force_password_change;
+
   const value = {
     user,
     session,
@@ -141,6 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     resetPassword,
+    updatePassword,
+    forcePasswordChange,
     loading,
   };
 
