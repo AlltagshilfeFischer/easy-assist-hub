@@ -42,7 +42,7 @@ export default function BenutzerverwaltungNeu() {
   const [userRolesMap, setUserRolesMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkActionLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -192,7 +192,10 @@ export default function BenutzerverwaltungNeu() {
     setActionLoading(selectedMitarbeiter);
     try {
       const { data, error } = await supabase.functions.invoke('delete-mitarbeiter', { body: { mitarbeiterId: selectedMitarbeiter } });
-      if (error) { throw new Error((data as any)?.error || error.message); }
+      if (error) {
+        const errMsg = typeof data === 'object' && data?.error ? data.error : error.message;
+        throw new Error(errMsg);
+      }
       toast({ title: 'Erfolgreich', description: 'Mitarbeiter wurde komplett gelöscht.' });
       setDeleteDialogOpen(false);
       setSelectedMitarbeiter(null);
@@ -251,7 +254,10 @@ export default function BenutzerverwaltungNeu() {
       const { data, error } = await supabase.functions.invoke('activate-mitarbeiter', {
         body: { email: activateEmail, mitarbeiter_id: activateTarget.id },
       });
-      if (error) { throw new Error((data as any)?.error || error.message); }
+      if (error) {
+        const errMsg = typeof data === 'object' && data?.error ? data.error : error.message;
+        throw new Error(errMsg);
+      }
       toast({ title: 'Konto aktiviert', description: data?.message || 'Konto wurde erstellt und Passwort-E-Mail versendet.' });
       setActivateDialogOpen(false);
       setActivateTarget(null);
@@ -264,41 +270,25 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
+  // Bulk activate is only available when each selected employee will be individually activated via dialog
+  // Since bulk activate needs an email for each, we show a warning instead
   const handleBulkActivate = async () => {
     if (selectedUninvited.size === 0) return;
-    setBulkActionLoading(true);
+    
+    // All uninvited employees lack real emails, so bulk activate must prompt individually
     const toActivate = uninvitedMitarbeiter.filter(m => selectedUninvited.has(m.id));
-    let successCount = 0;
-    let errorCount = 0;
-    const errors: string[] = [];
-
-    for (const m of toActivate) {
-      try {
-        if (!m.benutzer?.email || m.benutzer.email.includes('@placeholder.local')) {
-          errors.push(`${m.vorname} ${m.nachname}: Keine E-Mail-Adresse`);
-          errorCount++;
-          continue;
-        }
-        const { data, error } = await supabase.functions.invoke('activate-mitarbeiter', {
-          body: { email: m.benutzer.email, mitarbeiter_id: m.id },
-        });
-        if (error) throw error;
-        successCount++;
-      } catch (error: any) {
-        errors.push(`${m.vorname} ${m.nachname}: ${error.message}`);
-        errorCount++;
-      }
+    
+    if (toActivate.length === 1) {
+      // Single selection: open the activation dialog directly
+      handleOpenActivateDialog(toActivate[0]);
+      return;
     }
-
-    if (errorCount > 0) {
-      toast({ variant: 'destructive', title: 'Teilweise fehlgeschlagen', description: `${successCount} erfolgreich, ${errorCount} fehlgeschlagen. ${errors.slice(0, 3).join('; ')}` });
-    } else {
-      toast({ title: 'Konten aktiviert', description: `${successCount} Konten erfolgreich aktiviert. Passwort-E-Mails versendet.` });
-    }
-
-    setSelectedUninvited(new Set());
-    loadData();
-    setBulkActionLoading(false);
+    
+    // Multiple selection: inform user they need to activate individually (each needs an email)
+    toast({
+      title: 'Einzeln aktivieren',
+      description: `Bitte aktivieren Sie die ${toActivate.length} Mitarbeiter einzeln, da für jeden eine E-Mail-Adresse eingegeben werden muss.`,
+    });
   };
 
   const handleChangeRole = async (mitarbeiterId: string, newRole: string) => {
@@ -381,7 +371,10 @@ export default function BenutzerverwaltungNeu() {
           rolle: createUserForm.rolle,
         },
       });
-      if (error) { throw new Error((data as any)?.error || error.message); }
+      if (error) {
+        const errMsg = typeof data === 'object' && data?.error ? data.error : error.message;
+        throw new Error(errMsg);
+      }
       toast({ title: 'Erfolgreich', description: data?.message || 'Benutzer erstellt.' });
       setCreateUserDialogOpen(false);
       setCreateUserForm({ email: '', password: '', vorname: '', nachname: '', rolle: 'geschaeftsfuehrer' });
@@ -574,6 +567,7 @@ export default function BenutzerverwaltungNeu() {
                   onChangeRole={handleChangeRole}
                   canAssignGF={masterUnlocked}
                   canAssignRoles={masterUnlocked || isGeschaeftsfuehrer}
+                  canDelete={isGeschaeftsfuehrer}
                   roleLabelMap={roleLabelMap}
                 />
               ))}
@@ -609,7 +603,8 @@ export default function BenutzerverwaltungNeu() {
                   currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
                   onChangeRole={handleChangeRole}
                   canAssignGF={masterUnlocked}
-                  canAssignRoles={masterUnlocked}
+                  canAssignRoles={masterUnlocked || isGeschaeftsfuehrer}
+                  canDelete={isGeschaeftsfuehrer}
                   roleLabelMap={roleLabelMap}
                 />
               ))}
@@ -879,13 +874,13 @@ export default function BenutzerverwaltungNeu() {
 // ─── Uninvited Employee Row ───
 function UninvitedRow({
   mitarbeiter: m, isSelected, onToggleSelect, actionLoading, onActivate, onEdit, onDelete,
-  currentRole, onChangeRole, canAssignGF, canAssignRoles, roleLabelMap,
+  currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
 }: {
   mitarbeiter: Mitarbeiter; isSelected: boolean; onToggleSelect: () => void;
   actionLoading: string | null; onActivate: (m: Mitarbeiter) => void;
   onEdit: (m: Mitarbeiter) => void; onDelete: (id: string) => void;
   currentRole: UserRole | null; onChangeRole: (id: string, role: string) => void;
-  canAssignGF: boolean; canAssignRoles: boolean; roleLabelMap: Record<string, string>;
+  canAssignGF: boolean; canAssignRoles: boolean; canDelete: boolean; roleLabelMap: Record<string, string>;
 }) {
   const fullName = `${m.vorname || ''} ${m.nachname || ''}`.trim() || 'Unbekannt';
 
@@ -927,9 +922,11 @@ function UninvitedRow({
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onEdit(m)} disabled={actionLoading === m.id}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
-        <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        {canDelete && (
+          <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -938,13 +935,13 @@ function UninvitedRow({
 // ─── Activated Employee Row ───
 function ActivatedRow({
   mitarbeiter: m, actionLoading, onEdit, onToggleActive, onDelete, loadData,
-  currentRole, onChangeRole, canAssignGF, canAssignRoles, roleLabelMap,
+  currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
 }: {
   mitarbeiter: Mitarbeiter; actionLoading: string | null;
   onEdit: (m: Mitarbeiter) => void; onToggleActive: (id: string, status: boolean) => void;
   onDelete: (id: string) => void; loadData: () => void;
   currentRole: UserRole | null; onChangeRole: (id: string, role: string) => void;
-  canAssignGF: boolean; canAssignRoles: boolean; roleLabelMap: Record<string, string>;
+  canAssignGF: boolean; canAssignRoles: boolean; canDelete: boolean; roleLabelMap: Record<string, string>;
 }) {
   const fullName = `${m.vorname || ''} ${m.nachname || ''}`.trim() || 'Unbekannt';
 
@@ -1008,9 +1005,11 @@ function ActivatedRow({
         <Button variant={m.ist_aktiv ? 'outline' : 'default'} size="icon" className="h-8 w-8" onClick={() => onToggleActive(m.id, m.ist_aktiv)} disabled={actionLoading === m.id}>
           {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : m.ist_aktiv ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
         </Button>
-        <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        {canDelete && (
+          <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
     </div>
   );
