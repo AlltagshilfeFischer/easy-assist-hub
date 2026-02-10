@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -187,16 +187,20 @@ Deno.serve(async (req) => {
 
     // Send password reset email so user can set their own password
     const siteUrl = Deno.env.get('SITE_URL') || 'https://easy-assist-hub.lovable.app';
-    const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email: email,
-      options: {
-        redirectTo: `${siteUrl}/auth?type=recovery`,
-      }
+    
+    // Use a separate anon-key client to trigger the actual email delivery
+    const supabaseAnon = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
+    const { error: resetError } = await supabaseAnon.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteUrl}/?type=recovery`,
     });
 
     if (resetError) {
       console.warn('Password reset email could not be sent:', resetError.message);
+    } else {
+      console.log('Password reset email sent to:', email);
     }
 
     console.log('Mitarbeiter activated successfully:', { mitarbeiter_id, email, role: preAssignedRole });
