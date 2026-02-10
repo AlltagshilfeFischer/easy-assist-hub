@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search, Upload, Send, MailCheck, Shield } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search, Upload, Send, MailCheck, Shield, KeyRound } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -70,6 +70,9 @@ export default function BenutzerverwaltungNeu() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
+  const [createUserForm, setCreateUserForm] = useState({ email: '', password: '', vorname: '', nachname: '', rolle: 'geschaeftsfuehrer' });
+  const [createUserLoading, setCreateUserLoading] = useState(false);
   
   // Multi-select states
   const [selectedUninvited, setSelectedUninvited] = useState<Set<string>>(new Set());
@@ -536,6 +539,38 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
+  const handleCreateUserManual = async () => {
+    if (!createUserForm.email || !createUserForm.password) {
+      toast({ variant: 'destructive', title: 'Fehler', description: 'E-Mail und Passwort sind erforderlich.' });
+      return;
+    }
+    setCreateUserLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-user-manual', {
+        body: {
+          email: createUserForm.email,
+          password: createUserForm.password,
+          vorname: createUserForm.vorname,
+          nachname: createUserForm.nachname,
+          rolle: createUserForm.rolle,
+        },
+      });
+      if (error) {
+        const serverMsg = (data as any)?.error || (typeof data === 'string' ? data : null);
+        throw new Error(serverMsg || error.message);
+      }
+      toast({ title: 'Erfolgreich', description: data?.message || 'Benutzer erstellt.' });
+      setCreateUserDialogOpen(false);
+      setCreateUserForm({ email: '', password: '', vorname: '', nachname: '', rolle: 'geschaeftsfuehrer' });
+      loadData();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast({ variant: 'destructive', title: 'Fehler', description: error.message || 'Erstellung fehlgeschlagen.' });
+    } finally {
+      setCreateUserLoading(false);
+    }
+  };
+
   const handleChangeRole = async (userId: string, newRole: string) => {
     setActionLoading(userId);
     try {
@@ -648,7 +683,11 @@ export default function BenutzerverwaltungNeu() {
           <h1 className="text-3xl font-bold">Benutzerverwaltung</h1>
           <p className="text-muted-foreground">Mitarbeiter verwalten und neue einladen</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setCreateUserDialogOpen(true)} className="gap-2">
+            <KeyRound className="h-4 w-4" />
+            Benutzer erstellen
+          </Button>
           <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-2">
             <Upload className="h-4 w-4" />
             Importieren
@@ -1186,6 +1225,90 @@ export default function BenutzerverwaltungNeu() {
             <Button onClick={handleSaveMitarbeiter} disabled={actionLoading === editingMitarbeiter?.id}>
               {actionLoading === editingMitarbeiter?.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Speichern
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Manual Dialog */}
+      <Dialog open={createUserDialogOpen} onOpenChange={setCreateUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              Benutzer manuell erstellen
+            </DialogTitle>
+            <DialogDescription>
+              Erstellt sofort ein vollständiges Konto mit E-Mail und Passwort. Der Benutzer kann das Passwort später über "Passwort vergessen" ändern.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="create-vorname">Vorname</Label>
+                <Input
+                  id="create-vorname"
+                  value={createUserForm.vorname}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, vorname: e.target.value })}
+                  placeholder="Max"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-nachname">Nachname</Label>
+                <Input
+                  id="create-nachname"
+                  value={createUserForm.nachname}
+                  onChange={(e) => setCreateUserForm({ ...createUserForm, nachname: e.target.value })}
+                  placeholder="Mustermann"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-email">E-Mail-Adresse *</Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={createUserForm.email}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                placeholder="benutzer@beispiel.de"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-password">Passwort *</Label>
+              <Input
+                id="create-password"
+                type="text"
+                value={createUserForm.password}
+                onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+                placeholder="Mindestens 6 Zeichen"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-rolle">Rolle</Label>
+              <Select
+                value={createUserForm.rolle}
+                onValueChange={(value) => setCreateUserForm({ ...createUserForm, rolle: value })}
+              >
+                <SelectTrigger id="create-rolle">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {isGeschaeftsfuehrer && (
+                    <SelectItem value="geschaeftsfuehrer">Geschäftsführer</SelectItem>
+                  )}
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateUserDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleCreateUserManual} disabled={createUserLoading}>
+              {createUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Benutzer erstellen
             </Button>
           </DialogFooter>
         </DialogContent>
