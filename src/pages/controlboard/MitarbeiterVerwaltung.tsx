@@ -335,7 +335,7 @@ export default function MitarbeiterVerwaltung() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      const { data, error } = await supabase.functions.invoke('invite-mitarbeiter', {
+      const { data, error } = await supabase.functions.invoke('activate-mitarbeiter', {
         body: { mitarbeiter_id: inviteMitarbeiterId, email: inviteEmail.trim() },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });

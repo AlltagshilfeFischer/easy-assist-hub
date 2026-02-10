@@ -442,7 +442,7 @@ export default function BenutzerverwaltungNeu() {
 
     setInviteLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('invite-mitarbeiter', {
+      const { data, error } = await supabase.functions.invoke('activate-mitarbeiter', {
         body: {
           email: inviteForm.email,
           vorname: inviteForm.vorname,
