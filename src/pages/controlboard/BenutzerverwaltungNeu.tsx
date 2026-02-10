@@ -602,49 +602,84 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  const handleChangeRole = async (userId: string, newRole: string) => {
-    setActionLoading(userId);
+  const handleChangeRole = async (mitarbeiterId: string, newRole: string) => {
+    setActionLoading(mitarbeiterId);
     try {
-      // Check if this benutzer exists in auth (required for FK constraint)
-      const { data: benutzerCheck } = await supabase
-        .from('benutzer')
-        .select('id, status')
-        .eq('id', userId)
+      // Find the mitarbeiter to get benutzer_id
+      const { data: mitarbeiterData } = await supabase
+        .from('mitarbeiter')
+        .select('id, benutzer_id, vorname, nachname')
+        .eq('id', mitarbeiterId)
         .maybeSingle();
 
-      if (!benutzerCheck || benutzerCheck.status !== 'approved') {
-        throw new Error('Dieser Benutzer ist nicht freigeschaltet. Bitte zuerst den Benutzer aktivieren.');
+      if (!mitarbeiterData) throw new Error('Mitarbeiter nicht gefunden.');
+
+      let benutzerId = mitarbeiterData.benutzer_id;
+
+      // If no benutzer record exists, create one for role pre-assignment
+      if (!benutzerId) {
+        // Check if benutzer with matching email exists
+        const { data: existingBenutzer } = await supabase
+          .from('benutzer')
+          .select('id')
+          .eq('email', `pending-${mitarbeiterId}@placeholder.local`)
+          .maybeSingle();
+
+        if (existingBenutzer) {
+          benutzerId = existingBenutzer.id;
+        } else {
+          // Create a placeholder benutzer record
+          const newId = crypto.randomUUID();
+          const { error: createError } = await supabase
+            .from('benutzer')
+            .insert({
+              id: newId,
+              email: `pending-${mitarbeiterId}@placeholder.local`,
+              vorname: mitarbeiterData.vorname,
+              nachname: mitarbeiterData.nachname,
+              rolle: newRole as any,
+              status: 'pending' as any,
+            });
+
+          if (createError) throw createError;
+
+          // Link mitarbeiter to the new benutzer
+          await supabase
+            .from('mitarbeiter')
+            .update({ benutzer_id: newId })
+            .eq('id', mitarbeiterId);
+
+          benutzerId = newId;
+        }
       }
 
       // Check if user already has a role entry
       const { data: existingRole } = await supabase
         .from('user_roles')
         .select('id')
-        .eq('user_id', userId)
+        .eq('user_id', benutzerId)
         .maybeSingle();
 
       if (existingRole) {
-        // Update existing role
         const { error: updateError } = await supabase
           .from('user_roles')
           .update({ role: newRole as any })
-          .eq('user_id', userId);
-
+          .eq('user_id', benutzerId);
         if (updateError) throw updateError;
       } else {
-        // Insert new role
         const { error: insertError } = await supabase
           .from('user_roles')
-          .insert({ user_id: userId, role: newRole as any });
-
+          .insert({ user_id: benutzerId, role: newRole as any });
         if (insertError) throw insertError;
       }
 
       // Also update benutzer.rolle for consistency
-      await supabase
-        .from('benutzer')
-        .update({ rolle: newRole as any })
-        .eq('id', userId);
+      if (benutzerId) {
+        await supabase
+          .from('benutzer')
+          .update({ rolle: newRole as any })
+          .eq('id', benutzerId);
+      }
 
       toast({
         title: 'Rolle geändert',
@@ -879,7 +914,7 @@ export default function BenutzerverwaltungNeu() {
                           setDeleteDialogOpen(true);
                         }}
                         loadData={loadData}
-                        currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : null}
+                        currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
                         onChangeRole={handleChangeRole}
                         canAssignGF={masterUnlocked}
                         canAssignRoles={masterUnlocked}
@@ -906,7 +941,7 @@ export default function BenutzerverwaltungNeu() {
                           setDeleteDialogOpen(true);
                         }}
                         loadData={loadData}
-                        currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : null}
+                        currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
                         onChangeRole={handleChangeRole}
                         canAssignGF={masterUnlocked}
                         canAssignRoles={masterUnlocked}
@@ -1617,11 +1652,11 @@ function MitarbeiterRow({
       </div>
       <div className="flex items-center gap-2">
         {/* Role selector */}
-        {m.benutzer_id && currentRole && canAssignRoles ? (
+        {currentRole && canAssignRoles ? (
           <Select
             value={currentRole}
-            onValueChange={(value) => onChangeRole(m.benutzer_id!, value)}
-            disabled={actionLoading === m.benutzer_id}
+            onValueChange={(value) => onChangeRole(m.id, value)}
+            disabled={actionLoading === m.id}
           >
             <SelectTrigger className="w-[160px] h-8 text-xs">
               <div className="flex items-center gap-1.5">
