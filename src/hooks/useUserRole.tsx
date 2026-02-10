@@ -125,7 +125,7 @@ export function useUserRole() {
   const getRoleLabel = (r: UserRole): string => {
     switch (r) {
       case 'geschaeftsfuehrer': return 'Geschäftsführer';
-      case 'admin': return 'Admin';
+      case 'admin': return 'Manager';
       case 'mitarbeiter': return 'Mitarbeiter';
       default: return 'Unbekannt';
     }

@@ -2,3 +2,6 @@ project_id = "uyvtukfyvqqupqsjbmjq"
 
 [functions.delete-mitarbeiter]
 verify_jwt = false
+
+[functions.verify-master-password]
+verify_jwt = false
