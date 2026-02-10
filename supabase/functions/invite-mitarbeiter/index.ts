@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       throw new Error('mitarbeiter_id und email sind erforderlich');
     }
 
-    // Verify mitarbeiter exists and has no benutzer_id yet
+    // Verify mitarbeiter exists
     const { data: mitarbeiter, error: mitErr } = await supabaseAdmin
       .from('mitarbeiter')
       .select('id, vorname, nachname, benutzer_id')
@@ -56,8 +56,22 @@ Deno.serve(async (req) => {
       throw new Error('Mitarbeiter nicht gefunden');
     }
 
+    // Check if mitarbeiter already has a real auth account (not a placeholder)
     if (mitarbeiter.benutzer_id) {
-      throw new Error('Dieser Mitarbeiter hat bereits ein Benutzerkonto');
+      // Check if the benutzer_id is a placeholder (email contains @placeholder.local)
+      const { data: benutzerCheck } = await supabaseAdmin
+        .from('benutzer')
+        .select('email')
+        .eq('id', mitarbeiter.benutzer_id)
+        .maybeSingle();
+
+      const isPlaceholder = benutzerCheck?.email?.includes('@placeholder.local');
+      
+      if (!isPlaceholder) {
+        throw new Error('Dieser Mitarbeiter hat bereits ein Benutzerkonto');
+      }
+      // Placeholder benutzer_id is fine - will be replaced during approval
+      console.log('Mitarbeiter has placeholder benutzer_id, proceeding with invite');
     }
 
     console.log('Inviting mitarbeiter:', { mitarbeiter_id, email, vorname: mitarbeiter.vorname, nachname: mitarbeiter.nachname });
