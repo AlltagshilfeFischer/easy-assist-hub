@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search, Upload, Send, MailCheck } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock, UserPlus, Trash2, UserX, UserCheck, Pencil, Mail, Users, Search, Upload, Send, MailCheck, Shield } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useUserRole, type UserRole } from '@/hooks/useUserRole';
 
 interface PendingRegistration {
   id: string;
@@ -45,9 +46,15 @@ interface Mitarbeiter {
   };
 }
 
+interface UserRoleEntry {
+  user_id: string;
+  role: string;
+}
+
 export default function BenutzerverwaltungNeu() {
   const [pendingBenutzer, setPendingBenutzer] = useState<PendingRegistration[]>([]);
   const [mitarbeiter, setMitarbeiter] = useState<Mitarbeiter[]>([]);
+  const [userRolesMap, setUserRolesMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
@@ -69,6 +76,7 @@ export default function BenutzerverwaltungNeu() {
   const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
+  const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
 
   useEffect(() => {
     loadData();
@@ -94,7 +102,7 @@ export default function BenutzerverwaltungNeu() {
 
   const loadData = async () => {
     try {
-      const [registrationsResponse, mitarbeiterResponse] = await Promise.all([
+      const [registrationsResponse, mitarbeiterResponse, rolesResponse] = await Promise.all([
         supabase
           .from('pending_registrations')
           .select('*')
@@ -108,7 +116,10 @@ export default function BenutzerverwaltungNeu() {
               email
             )
           `)
-          .order('nachname', { ascending: true })
+          .order('nachname', { ascending: true }),
+        supabase
+          .from('user_roles')
+          .select('user_id, role')
       ]);
 
       if (registrationsResponse.error) throw registrationsResponse.error;
@@ -116,6 +127,19 @@ export default function BenutzerverwaltungNeu() {
 
       setPendingBenutzer(registrationsResponse.data || []);
       setMitarbeiter(mitarbeiterResponse.data || []);
+      
+      // Build a map: user_id -> highest role
+      const rolesMap: Record<string, string> = {};
+      if (rolesResponse.data) {
+        for (const entry of rolesResponse.data) {
+          const current = rolesMap[entry.user_id];
+          const priority: Record<string, number> = { geschaeftsfuehrer: 3, admin: 2, mitarbeiter: 1 };
+          if (!current || (priority[entry.role] || 0) > (priority[current] || 0)) {
+            rolesMap[entry.user_id] = entry.role;
+          }
+        }
+      }
+      setUserRolesMap(rolesMap);
       
       // Clear selections that no longer exist
       setSelectedUninvited(prev => {
@@ -512,6 +536,48 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
+  const handleChangeRole = async (userId: string, newRole: string) => {
+    setActionLoading(userId);
+    try {
+      // Delete existing roles for this user
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new role
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: newRole as any });
+
+      if (insertError) throw insertError;
+
+      // Also update benutzer.rolle for consistency
+      await supabase
+        .from('benutzer')
+        .update({ rolle: newRole as any })
+        .eq('id', userId);
+
+      toast({
+        title: 'Rolle geändert',
+        description: `Rolle wurde auf "${newRole === 'geschaeftsfuehrer' ? 'Geschäftsführer' : newRole === 'admin' ? 'Admin' : 'Mitarbeiter'}" gesetzt.`,
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error('Error changing role:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: error.message || 'Rollenänderung fehlgeschlagen.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredMitarbeiter = mitarbeiter.filter(m => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -704,6 +770,10 @@ export default function BenutzerverwaltungNeu() {
                           setDeleteDialogOpen(true);
                         }}
                         loadData={loadData}
+                        currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : null}
+                        onChangeRole={handleChangeRole}
+                        canAssignGF={isGeschaeftsfuehrer}
+                        canAssignRoles={isAdmin}
                       />
                     ))}
                   </div>
@@ -727,6 +797,10 @@ export default function BenutzerverwaltungNeu() {
                           setDeleteDialogOpen(true);
                         }}
                         loadData={loadData}
+                        currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : null}
+                        onChangeRole={handleChangeRole}
+                        canAssignGF={isGeschaeftsfuehrer}
+                        canAssignRoles={isAdmin}
                       />
                     ))}
                   </div>
@@ -1254,7 +1328,11 @@ function MitarbeiterRow({
   onEdit, 
   onToggleActive, 
   onDelete,
-  loadData 
+  loadData,
+  currentRole,
+  onChangeRole,
+  canAssignGF,
+  canAssignRoles,
 }: {
   mitarbeiter: Mitarbeiter;
   actionLoading: string | null;
@@ -1262,10 +1340,28 @@ function MitarbeiterRow({
   onToggleActive: (id: string, status: boolean) => void;
   onDelete: (id: string) => void;
   loadData: () => void;
+  currentRole: UserRole | null;
+  onChangeRole: (userId: string, newRole: string) => void;
+  canAssignGF: boolean;
+  canAssignRoles: boolean;
 }) {
   const fullName = m.vorname || m.nachname
     ? `${m.vorname || ''} ${m.nachname || ''}`.trim()
     : 'Unbekannt';
+
+  const roleLabelMap: Record<string, string> = {
+    geschaeftsfuehrer: 'Geschäftsführer',
+    admin: 'Admin',
+    mitarbeiter: 'Mitarbeiter',
+  };
+
+  const roleBadgeVariant = (role: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    switch (role) {
+      case 'geschaeftsfuehrer': return 'destructive';
+      case 'admin': return 'default';
+      default: return 'secondary';
+    }
+  };
 
   return (
     <div className={`flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 transition-colors ${!m.ist_aktiv ? 'opacity-60' : ''}`}>
@@ -1288,6 +1384,34 @@ function MitarbeiterRow({
         </div>
       </div>
       <div className="flex items-center gap-2">
+        {/* Role selector */}
+        {m.benutzer_id && currentRole && canAssignRoles ? (
+          <Select
+            value={currentRole}
+            onValueChange={(value) => onChangeRole(m.benutzer_id!, value)}
+            disabled={actionLoading === m.benutzer_id}
+          >
+            <SelectTrigger className="w-[160px] h-8 text-xs">
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3 w-3" />
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {canAssignGF && (
+                <SelectItem value="geschaeftsfuehrer">Geschäftsführer</SelectItem>
+              )}
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : currentRole ? (
+          <Badge variant={roleBadgeVariant(currentRole)}>
+            <Shield className="h-3 w-3 mr-1" />
+            {roleLabelMap[currentRole] || currentRole}
+          </Badge>
+        ) : null}
+
         <Badge variant={m.ist_aktiv ? 'default' : 'secondary'}>
           {m.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
         </Badge>
