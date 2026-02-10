@@ -46,7 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
 import CreateCustomerWizard from '@/components/customers/CreateCustomerWizard';
-import { CustomerImportExport } from '@/components/customers/CustomerImportExport';
+
 import { KundenSmartImport } from '@/components/import/KundenSmartImport';
 
 type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
@@ -638,7 +638,6 @@ export default function MasterData() {
             <Upload className="h-4 w-4" />
             Importieren
           </Button>
-          <CustomerImportExport customers={customers || []} />
           <Button onClick={handleOpenCreateDialog} className="gap-2">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Neuen Kunden anlegen</span>
