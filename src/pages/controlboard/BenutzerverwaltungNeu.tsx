@@ -605,20 +605,40 @@ export default function BenutzerverwaltungNeu() {
   const handleChangeRole = async (userId: string, newRole: string) => {
     setActionLoading(userId);
     try {
-      // Delete existing roles for this user
-      const { error: deleteError } = await supabase
+      // Check if this benutzer exists in auth (required for FK constraint)
+      const { data: benutzerCheck } = await supabase
+        .from('benutzer')
+        .select('id, status')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!benutzerCheck || benutzerCheck.status !== 'approved') {
+        throw new Error('Dieser Benutzer ist nicht freigeschaltet. Bitte zuerst den Benutzer aktivieren.');
+      }
+
+      // Check if user already has a role entry
+      const { data: existingRole } = await supabase
         .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-      if (deleteError) throw deleteError;
+      if (existingRole) {
+        // Update existing role
+        const { error: updateError } = await supabase
+          .from('user_roles')
+          .update({ role: newRole as any })
+          .eq('user_id', userId);
 
-      // Insert new role
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role: newRole as any });
+        if (updateError) throw updateError;
+      } else {
+        // Insert new role
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: userId, role: newRole as any });
 
-      if (insertError) throw insertError;
+        if (insertError) throw insertError;
+      }
 
       // Also update benutzer.rolle for consistency
       await supabase
