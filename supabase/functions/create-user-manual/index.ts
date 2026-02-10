@@ -62,52 +62,58 @@ Deno.serve(async (req) => {
 
     console.log('Creating user manually:', { email, vorname, nachname, rolle: finalRole });
 
-    // 1. Create auth user with confirmed email
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase(),
-      password,
-      email_confirm: true,
-      user_metadata: {
-        vorname: vorname || '',
-        nachname: nachname || '',
+    // 1. Check if auth user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+    let userId: string;
+
+    if (existingUser) {
+      console.log('Auth user already exists, updating:', existingUser.id);
+      userId = existingUser.id;
+      // Update password and confirm email
+      await supabaseAdmin.auth.admin.updateUser(userId, {
+        password,
+        email_confirm: true,
+        user_metadata: { vorname: vorname || '', nachname: nachname || '' },
+      });
+    } else {
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: email.toLowerCase(),
+        password,
+        email_confirm: true,
+        user_metadata: { vorname: vorname || '', nachname: nachname || '' },
+      });
+      if (authError) {
+        console.error('Auth create error:', authError);
+        throw new Error(`Auth-Fehler: ${authError.message}`);
       }
-    });
-
-    if (authError) {
-      console.error('Auth create error:', authError);
-      throw new Error(`Auth-Fehler: ${authError.message}`);
+      userId = authData.user.id;
     }
+    console.log('Auth user ready:', userId);
 
-    const userId = authData.user.id;
-    console.log('Auth user created:', userId);
-
-    // 2. Create benutzer record (approved)
+    // 2. Upsert benutzer record (approved)
     const { error: benutzerError } = await supabaseAdmin
       .from('benutzer')
-      .insert({
+      .upsert({
         id: userId,
         email: email.toLowerCase(),
         vorname: vorname || null,
         nachname: nachname || null,
         rolle: finalRole,
         status: 'approved',
-      });
+      }, { onConflict: 'id' });
 
     if (benutzerError) {
-      console.error('Benutzer insert error:', benutzerError);
-      // Try to clean up auth user
-      await supabaseAdmin.auth.admin.deleteUser(userId);
+      console.error('Benutzer upsert error:', benutzerError);
       throw new Error(`Benutzer-Fehler: ${benutzerError.message}`);
     }
 
-    // 3. Create user_roles entry
+    // 3. Sync user_roles entry
+    await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: userId,
-        role: finalRole,
-        granted_by: callerId,
-      });
+      .insert({ user_id: userId, role: finalRole, granted_by: callerId });
 
     if (roleError) {
       console.error('Role insert error:', roleError);
