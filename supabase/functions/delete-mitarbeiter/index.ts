@@ -35,14 +35,11 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { data: benutzer } = await supabaseAdmin
-      .from('benutzer')
-      .select('rolle')
-      .eq('id', user.id)
-      .single()
+    const { data: canDelete } = await supabaseAdmin
+      .rpc('can_delete', { _user_id: user.id })
 
-    if (!benutzer || benutzer.rolle !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Not authorized' }), {
+    if (!canDelete) {
+      return new Response(JSON.stringify({ error: 'Not authorized - only Geschäftsführer can delete' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
