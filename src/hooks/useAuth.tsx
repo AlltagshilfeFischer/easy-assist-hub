@@ -22,14 +22,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth event:', event);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Detect PASSWORD_RECOVERY event — user clicked a recovery link
+        if (event === 'PASSWORD_RECOVERY') {
+          setRecoveryMode(true);
+        }
       }
     );
 
@@ -141,10 +148,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password: newPassword,
       data: { force_password_change: false }
     });
+    if (!error) {
+      // Clear recovery mode after successful password change
+      setRecoveryMode(false);
+    }
     return { error };
   };
 
-  const forcePasswordChange = !!user?.user_metadata?.force_password_change;
+  // Show password change form if: metadata flag is set OR we're in recovery mode
+  const forcePasswordChange = !!user?.user_metadata?.force_password_change || recoveryMode;
 
   const value = {
     user,

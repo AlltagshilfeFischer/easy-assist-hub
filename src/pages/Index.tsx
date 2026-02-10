@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import AuthPage from '@/components/auth/AuthPage';
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, forcePasswordChange } = useAuth();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const hashString = location.hash?.startsWith('#') ? location.hash.slice(1) : location.hash;
@@ -18,23 +18,19 @@ const Index = () => {
     );
   }
 
-  // Show password setup/auth flows when coming from invite/recovery links
-  if (isAuthFlow) {
-    return <AuthPage />;
-  }
-
-  // If user is authenticated, redirect to dashboard
-  if (user) {
+  // If user is authenticated and needs password change, ForcePasswordChange wrapper handles it
+  // If user is authenticated and does NOT need password change, redirect to dashboard
+  if (user && !forcePasswordChange) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If not authenticated, show auth page directly
+  // Show auth page for unauthenticated users or during auth flows
+  // (ForcePasswordChange wrapper in App.tsx handles the password change screen)
   return (
     <div className="auth-bg-animated min-h-screen flex items-center justify-center p-4">
       <AuthPage />
     </div>
   );
-
 };
 
 export default Index;
