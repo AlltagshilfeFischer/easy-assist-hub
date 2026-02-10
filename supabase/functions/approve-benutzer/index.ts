@@ -26,13 +26,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify admin role using verified JWT (avoid /user call to prevent session_not_found)
+    // Verify admin role using verified JWT
     const authHeader = req.headers.get('Authorization') || '';
     if (!authHeader.startsWith('Bearer ')) {
       throw new Error('Not authenticated');
     }
     const token = authHeader.slice('Bearer '.length).trim();
-    // Decode JWT payload (JWT already verified by Edge Runtime when verify_jwt=true)
     let userId: string | null = null;
     try {
       const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
@@ -47,14 +46,11 @@ Deno.serve(async (req) => {
       throw new Error('Not authenticated');
     }
 
-    // Check admin role using SECURITY DEFINER function to avoid table permission issues
     const { data: isAdmin, error: isAdminErr } = await supabaseAdmin.rpc('is_admin_or_higher', { _user_id: userId });
     if (isAdminErr || !isAdmin) {
-      console.error('Admin role check failed via is_admin:', isAdminErr);
       throw new Error('Not authorized - admin role required');
     }
 
-    // Get request body
     const { registration_id, email, vorname, nachname } = await req.json();
 
     if (!registration_id || !email) {
@@ -63,7 +59,6 @@ Deno.serve(async (req) => {
 
     console.log('Approving registration:', { registration_id, email });
 
-    // Get registration details directly with admin client (bypasses RLS)
     const { data: registration, error: regErr } = await supabaseAdmin
       .from('pending_registrations')
       .select('*')
@@ -72,15 +67,13 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (regErr) {
-      console.error('Registration lookup error:', regErr);
       throw new Error(`Registration lookup failed: ${regErr.message}`);
     }
-
     if (!registration) {
       throw new Error('Registration not found or already processed');
     }
 
-    // Create or link auth user (handle existing accounts)
+    // Create or link auth user
     const tempPassword = crypto.randomUUID();
     let targetUserId: string | null = null;
     let createdNewUser = false;
@@ -98,27 +91,18 @@ Deno.serve(async (req) => {
       });
 
       if (createErr) throw createErr;
-
       targetUserId = created.user.id;
       createdNewUser = true;
       emailConfirmed = !!created.user.email_confirmed_at;
       console.log('Auth user created:', targetUserId);
     } catch (e: any) {
-      const code = e?.code || e?.status || e?.name;
-      console.warn('Create user failed, attempting to link existing user. Code:', code, 'Message:', e?.message);
+      console.warn('Create user failed, attempting to link existing user:', e?.message);
 
-      // Try to find existing user by email
       const { data: usersPage, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listErr) {
-        console.error('List users error:', listErr);
-        throw new Error(`Failed to list users: ${listErr.message}`);
-      }
+      if (listErr) throw new Error(`Failed to list users: ${listErr.message}`);
 
       const existing = usersPage?.users?.find((u: any) => (u.email || '').toLowerCase() === email.toLowerCase());
-      if (!existing) {
-        console.error('No existing user found for email after createUser failed.');
-        throw new Error(`Failed to create auth user: ${e?.message || 'unknown error'}`);
-      }
+      if (!existing) throw new Error(`Failed to create auth user: ${e?.message || 'unknown error'}`);
 
       targetUserId = existing.id;
       createdNewUser = false;
@@ -126,46 +110,141 @@ Deno.serve(async (req) => {
       console.log('Using existing auth user:', targetUserId);
     }
 
-    // Upsert into benutzer table
+    // --- ROLE SYNC: Check for pre-assigned roles ---
+    // Look for mitarbeiter linked via invite metadata
+    let linkedMitarbeiterId: string | null = null;
+    let preAssignedRole: string | null = null;
+    let placeholderBenutzerId: string | null = null;
+
+    // Check auth user metadata for mitarbeiter_id (from invite flow)
+    const { data: authUserData } = await supabaseAdmin.auth.admin.getUserById(targetUserId!);
+    const metaMitarbeiterId = authUserData?.user?.user_metadata?.mitarbeiter_id;
+
+    if (metaMitarbeiterId) {
+      const { data: existingMit } = await supabaseAdmin
+        .from('mitarbeiter')
+        .select('id, benutzer_id')
+        .eq('id', metaMitarbeiterId)
+        .maybeSingle();
+
+      if (existingMit) {
+        linkedMitarbeiterId = existingMit.id;
+        placeholderBenutzerId = existingMit.benutzer_id;
+      }
+    }
+
+    // If no mitarbeiter from metadata, try to find by name match
+    if (!linkedMitarbeiterId) {
+      const nameVorname = vorname || registration.vorname || '';
+      const nameNachname = nachname || registration.nachname || '';
+      if (nameVorname && nameNachname) {
+        const { data: matchingMit } = await supabaseAdmin
+          .from('mitarbeiter')
+          .select('id, benutzer_id')
+          .eq('vorname', nameVorname)
+          .eq('nachname', nameNachname)
+          .maybeSingle();
+        
+        if (matchingMit) {
+          linkedMitarbeiterId = matchingMit.id;
+          placeholderBenutzerId = matchingMit.benutzer_id;
+        }
+      }
+    }
+
+    // Check for pre-assigned role via placeholder benutzer_id
+    if (placeholderBenutzerId && placeholderBenutzerId !== targetUserId) {
+      const { data: preRole } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', placeholderBenutzerId)
+        .maybeSingle();
+
+      if (preRole) {
+        preAssignedRole = preRole.role;
+        console.log('Found pre-assigned role:', preAssignedRole, 'from placeholder:', placeholderBenutzerId);
+
+        // Delete the old placeholder role entry
+        await supabaseAdmin
+          .from('user_roles')
+          .delete()
+          .eq('user_id', placeholderBenutzerId);
+      }
+
+      // Also check the placeholder benutzer record for role info
+      const { data: placeholderBenutzer } = await supabaseAdmin
+        .from('benutzer')
+        .select('rolle')
+        .eq('id', placeholderBenutzerId)
+        .maybeSingle();
+
+      if (placeholderBenutzer && !preAssignedRole) {
+        preAssignedRole = placeholderBenutzer.rolle;
+      }
+
+      // Clean up placeholder benutzer record
+      await supabaseAdmin
+        .from('benutzer')
+        .delete()
+        .eq('id', placeholderBenutzerId);
+      
+      console.log('Cleaned up placeholder benutzer:', placeholderBenutzerId);
+    }
+
+    // Also check if there's already a role for targetUserId directly
+    if (!preAssignedRole) {
+      const { data: existingDirectRole } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', targetUserId!)
+        .maybeSingle();
+      
+      if (existingDirectRole) {
+        preAssignedRole = existingDirectRole.role;
+      }
+    }
+
+    const finalRole = preAssignedRole || 'mitarbeiter';
+    console.log('Final role for user:', finalRole);
+
+    // Upsert into benutzer table with correct role
     const { error: benutzerError } = await supabaseAdmin
       .from('benutzer')
       .upsert({
         id: targetUserId!,
         email: email,
-        rolle: 'mitarbeiter',
+        rolle: finalRole as any,
         status: 'approved',
         vorname: vorname || registration.vorname || null,
         nachname: nachname || registration.nachname || null
       }, { onConflict: 'id' });
 
     if (benutzerError) {
-      console.error('Benutzer upsert error:', benutzerError);
       throw new Error(`Failed to upsert benutzer: ${benutzerError.message}`);
     }
 
-    // Check if there's an existing mitarbeiter record to link
-    // First check user metadata for mitarbeiter_id (from invite flow)
-    let linkedMitarbeiterId: string | null = null;
-    
-    // Try to get mitarbeiter_id from the auth user's metadata
-    const { data: authUserData } = await supabaseAdmin.auth.admin.getUserById(targetUserId!);
-    const metaMitarbeiterId = authUserData?.user?.user_metadata?.mitarbeiter_id;
-    
-    if (metaMitarbeiterId) {
-      // Verify the mitarbeiter exists and has no benutzer_id yet
-      const { data: existingMit } = await supabaseAdmin
-        .from('mitarbeiter')
-        .select('id, benutzer_id')
-        .eq('id', metaMitarbeiterId)
-        .maybeSingle();
-      
-      if (existingMit && !existingMit.benutzer_id) {
-        linkedMitarbeiterId = existingMit.id;
+    // Upsert user_roles with the correct role
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .upsert({
+        user_id: targetUserId!,
+        role: finalRole as any,
+      }, { onConflict: 'user_id,role' });
+
+    if (roleError) {
+      // Try delete + insert if upsert fails
+      await supabaseAdmin.from('user_roles').delete().eq('user_id', targetUserId!);
+      const { error: roleInsertErr } = await supabaseAdmin
+        .from('user_roles')
+        .insert({ user_id: targetUserId!, role: finalRole as any });
+      if (roleInsertErr) {
+        console.error('Role insert error:', roleInsertErr);
       }
     }
+    console.log('User role set to:', finalRole);
 
+    // Link or create mitarbeiter record
     if (linkedMitarbeiterId) {
-      // Link existing mitarbeiter record to this user
       const { error: mitarbeiterError } = await supabaseAdmin
         .from('mitarbeiter')
         .update({
@@ -175,12 +254,10 @@ Deno.serve(async (req) => {
         .eq('id', linkedMitarbeiterId);
 
       if (mitarbeiterError) {
-        console.error('Mitarbeiter link error:', mitarbeiterError);
         throw new Error(`Failed to link mitarbeiter: ${mitarbeiterError.message}`);
       }
       console.log('Linked auth user to existing mitarbeiter:', linkedMitarbeiterId);
     } else {
-      // Create new mitarbeiter record
       const { error: mitarbeiterError } = await supabaseAdmin
         .from('mitarbeiter')
         .upsert({
@@ -191,13 +268,12 @@ Deno.serve(async (req) => {
         }, { onConflict: 'benutzer_id' });
 
       if (mitarbeiterError) {
-        console.error('Mitarbeiter upsert error:', mitarbeiterError);
         throw new Error(`Failed to upsert mitarbeiter: ${mitarbeiterError.message}`);
       }
       console.log('Created new mitarbeiter record for user:', targetUserId);
     }
 
-    // Update registration status to approved
+    // Update registration status
     const { error: updateError } = await supabaseAdmin
       .from('pending_registrations')
       .update({
@@ -213,7 +289,6 @@ Deno.serve(async (req) => {
 
     console.log('Registration approved successfully');
 
-    // Send appropriate email link
     const linkType = createdNewUser ? 'invite' : (emailConfirmed ? 'recovery' : 'invite');
     await supabaseAdmin.auth.admin.generateLink({ type: linkType as any, email });
 
@@ -222,7 +297,8 @@ Deno.serve(async (req) => {
         success: true, 
         message: createdNewUser
           ? 'Benutzer approved. Invite email gesendet.'
-          : (emailConfirmed ? 'Benutzer verknüpft. Passwort-Reset-Mail gesendet.' : 'Benutzer verknüpft. Invite-Mail gesendet.')
+          : (emailConfirmed ? 'Benutzer verknüpft. Passwort-Reset-Mail gesendet.' : 'Benutzer verknüpft. Invite-Mail gesendet.'),
+        role: finalRole,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
