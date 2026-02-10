@@ -84,7 +84,7 @@ export default function BenutzerverwaltungNeu() {
   const { user } = useAuth();
   
   // Masteradmin state
-  const isMasterEmail = user?.email === 'info@kitdienstleistungen.de';
+  const canSeeMasterAdmin = isGeschaeftsfuehrer;
   const [masterUnlocked, setMasterUnlocked] = useState(false);
   const [masterPasswordDialog, setMasterPasswordDialog] = useState(false);
   const [masterPasswordInput, setMasterPasswordInput] = useState('');
@@ -764,7 +764,7 @@ export default function BenutzerverwaltungNeu() {
         </div>
         <div className="flex gap-2 flex-wrap">
           {/* Masteradmin Toggle */}
-          {isMasterEmail && (
+          {canSeeMasterAdmin && (
             <Button
               variant={masterUnlocked ? 'default' : 'outline'}
               onClick={() => {
