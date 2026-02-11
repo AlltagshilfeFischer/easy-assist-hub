@@ -68,6 +68,23 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Check if this is a protected system account
+    if (mitarbeiter.benutzer_id) {
+      const { data: benutzer } = await supabaseAdmin
+        .from('benutzer')
+        .select('email')
+        .eq('id', mitarbeiter.benutzer_id)
+        .single()
+
+      const protectedEmails = ['admin@af-verwaltung.de']
+      if (benutzer && protectedEmails.includes(benutzer.email?.toLowerCase())) {
+        return new Response(JSON.stringify({ error: 'Dieser System-Account ist geschützt und kann nicht gelöscht werden.' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     const benutzerId = mitarbeiter.benutzer_id
 
     // Delete all termin_aenderungen related to this mitarbeiter

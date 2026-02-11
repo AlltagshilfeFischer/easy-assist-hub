@@ -16,6 +16,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useUserRole, type UserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 
+// Geschützte System-Accounts die nicht gelöscht werden dürfen
+const PROTECTED_EMAILS = ['admin@af-verwaltung.de'];
+
+function isProtectedUser(m: Mitarbeiter): boolean {
+  return PROTECTED_EMAILS.includes(m.benutzer?.email?.toLowerCase() || '');
+}
+
 interface Mitarbeiter {
   id: string;
   vorname: string | null;
@@ -162,6 +169,13 @@ export default function BenutzerverwaltungNeu() {
 
   const handleDeleteEmployee = async () => {
     if (!selectedMitarbeiter) return;
+    // Check if protected
+    const targetMa = [...uninvitedMitarbeiter, ...activatedMitarbeiter].find(m => m.id === selectedMitarbeiter);
+    if (targetMa && isProtectedUser(targetMa)) {
+      toast({ variant: 'destructive', title: 'Geschützt', description: 'Dieser System-Account kann nicht gelöscht werden.' });
+      setDeleteDialogOpen(false);
+      return;
+    }
     setActionLoading(selectedMitarbeiter);
     try {
       const { data, error } = await supabase.functions.invoke('delete-mitarbeiter', { body: { mitarbeiterId: selectedMitarbeiter } });
@@ -526,8 +540,9 @@ export default function BenutzerverwaltungNeu() {
                   actionLoading={actionLoading}
                   onActivate={handleOpenActivateDialog}
                   onEdit={handleEditMitarbeiter}
-                  onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
-                  currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || null : null}
+                   onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
+                   isProtected={isProtectedUser(m)}
+                   currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || null : null}
                   onChangeRole={handleChangeRole}
                    canAssignGF={isGeschaeftsfuehrer}
                   canAssignRoles={isGeschaeftsfuehrer}
@@ -562,8 +577,9 @@ export default function BenutzerverwaltungNeu() {
                   actionLoading={actionLoading}
                   onEdit={handleEditMitarbeiter}
                   onToggleActive={handleToggleActive}
-                  onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
-                  loadData={loadData}
+                   onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
+                   isProtected={isProtectedUser(m)}
+                   loadData={loadData}
                   currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
                   onChangeRole={handleChangeRole}
                    canAssignGF={isGeschaeftsfuehrer}
@@ -805,11 +821,12 @@ export default function BenutzerverwaltungNeu() {
 // ─── Uninvited Employee Row ───
 function UninvitedRow({
   mitarbeiter: m, isSelected, onToggleSelect, actionLoading, onActivate, onEdit, onDelete,
-  currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
+  isProtected, currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
 }: {
   mitarbeiter: Mitarbeiter; isSelected: boolean; onToggleSelect: () => void;
   actionLoading: string | null; onActivate: (m: Mitarbeiter) => void;
   onEdit: (m: Mitarbeiter) => void; onDelete: (id: string) => void;
+  isProtected?: boolean;
   currentRole: UserRole | null; onChangeRole: (id: string, role: string) => void;
   canAssignGF: boolean; canAssignRoles: boolean; canDelete: boolean; roleLabelMap: Record<string, string>;
 }) {
@@ -854,7 +871,7 @@ function UninvitedRow({
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onEdit(m)} disabled={actionLoading === m.id}>
           <Pencil className="h-3.5 w-3.5" />
         </Button>
-        {canDelete && (
+        {canDelete && !isProtected && (
           <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -866,12 +883,12 @@ function UninvitedRow({
 
 // ─── Activated Employee Row ───
 function ActivatedRow({
-  mitarbeiter: m, actionLoading, onEdit, onToggleActive, onDelete, loadData,
+  mitarbeiter: m, actionLoading, onEdit, onToggleActive, onDelete, isProtected, loadData,
   currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
 }: {
   mitarbeiter: Mitarbeiter; actionLoading: string | null;
   onEdit: (m: Mitarbeiter) => void; onToggleActive: (id: string, status: boolean) => void;
-  onDelete: (id: string) => void; loadData: () => void;
+  onDelete: (id: string) => void; isProtected?: boolean; loadData: () => void;
   currentRole: UserRole | null; onChangeRole: (id: string, role: string) => void;
   canAssignGF: boolean; canAssignRoles: boolean; canDelete: boolean; roleLabelMap: Record<string, string>;
 }) {
@@ -939,7 +956,7 @@ function ActivatedRow({
         <Button variant={m.ist_aktiv ? 'outline' : 'default'} size="icon" className="h-8 w-8" onClick={() => onToggleActive(m.id, m.ist_aktiv)} disabled={actionLoading === m.id}>
           {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : m.ist_aktiv ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
         </Button>
-        {canDelete && (
+        {canDelete && !isProtected && (
           <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
