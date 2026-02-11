@@ -72,8 +72,10 @@ export function useUserRole() {
           setRole(null);
         }
 
-        // 3. If user has any role, get their mitarbeiter_id
-        if (roleList.length > 0) {
+        // 3. Mitarbeiter-ID laden für Rollen die Einsätze haben können
+        // Admin/Disponent ist KEIN Mitarbeiter (kein Einsatz im Dienstplan)
+        // Geschäftsführer und Mitarbeiter können Einsätze haben
+        if (roleList.includes('geschaeftsfuehrer') || roleList.includes('mitarbeiter')) {
           const { data: mitarbeiterData } = await supabase
             .from('mitarbeiter')
             .select('id')
@@ -83,6 +85,8 @@ export function useUserRole() {
           if (mountedRef.current && mitarbeiterData) {
             setMitarbeiterId(mitarbeiterData.id);
           }
+        } else {
+          if (mountedRef.current) setMitarbeiterId(null);
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
@@ -124,8 +128,11 @@ export function useUserRole() {
   // Kann löschen: Nur StandortSuperadmin
   const canDelete = role === 'geschaeftsfuehrer';
   
-  // Ist authentifizierter Mitarbeiter (hat irgendeine Rolle)
-  const isEmployee = role !== null;
+  // Ist Mitarbeiter im Sinne von Einsätzen (GF oder mitarbeiter, NICHT admin/disponent)
+  const isEmployee = role === 'mitarbeiter' || role === 'geschaeftsfuehrer';
+  
+  // Hat Zugriff auf das System (irgendeine Rolle)
+  const isAuthenticated = role !== null;
   
   const hasRole = (checkRole: UserRole) => roles.includes(checkRole);
 
@@ -164,6 +171,7 @@ export function useUserRole() {
     isManager, // Rückwärtskompatibilität
     canDelete,
     isEmployee,
+    isAuthenticated,
     hasRole,
     getRoleLabel,
     getRoleBadgeVariant
