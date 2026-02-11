@@ -1532,6 +1532,8 @@ export type Database = {
         | "cancelled"
         | "abgerechnet"
         | "bezahlt"
+        | "nicht_angetroffen"
+        | "abgesagt_rechtzeitig"
       user_rolle: "geschaeftsfuehrer" | "admin" | "mitarbeiter"
     }
     CompositeTypes: {
@@ -1702,6 +1704,8 @@ export const Constants = {
         "cancelled",
         "abgerechnet",
         "bezahlt",
+        "nicht_angetroffen",
+        "abgesagt_rechtzeitig",
       ],
       user_rolle: ["geschaeftsfuehrer", "admin", "mitarbeiter"],
     },

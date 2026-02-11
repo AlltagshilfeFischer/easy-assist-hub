@@ -65,7 +65,7 @@ interface Appointment {
   mitarbeiter_id: string | null;
   start_at: string;
   end_at: string;
-  status: 'unassigned' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'unassigned' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'abgerechnet' | 'bezahlt' | 'nicht_angetroffen' | 'abgesagt_rechtzeitig';
   customer?: Customer;
   employee?: Employee;
   vorlage_id?: string | null;
@@ -159,20 +159,32 @@ export function AppointmentDetailDialog({
         return 'bg-green-50 border-green-200 text-green-800';
       case 'cancelled':
         return 'bg-red-50 border-red-200 text-red-800';
+      case 'nicht_angetroffen':
+        return 'bg-amber-50 border-amber-300 text-amber-900';
+      case 'abgesagt_rechtzeitig':
+        return 'bg-slate-50 border-slate-200 text-slate-700';
+      case 'abgerechnet':
+        return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+      case 'bezahlt':
+        return 'bg-teal-50 border-teal-200 text-teal-800';
       default:
         return 'bg-gray-50 border-gray-200 text-gray-800';
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const variants = {
+    const variants: Record<string, string> = {
       unassigned: 'Unzugewiesen',
       scheduled: 'Geplant',
       in_progress: 'In Bearbeitung',
       completed: 'Abgeschlossen',
-      cancelled: 'Abgesagt'
+      cancelled: 'Abgesagt',
+      nicht_angetroffen: 'Nicht angetroffen',
+      abgesagt_rechtzeitig: 'Rechtzeitig abgesagt',
+      abgerechnet: 'Abgerechnet',
+      bezahlt: 'Bezahlt'
     };
-    return variants[status as keyof typeof variants] || 'Unbekannt';
+    return variants[status] || 'Unbekannt';
   };
 
   const handleSave = async () => {
@@ -436,17 +448,44 @@ export function AppointmentDetailDialog({
     try {
       await onUpdate({
         ...editedAppointment,
-        status: 'cancelled',
-        ausnahme_grund: `Nicht geklappt zuschulden des Kunden${customerFaultNote ? ': ' + customerFaultNote : ''}`
+        status: 'nicht_angetroffen' as any,
+        ausnahme_grund: `Nicht angetroffen (eigenverschuldet)${customerFaultNote ? ': ' + customerFaultNote : ''}`
       });
       
       toast({
         title: 'Erfolg',
-        description: 'Der Termin wurde als "nicht geklappt zuschulden des Kunden" markiert.',
+        description: 'Der Termin wurde als "Nicht angetroffen" markiert (wird abgerechnet).',
       });
       
       setShowCustomerFaultDialog(false);
       setCustomerFaultNote('');
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Fehler',
+        description: 'Aktion konnte nicht durchgeführt werden.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTimelyCancel = async () => {
+    if (!editedAppointment) return;
+    
+    setLoading(true);
+    try {
+      await onUpdate({
+        ...editedAppointment,
+        status: 'abgesagt_rechtzeitig' as any,
+      });
+      
+      toast({
+        title: 'Erfolg',
+        description: 'Der Termin wurde als "Rechtzeitig abgesagt" markiert.',
+      });
+      
       onClose();
     } catch (error: any) {
       toast({
@@ -483,11 +522,11 @@ export function AppointmentDetailDialog({
         </DialogHeader>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-2 pt-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4">
           <Button
             variant="outline"
             onClick={() => setShowCancelDialog(true)}
-            disabled={loading || editedAppointment.status === 'cancelled'}
+            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
             className="w-full"
           >
             <X className="h-4 w-4 mr-2" />
@@ -501,7 +540,7 @@ export function AppointmentDetailDialog({
               setRescheduleTime(format(startDate, 'HH:mm'));
               setShowRescheduleDialog(true);
             }}
-            disabled={loading || editedAppointment.status === 'cancelled'}
+            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
             className="w-full"
           >
             <Clock className="h-4 w-4 mr-2" />
@@ -510,11 +549,20 @@ export function AppointmentDetailDialog({
           <Button
             variant="outline"
             onClick={() => setShowCustomerFaultDialog(true)}
-            disabled={loading || editedAppointment.status === 'cancelled'}
+            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
             className="w-full"
           >
             <AlertTriangle className="h-4 w-4 mr-2" />
-            Kunde schuld
+            Nicht angetroffen
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleTimelyCancel}
+            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
+            className="w-full"
+          >
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Rechtzeitig abgesagt
           </Button>
         </div>
 
@@ -558,6 +606,8 @@ export function AppointmentDetailDialog({
                         <SelectItem value="in_progress">In Bearbeitung</SelectItem>
                         <SelectItem value="completed">Abgeschlossen</SelectItem>
                         <SelectItem value="cancelled">Abgesagt</SelectItem>
+                        <SelectItem value="nicht_angetroffen">Nicht angetroffen</SelectItem>
+                        <SelectItem value="abgesagt_rechtzeitig">Rechtzeitig abgesagt</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (

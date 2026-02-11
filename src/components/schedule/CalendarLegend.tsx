@@ -3,7 +3,9 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   Circle,
-  XCircle 
+  XCircle,
+  UserX,
+  PhoneOff
 } from 'lucide-react';
 
 export function CalendarLegend() {
@@ -31,11 +33,23 @@ export function CalendarLegend() {
       label: 'Abgesagt',
       color: 'text-muted-foreground',
       bg: 'bg-muted'
+    },
+    {
+      icon: <UserX className="h-3 w-3" />,
+      label: 'Nicht angetroffen',
+      color: 'text-amber-700',
+      bg: 'bg-amber-100'
+    },
+    {
+      icon: <PhoneOff className="h-3 w-3" />,
+      label: 'Rechtzeitig abgesagt',
+      color: 'text-slate-500',
+      bg: 'bg-slate-100'
     }
   ];
 
   return (
-    <div className="flex items-center gap-3 text-xs">
+    <div className="flex items-center gap-3 text-xs flex-wrap">
       {statusItems.map((item, index) => (
         <div
           key={index}
