@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Send, Shield, KeyRound, Lock, Unlock, CheckCircle2, Mail, ArrowRight } from 'lucide-react';
+import { Loader2, UserPlus, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Send, Shield, KeyRound, CheckCircle2, Mail, ArrowRight } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -63,34 +63,7 @@ export default function BenutzerverwaltungNeu() {
   const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
   const { user } = useAuth();
   
-  // Masteradmin state
-  const canSeeMasterAdmin = isGeschaeftsfuehrer;
-  const [masterUnlocked, setMasterUnlocked] = useState(false);
-  const [masterPasswordDialog, setMasterPasswordDialog] = useState(false);
-  const [masterPasswordInput, setMasterPasswordInput] = useState('');
-  const [masterPasswordLoading, setMasterPasswordLoading] = useState(false);
-
-  const handleVerifyMasterPassword = async () => {
-    setMasterPasswordLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-master-password', {
-        body: { password: masterPasswordInput },
-      });
-      if (error) throw error;
-      if (data?.valid) {
-        setMasterUnlocked(true);
-        setMasterPasswordDialog(false);
-        setMasterPasswordInput('');
-        toast({ title: 'Masteradmin freigeschaltet', description: 'Sie haben jetzt vollen Zugriff auf die Rollenverwaltung.' });
-      } else {
-        toast({ variant: 'destructive', title: 'Falsches Passwort', description: 'Das eingegebene Passwort ist nicht korrekt.' });
-      }
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Fehler', description: error.message });
-    } finally {
-      setMasterPasswordLoading(false);
-    }
-  };
+  // GF hat direkt vollen Zugriff auf Rollenverwaltung
 
   useEffect(() => {
     loadData();
@@ -429,18 +402,7 @@ export default function BenutzerverwaltungNeu() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          {canSeeMasterAdmin && (
-            <Button
-              variant={masterUnlocked ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => masterUnlocked ? setMasterUnlocked(false) : setMasterPasswordDialog(true)}
-              className="gap-2"
-            >
-              {masterUnlocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-              {masterUnlocked ? 'Masteradmin aktiv' : 'Masteradmin'}
-            </Button>
-          )}
-          {masterUnlocked && (
+          {isGeschaeftsfuehrer && (
             <Button variant="outline" size="sm" onClick={() => setCreateUserDialogOpen(true)} className="gap-2">
               <KeyRound className="h-4 w-4" />
               Benutzer erstellen
@@ -567,8 +529,8 @@ export default function BenutzerverwaltungNeu() {
                   onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
                   currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || null : null}
                   onChangeRole={handleChangeRole}
-                  canAssignGF={masterUnlocked}
-                  canAssignRoles={masterUnlocked || isGeschaeftsfuehrer}
+                   canAssignGF={isGeschaeftsfuehrer}
+                  canAssignRoles={isGeschaeftsfuehrer}
                   canDelete={isGeschaeftsfuehrer}
                   roleLabelMap={roleLabelMap}
                 />
@@ -604,8 +566,8 @@ export default function BenutzerverwaltungNeu() {
                   loadData={loadData}
                   currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
                   onChangeRole={handleChangeRole}
-                  canAssignGF={masterUnlocked}
-                  canAssignRoles={masterUnlocked || isGeschaeftsfuehrer}
+                   canAssignGF={isGeschaeftsfuehrer}
+                  canAssignRoles={isGeschaeftsfuehrer}
                   canDelete={isGeschaeftsfuehrer}
                   roleLabelMap={roleLabelMap}
                 />
@@ -819,7 +781,7 @@ export default function BenutzerverwaltungNeu() {
               <Select value={createUserForm.rolle} onValueChange={(v) => setCreateUserForm({ ...createUserForm, rolle: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {masterUnlocked && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
+                  {isGeschaeftsfuehrer && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
                   <SelectItem value="admin">Disponent</SelectItem>
                   <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
                   <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
@@ -832,40 +794,6 @@ export default function BenutzerverwaltungNeu() {
             <Button onClick={handleCreateUserManual} disabled={createUserLoading}>
               {createUserLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Benutzer erstellen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Masteradmin Password Dialog */}
-      <Dialog open={masterPasswordDialog} onOpenChange={setMasterPasswordDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5" />
-              Masteradmin-Zugang
-            </DialogTitle>
-            <DialogDescription>
-              Geben Sie das Master-Passwort ein, um die Rollenverwaltung freizuschalten.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Passwort</Label>
-              <Input
-                type="password"
-                value={masterPasswordInput}
-                onChange={(e) => setMasterPasswordInput(e.target.value)}
-                placeholder="Master-Passwort eingeben"
-                onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyMasterPassword(); }}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setMasterPasswordDialog(false); setMasterPasswordInput(''); }}>Abbrechen</Button>
-            <Button onClick={handleVerifyMasterPassword} disabled={masterPasswordLoading || !masterPasswordInput}>
-              {masterPasswordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Freischalten
             </Button>
           </DialogFooter>
         </DialogContent>
