@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { LeistungsnachweisSignature } from '@/components/mitarbeiter/LeistungsnachweisSignature';
 
 const MitarbeiterStart = () => {
   const { user } = useAuth();
@@ -24,6 +25,9 @@ const MitarbeiterStart = () => {
           </p>
         </CardContent>
       </Card>
+
+      {/* Leistungsnachweise Unterschrift-Bereich */}
+      <LeistungsnachweisSignature />
     </div>
   );
 };

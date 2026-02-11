@@ -6,6 +6,7 @@ import MasterData from './controlboard/MasterData';
 import NewEntries from './controlboard/NewEntries';
 import BenutzerverwaltungNeu from './controlboard/BenutzerverwaltungNeu';
 import Billing from './controlboard/Billing';
+import Leistungsnachweise from './controlboard/Leistungsnachweise';
 import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import MitarbeiterStart from './MitarbeiterStart';
 import PendingApproval from './PendingApproval';
@@ -13,7 +14,7 @@ import Settings from './Settings';
 import { useUserRole } from '@/hooks/useUserRole';
 
 export default function Dashboard() {
-  const { role, loading, isBuchhaltung } = useUserRole();
+  const { role, loading } = useUserRole();
 
   if (loading) {
     return (
@@ -23,12 +24,10 @@ export default function Dashboard() {
     );
   }
 
-  // Keine Rolle → nicht in benutzer Tabelle → Warteseite
   if (role === null) {
     return <PendingApproval />;
   }
 
-  // Mitarbeiter (ohne andere Rolle) sehen eingeschränkte Startseite
   if (role === 'mitarbeiter') {
     return (
       <DashboardLayout>
@@ -41,7 +40,6 @@ export default function Dashboard() {
     );
   }
 
-  // Buchhaltung: Dashboard + Abrechnungen
   if (role === 'buchhaltung') {
     return (
       <DashboardLayout>
@@ -54,7 +52,6 @@ export default function Dashboard() {
     );
   }
 
-  // Disponent (admin): Dienstplan, Kunden, Dokumente, Abrechnungen (kein Benutzerverwaltung/Einstellungen)
   if (role === 'admin') {
     return (
       <DashboardLayout>
@@ -63,6 +60,7 @@ export default function Dashboard() {
           <Route path="/controlboard/schedule-builder" element={<ScheduleBuilderModern />} />
           <Route path="/controlboard/master-data" element={<MasterData />} />
           <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
+          <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
           <Route path="/controlboard/billing" element={<Billing />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
@@ -80,6 +78,7 @@ export default function Dashboard() {
         <Route path="/controlboard/new-entries" element={<NewEntries />} />
         <Route path="/controlboard/admin" element={<BenutzerverwaltungNeu />} />
         <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
+        <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
         <Route path="/controlboard/billing" element={<Billing />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

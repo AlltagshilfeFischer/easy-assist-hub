@@ -745,6 +745,96 @@ export type Database = {
           },
         ]
       }
+      leistungsnachweise: {
+        Row: {
+          abweichende_rechnungsadresse: boolean
+          created_at: string
+          geleistete_stunden: number
+          geplante_stunden: number
+          id: string
+          ist_privat: boolean
+          jahr: number
+          kostentraeger_id: string | null
+          kunden_id: string
+          monat: number
+          privat_empfaenger_name: string | null
+          rechnungsadresse_name: string | null
+          rechnungsadresse_plz: string | null
+          rechnungsadresse_stadt: string | null
+          rechnungsadresse_strasse: string | null
+          status: string
+          unterschrift_gf_name: string | null
+          unterschrift_gf_template: string | null
+          unterschrift_kunde_bild: string | null
+          unterschrift_kunde_durch: string | null
+          unterschrift_kunde_zeitstempel: string | null
+          updated_at: string
+        }
+        Insert: {
+          abweichende_rechnungsadresse?: boolean
+          created_at?: string
+          geleistete_stunden?: number
+          geplante_stunden?: number
+          id?: string
+          ist_privat?: boolean
+          jahr: number
+          kostentraeger_id?: string | null
+          kunden_id: string
+          monat: number
+          privat_empfaenger_name?: string | null
+          rechnungsadresse_name?: string | null
+          rechnungsadresse_plz?: string | null
+          rechnungsadresse_stadt?: string | null
+          rechnungsadresse_strasse?: string | null
+          status?: string
+          unterschrift_gf_name?: string | null
+          unterschrift_gf_template?: string | null
+          unterschrift_kunde_bild?: string | null
+          unterschrift_kunde_durch?: string | null
+          unterschrift_kunde_zeitstempel?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abweichende_rechnungsadresse?: boolean
+          created_at?: string
+          geleistete_stunden?: number
+          geplante_stunden?: number
+          id?: string
+          ist_privat?: boolean
+          jahr?: number
+          kostentraeger_id?: string | null
+          kunden_id?: string
+          monat?: number
+          privat_empfaenger_name?: string | null
+          rechnungsadresse_name?: string | null
+          rechnungsadresse_plz?: string | null
+          rechnungsadresse_stadt?: string | null
+          rechnungsadresse_strasse?: string | null
+          status?: string
+          unterschrift_gf_name?: string | null
+          unterschrift_gf_template?: string | null
+          unterschrift_kunde_bild?: string | null
+          unterschrift_kunde_durch?: string | null
+          unterschrift_kunde_zeitstempel?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leistungsnachweise_kostentraeger_id_fkey"
+            columns: ["kostentraeger_id"]
+            isOneToOne: false
+            referencedRelation: "kostentraeger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leistungsnachweise_kunden_id_fkey"
+            columns: ["kunden_id"]
+            isOneToOne: false
+            referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mitarbeiter: {
         Row: {
           adresse: string | null

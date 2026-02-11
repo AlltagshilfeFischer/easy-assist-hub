@@ -8,6 +8,7 @@ import {
   Settings,
   UserCog,
   FolderOpen,
+  ClipboardCheck,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -37,6 +38,7 @@ const controlboardItems: SidebarItem[] = [
   { title: 'Kunden/Neukunden', url: '/dashboard/controlboard/master-data', icon: Users, requiredRoles: ['geschaeftsfuehrer', 'admin'] },
   { title: 'Mitarbeiter', url: '/dashboard/controlboard/admin', icon: UserCog, requiredRoles: ['geschaeftsfuehrer'] },
   { title: 'Dokumentenverwaltung', url: '/dashboard/controlboard/dokumentenverwaltung', icon: FolderOpen, requiredRoles: ['geschaeftsfuehrer', 'admin'] },
+  { title: 'Leistungsnachweise', url: '/dashboard/controlboard/leistungsnachweise', icon: ClipboardCheck, requiredRoles: ['geschaeftsfuehrer', 'admin'] },
   { title: 'Leistungen & Abrechnungen', url: '/dashboard/controlboard/billing', icon: FileText, requiredRoles: ['geschaeftsfuehrer', 'admin', 'buchhaltung'] },
 ];
 
