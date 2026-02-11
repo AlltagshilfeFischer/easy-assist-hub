@@ -123,7 +123,7 @@ export default function BenutzerverwaltungNeu() {
       if (rolesResponse.data) {
         for (const entry of rolesResponse.data) {
           const current = rolesMap[entry.user_id];
-          const priority: Record<string, number> = { geschaeftsfuehrer: 3, admin: 2, mitarbeiter: 1 };
+          const priority: Record<string, number> = { geschaeftsfuehrer: 4, admin: 3, buchhaltung: 2, mitarbeiter: 1 };
           if (!current || (priority[entry.role] || 0) > (priority[current] || 0)) {
             rolesMap[entry.user_id] = entry.role;
           }
@@ -343,9 +343,10 @@ export default function BenutzerverwaltungNeu() {
         await supabase.from('benutzer').update({ rolle: newRole as any }).eq('id', benutzerId);
       }
 
+      const roleLabels: Record<string, string> = { geschaeftsfuehrer: 'StandortSuperadmin', admin: 'Disponent', buchhaltung: 'Buchhaltung', mitarbeiter: 'Mitarbeiter' };
       toast({
         title: 'Rolle geändert',
-        description: `Rolle wurde auf "${newRole === 'geschaeftsfuehrer' ? 'Geschäftsführer' : newRole === 'admin' ? 'Manager' : 'Mitarbeiter'}" gesetzt.`,
+        description: `Rolle wurde auf "${roleLabels[newRole] || newRole}" gesetzt.`,
       });
       loadData();
     } catch (error: any) {
@@ -411,8 +412,9 @@ export default function BenutzerverwaltungNeu() {
   }
 
   const roleLabelMap: Record<string, string> = {
-    geschaeftsfuehrer: 'Geschäftsführer',
-    admin: 'Manager',
+    geschaeftsfuehrer: 'StandortSuperadmin',
+    admin: 'Disponent',
+    buchhaltung: 'Buchhaltung',
     mitarbeiter: 'Mitarbeiter',
   };
 
@@ -817,8 +819,9 @@ export default function BenutzerverwaltungNeu() {
               <Select value={createUserForm.rolle} onValueChange={(v) => setCreateUserForm({ ...createUserForm, rolle: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {masterUnlocked && <SelectItem value="geschaeftsfuehrer">Geschäftsführer</SelectItem>}
-                  <SelectItem value="admin">Manager</SelectItem>
+                  {masterUnlocked && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
+                  <SelectItem value="admin">Disponent</SelectItem>
+                  <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
                   <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
                 </SelectContent>
               </Select>
@@ -907,8 +910,9 @@ function UninvitedRow({
               </div>
             </SelectTrigger>
             <SelectContent>
-              {canAssignGF && <SelectItem value="geschaeftsfuehrer">Geschäftsführer</SelectItem>}
-              <SelectItem value="admin">Manager</SelectItem>
+              {canAssignGF && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
+              <SelectItem value="admin">Disponent</SelectItem>
+              <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
               <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
             </SelectContent>
           </Select>
@@ -949,6 +953,7 @@ function ActivatedRow({
     switch (role) {
       case 'geschaeftsfuehrer': return 'destructive';
       case 'admin': return 'default';
+      case 'buchhaltung': return 'outline';
       default: return 'secondary';
     }
   };
@@ -985,8 +990,9 @@ function ActivatedRow({
               </div>
             </SelectTrigger>
             <SelectContent>
-              {canAssignGF && <SelectItem value="geschaeftsfuehrer">Geschäftsführer</SelectItem>}
-              <SelectItem value="admin">Manager</SelectItem>
+              {canAssignGF && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
+              <SelectItem value="admin">Disponent</SelectItem>
+              <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
               <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
             </SelectContent>
           </Select>

@@ -927,6 +927,27 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          beschreibung: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          beschreibung?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          beschreibung?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       rechnungen: {
         Row: {
           abrechnungszeitraum_bis: string
@@ -1120,6 +1141,29 @@ export type Database = {
             columns: ["termin_id"]
             isOneToOne: false
             referencedRelation: "termine"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          permission_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          permission_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          permission_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
             referencedColumns: ["id"]
           },
         ]
@@ -1458,6 +1502,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"][]
       }
       get_user_rolle: { Args: { p_user_id: string }; Returns: string }
+      has_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1472,6 +1520,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      is_buchhaltung: { Args: { _user_id: string }; Returns: boolean }
       is_employee_for_appointment: {
         Args: { p_termin_id: string }
         Returns: boolean
@@ -1494,7 +1543,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "geschaeftsfuehrer" | "admin" | "mitarbeiter"
+      app_role: "geschaeftsfuehrer" | "admin" | "mitarbeiter" | "buchhaltung"
       approval_status: "pending" | "approved" | "rejected"
       benutzer_status: "pending" | "approved" | "rejected"
       kostentraeger_typ:
@@ -1534,7 +1583,7 @@ export type Database = {
         | "bezahlt"
         | "nicht_angetroffen"
         | "abgesagt_rechtzeitig"
-      user_rolle: "geschaeftsfuehrer" | "admin" | "mitarbeiter"
+      user_rolle: "geschaeftsfuehrer" | "admin" | "mitarbeiter" | "buchhaltung"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1662,7 +1711,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["geschaeftsfuehrer", "admin", "mitarbeiter"],
+      app_role: ["geschaeftsfuehrer", "admin", "mitarbeiter", "buchhaltung"],
       approval_status: ["pending", "approved", "rejected"],
       benutzer_status: ["pending", "approved", "rejected"],
       kostentraeger_typ: [
@@ -1707,7 +1756,7 @@ export const Constants = {
         "nicht_angetroffen",
         "abgesagt_rechtzeitig",
       ],
-      user_rolle: ["geschaeftsfuehrer", "admin", "mitarbeiter"],
+      user_rolle: ["geschaeftsfuehrer", "admin", "mitarbeiter", "buchhaltung"],
     },
   },
 } as const

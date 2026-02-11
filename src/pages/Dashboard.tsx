@@ -13,7 +13,7 @@ import Settings from './Settings';
 import { useUserRole } from '@/hooks/useUserRole';
 
 export default function Dashboard() {
-  const { role, loading } = useUserRole();
+  const { role, loading, isBuchhaltung } = useUserRole();
 
   if (loading) {
     return (
@@ -23,12 +23,12 @@ export default function Dashboard() {
     );
   }
 
-  // Wenn kein Rolle → nicht in benutzer Tabelle → redirect zu status-wartet
+  // Keine Rolle → nicht in benutzer Tabelle → Warteseite
   if (role === null) {
     return <PendingApproval />;
   }
 
-  // Nur Mitarbeiter (ohne Admin/GF-Rolle) sehen ihre eingeschränkte Startseite
+  // Mitarbeiter (ohne andere Rolle) sehen eingeschränkte Startseite
   if (role === 'mitarbeiter') {
     return (
       <DashboardLayout>
@@ -41,7 +41,36 @@ export default function Dashboard() {
     );
   }
 
-  // Geschäftsführer und Admin sehen die vollständige Verwaltungsansicht
+  // Buchhaltung: Dashboard + Abrechnungen
+  if (role === 'buchhaltung') {
+    return (
+      <DashboardLayout>
+        <Routes>
+          <Route path="/" element={<DashboardHome />} />
+          <Route path="/controlboard/billing" element={<Billing />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </DashboardLayout>
+    );
+  }
+
+  // Disponent (admin): Dienstplan, Kunden, Dokumente, Abrechnungen (kein Benutzerverwaltung/Einstellungen)
+  if (role === 'admin') {
+    return (
+      <DashboardLayout>
+        <Routes>
+          <Route path="/" element={<DashboardHome />} />
+          <Route path="/controlboard/schedule-builder" element={<ScheduleBuilderModern />} />
+          <Route path="/controlboard/master-data" element={<MasterData />} />
+          <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
+          <Route path="/controlboard/billing" element={<Billing />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </DashboardLayout>
+    );
+  }
+
+  // StandortSuperadmin (geschaeftsfuehrer): Vollzugriff
   return (
     <DashboardLayout>
       <Routes>
