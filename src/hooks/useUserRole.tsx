@@ -91,13 +91,13 @@ export function useUserRole() {
   }, [user]);
 
   // Helper functions for role checks
-  // StandortSuperadmin (geschaeftsfuehrer): Voller Zugriff inkl. Löschen
+  // Admin (geschaeftsfuehrer): Voller Zugriff inkl. Löschen - feste Rolle
   const isGeschaeftsfuehrer = role === 'geschaeftsfuehrer';
   
-  // Disponent (admin) oder höher: Einsatzplanung, Kunden/Mitarbeiter lesen
+  // Manager (admin) oder höher: Einsatzplanung, Kunden/Mitarbeiter lesen
   const isAdmin = role === 'geschaeftsfuehrer' || role === 'admin';
   
-  // Disponent-spezifisch
+  // Manager-spezifisch
   const isDisponent = role === 'admin';
   
   // Buchhaltung: Rechnungen lesen/verwalten
@@ -106,10 +106,10 @@ export function useUserRole() {
   // Für Rückwärtskompatibilität
   const isManager = isAdmin;
   
-  // Kann löschen: Nur StandortSuperadmin
+  // Kann löschen: Nur Admin (geschaeftsfuehrer)
   const canDelete = role === 'geschaeftsfuehrer';
   
-  // Ist Mitarbeiter im Sinne von Einsätzen (GF oder mitarbeiter, NICHT admin/disponent)
+  // Ist Mitarbeiter im Sinne von Einsätzen (GF oder mitarbeiter, NICHT Manager)
   const isEmployee = role === 'mitarbeiter' || role === 'geschaeftsfuehrer';
   
   // Hat Zugriff auf das System (irgendeine Rolle)
@@ -120,8 +120,8 @@ export function useUserRole() {
   // Rollen-Label für UI
   const getRoleLabel = (r: UserRole): string => {
     switch (r) {
-      case 'geschaeftsfuehrer': return 'StandortSuperadmin';
-      case 'admin': return 'Disponent';
+      case 'geschaeftsfuehrer': return 'Admin';
+      case 'admin': return 'Manager';
       case 'buchhaltung': return 'Buchhaltung';
       case 'mitarbeiter': return 'Mitarbeiter';
       default: return 'Unbekannt';

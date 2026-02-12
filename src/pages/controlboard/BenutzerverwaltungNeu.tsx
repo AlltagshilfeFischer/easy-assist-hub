@@ -329,7 +329,7 @@ export default function BenutzerverwaltungNeu() {
         await supabase.from('benutzer').update({ rolle: newRole as any }).eq('id', benutzerId);
       }
 
-      const roleLabels: Record<string, string> = { geschaeftsfuehrer: 'StandortSuperadmin', admin: 'Disponent', buchhaltung: 'Buchhaltung', mitarbeiter: 'Mitarbeiter' };
+      const roleLabels: Record<string, string> = { geschaeftsfuehrer: 'Admin', admin: 'Manager', buchhaltung: 'Buchhaltung', mitarbeiter: 'Mitarbeiter' };
       toast({
         title: 'Rolle geändert',
         description: `Rolle wurde auf "${roleLabels[newRole] || newRole}" gesetzt.`,
@@ -398,8 +398,8 @@ export default function BenutzerverwaltungNeu() {
   }
 
   const roleLabelMap: Record<string, string> = {
-    geschaeftsfuehrer: 'StandortSuperadmin',
-    admin: 'Disponent',
+    geschaeftsfuehrer: 'Admin',
+    admin: 'Manager',
     buchhaltung: 'Buchhaltung',
     mitarbeiter: 'Mitarbeiter',
   };
@@ -796,8 +796,8 @@ export default function BenutzerverwaltungNeu() {
               <Select value={createUserForm.rolle} onValueChange={(v) => setCreateUserForm({ ...createUserForm, rolle: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {isGeschaeftsfuehrer && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
-                  <SelectItem value="admin">Disponent</SelectItem>
+                  {isGeschaeftsfuehrer && <SelectItem value="geschaeftsfuehrer">Admin</SelectItem>}
+                  <SelectItem value="admin">Manager</SelectItem>
                   <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
                   <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
                 </SelectContent>
@@ -854,8 +854,8 @@ function UninvitedRow({
               </div>
             </SelectTrigger>
             <SelectContent>
-              {canAssignGF && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
-              <SelectItem value="admin">Disponent</SelectItem>
+              {canAssignGF && <SelectItem value="geschaeftsfuehrer">Admin</SelectItem>}
+              <SelectItem value="admin">Manager</SelectItem>
               <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
               <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
             </SelectContent>
@@ -934,8 +934,8 @@ function ActivatedRow({
               </div>
             </SelectTrigger>
             <SelectContent>
-              {canAssignGF && <SelectItem value="geschaeftsfuehrer">StandortSuperadmin</SelectItem>}
-              <SelectItem value="admin">Disponent</SelectItem>
+              {canAssignGF && <SelectItem value="geschaeftsfuehrer">Admin</SelectItem>}
+              <SelectItem value="admin">Manager</SelectItem>
               <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
               <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
             </SelectContent>
