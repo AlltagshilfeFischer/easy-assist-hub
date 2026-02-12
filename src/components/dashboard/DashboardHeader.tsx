@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Shield } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +12,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 export function DashboardHeader() {
   const { user, signOut } = useAuth();
-  const { role } = useUserRole();
+  const { role, getRoleLabel, getRoleBadgeVariant } = useUserRole();
 
   const handleSignOut = async () => {
     await signOut();
@@ -34,9 +35,15 @@ export function DashboardHeader() {
         <SidebarTrigger className="h-8 w-8" />
         <div>
           <h1 className="text-lg font-semibold">Alltagshilfe Control Board</h1>
-          <p className="text-sm text-muted-foreground">
-            Willkommen
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Willkommen</p>
+            {role && (
+              <Badge variant={getRoleBadgeVariant(role)} className="text-xs">
+                <Shield className="h-3 w-3 mr-1" />
+                {getRoleLabel(role)}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
@@ -55,7 +62,7 @@ export function DashboardHeader() {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">
-                  {role === 'admin' ? 'Administrator' : 'Mitarbeiter'}
+                  {role ? getRoleLabel(role) : 'Benutzer'}
                 </p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {user?.email}
