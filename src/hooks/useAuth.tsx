@@ -113,17 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    // First check if user exists in benutzer table
-    const { data: existingUser } = await supabase
-      .from('benutzer')
-      .select('email')
-      .eq('email', email)
-      .single();
-    
-    if (!existingUser) {
-      return { error: { message: 'Diese E-Mail-Adresse ist nicht registriert.' } };
-    }
-
+    // Don't check benutzer table - RLS blocks unauthenticated reads.
+    // Supabase handles non-existent emails gracefully (no error, no email sent).
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/?type=recovery`,
     });

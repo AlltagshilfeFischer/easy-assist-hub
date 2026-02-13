@@ -75,14 +75,14 @@ Deno.serve(async (req) => {
       await supabaseAdmin.auth.admin.updateUserById(userId, {
         password,
         email_confirm: true,
-        user_metadata: { vorname: vorname || '', nachname: nachname || '' },
+        user_metadata: { vorname: vorname || '', nachname: nachname || '', force_password_change: true },
       });
     } else {
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: email.toLowerCase(),
         password,
         email_confirm: true,
-        user_metadata: { vorname: vorname || '', nachname: nachname || '' },
+        user_metadata: { vorname: vorname || '', nachname: nachname || '', force_password_change: true },
       });
       if (authError) {
         console.error('Auth create error:', authError);
