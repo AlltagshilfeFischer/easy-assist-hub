@@ -7,12 +7,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Shield, KeyRound, CheckCircle2, Mail, Send, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Shield, KeyRound, CheckCircle2, Mail, Send, ChevronDown, ChevronRight, Plus, Sparkles, UserPlus } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
-import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUserRole, type UserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -411,9 +413,9 @@ export default function BenutzerverwaltungNeu() {
               Benutzer erstellen
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)} className="gap-2">
-            <Upload className="h-4 w-4" />
-            Importieren
+          <Button size="sm" onClick={() => setImportDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Mitarbeiter anlegen
           </Button>
         </div>
       </div>
@@ -522,8 +524,8 @@ export default function BenutzerverwaltungNeu() {
         </Collapsible>
       )}
 
-      {/* Import Dialog */}
-      <MitarbeiterImport open={importDialogOpen} onOpenChange={setImportDialogOpen} />
+      {/* Add/Import Mitarbeiter Dialog */}
+      <AddMitarbeiterDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} onSuccess={loadData} />
 
       {/* Deactivate Confirmation Dialog */}
       <AlertDialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
@@ -934,5 +936,317 @@ function DeactivatedRow({
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Add/Import Mitarbeiter Dialog ───
+interface ManualRow {
+  vorname: string;
+  nachname: string;
+  telefon: string;
+  strasse: string;
+  plz: string;
+  stadt: string;
+}
+
+const emptyRow = (): ManualRow => ({ vorname: '', nachname: '', telefon: '', strasse: '', plz: '', stadt: '' });
+
+function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [tab, setTab] = useState<string>('manual');
+  const [rows, setRows] = useState<ManualRow[]>([emptyRow()]);
+  const [aiText, setAiText] = useState('');
+  const [aiParsed, setAiParsed] = useState<ManualRow[]>([]);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [aiStep, setAiStep] = useState<'input' | 'preview'>('input');
+
+  const handleClose = () => {
+    setRows([emptyRow()]);
+    setAiText('');
+    setAiParsed([]);
+    setAiStep('input');
+    onOpenChange(false);
+  };
+
+  const updateRow = (index: number, field: keyof ManualRow, value: string) => {
+    setRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r));
+  };
+
+  const addRow = () => setRows(prev => [...prev, emptyRow()]);
+
+  const removeRow = (index: number) => {
+    if (rows.length <= 1) return;
+    setRows(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleManualImport = async () => {
+    const valid = rows.filter(r => r.vorname.trim() && r.nachname.trim());
+    if (!valid.length) {
+      toast({ title: 'Fehler', description: 'Mindestens ein Mitarbeiter mit Vor- und Nachname ist erforderlich.', variant: 'destructive' });
+      return;
+    }
+    setIsImporting(true);
+    let success = 0, failed = 0;
+    for (const r of valid) {
+      try {
+        const { error } = await supabase.from('mitarbeiter').insert({
+          vorname: r.vorname.trim(),
+          nachname: r.nachname.trim(),
+          telefon: r.telefon.trim() || null,
+          strasse: r.strasse.trim() || null,
+          plz: r.plz.trim() || null,
+          stadt: r.stadt.trim() || null,
+          ist_aktiv: true,
+        });
+        if (error) throw error;
+        success++;
+      } catch { failed++; }
+    }
+    toast({
+      title: failed ? 'Teilweiser Import' : 'Erfolgreich',
+      description: `${success} Mitarbeiter angelegt${failed ? `, ${failed} fehlgeschlagen` : ''}`,
+      variant: failed ? 'destructive' : 'default',
+    });
+    onSuccess();
+    handleClose();
+  };
+
+  const handleAiParse = async () => {
+    if (!aiText.trim()) return;
+    setIsParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('parse-mitarbeiter-text', { body: { text: aiText } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.mitarbeiter?.length) {
+        toast({ title: 'Keine Mitarbeiter erkannt', description: 'Die KI konnte keine Mitarbeiter aus dem Text extrahieren.', variant: 'destructive' });
+        return;
+      }
+      setAiParsed(data.mitarbeiter.map((m: any) => ({
+        vorname: m.vorname || '',
+        nachname: m.nachname || '',
+        telefon: m.telefon || '',
+        strasse: m.strasse || '',
+        plz: m.plz || '',
+        stadt: m.stadt || '',
+      })));
+      setAiStep('preview');
+    } catch (e: any) {
+      toast({ title: 'Fehler', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const handleAiImport = async () => {
+    const valid = aiParsed.filter(r => r.vorname.trim() && r.nachname.trim());
+    if (!valid.length) {
+      toast({ title: 'Fehler', description: 'Keine gültigen Einträge.', variant: 'destructive' });
+      return;
+    }
+    setIsImporting(true);
+    let success = 0, failed = 0;
+    for (const r of valid) {
+      try {
+        const { error } = await supabase.from('mitarbeiter').insert({
+          vorname: r.vorname.trim(),
+          nachname: r.nachname.trim(),
+          telefon: r.telefon.trim() || null,
+          strasse: r.strasse.trim() || null,
+          plz: r.plz.trim() || null,
+          stadt: r.stadt.trim() || null,
+          ist_aktiv: true,
+        });
+        if (error) throw error;
+        success++;
+      } catch { failed++; }
+    }
+    toast({
+      title: failed ? 'Teilweiser Import' : 'Erfolgreich',
+      description: `${success} Mitarbeiter angelegt${failed ? `, ${failed} fehlgeschlagen` : ''}`,
+      variant: failed ? 'destructive' : 'default',
+    });
+    onSuccess();
+    handleClose();
+  };
+
+  const validManualCount = rows.filter(r => r.vorname.trim() && r.nachname.trim()).length;
+  const validAiCount = aiParsed.filter(r => r.vorname.trim() && r.nachname.trim()).length;
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-primary" />
+            Mitarbeiter anlegen
+          </DialogTitle>
+          <DialogDescription>
+            Mitarbeiter direkt in der Tabelle anlegen oder per KI aus Freitext importieren.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs value={tab} onValueChange={setTab} className="flex-1 min-h-0 flex flex-col">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Direkt anlegen
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              KI-Import
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Manual Table Entry */}
+          <TabsContent value="manual" className="flex-1 min-h-0 flex flex-col gap-4 mt-4">
+            <div className="flex-1 overflow-auto min-h-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-1 font-medium">Vorname *</th>
+                    <th className="text-left py-2 px-1 font-medium">Nachname *</th>
+                    <th className="text-left py-2 px-1 font-medium">Telefon</th>
+                    <th className="text-left py-2 px-1 font-medium">Straße</th>
+                    <th className="text-left py-2 px-1 font-medium">PLZ</th>
+                    <th className="text-left py-2 px-1 font-medium">Stadt</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-1 px-1">
+                        <Input
+                          value={row.vorname}
+                          onChange={(e) => updateRow(i, 'vorname', e.target.value)}
+                          placeholder="Vorname"
+                          className="h-8 text-sm"
+                        />
+                      </td>
+                      <td className="py-1 px-1">
+                        <Input
+                          value={row.nachname}
+                          onChange={(e) => updateRow(i, 'nachname', e.target.value)}
+                          placeholder="Nachname"
+                          className="h-8 text-sm"
+                        />
+                      </td>
+                      <td className="py-1 px-1">
+                        <Input
+                          value={row.telefon}
+                          onChange={(e) => updateRow(i, 'telefon', e.target.value)}
+                          placeholder="Telefon"
+                          className="h-8 text-sm"
+                        />
+                      </td>
+                      <td className="py-1 px-1">
+                        <Input
+                          value={row.strasse}
+                          onChange={(e) => updateRow(i, 'strasse', e.target.value)}
+                          placeholder="Straße"
+                          className="h-8 text-sm"
+                        />
+                      </td>
+                      <td className="py-1 px-1">
+                        <Input
+                          value={row.plz}
+                          onChange={(e) => updateRow(i, 'plz', e.target.value)}
+                          placeholder="PLZ"
+                          className="h-8 text-sm w-20"
+                        />
+                      </td>
+                      <td className="py-1 px-1">
+                        <Input
+                          value={row.stadt}
+                          onChange={(e) => updateRow(i, 'stadt', e.target.value)}
+                          placeholder="Stadt"
+                          className="h-8 text-sm"
+                        />
+                      </td>
+                      <td className="py-1 px-1">
+                        {rows.length > 1 && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeRow(i)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Button variant="outline" size="sm" onClick={addRow} className="gap-2 self-start">
+              <Plus className="h-4 w-4" />
+              Zeile hinzufügen
+            </Button>
+            <Button onClick={handleManualImport} disabled={isImporting || validManualCount === 0} className="w-full">
+              {isImporting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Wird angelegt...</>
+              ) : (
+                <><UserPlus className="h-4 w-4 mr-2" /> {validManualCount} Mitarbeiter anlegen</>
+              )}
+            </Button>
+          </TabsContent>
+
+          {/* AI Text Import */}
+          <TabsContent value="ai" className="flex-1 min-h-0 flex flex-col gap-4 mt-4">
+            {aiStep === 'input' && (
+              <>
+                <Textarea
+                  value={aiText}
+                  onChange={(e) => setAiText(e.target.value)}
+                  placeholder={`Beispiele:\n\nAnna Schmidt, Tel: 0511-12345, 30 Std/Woche\nMarkus Weber, Musterstr. 5, 30159 Hannover\n\nOder als Tabelle:\nVorname;Nachname;Telefon\nLisa;Müller;0511-99999`}
+                  className="flex-1 min-h-[200px] font-mono text-sm"
+                />
+                <Button onClick={handleAiParse} disabled={!aiText.trim() || isParsing} className="w-full">
+                  {isParsing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> KI analysiert...</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4 mr-2" /> Mit KI analysieren</>
+                  )}
+                </Button>
+              </>
+            )}
+            {aiStep === 'preview' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{aiParsed.length} Mitarbeiter erkannt</p>
+                  <Button variant="ghost" size="sm" onClick={() => setAiStep('input')}>Zurück zum Text</Button>
+                </div>
+                <div className="flex-1 overflow-auto space-y-2 min-h-0">
+                  {aiParsed.map((m, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{m.vorname} {m.nachname}</div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {m.telefon && `Tel: ${m.telefon}`}
+                        </div>
+                        {(m.strasse || m.stadt) && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {[m.strasse, m.plz, m.stadt].filter(Boolean).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 ml-2" onClick={() => setAiParsed(prev => prev.filter((_, j) => j !== i))}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button onClick={handleAiImport} disabled={isImporting || validAiCount === 0} className="w-full">
+                  {isImporting ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Wird angelegt...</>
+                  ) : (
+                    <><UserPlus className="h-4 w-4 mr-2" /> {validAiCount} Mitarbeiter anlegen</>
+                  )}
+                </Button>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }
