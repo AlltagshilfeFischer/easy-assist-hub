@@ -747,7 +747,7 @@ export default function BenutzerverwaltungNeu() {
               <Label>Rolle</Label>
               <Select value={createUserForm.rolle} onValueChange={(v) => setCreateUserForm({ ...createUserForm, rolle: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[300] bg-popover">
                   {isGeschaeftsfuehrer && <SelectItem value="geschaeftsfuehrer">Geschäftsführer</SelectItem>}
                   <SelectItem value="admin">Disponent</SelectItem>
                   <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
