@@ -112,6 +112,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log('Deleting mitarbeiter:', mitarbeiterId, 'benutzer_id:', mitarbeiter.benutzer_id);
+
     // Delete related records first to avoid FK violations
     // Delete verfuegbarkeit
     await supabaseAdmin
@@ -125,7 +127,29 @@ Deno.serve(async (req) => {
       .delete()
       .eq('mitarbeiter_id', mitarbeiterId)
 
-    // Unassign from termine (set mitarbeiter_id to null instead of deleting termine)
+    // Nullify rechnungspositionen references
+    await supabaseAdmin
+      .from('rechnungspositionen')
+      .update({ mitarbeiter_id: null })
+      .eq('mitarbeiter_id', mitarbeiterId)
+
+    // Nullify dokumente references
+    await supabaseAdmin
+      .from('dokumente')
+      .update({ mitarbeiter_id: null })
+      .eq('mitarbeiter_id', mitarbeiterId)
+
+    // Nullify termin_aenderungen references
+    await supabaseAdmin
+      .from('termin_aenderungen')
+      .update({ new_mitarbeiter_id: null })
+      .eq('new_mitarbeiter_id', mitarbeiterId)
+    await supabaseAdmin
+      .from('termin_aenderungen')
+      .update({ old_mitarbeiter_id: null })
+      .eq('old_mitarbeiter_id', mitarbeiterId)
+
+    // Unassign from termine
     await supabaseAdmin
       .from('termine')
       .update({ mitarbeiter_id: null, status: 'unassigned' })
@@ -158,6 +182,7 @@ Deno.serve(async (req) => {
       .eq('id', mitarbeiterId)
 
     if (deleteError) {
+      console.error('Delete mitarbeiter error:', deleteError);
       return new Response(JSON.stringify({ error: deleteError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
