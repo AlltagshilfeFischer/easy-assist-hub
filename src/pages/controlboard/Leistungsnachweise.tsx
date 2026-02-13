@@ -1,22 +1,24 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { 
-  FileText, Plus, Eye, Printer, Calendar, Clock, 
-  CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw
+import {
+  FileText, Eye, Printer, Calendar, Clock,
+  CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw,
+  Search, ArrowUpDown, ChevronLeft, ChevronRight, X,
+  User, TrendingUp, FileCheck, PenLine
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, getDaysInMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 interface LeistungsnachweisRow {
@@ -54,21 +56,21 @@ interface Termin {
   mitarbeiter: { vorname: string | null; nachname: string | null } | null;
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
-  entwurf: { label: 'Entwurf', variant: 'secondary', icon: <FileText className="h-3 w-3" /> },
-  offen: { label: 'Offen', variant: 'outline', icon: <Clock className="h-3 w-3" /> },
-  unterschrieben: { label: 'Unterschrieben', variant: 'default', icon: <CheckCircle2 className="h-3 w-3" /> },
-  abgeschlossen: { label: 'Abgeschlossen', variant: 'default', icon: <CheckCircle2 className="h-3 w-3" /> },
+const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode; dotColor: string }> = {
+  entwurf: { label: 'Entwurf', variant: 'secondary', icon: <PenLine className="h-3 w-3" />, dotColor: 'bg-muted-foreground' },
+  offen: { label: 'Offen', variant: 'outline', icon: <Clock className="h-3 w-3" />, dotColor: 'bg-warning' },
+  unterschrieben: { label: 'Unterschrieben', variant: 'default', icon: <CheckCircle2 className="h-3 w-3" />, dotColor: 'bg-success' },
+  abgeschlossen: { label: 'Abgeschlossen', variant: 'default', icon: <FileCheck className="h-3 w-3" />, dotColor: 'bg-success' },
 };
 
 const terminStatusLabel: Record<string, { label: string; color: string }> = {
-  completed: { label: 'Erfolgt', color: 'text-emerald-700 bg-emerald-50' },
-  scheduled: { label: 'Geplant', color: 'text-blue-700 bg-blue-50' },
-  in_progress: { label: 'Offen', color: 'text-amber-700 bg-amber-50' },
-  nicht_angetroffen: { label: 'Nicht rechtzeitig abgesagt', color: 'text-amber-700 bg-amber-50' },
-  abgesagt_rechtzeitig: { label: 'Rechtzeitig abgesagt', color: 'text-slate-600 bg-slate-50' },
-  cancelled: { label: 'Abgesagt', color: 'text-red-700 bg-red-50' },
-  unassigned: { label: 'Nicht zugewiesen', color: 'text-gray-600 bg-gray-50' },
+  completed: { label: 'Erfolgt', color: 'text-success bg-success/10' },
+  scheduled: { label: 'Geplant', color: 'text-primary bg-primary/10' },
+  in_progress: { label: 'Offen', color: 'text-warning bg-warning/10' },
+  nicht_angetroffen: { label: 'Nicht rechtzeitig abgesagt', color: 'text-warning bg-warning/10' },
+  abgesagt_rechtzeitig: { label: 'Rechtzeitig abgesagt', color: 'text-muted-foreground bg-muted' },
+  cancelled: { label: 'Abgesagt', color: 'text-destructive bg-destructive/10' },
+  unassigned: { label: 'Nicht zugewiesen', color: 'text-muted-foreground bg-muted' },
 };
 
 const monthNames = [
@@ -76,16 +78,32 @@ const monthNames = [
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
 ];
 
+type SortKey = 'name' | 'geplant' | 'geleistet' | 'status';
+
 export default function Leistungsnachweise() {
   const queryClient = useQueryClient();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [detailOpen, setDetailOpen] = useState(false);
   const [selectedLN, setSelectedLN] = useState<LeistungsnachweisRow | null>(null);
-  const [printMode, setPrintMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('alle');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortAsc, setSortAsc] = useState(true);
 
-  // Fetch all Leistungsnachweise for selected month/year
+  const isCurrentMonth = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
+
+  const prevMonth = () => {
+    if (selectedMonth === 1) { setSelectedMonth(12); setSelectedYear(y => y - 1); }
+    else setSelectedMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (selectedMonth === 12) { setSelectedMonth(1); setSelectedYear(y => y + 1); }
+    else setSelectedMonth(m => m + 1);
+  };
+  const goToCurrentMonth = () => { setSelectedMonth(now.getMonth() + 1); setSelectedYear(now.getFullYear()); };
+
+  // Fetch Leistungsnachweise
   const { data: nachweise, isLoading } = useQuery({
     queryKey: ['leistungsnachweise', selectedMonth, selectedYear],
     queryFn: async () => {
@@ -100,7 +118,7 @@ export default function Leistungsnachweise() {
     }
   });
 
-  // Fetch all active customers
+  // Fetch active customers
   const { data: kunden } = useQuery({
     queryKey: ['kunden-aktiv'],
     queryFn: async () => {
@@ -114,7 +132,7 @@ export default function Leistungsnachweise() {
     }
   });
 
-  // Fetch termine for detail view
+  // Fetch termine for selected LN
   const { data: termine } = useQuery({
     queryKey: ['termine-ln', selectedLN?.kunden_id, selectedMonth, selectedYear],
     queryFn: async () => {
@@ -134,14 +152,13 @@ export default function Leistungsnachweise() {
     enabled: !!selectedLN
   });
 
-  // Generate Leistungsnachweise for month
+  // Generate mutation
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!kunden) throw new Error('Keine Kunden');
       const von = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
       const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
 
-      // Fetch all termine for this month
       const { data: allTermine, error: tErr } = await supabase
         .from('termine')
         .select('kunden_id, iststunden, start_at, end_at, status')
@@ -200,7 +217,7 @@ export default function Leistungsnachweise() {
     }
   });
 
-  // Update LN details
+  // Update mutation
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<LeistungsnachweisRow>) => {
       if (!selectedLN) throw new Error('Kein LN ausgewählt');
@@ -216,7 +233,7 @@ export default function Leistungsnachweise() {
     }
   });
 
-  // Helper
+  // Helpers
   const getKundeName = (kundenId: string) => {
     const k = kunden?.find(c => c.id === kundenId);
     if (!k) return 'Unbekannt';
@@ -225,261 +242,348 @@ export default function Leistungsnachweise() {
   };
 
   const kundenMap = useMemo(() => {
-    const map = new Map<string, typeof kunden extends (infer T)[] | undefined ? T : never>();
+    const map = new Map<string, (typeof kunden extends (infer T)[] | undefined ? T : never)>();
     kunden?.forEach(k => map.set(k.id, k));
     return map;
   }, [kunden]);
 
+  // Filter & Sort
+  const filteredNachweise = useMemo(() => {
+    if (!nachweise) return [];
+    let result = [...nachweise];
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(ln => getKundeName(ln.kunden_id).toLowerCase().includes(q));
+    }
+    if (statusFilter !== 'alle') {
+      result = result.filter(ln => ln.status === statusFilter);
+    }
+
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'name': cmp = getKundeName(a.kunden_id).localeCompare(getKundeName(b.kunden_id)); break;
+        case 'geplant': cmp = a.geplante_stunden - b.geplante_stunden; break;
+        case 'geleistet': cmp = a.geleistete_stunden - b.geleistete_stunden; break;
+        case 'status': cmp = a.status.localeCompare(b.status); break;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+
+    return result;
+  }, [nachweise, searchQuery, statusFilter, sortKey, sortAsc, kunden]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else { setSortKey(key); setSortAsc(true); }
+  };
+
+  // Stats
+  const stats = useMemo(() => {
+    if (!nachweise) return { total: 0, signed: 0, totalPlanned: 0, totalDone: 0 };
+    return {
+      total: nachweise.length,
+      signed: nachweise.filter(n => n.unterschrift_kunde_zeitstempel).length,
+      totalPlanned: nachweise.reduce((s, n) => s + n.geplante_stunden, 0),
+      totalDone: nachweise.reduce((s, n) => s + n.geleistete_stunden, 0),
+    };
+  }, [nachweise]);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full gap-6">
+      {/* Header with month navigation */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Leistungsnachweise</h1>
-          <p className="text-muted-foreground">Monatliche Leistungsnachweise pro Kunde</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Leistungsnachweise</h1>
+          <p className="text-sm text-muted-foreground">Monatliche Nachweise pro Kunde verwalten</p>
         </div>
-        <Button
-          onClick={() => generateMutation.mutate()}
-          disabled={generateMutation.isPending}
-        >
-          {generateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Nachweise generieren
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-lg border border-border bg-card shadow-sm">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-r-none" onClick={prevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <button
+              onClick={goToCurrentMonth}
+              className={`px-4 py-2 text-sm font-semibold transition-colors min-w-[160px] text-center ${isCurrentMonth ? 'text-primary' : 'text-foreground hover:text-primary'}`}
+            >
+              {monthNames[selectedMonth - 1]} {selectedYear}
+              {isCurrentMonth && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  Aktuell
+                </span>
+              )}
+            </button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-l-none" onClick={nextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Button
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+            size="sm"
+            className="gap-2"
+          >
+            {generateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Generieren
+          </Button>
+        </div>
       </div>
 
-      {/* Month/Year Selector */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="space-y-1">
-              <Label>Monat</Label>
-              <select
-                className="border rounded px-3 py-2 text-sm bg-background"
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(Number(e.target.value))}
-              >
-                {monthNames.map((name, i) => (
-                  <option key={i} value={i + 1}>{name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label>Jahr</Label>
-              <Input
-                type="number"
-                className="w-24"
-                value={selectedYear}
-                onChange={e => setSelectedYear(Number(e.target.value))}
-              />
-            </div>
-            <div className="ml-auto text-sm text-muted-foreground">
-              {nachweise?.length || 0} Nachweise für {monthNames[selectedMonth - 1]} {selectedYear}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Nachweise', value: stats.total, icon: FileText, color: 'text-primary' },
+          { label: 'Unterschrieben', value: stats.signed, icon: CheckCircle2, color: 'text-success' },
+          { label: 'Geplant (h)', value: Math.round(stats.totalPlanned * 10) / 10, icon: Clock, color: 'text-muted-foreground' },
+          { label: 'Geleistet (h)', value: Math.round(stats.totalDone * 10) / 10, icon: TrendingUp, color: 'text-primary' },
+        ].map(s => (
+          <Card key={s.label} className="border-border/60">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className={`rounded-lg bg-muted p-2 ${s.color}`}>
+                <s.icon className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      {/* Übersicht */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Übersicht</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      {/* Main Content: Split View */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4 min-h-0">
+        {/* Left: List */}
+        <Card className="flex flex-col min-h-0 border-border/60">
+          {/* Search & Filter Bar */}
+          <div className="p-3 border-b border-border flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Kunde suchen..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
-          ) : !nachweise?.length ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Keine Leistungsnachweise für diesen Monat</p>
-              <p className="text-sm mt-1">Klicken Sie "Nachweise generieren" um automatisch Nachweise aus den Terminen zu erstellen.</p>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alle">Alle Status</SelectItem>
+                <SelectItem value="entwurf">Entwurf</SelectItem>
+                <SelectItem value="offen">Offen</SelectItem>
+                <SelectItem value="unterschrieben">Unterschrieben</SelectItem>
+                <SelectItem value="abgeschlossen">Abgeschlossen</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {filteredNachweise.length} Ergebnisse
+            </span>
+          </div>
+
+          {/* Table */}
+          <ScrollArea className="flex-1">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : !filteredNachweise.length ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                <div className="rounded-full bg-muted p-4 mb-4">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="font-medium text-foreground">Keine Nachweise gefunden</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  {nachweise?.length ? 'Passe deine Filter an.' : 'Klicke "Generieren" um automatisch Nachweise aus den Terminen zu erstellen.'}
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>
+                      <span className="flex items-center gap-1">Kunde <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
+                    <TableHead>PG</TableHead>
+                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('geplant')}>
+                      <span className="flex items-center justify-end gap-1">Geplant <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort('geleistet')}>
+                      <span className="flex items-center justify-end gap-1">Geleistet <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('status')}>
+                      <span className="flex items-center gap-1">Status <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
+                    <TableHead>Signiert</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredNachweise.map(ln => {
+                    const kunde = kundenMap.get(ln.kunden_id);
+                    const cfg = statusConfig[ln.status] || statusConfig.entwurf;
+                    const isSelected = selectedLN?.id === ln.id;
+                    return (
+                      <TableRow
+                        key={ln.id}
+                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/50'}`}
+                        onClick={() => setSelectedLN(ln)}
+                      >
+                        <TableCell className="font-medium">{getKundeName(ln.kunden_id)}</TableCell>
+                        <TableCell>
+                          {kunde?.pflegegrad ? (
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted text-xs font-semibold text-foreground">
+                              {kunde.pflegegrad}
+                            </span>
+                          ) : '–'}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{ln.geplante_stunden}h</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">{ln.geleistete_stunden}h</TableCell>
+                        <TableCell>
+                          <Badge variant={cfg.variant} className="gap-1 text-xs">
+                            {cfg.icon} {cfg.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {ln.unterschrift_kunde_zeitstempel ? (
+                            <CheckCircle2 className="h-4 w-4 text-success" />
+                          ) : (
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </ScrollArea>
+        </Card>
+
+        {/* Right: Detail / Editor Panel */}
+        <Card className="flex flex-col min-h-0 border-border/60">
+          {!selectedLN ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+              <div className="rounded-full bg-muted p-4 mb-4">
+                <Eye className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="font-medium text-foreground">Nachweis auswählen</p>
+              <p className="text-sm text-muted-foreground mt-1">Wähle links einen Leistungsnachweis um ihn hier zu bearbeiten.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Kunde</TableHead>
-                  <TableHead>Pflegegrad</TableHead>
-                  <TableHead className="text-right">Geplant (h)</TableHead>
-                  <TableHead className="text-right">Geleistet (h)</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Unterschrift</TableHead>
-                  <TableHead className="text-right">Aktionen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {nachweise.map(ln => {
-                  const kunde = kundenMap.get(ln.kunden_id);
-                  const cfg = statusConfig[ln.status] || statusConfig.entwurf;
-                  return (
-                    <TableRow key={ln.id}>
-                      <TableCell className="font-medium">{getKundeName(ln.kunden_id)}</TableCell>
-                      <TableCell>{kunde?.pflegegrad ? `PG ${kunde.pflegegrad}` : '–'}</TableCell>
-                      <TableCell className="text-right">{ln.geplante_stunden}</TableCell>
-                      <TableCell className="text-right font-medium">{ln.geleistete_stunden}</TableCell>
-                      <TableCell>
-                        <Badge variant={cfg.variant} className="gap-1">
-                          {cfg.icon} {cfg.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {ln.unterschrift_kunde_zeitstempel ? (
-                          <span className="text-emerald-600 text-sm flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {format(new Date(ln.unterschrift_kunde_zeitstempel), 'dd.MM.yy', { locale: de })}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Ausstehend</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => { setSelectedLN(ln); setDetailOpen(true); setPrintMode(false); }}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => { setSelectedLN(ln); setDetailOpen(true); setPrintMode(true); }}>
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Detail Dialog */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Leistungsnachweis – {selectedLN && getKundeName(selectedLN.kunden_id)}
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedLN && (
-            <ScrollArea className="max-h-[70vh]">
-              <div className={`space-y-6 p-1 ${printMode ? 'print-mode' : ''}`} id="ln-print-area">
-                {/* Header for print */}
-                {printMode && (
-                  <div className="text-center border-b pb-4">
-                    <h2 className="text-xl font-bold">Leistungsnachweis</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {monthNames[selectedLN.monat - 1]} {selectedLN.jahr}
-                    </p>
-                    <p className="font-medium mt-1">{getKundeName(selectedLN.kunden_id)}</p>
+            <>
+              {/* Panel Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="rounded-full bg-primary/10 p-2">
+                    <User className="h-4 w-4 text-primary" />
                   </div>
-                )}
-
-                {/* Stunden-Zusammenfassung */}
-                <div className="grid grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-sm text-muted-foreground">Geplante Stunden</p>
-                      <p className="text-2xl font-bold">{selectedLN.geplante_stunden}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-sm text-muted-foreground">Geleistete Stunden</p>
-                      <p className="text-2xl font-bold">{selectedLN.geleistete_stunden}</p>
-                    </CardContent>
-                  </Card>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{getKundeName(selectedLN.kunden_id)}</p>
+                    <p className="text-xs text-muted-foreground">{monthNames[selectedLN.monat - 1]} {selectedLN.jahr}</p>
+                  </div>
                 </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.print()} title="Drucken">
+                    <Printer className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedLN(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
 
-                {/* Termin-Liste */}
-                <div>
-                  <h3 className="font-semibold mb-2 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" /> Termine
-                  </h3>
-                  {!termine?.length ? (
-                    <p className="text-sm text-muted-foreground">Keine Termine in diesem Zeitraum</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Datum</TableHead>
-                          <TableHead>Zeit</TableHead>
-                          <TableHead>Mitarbeiter</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Std.</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-5">
+                  {/* Hours Summary */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-border p-3 text-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Geplant</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">{selectedLN.geplante_stunden}h</p>
+                    </div>
+                    <div className="rounded-lg border border-border p-3 text-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Geleistet</p>
+                      <p className="text-2xl font-bold text-primary mt-1">{selectedLN.geleistete_stunden}h</p>
+                    </div>
+                  </div>
+
+                  {/* Termine */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      Termine ({termine?.length || 0})
+                    </h3>
+                    {!termine?.length ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">Keine Termine</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
                         {termine.map(t => {
                           const start = new Date(t.start_at);
                           const end = new Date(t.end_at);
                           const hours = t.iststunden ?? ((end.getTime() - start.getTime()) / 3600000);
-                          const sts = terminStatusLabel[t.status] || { label: t.status, color: 'text-gray-600 bg-gray-50' };
+                          const sts = terminStatusLabel[t.status] || { label: t.status, color: 'text-muted-foreground bg-muted' };
                           return (
-                            <TableRow key={t.id}>
-                              <TableCell>{format(start, 'dd.MM.yyyy', { locale: de })}</TableCell>
-                              <TableCell>{format(start, 'HH:mm')} – {format(end, 'HH:mm')}</TableCell>
-                              <TableCell>
-                                {t.mitarbeiter ? `${t.mitarbeiter.vorname || ''} ${t.mitarbeiter.nachname || ''}`.trim() : '–'}
-                              </TableCell>
-                              <TableCell>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${sts.color}`}>
-                                  {sts.label}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right">{Math.round(hours * 100) / 100}</TableCell>
-                            </TableRow>
+                            <div key={t.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm hover:bg-muted/30 transition-colors">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-foreground truncate">
+                                  {format(start, 'dd.MM.', { locale: de })} · {format(start, 'HH:mm')}–{format(end, 'HH:mm')}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {t.mitarbeiter ? `${t.mitarbeiter.vorname || ''} ${t.mitarbeiter.nachname || ''}`.trim() : 'Kein MA'}
+                                </p>
+                              </div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${sts.color}`}>
+                                {sts.label}
+                              </span>
+                              <span className="text-xs font-semibold tabular-nums text-foreground w-10 text-right">{Math.round(hours * 100) / 100}h</span>
+                            </div>
                           );
                         })}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
 
-                <Separator />
+                  <Separator />
 
-                {/* Optionen – nur im Edit-Mode */}
-                {!printMode && (
+                  {/* Edit Options */}
                   <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground">Einstellungen</h3>
+
                     <div className="flex items-center gap-3">
                       <Checkbox
                         id="abw-addr"
                         checked={selectedLN.abweichende_rechnungsadresse}
-                        onCheckedChange={(checked) => {
-                          const updated = { ...selectedLN, abweichende_rechnungsadresse: !!checked };
-                          setSelectedLN(updated);
-                        }}
+                        onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, abweichende_rechnungsadresse: !!checked })}
                       />
-                      <Label htmlFor="abw-addr">Abweichende Rechnungsadresse</Label>
+                      <Label htmlFor="abw-addr" className="text-sm">Abweichende Rechnungsadresse</Label>
                     </div>
 
                     {selectedLN.abweichende_rechnungsadresse && (
-                      <div className="grid grid-cols-2 gap-3 pl-6">
+                      <div className="grid grid-cols-2 gap-2 pl-6">
                         <div className="space-y-1">
-                          <Label>Name</Label>
-                          <Input
-                            value={selectedLN.rechnungsadresse_name || ''}
-                            onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_name: e.target.value })}
-                          />
+                          <Label className="text-xs">Name</Label>
+                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_name || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_name: e.target.value })} />
                         </div>
                         <div className="space-y-1">
-                          <Label>Straße</Label>
-                          <Input
-                            value={selectedLN.rechnungsadresse_strasse || ''}
-                            onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_strasse: e.target.value })}
-                          />
+                          <Label className="text-xs">Straße</Label>
+                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_strasse || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_strasse: e.target.value })} />
                         </div>
                         <div className="space-y-1">
-                          <Label>PLZ</Label>
-                          <Input
-                            value={selectedLN.rechnungsadresse_plz || ''}
-                            onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_plz: e.target.value })}
-                          />
+                          <Label className="text-xs">PLZ</Label>
+                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_plz || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_plz: e.target.value })} />
                         </div>
                         <div className="space-y-1">
-                          <Label>Stadt</Label>
-                          <Input
-                            value={selectedLN.rechnungsadresse_stadt || ''}
-                            onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_stadt: e.target.value })}
-                          />
+                          <Label className="text-xs">Stadt</Label>
+                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_stadt || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_stadt: e.target.value })} />
                         </div>
                       </div>
                     )}
@@ -488,95 +592,70 @@ export default function Leistungsnachweise() {
                       <Checkbox
                         id="privat"
                         checked={selectedLN.ist_privat}
-                        onCheckedChange={(checked) => {
-                          setSelectedLN({ ...selectedLN, ist_privat: !!checked });
-                        }}
+                        onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, ist_privat: !!checked })}
                       />
-                      <Label htmlFor="privat">Privat (Empfänger ist Privatperson statt Kasse)</Label>
+                      <Label htmlFor="privat" className="text-sm">Privatperson statt Kasse</Label>
                     </div>
 
                     {selectedLN.ist_privat && (
                       <div className="pl-6 space-y-1">
-                        <Label>Privat-Empfänger Name</Label>
-                        <Input
-                          value={selectedLN.privat_empfaenger_name || ''}
-                          onChange={e => setSelectedLN({ ...selectedLN, privat_empfaenger_name: e.target.value })}
-                        />
+                        <Label className="text-xs">Privat-Empfänger</Label>
+                        <Input className="h-8 text-sm" value={selectedLN.privat_empfaenger_name || ''} onChange={e => setSelectedLN({ ...selectedLN, privat_empfaenger_name: e.target.value })} />
                       </div>
                     )}
 
                     <div className="space-y-1">
-                      <Label>GF-Unterschrift (Vorausgefüllt)</Label>
-                      <Input
-                        value={selectedLN.unterschrift_gf_name || ''}
-                        onChange={e => setSelectedLN({ ...selectedLN, unterschrift_gf_name: e.target.value })}
-                        placeholder="Name der Geschäftsführung"
-                      />
+                      <Label className="text-xs">GF-Unterschrift Name</Label>
+                      <Input className="h-8 text-sm" value={selectedLN.unterschrift_gf_name || ''} onChange={e => setSelectedLN({ ...selectedLN, unterschrift_gf_name: e.target.value })} placeholder="Name der Geschäftsführung" />
                     </div>
-                  </div>
-                )}
 
-                {/* Unterschriften-Bereich (Print) */}
-                {printMode && (
-                  <div className="grid grid-cols-2 gap-8 pt-8">
-                    <div className="border-t-2 pt-2 text-center">
-                      <p className="text-sm text-muted-foreground">Unterschrift Kunde</p>
-                      {selectedLN.unterschrift_kunde_bild ? (
-                        <img src={selectedLN.unterschrift_kunde_bild} alt="Unterschrift" className="h-16 mx-auto mt-2" />
-                      ) : (
-                        <div className="h-16" />
-                      )}
-                      <p className="text-xs mt-1">{selectedLN.unterschrift_kunde_durch || ''}</p>
-                      {selectedLN.unterschrift_kunde_zeitstempel && (
-                        <p className="text-xs text-muted-foreground">
+                    {/* Signature Info */}
+                    {selectedLN.unterschrift_kunde_zeitstempel && (
+                      <div className="rounded-lg bg-success/10 border border-success/20 p-3">
+                        <div className="flex items-center gap-2 text-sm text-success">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="font-medium">Kunde hat unterschrieben</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {selectedLN.unterschrift_kunde_durch && `Durch: ${selectedLN.unterschrift_kunde_durch} · `}
                           {format(new Date(selectedLN.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy HH:mm', { locale: de })}
                         </p>
-                      )}
-                    </div>
-                    <div className="border-t-2 pt-2 text-center">
-                      <p className="text-sm text-muted-foreground">Geschäftsführung</p>
-                      {selectedLN.unterschrift_gf_template ? (
-                        <img src={selectedLN.unterschrift_gf_template} alt="GF-Unterschrift" className="h-16 mx-auto mt-2" />
-                      ) : (
-                        <div className="h-16" />
-                      )}
-                      <p className="text-xs mt-1">{selectedLN.unterschrift_gf_name || ''}</p>
-                    </div>
+                        {selectedLN.unterschrift_kunde_bild && (
+                          <img src={selectedLN.unterschrift_kunde_bild} alt="Unterschrift" className="h-12 mt-2 border rounded bg-card" />
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </ScrollArea>
-          )}
+                </div>
+              </ScrollArea>
 
-          <DialogFooter>
-            {printMode ? (
-              <Button onClick={() => window.print()}>
-                <Printer className="h-4 w-4 mr-2" /> Drucken
-              </Button>
-            ) : (
-              <Button
-                onClick={() => {
-                  if (!selectedLN) return;
-                  updateMutation.mutate({
-                    abweichende_rechnungsadresse: selectedLN.abweichende_rechnungsadresse,
-                    rechnungsadresse_name: selectedLN.rechnungsadresse_name,
-                    rechnungsadresse_strasse: selectedLN.rechnungsadresse_strasse,
-                    rechnungsadresse_plz: selectedLN.rechnungsadresse_plz,
-                    rechnungsadresse_stadt: selectedLN.rechnungsadresse_stadt,
-                    ist_privat: selectedLN.ist_privat,
-                    privat_empfaenger_name: selectedLN.privat_empfaenger_name,
-                    unterschrift_gf_name: selectedLN.unterschrift_gf_name,
-                  });
-                }}
-                disabled={updateMutation.isPending}
-              >
-                {updateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Speichern
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {/* Save button */}
+              <div className="p-3 border-t border-border">
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    if (!selectedLN) return;
+                    updateMutation.mutate({
+                      abweichende_rechnungsadresse: selectedLN.abweichende_rechnungsadresse,
+                      rechnungsadresse_name: selectedLN.rechnungsadresse_name,
+                      rechnungsadresse_strasse: selectedLN.rechnungsadresse_strasse,
+                      rechnungsadresse_plz: selectedLN.rechnungsadresse_plz,
+                      rechnungsadresse_stadt: selectedLN.rechnungsadresse_stadt,
+                      ist_privat: selectedLN.ist_privat,
+                      privat_empfaenger_name: selectedLN.privat_empfaenger_name,
+                      unterschrift_gf_name: selectedLN.unterschrift_gf_name,
+                    });
+                  }}
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Änderungen speichern
+                </Button>
+              </div>
+            </>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
