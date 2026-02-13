@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Send, Shield, KeyRound, CheckCircle2, Mail, ArrowRight } from 'lucide-react';
+import { Loader2, UserPlus, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Send, Shield, KeyRound, CheckCircle2, Mail, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -50,18 +51,20 @@ export default function BenutzerverwaltungNeu() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [bulkActionLoading] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<string | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingMitarbeiter, setEditingMitarbeiter] = useState<Mitarbeiter | null>(null);
-  const [activateDialogOpen, setActivateDialogOpen] = useState(false);
-  const [activateTarget, setActivateTarget] = useState<Mitarbeiter | null>(null);
-  const [activateEmail, setActivateEmail] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
-  const [createUserForm, setCreateUserForm] = useState({ email: '', password: '', vorname: '', nachname: '', rolle: 'geschaeftsfuehrer' });
-  const [createUserLoading, setCreateUserLoading] = useState(false);
+   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<string | null>(null);
+   const [editDialogOpen, setEditDialogOpen] = useState(false);
+   const [editingMitarbeiter, setEditingMitarbeiter] = useState<Mitarbeiter | null>(null);
+   const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+   const [activateTarget, setActivateTarget] = useState<Mitarbeiter | null>(null);
+   const [activateEmail, setActivateEmail] = useState('');
+   const [searchQuery, setSearchQuery] = useState('');
+   const [importDialogOpen, setImportDialogOpen] = useState(false);
+   const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
+   const [createUserForm, setCreateUserForm] = useState({ email: '', password: '', vorname: '', nachname: '', rolle: 'geschaeftsfuehrer' });
+   const [createUserLoading, setCreateUserLoading] = useState(false);
+   const [deactivatedSectionOpen, setDeactivatedSectionOpen] = useState(false);
   
   // Multi-select
   const [selectedUninvited, setSelectedUninvited] = useState<Set<string>>(new Set());
@@ -133,9 +136,14 @@ export default function BenutzerverwaltungNeu() {
     !m.benutzer_id || m.benutzer?.email?.includes('@placeholder.local')
   );
 
-  // Employees with real auth accounts
+  // Employees with real auth accounts - active
   const activatedMitarbeiter = mitarbeiter.filter(m => 
-    m.benutzer_id && !m.benutzer?.email?.includes('@placeholder.local')
+    m.benutzer_id && !m.benutzer?.email?.includes('@placeholder.local') && m.ist_aktiv
+  );
+
+  // Deactivated employees
+  const deactivatedMitarbeiter = mitarbeiter.filter(m => 
+    !m.ist_aktiv && m.benutzer_id && !m.benutzer?.email?.includes('@placeholder.local')
   );
 
   const filteredUninvited = uninvitedMitarbeiter.filter(m => {
@@ -153,12 +161,46 @@ export default function BenutzerverwaltungNeu() {
     return name.includes(q) || email.includes(q);
   });
 
-  const handleToggleActive = async (mitarbeiterId: string, currentStatus: boolean) => {
+  const filteredDeactivated = deactivatedMitarbeiter.filter(m => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    const name = `${m.vorname || ''} ${m.nachname || ''}`.toLowerCase();
+    const email = m.benutzer?.email?.toLowerCase() || '';
+    return name.includes(q) || email.includes(q);
+  });
+
+  const handleDeactivateEmployee = async () => {
+    if (!selectedMitarbeiter) return;
+    setActionLoading(selectedMitarbeiter);
+    try {
+      const { error } = await supabase.from('mitarbeiter').update({ ist_aktiv: false }).eq('id', selectedMitarbeiter);
+      if (error) throw error;
+      // Also deactivate benutzer record
+      const target = mitarbeiter.find(m => m.id === selectedMitarbeiter);
+      if (target?.benutzer_id) {
+        await supabase.from('benutzer').update({ status: 'rejected' as any }).eq('id', target.benutzer_id);
+      }
+      toast({ title: 'Erfolgreich', description: 'Mitarbeiter wurde deaktiviert.' });
+      setDeactivateDialogOpen(false);
+      setSelectedMitarbeiter(null);
+      loadData();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Fehler', description: error.message });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReactivateEmployee = async (mitarbeiterId: string) => {
     setActionLoading(mitarbeiterId);
     try {
-      const { error } = await supabase.from('mitarbeiter').update({ ist_aktiv: !currentStatus }).eq('id', mitarbeiterId);
+      const { error } = await supabase.from('mitarbeiter').update({ ist_aktiv: true }).eq('id', mitarbeiterId);
       if (error) throw error;
-      toast({ title: 'Erfolgreich', description: `Mitarbeiter wurde ${!currentStatus ? 'aktiviert' : 'deaktiviert'}.` });
+      const target = mitarbeiter.find(m => m.id === mitarbeiterId);
+      if (target?.benutzer_id) {
+        await supabase.from('benutzer').update({ status: 'approved' as any }).eq('id', target.benutzer_id);
+      }
+      toast({ title: 'Erfolgreich', description: 'Mitarbeiter wurde reaktiviert.' });
       loadData();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Fehler', description: error.message });
@@ -456,11 +498,11 @@ export default function BenutzerverwaltungNeu() {
         <Card className="border-l-4 border-l-muted-foreground/30">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-              <Users className="h-5 w-5 text-muted-foreground" />
+              <UserX className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{mitarbeiter.length}</p>
-              <p className="text-xs text-muted-foreground">Gesamt im Team</p>
+              <p className="text-2xl font-bold">{deactivatedMitarbeiter.length}</p>
+              <p className="text-xs text-muted-foreground">Deaktiviert</p>
             </div>
           </CardContent>
         </Card>
@@ -576,15 +618,13 @@ export default function BenutzerverwaltungNeu() {
                   mitarbeiter={m}
                   actionLoading={actionLoading}
                   onEdit={handleEditMitarbeiter}
-                  onToggleActive={handleToggleActive}
-                   onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
-                   isProtected={isProtectedUser(m)}
-                   loadData={loadData}
+                  onDeactivate={(id) => { setSelectedMitarbeiter(id); setDeactivateDialogOpen(true); }}
+                  isProtected={isProtectedUser(m)}
+                  loadData={loadData}
                   currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
                   onChangeRole={handleChangeRole}
-                   canAssignGF={isGeschaeftsfuehrer}
+                  canAssignGF={isGeschaeftsfuehrer}
                   canAssignRoles={isGeschaeftsfuehrer}
-                  canDelete={isGeschaeftsfuehrer}
                   roleLabelMap={roleLabelMap}
                 />
               ))}
@@ -601,20 +641,89 @@ export default function BenutzerverwaltungNeu() {
         </CardContent>
       </Card>
 
+      {/* Section: Deaktivierte Mitarbeiter (collapsed) */}
+      {(filteredDeactivated.length > 0 || deactivatedMitarbeiter.length > 0) && (
+        <Collapsible open={deactivatedSectionOpen} onOpenChange={setDeactivatedSectionOpen}>
+          <Card className="border-muted-foreground/20">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2">
+                  {deactivatedSectionOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <UserX className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-lg text-muted-foreground">Deaktivierte Mitarbeiter</CardTitle>
+                  <Badge variant="outline">{deactivatedMitarbeiter.length}</Badge>
+                </div>
+                <CardDescription>
+                  Diese Mitarbeiter sind deaktiviert und können hier reaktiviert oder endgültig gelöscht werden.
+                </CardDescription>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                {filteredDeactivated.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredDeactivated.map((m) => (
+                      <DeactivatedRow
+                        key={m.id}
+                        mitarbeiter={m}
+                        actionLoading={actionLoading}
+                        onReactivate={handleReactivateEmployee}
+                        onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
+                        isProtected={isProtectedUser(m)}
+                        loadData={loadData}
+                        currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
+                        canDelete={isGeschaeftsfuehrer}
+                        roleLabelMap={roleLabelMap}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">Keine deaktivierten Mitarbeiter gefunden.</p>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
+
       {/* Import Dialog */}
       <MitarbeiterImport open={importDialogOpen} onOpenChange={setImportDialogOpen} />
 
-      {/* Delete Dialog */}
+      {/* Deactivate Confirmation Dialog */}
+      <AlertDialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <UserX className="h-5 w-5" />
+              Mitarbeiter deaktivieren
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Der Mitarbeiter wird deaktiviert und kann sich nicht mehr anmelden.
+              Die Daten bleiben erhalten. Sie können den Mitarbeiter später reaktivieren oder endgültig löschen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeactivateEmployee} disabled={actionLoading === selectedMitarbeiter}>
+              {actionLoading === selectedMitarbeiter && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <UserX className="h-4 w-4 mr-1" />
+              Deaktivieren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Dialog (permanent) */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="h-5 w-5" />
-              Mitarbeiter löschen
+              Mitarbeiter endgültig löschen
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Sind Sie sicher? Der Mitarbeiter wird aus dem System entfernt und sein Zugang gesperrt.
-              Die Daten bleiben für die Revisionssicherheit erhalten, der Mitarbeiter ist jedoch nicht mehr aktiv.
+              Sind Sie sicher? Der Mitarbeiter und alle zugehörigen Daten (Verfügbarkeiten, Abwesenheiten, Zugang) werden unwiderruflich gelöscht.
+              Bestehende Termine bleiben erhalten, werden aber als „nicht zugewiesen" markiert.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -887,14 +996,14 @@ function UninvitedRow({
 
 // ─── Activated Employee Row ───
 function ActivatedRow({
-  mitarbeiter: m, actionLoading, onEdit, onToggleActive, onDelete, isProtected, loadData,
-  currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
+  mitarbeiter: m, actionLoading, onEdit, onDeactivate, isProtected, loadData,
+  currentRole, onChangeRole, canAssignGF, canAssignRoles, roleLabelMap,
 }: {
   mitarbeiter: Mitarbeiter; actionLoading: string | null;
-  onEdit: (m: Mitarbeiter) => void; onToggleActive: (id: string, status: boolean) => void;
-  onDelete: (id: string) => void; isProtected?: boolean; loadData: () => void;
+  onEdit: (m: Mitarbeiter) => void; onDeactivate: (id: string) => void;
+  isProtected?: boolean; loadData: () => void;
   currentRole: UserRole | null; onChangeRole: (id: string, role: string) => void;
-  canAssignGF: boolean; canAssignRoles: boolean; canDelete: boolean; roleLabelMap: Record<string, string>;
+  canAssignGF: boolean; canAssignRoles: boolean; roleLabelMap: Record<string, string>;
 }) {
   const fullName = `${m.vorname || ''} ${m.nachname || ''}`.trim() || 'Unbekannt';
 
@@ -911,7 +1020,7 @@ function ActivatedRow({
   };
 
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center gap-2 p-3 border rounded-lg hover:bg-muted/30 transition-colors ${!m.ist_aktiv ? 'opacity-60' : ''}`}>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 border rounded-lg hover:bg-muted/30 transition-colors">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <AvatarUpload
           mitarbeiterId={m.id}
@@ -959,21 +1068,64 @@ function ActivatedRow({
             {roleLabelMap[currentRole] || currentRole}
           </Badge>
         ) : null}
-        <Badge variant={m.ist_aktiv ? 'default' : 'secondary'}>
-          {m.ist_aktiv ? 'Aktiv' : 'Inaktiv'}
-        </Badge>
         {!isGlobalAdminUser && (
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onEdit(m)} disabled={actionLoading === m.id}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
         )}
-        {!isGlobalAdminUser && (
-          <Button variant={m.ist_aktiv ? 'outline' : 'default'} size="icon" className="h-8 w-8" onClick={() => onToggleActive(m.id, m.ist_aktiv)} disabled={actionLoading === m.id} title={m.ist_aktiv ? 'Mitarbeiter deaktivieren' : 'Mitarbeiter aktivieren'}>
-            {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : m.ist_aktiv ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+        {!isGlobalAdminUser && !isProtected && (
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onDeactivate(m.id)} disabled={actionLoading === m.id} title="Mitarbeiter deaktivieren">
+            {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserX className="h-3.5 w-3.5" />}
           </Button>
         )}
-        {canDelete && !isProtected && !isGlobalAdminUser && (
-          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Mitarbeiter löschen">
+      </div>
+    </div>
+  );
+}
+
+// ─── Deactivated Employee Row ───
+function DeactivatedRow({
+  mitarbeiter: m, actionLoading, onReactivate, onDelete, isProtected, loadData,
+  currentRole, canDelete, roleLabelMap,
+}: {
+  mitarbeiter: Mitarbeiter; actionLoading: string | null;
+  onReactivate: (id: string) => void; onDelete: (id: string) => void;
+  isProtected?: boolean; loadData: () => void;
+  currentRole: UserRole | null; canDelete: boolean; roleLabelMap: Record<string, string>;
+}) {
+  const fullName = `${m.vorname || ''} ${m.nachname || ''}`.trim() || 'Unbekannt';
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 border rounded-lg opacity-60 hover:opacity-80 transition-all">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <AvatarUpload
+          mitarbeiterId={m.id}
+          currentAvatarUrl={m.avatar_url}
+          name={fullName}
+          color={m.farbe_kalender || '#3B82F6'}
+          size="md"
+          onUploadComplete={loadData}
+          onRemove={loadData}
+        />
+        <div className="min-w-0">
+          <p className="font-medium truncate">{fullName}</p>
+          <p className="text-xs text-muted-foreground truncate">{m.benutzer?.email || 'Keine E-Mail'}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap pl-11 sm:pl-0">
+        {currentRole && (
+          <Badge variant="outline">
+            <Shield className="h-3 w-3 mr-1" />
+            {roleLabelMap[currentRole] || currentRole}
+          </Badge>
+        )}
+        <Badge variant="secondary">Deaktiviert</Badge>
+        <Button variant="default" size="sm" onClick={() => onReactivate(m.id)} disabled={actionLoading === m.id} className="gap-1.5 text-xs" title="Mitarbeiter reaktivieren">
+          {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCheck className="h-3.5 w-3.5" />}
+          Reaktivieren
+        </Button>
+        {canDelete && !isProtected && (
+          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Endgültig löschen">
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
