@@ -604,21 +604,25 @@ export default function BenutzerverwaltungNeu() {
       {/* Import Dialog */}
       <MitarbeiterImport open={importDialogOpen} onOpenChange={setImportDialogOpen} />
 
-      {/* Deactivate Dialog */}
+      {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mitarbeiter deaktivieren</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Mitarbeiter löschen
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Sind Sie sicher? Der Mitarbeiter wird deaktiviert und kann sich nicht mehr anmelden.
-              Die Daten bleiben für die Revisionssicherheit erhalten.
+              Sind Sie sicher? Der Mitarbeiter wird aus dem System entfernt und sein Zugang gesperrt.
+              Die Daten bleiben für die Revisionssicherheit erhalten, der Mitarbeiter ist jedoch nicht mehr aktiv.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeactivateEmployee} className="bg-destructive text-destructive-foreground" disabled={actionLoading === selectedMitarbeiter}>
               {actionLoading === selectedMitarbeiter && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Deaktivieren
+              <Trash2 className="h-4 w-4 mr-1" />
+              Endgültig löschen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -872,8 +876,8 @@ function UninvitedRow({
           <Pencil className="h-3.5 w-3.5" />
         </Button>
         {canDelete && !isProtected && (
-          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Deaktivieren">
-            <UserX className="h-3.5 w-3.5" />
+          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Mitarbeiter löschen">
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
@@ -964,13 +968,13 @@ function ActivatedRow({
           </Button>
         )}
         {!isGlobalAdminUser && (
-          <Button variant={m.ist_aktiv ? 'outline' : 'default'} size="icon" className="h-8 w-8" onClick={() => onToggleActive(m.id, m.ist_aktiv)} disabled={actionLoading === m.id}>
+          <Button variant={m.ist_aktiv ? 'outline' : 'default'} size="icon" className="h-8 w-8" onClick={() => onToggleActive(m.id, m.ist_aktiv)} disabled={actionLoading === m.id} title={m.ist_aktiv ? 'Mitarbeiter deaktivieren' : 'Mitarbeiter aktivieren'}>
             {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : m.ist_aktiv ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
           </Button>
         )}
         {canDelete && !isProtected && !isGlobalAdminUser && (
-          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Deaktivieren">
-            <UserX className="h-3.5 w-3.5" />
+          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Mitarbeiter löschen">
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
