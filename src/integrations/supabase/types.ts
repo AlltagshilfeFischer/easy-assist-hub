@@ -920,32 +920,67 @@ export type Database = {
       }
       mitarbeiter_abwesenheiten: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
+          bis: string | null
           created_at: string
           grund: string | null
           id: string
           mitarbeiter_id: string
+          requested_by: string | null
+          status: string
+          typ: string
+          von: string | null
           zeitraum: unknown
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          bis?: string | null
           created_at?: string
           grund?: string | null
           id?: string
           mitarbeiter_id: string
+          requested_by?: string | null
+          status?: string
+          typ?: string
+          von?: string | null
           zeitraum: unknown
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          bis?: string | null
           created_at?: string
           grund?: string | null
           id?: string
           mitarbeiter_id?: string
+          requested_by?: string | null
+          status?: string
+          typ?: string
+          von?: string | null
           zeitraum?: unknown
         }
         Relationships: [
+          {
+            foreignKeyName: "mitarbeiter_abwesenheiten_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mitarbeiter_abwesenheiten_mitarbeiter_id_fkey"
             columns: ["mitarbeiter_id"]
             isOneToOne: false
             referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mitarbeiter_abwesenheiten_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "benutzer"
             referencedColumns: ["id"]
           },
         ]

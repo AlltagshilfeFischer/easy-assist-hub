@@ -9,6 +9,9 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { MyChangeRequests } from '@/components/mitarbeiter/MyChangeRequests';
 import { TerminBestaetigung } from '@/components/mitarbeiter/TerminBestaetigung';
 import { LeistungsnachweisSignature } from '@/components/mitarbeiter/LeistungsnachweisSignature';
+import { AbwesenheitAnfrage } from '@/components/mitarbeiter/AbwesenheitAnfrage';
+import { AbwesenheitGenehmigung } from '@/components/mitarbeiter/AbwesenheitGenehmigung';
+import { MeineDokumente } from '@/components/mitarbeiter/MeineDokumente';
 import { EmployeeWeekCalendar } from '@/components/schedule/EmployeeWeekCalendar';
 import { EmployeeChangeRequestDialog } from '@/components/schedule/EmployeeChangeRequestDialog';
 
@@ -35,7 +38,7 @@ interface Employee {
 }
 
 export default function MitarbeiterDashboard() {
-  const { mitarbeiterId } = useUserRole();
+  const { mitarbeiterId, isGeschaeftsfuehrer } = useUserRole();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +50,6 @@ export default function MitarbeiterDashboard() {
     if (!mitarbeiterId) return;
 
     try {
-      // Load employee data
       const { data: empData, error: empError } = await supabase
         .from('mitarbeiter')
         .select('id, vorname, nachname, farbe_kalender')
@@ -57,24 +59,16 @@ export default function MitarbeiterDashboard() {
       if (empError) throw empError;
       setEmployee(empData);
 
-      // Load appointments
       const { data, error } = await supabase
         .from('termine')
         .select(`
-          id,
-          titel,
-          start_at,
-          end_at,
-          status,
-          mitarbeiter_id,
-          kunden_id,
+          id, titel, start_at, end_at, status, mitarbeiter_id, kunden_id,
           customer:kunden(id, name, farbe_kalender)
         `)
         .eq('mitarbeiter_id', mitarbeiterId)
         .order('start_at', { ascending: true });
 
       if (error) throw error;
-      
       setAppointments((data as any) || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -89,11 +83,9 @@ export default function MitarbeiterDashboard() {
 
   const getWeekDates = () => {
     const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
     const dates = [];
     let current = weekStart;
-
-    while (current <= weekEnd) {
+    for (let i = 0; i < 7; i++) {
       dates.push(new Date(current));
       current = addDays(current, 1);
     }
@@ -116,18 +108,26 @@ export default function MitarbeiterDashboard() {
   };
 
   const handleSlotClick = (date: Date) => {
-    // Optional: Handle slot click for creating new appointments
     console.log('Slot clicked:', date);
   };
+
+  const isGF = isGeschaeftsfuehrer;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Mein Kalender</h1>
+        <h1 className="text-3xl font-bold text-foreground">
+          {isGF ? 'Mein Bereich' : 'Mein Kalender'}
+        </h1>
         <p className="text-muted-foreground mt-1">
-          Ihre Termine im Überblick
+          {isGF
+            ? 'Ihre persönlichen Termine, Abwesenheiten und Aufgaben'
+            : 'Ihre Termine im Überblick'}
         </p>
       </div>
+
+      {/* GF: Offene Abwesenheitsanträge zur Genehmigung */}
+      {isGF && <AbwesenheitGenehmigung />}
 
       {/* Offene Terminbestätigungen */}
       <TerminBestaetigung appointments={appointments} onUpdate={loadData} />
@@ -147,7 +147,6 @@ export default function MitarbeiterDashboard() {
               <ChevronLeft className="h-4 w-4 mr-1" />
               Vorherige Woche
             </Button>
-            
             <div className="text-center">
               <h2 className="text-lg font-semibold">
                 KW {format(weekDates[0], 'w', { locale: de })}
@@ -156,7 +155,6 @@ export default function MitarbeiterDashboard() {
                 {format(weekDates[0], 'dd.MM.', { locale: de })} - {format(weekDates[6], 'dd.MM.yyyy', { locale: de })}
               </p>
             </div>
-
             <Button
               variant="outline"
               size="sm"
@@ -184,6 +182,12 @@ export default function MitarbeiterDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Abwesenheiten: GF = direkt, MA = beantragen */}
+      <AbwesenheitAnfrage directEntry={isGF} />
+
+      {/* Meine Dokumente - NUR für Mitarbeiter, nicht für GF */}
+      {!isGF && <MeineDokumente />}
 
       {/* Change Requests */}
       <MyChangeRequests />
