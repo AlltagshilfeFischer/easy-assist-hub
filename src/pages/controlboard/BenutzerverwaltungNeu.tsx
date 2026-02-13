@@ -10,10 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Send, Shield, KeyRound, CheckCircle2, Mail, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Trash2, UserX, UserCheck, Pencil, Users, Search, Upload, Shield, KeyRound, CheckCircle2, Mail, Send, ChevronDown, ChevronRight } from 'lucide-react';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 import { MitarbeiterImport } from '@/components/import/MitarbeiterImport';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useUserRole, type UserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -66,8 +65,7 @@ export default function BenutzerverwaltungNeu() {
    const [createUserLoading, setCreateUserLoading] = useState(false);
    const [deactivatedSectionOpen, setDeactivatedSectionOpen] = useState(false);
   
-  // Multi-select
-  const [selectedUninvited, setSelectedUninvited] = useState<Set<string>>(new Set());
+  // Multi-select removed - unified list now
 
   const { toast } = useToast();
   const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
@@ -114,15 +112,8 @@ export default function BenutzerverwaltungNeu() {
       }
       setUserRolesMap(rolesMap);
       
-      setSelectedUninvited(prev => {
-        const newSet = new Set<string>();
-        prev.forEach(id => {
-          if (mitarbeiterResponse.data?.some(m => m.id === id && (!m.benutzer_id || m.benutzer?.email?.includes('@placeholder.local')))) {
-            newSet.add(id);
-          }
-        });
-        return newSet;
-      });
+      // Clean up stale selections
+
     } catch (error: any) {
       console.error('Error loading data:', error);
       toast({ variant: 'destructive', title: 'Fehler', description: 'Daten konnten nicht geladen werden.' });
@@ -131,34 +122,18 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  // Employees without an active auth account
-  const uninvitedMitarbeiter = mitarbeiter.filter(m => 
-    !m.benutzer_id || m.benutzer?.email?.includes('@placeholder.local')
-  );
-
-  // Employees with real auth accounts - active
-  const activatedMitarbeiter = mitarbeiter.filter(m => 
-    m.benutzer_id && !m.benutzer?.email?.includes('@placeholder.local') && m.ist_aktiv
-  );
+  // All active employees (with or without account)
+  const allActiveMitarbeiter = mitarbeiter.filter(m => m.ist_aktiv);
 
   // Deactivated employees
-  const deactivatedMitarbeiter = mitarbeiter.filter(m => 
-    !m.ist_aktiv && m.benutzer_id && !m.benutzer?.email?.includes('@placeholder.local')
-  );
+  const deactivatedMitarbeiter = mitarbeiter.filter(m => !m.ist_aktiv);
 
-  const filteredUninvited = uninvitedMitarbeiter.filter(m => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    const name = `${m.vorname || ''} ${m.nachname || ''}`.toLowerCase();
-    return name.includes(q) || (m.telefon || '').includes(q);
-  });
-
-  const filteredActivated = activatedMitarbeiter.filter(m => {
+  const filteredAllActive = allActiveMitarbeiter.filter(m => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     const name = `${m.vorname || ''} ${m.nachname || ''}`.toLowerCase();
     const email = m.benutzer?.email?.toLowerCase() || '';
-    return name.includes(q) || email.includes(q);
+    return name.includes(q) || email.includes(q) || (m.telefon || '').includes(q);
   });
 
   const filteredDeactivated = deactivatedMitarbeiter.filter(m => {
@@ -211,7 +186,7 @@ export default function BenutzerverwaltungNeu() {
 
   const handleDeleteEmployee = async () => {
     if (!selectedMitarbeiter) return;
-    const targetMa = [...uninvitedMitarbeiter, ...activatedMitarbeiter].find(m => m.id === selectedMitarbeiter);
+    const targetMa = mitarbeiter.find(m => m.id === selectedMitarbeiter);
     if (targetMa && isProtectedUser(targetMa)) {
       toast({ variant: 'destructive', title: 'Geschützt', description: 'Dieser System-Account kann nicht gelöscht werden.' });
       setDeleteDialogOpen(false);
@@ -301,22 +276,7 @@ export default function BenutzerverwaltungNeu() {
   // Bulk activate is only available when each selected employee will be individually activated via dialog
   // Since bulk activate needs an email for each, we show a warning instead
   const handleBulkActivate = async () => {
-    if (selectedUninvited.size === 0) return;
-    
-    // All uninvited employees lack real emails, so bulk activate must prompt individually
-    const toActivate = uninvitedMitarbeiter.filter(m => selectedUninvited.has(m.id));
-    
-    if (toActivate.length === 1) {
-      // Single selection: open the activation dialog directly
-      handleOpenActivateDialog(toActivate[0]);
-      return;
-    }
-    
-    // Multiple selection: inform user they need to activate individually (each needs an email)
-    toast({
-      title: 'Einzeln aktivieren',
-      description: `Bitte aktivieren Sie die ${toActivate.length} Mitarbeiter einzeln, da für jeden eine E-Mail-Adresse eingegeben werden muss.`,
-    });
+    // Not used in new unified view
   };
 
   const handleChangeRole = async (mitarbeiterId: string, newRole: string) => {
@@ -415,21 +375,8 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  const toggleUninvitedSelection = (id: string) => {
-    setSelectedUninvited(prev => {
-      const newSet = new Set(prev);
-      newSet.has(id) ? newSet.delete(id) : newSet.add(id);
-      return newSet;
-    });
-  };
-
-  const toggleAllUninvited = () => {
-    if (selectedUninvited.size === filteredUninvited.length) {
-      setSelectedUninvited(new Set());
-    } else {
-      setSelectedUninvited(new Set(filteredUninvited.map(m => m.id)));
-    }
-  };
+  const toggleUninvitedSelection = (id: string) => {};
+  const toggleAllUninvited = () => {};
 
   if (loading) {
     return (
@@ -471,64 +418,6 @@ export default function BenutzerverwaltungNeu() {
         </div>
       </div>
 
-      {/* Onboarding Progress Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-amber-500">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <UserPlus className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{uninvitedMitarbeiter.length}</p>
-              <p className="text-xs text-muted-foreground">Warten auf Aktivierung</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{activatedMitarbeiter.filter(m => m.ist_aktiv).length}</p>
-              <p className="text-xs text-muted-foreground">Aktive Benutzer</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-l-4 border-l-muted-foreground/30">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-              <UserX className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{deactivatedMitarbeiter.length}</p>
-              <p className="text-xs text-muted-foreground">Deaktiviert</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Workflow hint */}
-      {uninvitedMitarbeiter.length > 0 && (
-        <Card className="bg-muted/40 border-dashed">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="outline" className="gap-1"><span className="font-semibold text-foreground">1.</span> Einpflegen</Badge>
-              <ArrowRight className="h-3 w-3" />
-              <Badge variant="outline" className="gap-1"><span className="font-semibold text-foreground">2.</span> Rolle zuweisen</Badge>
-              <ArrowRight className="h-3 w-3" />
-              <Badge variant="outline" className="gap-1"><span className="font-semibold text-foreground">3.</span> Konto aktivieren</Badge>
-              <ArrowRight className="h-3 w-3" />
-              <Badge variant="outline" className="gap-1"><span className="font-semibold text-foreground">4.</span> E-Mail mit Link</Badge>
-              <ArrowRight className="h-3 w-3" />
-              <Badge variant="outline" className="gap-1"><span className="font-semibold text-foreground">5.</span> Passwort setzen</Badge>
-              <ArrowRight className="h-3 w-3" />
-              <Badge variant="secondary" className="gap-1">✓ Im System</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -540,102 +429,49 @@ export default function BenutzerverwaltungNeu() {
         />
       </div>
 
-      {/* Section: Noch nicht aktiviert */}
-      {filteredUninvited.length > 0 && (
-        <Card className="border-amber-200 dark:border-amber-900">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-amber-600" />
-                <CardTitle className="text-lg">Warten auf Aktivierung</CardTitle>
-                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
-                  {filteredUninvited.length}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={toggleAllUninvited}>
-                  {selectedUninvited.size === filteredUninvited.length ? 'Keine' : 'Alle'} auswählen
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleBulkActivate}
-                  disabled={selectedUninvited.size === 0 || bulkActionLoading}
-                  className="gap-2"
-                >
-                  {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {selectedUninvited.size > 0 ? `${selectedUninvited.size} aktivieren` : 'Ausgewählte aktivieren'}
-                </Button>
-              </div>
-            </div>
-            <CardDescription>
-              Diese Mitarbeiter sind angelegt, haben aber noch keinen Zugang zum System.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {filteredUninvited.map((m) => (
-                <UninvitedRow
-                  key={m.id}
-                  mitarbeiter={m}
-                  isSelected={selectedUninvited.has(m.id)}
-                  onToggleSelect={() => toggleUninvitedSelection(m.id)}
-                  actionLoading={actionLoading}
-                  onActivate={handleOpenActivateDialog}
-                  onEdit={handleEditMitarbeiter}
-                   onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
-                   isProtected={isProtectedUser(m)}
-                   currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || null : null}
-                  onChangeRole={handleChangeRole}
-                   canAssignGF={isGeschaeftsfuehrer}
-                  canAssignRoles={isGeschaeftsfuehrer}
-                  canDelete={isGeschaeftsfuehrer}
-                  roleLabelMap={roleLabelMap}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Section: Aktive Teammitglieder */}
+      {/* Section: Alle aktiven Mitarbeiter */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Aktive Teammitglieder</CardTitle>
-            <Badge variant="secondary">{filteredActivated.length}</Badge>
+            <Users className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">Mitarbeiter</CardTitle>
+            <Badge variant="secondary">{filteredAllActive.length}</Badge>
           </div>
           <CardDescription>
-            Mitarbeiter mit aktivem Benutzerkonto im System
+            Alle aktiven Mitarbeiter – mit und ohne Systemzugang
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredActivated.length > 0 ? (
+          {filteredAllActive.length > 0 ? (
             <div className="space-y-2">
-              {filteredActivated.map((m) => (
-                <ActivatedRow
-                  key={m.id}
-                  mitarbeiter={m}
-                  actionLoading={actionLoading}
-                  onEdit={handleEditMitarbeiter}
-                  onDeactivate={(id) => { setSelectedMitarbeiter(id); setDeactivateDialogOpen(true); }}
-                  isProtected={isProtectedUser(m)}
-                  loadData={loadData}
-                  currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || 'mitarbeiter' : 'mitarbeiter'}
-                  onChangeRole={handleChangeRole}
-                  canAssignGF={isGeschaeftsfuehrer}
-                  canAssignRoles={isGeschaeftsfuehrer}
-                  roleLabelMap={roleLabelMap}
-                />
-              ))}
+              {filteredAllActive.map((m) => {
+                const hasRealAccount = m.benutzer_id && !m.benutzer?.email?.includes('@placeholder.local');
+                return (
+                  <EmployeeRow
+                    key={m.id}
+                    mitarbeiter={m}
+                    hasAccount={!!hasRealAccount}
+                    actionLoading={actionLoading}
+                    onEdit={handleEditMitarbeiter}
+                    onActivate={handleOpenActivateDialog}
+                    onDeactivate={(id) => { setSelectedMitarbeiter(id); setDeactivateDialogOpen(true); }}
+                    onDelete={(id) => { setSelectedMitarbeiter(id); setDeleteDialogOpen(true); }}
+                    isProtected={isProtectedUser(m)}
+                    loadData={loadData}
+                    currentRole={m.benutzer_id ? (userRolesMap[m.benutzer_id] as UserRole) || null : null}
+                    onChangeRole={handleChangeRole}
+                    canAssignGF={isGeschaeftsfuehrer}
+                    canAssignRoles={isGeschaeftsfuehrer}
+                    canDelete={isGeschaeftsfuehrer}
+                    roleLabelMap={roleLabelMap}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>{searchQuery ? 'Keine Mitarbeiter gefunden' : 'Noch keine aktivierten Mitarbeiter'}</p>
-              {!searchQuery && uninvitedMitarbeiter.length > 0 && (
-                <p className="text-sm mt-1">Aktivieren Sie oben stehende Mitarbeiter, um Zugänge zu erstellen.</p>
-              )}
+              <p>{searchQuery ? 'Keine Mitarbeiter gefunden' : 'Noch keine Mitarbeiter angelegt'}</p>
             </div>
           )}
         </CardContent>
@@ -931,82 +767,19 @@ export default function BenutzerverwaltungNeu() {
   );
 }
 
-// ─── Uninvited Employee Row ───
-function UninvitedRow({
-  mitarbeiter: m, isSelected, onToggleSelect, actionLoading, onActivate, onEdit, onDelete,
-  isProtected, currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
+// ─── Unified Employee Row ───
+function EmployeeRow({
+  mitarbeiter: m, hasAccount, actionLoading, onEdit, onActivate, onDeactivate, onDelete,
+  isProtected, loadData, currentRole, onChangeRole, canAssignGF, canAssignRoles, canDelete, roleLabelMap,
 }: {
-  mitarbeiter: Mitarbeiter; isSelected: boolean; onToggleSelect: () => void;
-  actionLoading: string | null; onActivate: (m: Mitarbeiter) => void;
-  onEdit: (m: Mitarbeiter) => void; onDelete: (id: string) => void;
-  isProtected?: boolean;
+  mitarbeiter: Mitarbeiter; hasAccount: boolean; actionLoading: string | null;
+  onEdit: (m: Mitarbeiter) => void; onActivate: (m: Mitarbeiter) => void;
+  onDeactivate: (id: string) => void; onDelete: (id: string) => void;
+  isProtected?: boolean; loadData: () => void;
   currentRole: UserRole | null; onChangeRole: (id: string, role: string) => void;
   canAssignGF: boolean; canAssignRoles: boolean; canDelete: boolean; roleLabelMap: Record<string, string>;
 }) {
   const fullName = `${m.vorname || ''} ${m.nachname || ''}`.trim() || 'Unbekannt';
-
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 border rounded-lg bg-background hover:bg-muted/30 transition-colors">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} />
-        <div className="min-w-0">
-          <p className="font-medium truncate">{fullName}</p>
-          {m.telefon && <p className="text-xs text-muted-foreground">{m.telefon}</p>}
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap pl-7 sm:pl-0">
-        {canAssignRoles ? (
-          <Select
-            value={currentRole || 'mitarbeiter'}
-            onValueChange={(v) => onChangeRole(m.id, v)}
-            disabled={actionLoading === m.id}
-          >
-            <SelectTrigger className="w-[140px] h-8 text-xs">
-              <div className="flex items-center gap-1.5">
-                <Shield className="h-3 w-3" />
-                <SelectValue />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              {canAssignGF && <SelectItem value="geschaeftsfuehrer">Geschäftsführer</SelectItem>}
-              <SelectItem value="admin">Disponent</SelectItem>
-              <SelectItem value="buchhaltung">Buchhaltung</SelectItem>
-              <SelectItem value="mitarbeiter">Mitarbeiter</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : currentRole ? (
-          <Badge variant="secondary"><Shield className="h-3 w-3 mr-1" />{roleLabelMap[currentRole] || currentRole}</Badge>
-        ) : null}
-        <Button variant="outline" size="sm" onClick={() => onActivate(m)} disabled={actionLoading === m.id} className="gap-1.5 text-xs">
-          {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
-          Aktivieren
-        </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onEdit(m)} disabled={actionLoading === m.id}>
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        {canDelete && !isProtected && (
-          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Mitarbeiter löschen">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Activated Employee Row ───
-function ActivatedRow({
-  mitarbeiter: m, actionLoading, onEdit, onDeactivate, isProtected, loadData,
-  currentRole, onChangeRole, canAssignGF, canAssignRoles, roleLabelMap,
-}: {
-  mitarbeiter: Mitarbeiter; actionLoading: string | null;
-  onEdit: (m: Mitarbeiter) => void; onDeactivate: (id: string) => void;
-  isProtected?: boolean; loadData: () => void;
-  currentRole: UserRole | null; onChangeRole: (id: string, role: string) => void;
-  canAssignGF: boolean; canAssignRoles: boolean; roleLabelMap: Record<string, string>;
-}) {
-  const fullName = `${m.vorname || ''} ${m.nachname || ''}`.trim() || 'Unbekannt';
-
   const isGlobalAdminUser = currentRole === 'globaladmin';
 
   const roleBadgeVariant = (role: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -1032,8 +805,23 @@ function ActivatedRow({
           onRemove={loadData}
         />
         <div className="min-w-0">
-          <p className="font-medium truncate">{fullName}</p>
-          <p className="text-xs text-muted-foreground truncate">{m.benutzer?.email || 'Keine E-Mail'}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium truncate">{fullName}</p>
+            {hasAccount ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-300 text-green-700 dark:border-green-700 dark:text-green-400 gap-1 shrink-0">
+                <CheckCircle2 className="h-2.5 w-2.5" />
+                Registriert
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400 gap-1 shrink-0">
+                <UserX className="h-2.5 w-2.5" />
+                Kein Zugang
+              </Badge>
+            )}
+          </div>
+          {hasAccount && m.benutzer?.email && (
+            <p className="text-xs text-muted-foreground truncate">{m.benutzer.email}</p>
+          )}
           {m.telefon && <p className="text-xs text-muted-foreground">{m.telefon}</p>}
         </div>
       </div>
@@ -1043,9 +831,9 @@ function ActivatedRow({
             <Shield className="h-3 w-3 mr-1" />
             Admin (geschützt)
           </Badge>
-        ) : currentRole && canAssignRoles ? (
+        ) : canAssignRoles ? (
           <Select
-            value={currentRole}
+            value={currentRole || 'mitarbeiter'}
             onValueChange={(v) => onChangeRole(m.id, v)}
             disabled={actionLoading === m.id}
           >
@@ -1068,14 +856,29 @@ function ActivatedRow({
             {roleLabelMap[currentRole] || currentRole}
           </Badge>
         ) : null}
+
+        {!hasAccount && (
+          <Button variant="outline" size="sm" onClick={() => onActivate(m)} disabled={actionLoading === m.id} className="gap-1.5 text-xs">
+            {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+            Aktivieren
+          </Button>
+        )}
+
         {!isGlobalAdminUser && (
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onEdit(m)} disabled={actionLoading === m.id}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>
         )}
-        {!isGlobalAdminUser && !isProtected && (
+
+        {hasAccount && !isGlobalAdminUser && !isProtected && (
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => onDeactivate(m.id)} disabled={actionLoading === m.id} title="Mitarbeiter deaktivieren">
             {actionLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserX className="h-3.5 w-3.5" />}
+          </Button>
+        )}
+
+        {!hasAccount && canDelete && !isProtected && (
+          <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(m.id)} disabled={actionLoading === m.id} title="Mitarbeiter löschen">
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
