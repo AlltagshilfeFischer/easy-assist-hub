@@ -142,16 +142,19 @@ export function CustomerSearchCombobox({
               </p>
             ) : (
               filteredCustomers.map((customer) => (
-                <button
+                <div
                   key={customer.id}
-                  type="button"
+                  role="option"
+                  aria-selected={value === customer.id}
                   className={cn(
-                    "flex items-center w-full px-3 py-2 text-sm cursor-pointer transition-colors",
+                    "flex items-center w-full px-3 py-2 text-sm cursor-pointer transition-colors select-none",
                     "hover:bg-accent hover:text-accent-foreground",
                     value === customer.id && "bg-accent/50"
                   )}
                   onMouseDown={(e) => {
                     e.preventDefault();
+                  }}
+                  onClick={(e) => {
                     e.stopPropagation();
                     onValueChange(customer.id);
                     setOpen(false);
@@ -165,7 +168,7 @@ export function CustomerSearchCombobox({
                     )}
                   />
                   <span className="truncate">{customer.name}</span>
-                </button>
+                </div>
               ))
             )}
           </div>
