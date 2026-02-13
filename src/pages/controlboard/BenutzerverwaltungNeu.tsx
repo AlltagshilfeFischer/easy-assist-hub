@@ -167,11 +167,11 @@ export default function BenutzerverwaltungNeu() {
     }
   };
 
-  const handleDeactivateEmployee = async () => {
+  const handleDeleteEmployee = async () => {
     if (!selectedMitarbeiter) return;
     const targetMa = [...uninvitedMitarbeiter, ...activatedMitarbeiter].find(m => m.id === selectedMitarbeiter);
     if (targetMa && isProtectedUser(targetMa)) {
-      toast({ variant: 'destructive', title: 'Geschützt', description: 'Dieser System-Account kann nicht deaktiviert werden.' });
+      toast({ variant: 'destructive', title: 'Geschützt', description: 'Dieser System-Account kann nicht gelöscht werden.' });
       setDeleteDialogOpen(false);
       return;
     }
@@ -182,7 +182,7 @@ export default function BenutzerverwaltungNeu() {
         const errMsg = typeof data === 'object' && data?.error ? data.error : error.message;
         throw new Error(errMsg);
       }
-      toast({ title: 'Erfolgreich', description: 'Mitarbeiter wurde deaktiviert.' });
+      toast({ title: 'Erfolgreich', description: 'Mitarbeiter wurde endgültig gelöscht.' });
       setDeleteDialogOpen(false);
       setSelectedMitarbeiter(null);
       loadData();
@@ -619,7 +619,7 @@ export default function BenutzerverwaltungNeu() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeactivateEmployee} className="bg-destructive text-destructive-foreground" disabled={actionLoading === selectedMitarbeiter}>
+            <AlertDialogAction onClick={handleDeleteEmployee} className="bg-destructive text-destructive-foreground" disabled={actionLoading === selectedMitarbeiter}>
               {actionLoading === selectedMitarbeiter && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Trash2 className="h-4 w-4 mr-1" />
               Endgültig löschen

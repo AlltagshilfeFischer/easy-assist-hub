@@ -112,25 +112,67 @@ Deno.serve(async (req) => {
       }
     }
 
-    // SOFT DELETE: Set ist_aktiv = false instead of physical deletion
-    const { error: deactivateError } = await supabaseAdmin
+    // Delete related records first to avoid FK violations
+    // Delete verfuegbarkeit
+    await supabaseAdmin
+      .from('mitarbeiter_verfuegbarkeit')
+      .delete()
+      .eq('mitarbeiter_id', mitarbeiterId)
+
+    // Delete abwesenheiten
+    await supabaseAdmin
+      .from('mitarbeiter_abwesenheiten')
+      .delete()
+      .eq('mitarbeiter_id', mitarbeiterId)
+
+    // Unassign from termine (set mitarbeiter_id to null instead of deleting termine)
+    await supabaseAdmin
+      .from('termine')
+      .update({ mitarbeiter_id: null, status: 'unassigned' })
+      .eq('mitarbeiter_id', mitarbeiterId)
+
+    // Unassign from termin_vorlagen
+    await supabaseAdmin
+      .from('termin_vorlagen')
+      .update({ mitarbeiter_id: null })
+      .eq('mitarbeiter_id', mitarbeiterId)
+
+    // Unassign from kunden
+    await supabaseAdmin
+      .from('kunden')
+      .update({ mitarbeiter: null })
+      .eq('mitarbeiter', mitarbeiterId)
+
+    // Delete user_roles if benutzer exists
+    if (mitarbeiter.benutzer_id) {
+      await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', mitarbeiter.benutzer_id)
+    }
+
+    // Delete the mitarbeiter record
+    const { error: deleteError } = await supabaseAdmin
       .from('mitarbeiter')
-      .update({ ist_aktiv: false })
+      .delete()
       .eq('id', mitarbeiterId)
 
-    if (deactivateError) {
-      return new Response(JSON.stringify({ error: deactivateError.message }), {
+    if (deleteError) {
+      return new Response(JSON.stringify({ error: deleteError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Also deactivate the benutzer record if it exists
+    // Delete the benutzer record if it exists
     if (mitarbeiter.benutzer_id) {
       await supabaseAdmin
         .from('benutzer')
-        .update({ status: 'rejected' })
+        .delete()
         .eq('id', mitarbeiter.benutzer_id)
+
+      // Also delete the auth user
+      await supabaseAdmin.auth.admin.deleteUser(mitarbeiter.benutzer_id)
     }
 
     return new Response(JSON.stringify({ success: true }), {
