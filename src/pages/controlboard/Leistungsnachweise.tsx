@@ -62,10 +62,10 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 };
 
 const terminStatusLabel: Record<string, { label: string; color: string }> = {
-  completed: { label: 'Stattgefunden', color: 'text-emerald-700 bg-emerald-50' },
+  completed: { label: 'Erfolgt', color: 'text-emerald-700 bg-emerald-50' },
   scheduled: { label: 'Geplant', color: 'text-blue-700 bg-blue-50' },
-  in_progress: { label: 'Läuft', color: 'text-amber-700 bg-amber-50' },
-  nicht_angetroffen: { label: 'Nicht angetroffen', color: 'text-amber-700 bg-amber-50' },
+  in_progress: { label: 'Offen', color: 'text-amber-700 bg-amber-50' },
+  nicht_angetroffen: { label: 'Nicht rechtzeitig abgesagt', color: 'text-amber-700 bg-amber-50' },
   abgesagt_rechtzeitig: { label: 'Rechtzeitig abgesagt', color: 'text-slate-600 bg-slate-50' },
   cancelled: { label: 'Abgesagt', color: 'text-red-700 bg-red-50' },
   unassigned: { label: 'Nicht zugewiesen', color: 'text-gray-600 bg-gray-50' },

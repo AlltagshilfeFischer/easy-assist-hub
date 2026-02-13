@@ -39,7 +39,7 @@ const controlboardItems: SidebarItem[] = [
   { title: 'Mitarbeiter', url: '/dashboard/controlboard/admin', icon: UserCog, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
   { title: 'Dokumentenverwaltung', url: '/dashboard/controlboard/dokumentenverwaltung', icon: FolderOpen, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin'] },
   { title: 'Leistungsnachweise', url: '/dashboard/controlboard/leistungsnachweise', icon: ClipboardCheck, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin'] },
-  { title: 'Leistungen & Abrechnungen', url: '/dashboard/controlboard/billing', icon: FileText, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin', 'buchhaltung'] },
+  
 ];
 
 const systemItems: SidebarItem[] = [

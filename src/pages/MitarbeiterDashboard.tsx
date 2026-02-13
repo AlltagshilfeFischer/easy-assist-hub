@@ -7,6 +7,7 @@ import { de } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { MyChangeRequests } from '@/components/mitarbeiter/MyChangeRequests';
+import { TerminBestaetigung } from '@/components/mitarbeiter/TerminBestaetigung';
 import { EmployeeWeekCalendar } from '@/components/schedule/EmployeeWeekCalendar';
 import { EmployeeChangeRequestDialog } from '@/components/schedule/EmployeeChangeRequestDialog';
 
@@ -126,6 +127,9 @@ export default function MitarbeiterDashboard() {
           Ihre Termine im Überblick
         </p>
       </div>
+
+      {/* Offene Terminbestätigungen */}
+      <TerminBestaetigung appointments={appointments} onUpdate={loadData} />
 
       {/* Week Navigation */}
       <Card>

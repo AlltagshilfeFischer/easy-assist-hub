@@ -9,9 +9,9 @@ interface LegendItem {
 
 export function ProCalendarLegend() {
   const items: LegendItem[] = [
-    { color: 'bg-success', label: 'Bestätigt', type: 'dot' },
+    { color: 'bg-success', label: 'Erfolgt', type: 'dot' },
     { color: 'bg-destructive', label: 'Dringend / Fehler', type: 'dot' },
-    { color: 'bg-amber-500', label: 'Nicht angetroffen', type: 'dot' },
+    { color: 'bg-amber-500', label: 'Nicht rechtzeitig abgesagt', type: 'dot' },
     { color: 'bg-slate-400', label: 'Rechtzeitig abgesagt', type: 'dot' },
   ];
 
