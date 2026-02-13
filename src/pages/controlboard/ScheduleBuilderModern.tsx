@@ -44,6 +44,7 @@ interface Employee {
   max_termine_pro_tag: number;
   farbe_kalender: string;
   workload: number;
+  rolle?: string;
   benutzer?: {
     email: string;
     vorname: string;
@@ -171,6 +172,7 @@ const ScheduleBuilderModern = () => {
         return {
           ...emp,
           name: fullName,
+          rolle: benutzer?.rolle || undefined,
           workload: Math.floor(Math.random() * 40) + 60
         };
       }) || [];

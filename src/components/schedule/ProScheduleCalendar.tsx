@@ -5,6 +5,15 @@ import { cn } from '@/lib/utils';
 import { ProAppointmentCard } from './ProAppointmentCard';
 import { EnhancedDropZone } from './EnhancedDropZone';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+
+const ROLE_LABELS: Record<string, string> = {
+  globaladmin: 'Admin (geschützt)',
+  geschaeftsfuehrer: 'Admin',
+  admin: 'Manager',
+  buchhaltung: 'Buchhaltung',
+  mitarbeiter: 'Mitarbeiter',
+};
 
 interface Employee {
   id: string;
@@ -16,6 +25,7 @@ interface Employee {
   ist_aktiv: boolean;
   soll_wochenstunden?: number;
   avatar_url?: string | null;
+  rolle?: string;
 }
 
 interface Appointment {
@@ -186,8 +196,13 @@ export function ProScheduleCalendar({
                   </Avatar>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-foreground truncate">
+                  <div className="font-medium text-sm text-foreground truncate flex items-center gap-1.5">
                     {employee.name}
+                    {employee.rolle && employee.rolle !== 'mitarbeiter' && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                        {ROLE_LABELS[employee.rolle] || employee.rolle}
+                      </Badge>
+                    )}
                   </div>
                   <div className={cn(
                     "text-xs font-medium",
