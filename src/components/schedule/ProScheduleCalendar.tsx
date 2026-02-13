@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 
 const ROLE_LABELS: Record<string, string> = {
   globaladmin: 'Admin (geschützt)',
-  geschaeftsfuehrer: 'Admin',
+  geschaeftsfuehrer: 'GF',
   admin: 'Manager',
   buchhaltung: 'Buchhaltung',
   mitarbeiter: 'Mitarbeiter',
