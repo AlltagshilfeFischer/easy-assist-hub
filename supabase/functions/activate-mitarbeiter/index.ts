@@ -186,35 +186,13 @@ Deno.serve(async (req) => {
     }
 
     // Send password reset email so user can set their own password
-    // Use the project's published URL for the redirect
     const siteUrl = Deno.env.get('SITE_URL') || `https://easy-assist-hub.lovable.app`;
     
-    const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: {
-        redirectTo: `${siteUrl}/?type=recovery`,
-      }
+    // IMPORTANT: generateLink only creates the link but does NOT send an email.
+    // We must use resetPasswordForEmail to actually send the email to the user.
+    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteUrl}/?type=recovery`,
     });
-
-    // If generateLink doesn't send email automatically, fall back to resetPasswordForEmail
-    if (resetError) {
-      console.warn('generateLink failed, trying resetPasswordForEmail:', resetError.message);
-      const supabaseAnon = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-      );
-      const { error: resetError2 } = await supabaseAnon.auth.resetPasswordForEmail(email, {
-        redirectTo: `${siteUrl}/?type=recovery`,
-      });
-      if (resetError2) {
-        console.warn('Password reset email could not be sent:', resetError2.message);
-      } else {
-        console.log('Password reset email sent via fallback to:', email);
-      }
-    } else {
-      console.log('Recovery link generated for:', email);
-    }
 
     if (resetError) {
       console.warn('Password reset email could not be sent:', resetError.message);
