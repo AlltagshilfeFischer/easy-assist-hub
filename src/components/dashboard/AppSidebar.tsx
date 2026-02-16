@@ -33,7 +33,7 @@ interface SidebarItem {
 
 const dashboardItems: SidebarItem[] = [
   { title: 'Dashboard', url: '/dashboard', icon: Home, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin', 'buchhaltung', 'mitarbeiter'] },
-  { title: 'Mein Bereich', url: '/dashboard/mein-bereich', icon: UserCircle, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
+  { title: 'Mein Bereich', url: '/dashboard/mein-bereich', icon: UserCircle, requiredRoles: ['geschaeftsfuehrer'] },
 ];
 
 const controlboardItems: SidebarItem[] = [
