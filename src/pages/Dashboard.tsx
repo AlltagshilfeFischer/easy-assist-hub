@@ -12,6 +12,7 @@ import BenutzerverwaltungNeu from './controlboard/BenutzerverwaltungNeu';
 import Billing from './controlboard/Billing';
 import Leistungsnachweise from './controlboard/Leistungsnachweise';
 import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
+import AktivitaetsLog from './controlboard/AktivitaetsLog';
 import MitarbeiterStart from './MitarbeiterStart';
 
 import Settings from './Settings';
@@ -81,6 +82,7 @@ export default function Dashboard() {
           <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
           <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
           <Route path="/controlboard/billing" element={<Billing />} />
+          <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </DashboardLayout>
