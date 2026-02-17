@@ -13,6 +13,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
   forcePasswordChange: boolean;
+  initialPassword: string | null;
   loading: boolean;
 }
 
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const [initialPassword, setInitialPassword] = useState<string | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -55,6 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
     });
+    if (!error) {
+      setInitialPassword(password);
+    }
     return { error };
   };
 
@@ -128,8 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { force_password_change: false }
     });
     if (!error) {
-      // Clear recovery mode after successful password change
       setRecoveryMode(false);
+      setInitialPassword(null);
     }
     return { error };
   };
@@ -146,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     updatePassword,
     forcePasswordChange,
+    initialPassword,
     loading,
   };
 

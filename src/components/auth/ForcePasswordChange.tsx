@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { KeyRound, Eye, EyeOff } from 'lucide-react';
 
 export function ForcePasswordChange({ children }: { children: React.ReactNode }) {
-  const { user, forcePasswordChange, updatePassword, signOut } = useAuth();
+  const { user, forcePasswordChange, updatePassword, signOut, initialPassword } = useAuth();
   const { toast } = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -27,6 +27,15 @@ export function ForcePasswordChange({ children }: { children: React.ReactNode })
         variant: 'destructive',
         title: 'Fehler',
         description: 'Das Passwort muss mindestens 8 Zeichen lang sein.',
+      });
+      return;
+    }
+
+    if (initialPassword && newPassword === initialPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Fehler',
+        description: 'Das neue Passwort darf nicht mit dem bisherigen Passwort übereinstimmen.',
       });
       return;
     }
