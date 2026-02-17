@@ -254,6 +254,23 @@ export default function BenutzerverwaltungNeu() {
 
   const handleActivateFromDialog = async () => {
     if (!activateTarget || !activateEmail) return;
+
+    // Check if email already exists in benutzer table
+    const { data: existingBenutzer } = await supabase
+      .from('benutzer')
+      .select('id, email')
+      .eq('email', activateEmail.toLowerCase())
+      .maybeSingle();
+
+    if (existingBenutzer) {
+      toast({
+        variant: 'destructive',
+        title: 'E-Mail bereits vergeben',
+        description: `Die E-Mail-Adresse "${activateEmail}" ist bereits einem anderen Konto zugeordnet. Bitte verwenden Sie eine andere E-Mail.`,
+      });
+      return;
+    }
+
     setActionLoading(activateTarget.id);
     try {
       const { data, error } = await supabase.functions.invoke('activate-mitarbeiter', {
