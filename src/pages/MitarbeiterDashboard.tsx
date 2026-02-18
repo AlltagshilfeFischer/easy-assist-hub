@@ -189,8 +189,8 @@ export default function MitarbeiterDashboard() {
       {/* Meine Dokumente - NUR für Mitarbeiter, nicht für GF */}
       {!isGF && <MeineDokumente />}
 
-      {/* Change Requests */}
-      <MyChangeRequests />
+      {/* Change Requests - nur für Mitarbeiter, nicht für GF (GF genehmigt diese) */}
+      {!isGF && <MyChangeRequests />}
 
       {/* Change Request Dialog */}
       {mitarbeiterId && (
