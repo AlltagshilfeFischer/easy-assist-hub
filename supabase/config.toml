@@ -8,3 +8,36 @@ verify_jwt = false
 
 [functions.activate-mitarbeiter]
 verify_jwt = false
+
+[functions.parse-time-windows]
+verify_jwt = false
+
+[functions.parse-kunden-text]
+verify_jwt = false
+
+[functions.parse-mitarbeiter-text]
+verify_jwt = false
+
+[functions.parse-appointment-text]
+verify_jwt = false
+
+[functions.suggest-employees]
+verify_jwt = false
+
+[functions.dashboard-assistant]
+verify_jwt = false
+
+[functions.approve-benutzer]
+verify_jwt = false
+
+[functions.reject-benutzer]
+verify_jwt = false
+
+[functions.create-user-manual]
+verify_jwt = false
+
+[functions.assign-employee-to-customer]
+verify_jwt = false
+
+[functions.batch-billing]
+verify_jwt = false
