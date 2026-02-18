@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,8 @@ interface SmartDataImportProps<T extends DataRow> {
   createEmptyRow: () => T;
   initialRowCount?: number;
   batchSize?: number; // For large imports
+  aiParseFunction?: string; // Edge function name for AI parsing
+  aiParseResultKey?: string; // Key in AI response (e.g. 'kunden', 'mitarbeiter')
 }
 
 interface CellPosition {
@@ -164,9 +167,13 @@ export function SmartDataImport<T extends DataRow>({
   createEmptyRow,
   initialRowCount = 20,
   batchSize = 100,
+  aiParseFunction,
+  aiParseResultKey,
 }: SmartDataImportProps<T>) {
-  const [step, setStep] = useState<'choose' | 'paste' | 'edit'>('choose');
+  const [step, setStep] = useState<'choose' | 'paste' | 'edit' | 'ai-input'>('choose');
   const [rawInput, setRawInput] = useState('');
+  const [aiInput, setAiInput] = useState('');
+  const [isAiParsing, setIsAiParsing] = useState(false);
   const [rows, setRows] = useState<T[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [activeCell, setActiveCell] = useState<CellPosition | null>(null);
@@ -518,6 +525,7 @@ export function SmartDataImport<T extends DataRow>({
     onOpenChange(false);
     setStep('choose');
     setRawInput('');
+    setAiInput('');
     setRows([]);
   };
 
@@ -528,6 +536,56 @@ export function SmartDataImport<T extends DataRow>({
   const handleChooseDirect = () => {
     setRows(Array.from({ length: initialRowCount }, createEmptyRow) as T[]);
     setStep('edit');
+  };
+
+  const handleChooseAi = () => {
+    setStep('ai-input');
+  };
+
+  const handleAiParse = async () => {
+    if (!aiInput.trim() || !aiParseFunction || !aiParseResultKey) return;
+    setIsAiParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(aiParseFunction, {
+        body: { text: aiInput },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      const parsed = data?.[aiParseResultKey];
+      if (!parsed?.length) {
+        toast({ title: 'Keine Daten erkannt', description: 'Die KI konnte keine Datensätze aus dem Text extrahieren.', variant: 'destructive' });
+        return;
+      }
+
+      const newRows: T[] = parsed.map((item: any) => {
+        const row = createEmptyRow();
+        for (const col of columns) {
+          if (item[col.key] !== undefined && item[col.key] !== null) {
+            (row as any)[col.key] = String(item[col.key]);
+          }
+        }
+        row.errors = validateRow(row);
+        return row;
+      });
+
+      // Add empty rows for editing
+      while (newRows.length < Math.max(parsed.length + 5, 10)) {
+        newRows.push(createEmptyRow());
+      }
+
+      setRows(newRows);
+      setStep('edit');
+
+      toast({
+        title: 'KI-Analyse abgeschlossen',
+        description: `${parsed.length} Datensätze erkannt. Bitte prüfen und korrigieren.`,
+      });
+    } catch (e: any) {
+      toast({ title: 'KI-Fehler', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsAiParsing(false);
+    }
   };
 
   return (
@@ -548,8 +606,27 @@ export function SmartDataImport<T extends DataRow>({
               <p className="text-sm text-muted-foreground">Wählen Sie die für Sie passende Methode</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-6 max-w-2xl w-full">
-              {/* Option 1: Paste Data */}
+            <div className={cn("grid gap-6 max-w-3xl w-full", aiParseFunction ? "grid-cols-3" : "grid-cols-2")}>
+              {/* Option 1: AI Freitext (only if AI function configured) */}
+              {aiParseFunction && (
+                <button
+                  onClick={handleChooseAi}
+                  className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer bg-primary/5"
+                >
+                  <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <div className="font-medium text-lg">KI Freitext</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Beliebigen Text einfügen – die KI erkennt und strukturiert die Daten
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">Empfohlen</Badge>
+                </button>
+              )}
+
+              {/* Option 2: Paste Data */}
               <button
                 onClick={handleChoosePaste}
                 className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
@@ -560,12 +637,12 @@ export function SmartDataImport<T extends DataRow>({
                 <div className="text-center">
                   <div className="font-medium text-lg">Daten einfügen</div>
                   <div className="text-sm text-muted-foreground mt-1">
-                    CSV, Excel oder Freitext einfügen und automatisch erkennen lassen
+                    CSV oder Excel-Daten mit klarer Spaltenstruktur einfügen
                   </div>
                 </div>
               </button>
 
-              {/* Option 2: Direct Edit */}
+              {/* Option 3: Direct Edit */}
               <button
                 onClick={handleChooseDirect}
                 className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
@@ -608,6 +685,38 @@ export function SmartDataImport<T extends DataRow>({
                 <Button onClick={handleParseRawInput}>
                   <Upload className="h-4 w-4 mr-2" />
                   Daten verarbeiten
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : step === 'ai-input' ? (
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Fügen Sie beliebigen Text ein – die KI erkennt Namen, Adressen, Telefonnummern und weitere Daten automatisch
+            </div>
+            
+            <Textarea
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              placeholder={`Beliebiger Text, z.B. kopiert aus einer Tabelle, E-Mail oder Notiz:\n\n10594 Simon Lieselotte 3 Karlstraße 29, 30559 Hannover Anderten 0511 587892 6/7/1939 AOK Niedersachsen...\n\nDie KI erkennt automatisch die Struktur und ordnet die Daten den richtigen Spalten zu.`}
+              className="min-h-[300px] font-mono text-sm"
+            />
+
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                Die KI analysiert den Text und extrahiert alle erkannten Datensätze
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep('choose')}>
+                  Zurück
+                </Button>
+                <Button onClick={handleAiParse} disabled={!aiInput.trim() || isAiParsing}>
+                  {isAiParsing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> KI analysiert...</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4 mr-2" /> Mit KI analysieren</>
+                  )}
                 </Button>
               </div>
             </div>

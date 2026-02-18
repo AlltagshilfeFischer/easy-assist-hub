@@ -17,6 +17,7 @@ interface KundenRow extends DataRow {
   kategorie: string;
   pflegekasse: string;
   versichertennummer: string;
+  sonstiges: string;
 }
 
 const COLUMNS: ColumnConfig[] = [
@@ -61,6 +62,7 @@ const COLUMNS: ColumnConfig[] = [
   { key: 'kategorie', label: 'Kategorie', required: false, width: 110, hint: 'Kunde/Interessent' },
   { key: 'pflegekasse', label: 'Pflegekasse', required: false, width: 120 },
   { key: 'versichertennummer', label: 'Versichertennr.', required: false, width: 130 },
+  { key: 'sonstiges', label: 'Sonstiges', required: false, width: 200 },
 ];
 
 const createEmptyRow = (): KundenRow => ({
@@ -78,6 +80,7 @@ const createEmptyRow = (): KundenRow => ({
   kategorie: '',
   pflegekasse: '',
   versichertennummer: '',
+  sonstiges: '',
   errors: [],
 });
 
@@ -113,7 +116,8 @@ export function KundenSmartImport({ open, onOpenChange }: KundenSmartImportProps
       kategorie: row.kategorie || 'Kunde',
       pflegekasse: row.pflegekasse?.trim() || null,
       versichertennummer: row.versichertennummer?.trim() || null,
-      aktiv: true,
+      sonstiges: row.sonstiges?.trim() || null,
+      aktiv: (row.kategorie || 'Kunde') === 'Kunde',
       eintritt: new Date().toISOString().slice(0, 10),
     }));
 
@@ -139,6 +143,8 @@ export function KundenSmartImport({ open, onOpenChange }: KundenSmartImportProps
       createEmptyRow={createEmptyRow}
       initialRowCount={20}
       batchSize={200}
+      aiParseFunction="parse-kunden-text"
+      aiParseResultKey="kunden"
     />
   );
 }
