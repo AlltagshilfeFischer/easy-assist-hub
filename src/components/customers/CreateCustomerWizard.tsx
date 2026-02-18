@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Sparkles, ArrowLeft, ArrowRight, Loader2, UserCheck, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Sparkles, ArrowRight, Loader2, UserCheck, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
@@ -29,6 +29,12 @@ interface TimeWindow {
   wochentag: number;
   von: string;
   bis: string;
+}
+
+interface NotfallKontakt {
+  name: string;
+  bezug: string;
+  telefon: string;
 }
 
 interface EmployeeSuggestion {
@@ -52,6 +58,13 @@ interface CreateCustomerWizardProps {
 }
 
 const WEEKDAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+const WEEKDAY_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+const SHIFT_BLOCKS = [
+  { label: 'Vormittag', key: 'vormittag', von: '08:00', bis: '12:00' },
+  { label: 'Mittag', key: 'mittag', von: '12:00', bis: '15:00' },
+  { label: 'Nachmittag', key: 'nachmittag', von: '15:00', bis: '18:00' },
+];
 
 export default function CreateCustomerWizard({ 
   open, 
@@ -64,7 +77,6 @@ export default function CreateCustomerWizard({
   const [isLoading, setIsLoading] = useState(false);
   const [createdCustomerId, setCreatedCustomerId] = useState<string | null>(null);
   
-  // Employee suggestion state
   const [preferences, setPreferences] = useState('');
   const [frequency, setFrequency] = useState('');
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -88,29 +100,70 @@ export default function CreateCustomerWizard({
     vorname: '',
     nachname: '',
     geburtsdatum: '',
+    geschlecht: '',
     strasse: '',
     stadt: '',
     plz: '',
     stadtteil: '',
     telefonnr: '',
     email: '',
+    kontaktweg: '',
     pflegekasse: '',
     versichertennummer: '',
     pflegegrad: '',
     kasse_privat: '',
     verhinderungspflege_status: '',
     kopie_lw: '',
+    rechnungskopie: [] as string[],
+    rechnungskopie_adresse_name: '',
+    rechnungskopie_adresse_strasse: '',
+    rechnungskopie_adresse_plz: '',
+    rechnungskopie_adresse_stadt: '',
     stunden_kontingent_monat: '',
+    terminfrequenz: '',
+    termindauer_stunden: '1.5',
     startdatum: '',
     eintritt: getCurrentMonth(),
     austritt: '',
-    notfall_name: '',
-    notfall_telefon: '',
     angehoerige_ansprechpartner: '',
     has_regular_appointments: false,
     mitarbeiter: '',
-    zeitfenster: [] as TimeWindow[]
+    zeitfenster: [] as TimeWindow[],
+    notfallkontakte: [{ name: '', bezug: '', telefon: '' }] as NotfallKontakt[],
+    sonstiges: '',
   });
+
+  // Wochenmatrix state: [wochentag][shift_key] = boolean
+  const [weekMatrix, setWeekMatrix] = useState<Record<number, Record<string, boolean>>>({});
+
+  const toggleMatrixCell = (day: number, shiftKey: string) => {
+    setWeekMatrix(prev => {
+      const updated = { ...prev };
+      if (!updated[day]) updated[day] = {};
+      updated[day] = { ...updated[day], [shiftKey]: !updated[day][shiftKey] };
+      return updated;
+    });
+
+    // Sync to zeitfenster
+    const shift = SHIFT_BLOCKS.find(s => s.key === shiftKey)!;
+    const isCurrentlyActive = weekMatrix[day]?.[shiftKey];
+
+    if (isCurrentlyActive) {
+      // Remove
+      setCustomerData(prev => ({
+        ...prev,
+        zeitfenster: prev.zeitfenster.filter(
+          z => !(z.wochentag === day && z.von === shift.von && z.bis === shift.bis)
+        )
+      }));
+    } else {
+      // Add
+      setCustomerData(prev => ({
+        ...prev,
+        zeitfenster: [...prev.zeitfenster, { wochentag: day, von: shift.von, bis: shift.bis }]
+      }));
+    }
+  };
 
   const resetWizard = () => {
     setStep('customer');
@@ -120,33 +173,43 @@ export default function CreateCustomerWizard({
     setFrequency('');
     setSuggestions([]);
     setSelectedEmployee(null);
+    setWeekMatrix({});
     setCustomerData({
       kategorie: 'Kunde',
       vorname: '',
       nachname: '',
       geburtsdatum: '',
+      geschlecht: '',
       strasse: '',
       stadt: '',
       plz: '',
       stadtteil: '',
       telefonnr: '',
       email: '',
+      kontaktweg: '',
       pflegekasse: '',
       versichertennummer: '',
       pflegegrad: '',
       kasse_privat: '',
       verhinderungspflege_status: '',
       kopie_lw: '',
+      rechnungskopie: [],
+      rechnungskopie_adresse_name: '',
+      rechnungskopie_adresse_strasse: '',
+      rechnungskopie_adresse_plz: '',
+      rechnungskopie_adresse_stadt: '',
       stunden_kontingent_monat: '',
+      terminfrequenz: '',
+      termindauer_stunden: '1.5',
       startdatum: '',
       eintritt: getCurrentMonth(),
       austritt: '',
-      notfall_name: '',
-      notfall_telefon: '',
       angehoerige_ansprechpartner: '',
       has_regular_appointments: false,
       mitarbeiter: '',
-      zeitfenster: []
+      zeitfenster: [],
+      notfallkontakte: [{ name: '', bezug: '', telefon: '' }],
+      sonstiges: '',
     });
   };
 
@@ -155,23 +218,19 @@ export default function CreateCustomerWizard({
     onOpenChange(false);
   };
 
-  // Step 1: Save customer data and time windows
   const handleSaveCustomerAndTimeWindows = async () => {
     if (!customerData.vorname || !customerData.nachname) {
       toast.error('Bitte Vor- und Nachname ausfüllen');
       return;
     }
-
     if (!customerData.strasse.trim()) {
       toast.error('Bitte Straße und Hausnummer ausfüllen');
       return;
     }
-
     if (!customerData.plz.trim() || !/^\d{5}$/.test(customerData.plz.trim())) {
       toast.error('Bitte eine gültige 5-stellige PLZ eingeben');
       return;
     }
-
     if (!customerData.telefonnr.trim()) {
       toast.error('Bitte Telefonnummer ausfüllen');
       return;
@@ -179,8 +238,7 @@ export default function CreateCustomerWizard({
 
     setIsLoading(true);
     try {
-      // Create customer
-      const insertData = {
+      const insertData: Record<string, any> = {
         kategorie: customerData.kategorie,
         vorname: customerData.vorname,
         nachname: customerData.nachname,
@@ -191,10 +249,14 @@ export default function CreateCustomerWizard({
         plz: customerData.plz || null,
         stadtteil: customerData.stadtteil || null,
         geburtsdatum: customerData.geburtsdatum || null,
+        geschlecht: customerData.geschlecht || null,
+        kontaktweg: customerData.kontaktweg || null,
         pflegekasse: customerData.pflegekasse || null,
         versichertennummer: customerData.versichertennummer || null,
         pflegegrad: customerData.pflegegrad ? parseInt(customerData.pflegegrad) : null,
         stunden_kontingent_monat: customerData.stunden_kontingent_monat ? parseFloat(customerData.stunden_kontingent_monat) : null,
+        terminfrequenz: customerData.terminfrequenz || null,
+        termindauer_stunden: customerData.termindauer_stunden ? parseFloat(customerData.termindauer_stunden) : 1.5,
         startdatum: customerData.startdatum || null,
         eintritt: monthToDate(customerData.eintritt),
         austritt: monthToDate(customerData.austritt),
@@ -202,7 +264,16 @@ export default function CreateCustomerWizard({
         kasse_privat: customerData.kasse_privat || null,
         verhinderungspflege_status: customerData.verhinderungspflege_status || null,
         kopie_lw: customerData.kopie_lw || null,
+        rechnungskopie: customerData.rechnungskopie.length > 0 ? customerData.rechnungskopie : null,
+        sonstiges: customerData.sonstiges || null,
       };
+
+      if (customerData.rechnungskopie.includes('abweichende_adresse')) {
+        insertData.rechnungskopie_adresse_name = customerData.rechnungskopie_adresse_name || null;
+        insertData.rechnungskopie_adresse_strasse = customerData.rechnungskopie_adresse_strasse || null;
+        insertData.rechnungskopie_adresse_plz = customerData.rechnungskopie_adresse_plz || null;
+        insertData.rechnungskopie_adresse_stadt = customerData.rechnungskopie_adresse_stadt || null;
+      }
 
       const { data: customer, error: customerError } = await (supabase as any)
         .from('kunden')
@@ -230,13 +301,28 @@ export default function CreateCustomerWizard({
         if (zeitfensterError) throw zeitfensterError;
       }
 
-      toast.success('Kundendaten und Zeitfenster gespeichert');
+      // Save Notfallkontakte
+      const validKontakte = customerData.notfallkontakte.filter(k => k.name.trim() && k.telefon.trim());
+      if (validKontakte.length > 0) {
+        const kontakteToInsert = validKontakte.map(k => ({
+          kunden_id: customer.id,
+          name: k.name.trim(),
+          bezug: k.bezug.trim() || null,
+          telefon: k.telefon.trim(),
+        }));
+
+        const { error: kontaktError } = await (supabase as any)
+          .from('notfallkontakte')
+          .insert(kontakteToInsert);
+
+        if (kontaktError) throw kontaktError;
+      }
+
+      toast.success('Kundendaten gespeichert');
       
-      // Go to employee matching if they want regular appointments
       if (customerData.has_regular_appointments && customerData.zeitfenster.length > 0) {
         setStep('employees');
       } else {
-        // No regular appointments, done
         handleClose();
         onSuccess();
       }
@@ -248,7 +334,6 @@ export default function CreateCustomerWizard({
     }
   };
 
-  // Step 2: Generate employee suggestions
   const handleGenerateSuggestions = async () => {
     if (!frequency.trim()) {
       toast.error('Bitte Frequenz angeben');
@@ -277,19 +362,12 @@ export default function CreateCustomerWizard({
       toast.success(`${data.suggestions.length} Mitarbeiter vorgeschlagen`);
     } catch (error: any) {
       console.error('Error suggesting employees:', error);
-      if (error.message?.includes('Rate limit')) {
-        toast.error('Zu viele Anfragen. Bitte versuchen Sie es später erneut.');
-      } else if (error.message?.includes('credits')) {
-        toast.error('Nicht genügend Credits. Bitte fügen Sie Credits hinzu.');
-      } else {
-        toast.error('Fehler beim Vorschlagen von Mitarbeitern');
-      }
+      toast.error('Fehler beim Vorschlagen von Mitarbeitern');
     } finally {
       setSuggestionsLoading(false);
     }
   };
 
-  // Step 3: Confirm employee and create recurring appointment
   const handleConfirmEmployee = async () => {
     if (!selectedEmployee || !createdCustomerId) {
       toast.error('Bitte wählen Sie einen Mitarbeiter aus');
@@ -298,7 +376,6 @@ export default function CreateCustomerWizard({
 
     setIsLoading(true);
     try {
-      // Update customer with assigned employee
       const { error: updateError } = await (supabase as any)
         .from('kunden')
         .update({ mitarbeiter: selectedEmployee })
@@ -306,25 +383,13 @@ export default function CreateCustomerWizard({
 
       if (updateError) throw updateError;
 
-      // Create recurring appointments based on time windows
       for (const timeWindow of customerData.zeitfenster) {
-        // Calculate the next occurrence of this weekday
         const today = new Date();
         const dayOfWeek = timeWindow.wochentag;
         const daysUntilNext = (dayOfWeek - today.getDay() + 7) % 7 || 7;
         const nextDate = new Date(today);
         nextDate.setDate(today.getDate() + daysUntilNext);
-        
-        const startTime = timeWindow.von.split(':');
-        const endTime = timeWindow.bis.split(':');
-        
-        const startAt = new Date(nextDate);
-        startAt.setHours(parseInt(startTime[0]), parseInt(startTime[1]), 0, 0);
-        
-        const endAt = new Date(nextDate);
-        endAt.setHours(parseInt(endTime[0]), parseInt(endTime[1]), 0, 0);
 
-        // Create termin_vorlage (recurring template)
         const { error: vorlageError } = await (supabase as any)
           .from('termin_vorlagen')
           .insert([{
@@ -334,7 +399,7 @@ export default function CreateCustomerWizard({
             wochentag: timeWindow.wochentag,
             start_zeit: timeWindow.von,
             dauer_minuten: calculateDuration(timeWindow.von, timeWindow.bis),
-            intervall: frequency.toLowerCase().includes('wöchentlich') || frequency.toLowerCase().includes('jeden') ? 'weekly' : 'weekly',
+            intervall: 'weekly',
             ist_aktiv: true,
             gueltig_von: new Date().toISOString().split('T')[0]
           }]);
@@ -373,6 +438,37 @@ export default function CreateCustomerWizard({
     onSuccess();
   };
 
+  const handleRechnungskopieToggle = (value: string) => {
+    setCustomerData(prev => ({
+      ...prev,
+      rechnungskopie: prev.rechnungskopie.includes(value)
+        ? prev.rechnungskopie.filter(v => v !== value)
+        : [...prev.rechnungskopie, value]
+    }));
+  };
+
+  const addNotfallkontakt = () => {
+    setCustomerData(prev => ({
+      ...prev,
+      notfallkontakte: [...prev.notfallkontakte, { name: '', bezug: '', telefon: '' }]
+    }));
+  };
+
+  const removeNotfallkontakt = (index: number) => {
+    setCustomerData(prev => ({
+      ...prev,
+      notfallkontakte: prev.notfallkontakte.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateNotfallkontakt = (index: number, field: keyof NotfallKontakt, value: string) => {
+    setCustomerData(prev => {
+      const updated = [...prev.notfallkontakte];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, notfallkontakte: updated };
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={(open) => {
       if (!open) handleClose();
@@ -382,13 +478,11 @@ export default function CreateCustomerWizard({
         <DialogHeader>
           <DialogTitle>
             {step === 'customer' && 'Schritt 1: Kundendaten'}
-            {step === 'timewindows' && 'Schritt 2: Zeitfenster'}
-            {step === 'employees' && 'Schritt 3: Mitarbeiter-Matching'}
+            {step === 'employees' && 'Schritt 2: Mitarbeiter-Matching'}
           </DialogTitle>
           <DialogDescription>
             {step === 'customer' && 'Erfassen Sie die Kundendaten und Zeitfenster'}
-            {step === 'timewindows' && 'Definieren Sie die Zeitfenster für regelmäßige Termine'}
-            {step === 'employees' && 'KI-gestützte Mitarbeiter-Zuordnung basierend auf Zeitfenstern und Präferenzen'}
+            {step === 'employees' && 'KI-gestützte Mitarbeiter-Zuordnung'}
           </DialogDescription>
         </DialogHeader>
 
@@ -422,14 +516,10 @@ export default function CreateCustomerWizard({
                   }`}
                 >
                   <div className="text-center space-y-2">
-                    <div className={`text-2xl font-bold ${
-                      customerData.kategorie === 'Interessent' ? 'text-primary' : 'text-foreground'
-                    }`}>
+                    <div className={`text-2xl font-bold ${customerData.kategorie === 'Interessent' ? 'text-primary' : 'text-foreground'}`}>
                       Interessent
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Für potenzielle neue Kunden
-                    </p>
+                    <p className="text-sm text-muted-foreground">Für potenzielle neue Kunden</p>
                   </div>
                 </button>
                 
@@ -443,14 +533,10 @@ export default function CreateCustomerWizard({
                   }`}
                 >
                   <div className="text-center space-y-2">
-                    <div className={`text-2xl font-bold ${
-                      customerData.kategorie === 'Kunde' ? 'text-primary' : 'text-foreground'
-                    }`}>
+                    <div className={`text-2xl font-bold ${customerData.kategorie === 'Kunde' ? 'text-primary' : 'text-foreground'}`}>
                       Kunde
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Für bestehende Kunden
-                    </p>
+                    <p className="text-sm text-muted-foreground">Für bestehende Kunden</p>
                   </div>
                 </button>
               </div>
@@ -459,7 +545,7 @@ export default function CreateCustomerWizard({
             {/* Basis-Informationen */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Basis-Informationen</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="vorname">Vorname *</Label>
                   <Input
@@ -488,6 +574,23 @@ export default function CreateCustomerWizard({
                     value={customerData.geburtsdatum}
                     onChange={(e) => setCustomerData({ ...customerData, geburtsdatum: e.target.value })}
                   />
+                </div>
+                <div>
+                  <Label>Geschlecht</Label>
+                  <Select
+                    value={customerData.geschlecht}
+                    onValueChange={(value) => setCustomerData({ ...customerData, geschlecht: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="maennlich">Männlich</SelectItem>
+                      <SelectItem value="weiblich">Weiblich</SelectItem>
+                      <SelectItem value="divers">Divers</SelectItem>
+                      <SelectItem value="keine_angabe">Keine Angabe</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -531,7 +634,7 @@ export default function CreateCustomerWizard({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="stadtteil">Stadtteil</Label>
                   <Input
@@ -560,6 +663,22 @@ export default function CreateCustomerWizard({
                     onChange={(e) => setCustomerData({ ...customerData, email: e.target.value })}
                     placeholder="kunde@email.de"
                   />
+                </div>
+                <div>
+                  <Label>Bevorzugter Kontaktweg</Label>
+                  <Select
+                    value={customerData.kontaktweg}
+                    onValueChange={(value) => setCustomerData({ ...customerData, kontaktweg: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="telefon">Telefon</SelectItem>
+                      <SelectItem value="email">E-Mail</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -595,6 +714,7 @@ export default function CreateCustomerWizard({
                       <SelectValue placeholder="Auswählen" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="nicht_vorhanden">Nicht vorhanden</SelectItem>
                       <SelectItem value="0">0</SelectItem>
                       <SelectItem value="1">1</SelectItem>
                       <SelectItem value="2">2</SelectItem>
@@ -618,12 +738,11 @@ export default function CreateCustomerWizard({
                     <SelectContent>
                       <SelectItem value="Kasse">Kasse</SelectItem>
                       <SelectItem value="Privat">Privat</SelectItem>
-                      <SelectItem value="Abweichende Rechnungsadresse">Abweichende Rechnungsadresse</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="verhinderungspflege_status">Verhinderungspflege Status</Label>
+                  <Label htmlFor="verhinderungspflege_status">Verhinderungspflege</Label>
                   <Input
                     id="verhinderungspflege_status"
                     value={customerData.verhinderungspflege_status}
@@ -648,12 +767,108 @@ export default function CreateCustomerWizard({
               </div>
             </div>
 
+            {/* Rechnungskopie-Logik */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Rechnungskopie</h3>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rk_email"
+                    checked={customerData.rechnungskopie.includes('email')}
+                    onCheckedChange={() => handleRechnungskopieToggle('email')}
+                  />
+                  <Label htmlFor="rk_email" className="cursor-pointer">Per E-Mail</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rk_kunde"
+                    checked={customerData.rechnungskopie.includes('kunde')}
+                    onCheckedChange={() => handleRechnungskopieToggle('kunde')}
+                  />
+                  <Label htmlFor="rk_kunde" className="cursor-pointer">An Kunde (Standardadresse)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="rk_abweichend"
+                    checked={customerData.rechnungskopie.includes('abweichende_adresse')}
+                    onCheckedChange={() => handleRechnungskopieToggle('abweichende_adresse')}
+                  />
+                  <Label htmlFor="rk_abweichend" className="cursor-pointer">Abweichende Adresse</Label>
+                </div>
+              </div>
+              {customerData.rechnungskopie.includes('abweichende_adresse') && (
+                <div className="grid grid-cols-4 gap-4 p-3 border rounded-lg bg-muted/30">
+                  <div>
+                    <Label>Name</Label>
+                    <Input
+                      value={customerData.rechnungskopie_adresse_name}
+                      onChange={(e) => setCustomerData({ ...customerData, rechnungskopie_adresse_name: e.target.value })}
+                      placeholder="Empfänger"
+                    />
+                  </div>
+                  <div>
+                    <Label>Straße</Label>
+                    <Input
+                      value={customerData.rechnungskopie_adresse_strasse}
+                      onChange={(e) => setCustomerData({ ...customerData, rechnungskopie_adresse_strasse: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>PLZ</Label>
+                    <Input
+                      value={customerData.rechnungskopie_adresse_plz}
+                      onChange={(e) => setCustomerData({ ...customerData, rechnungskopie_adresse_plz: e.target.value })}
+                      maxLength={5}
+                    />
+                  </div>
+                  <div>
+                    <Label>Stadt</Label>
+                    <Input
+                      value={customerData.rechnungskopie_adresse_stadt}
+                      onChange={(e) => setCustomerData({ ...customerData, rechnungskopie_adresse_stadt: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Stunden & Termine */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Stunden & Termine</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="text-lg font-semibold">Termine & Frequenz</h3>
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="stunden_kontingent_monat">Stunden</Label>
+                  <Label>Terminfrequenz</Label>
+                  <Select
+                    value={customerData.terminfrequenz}
+                    onValueChange={(value) => setCustomerData({ ...customerData, terminfrequenz: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="alle_14_tage">Alle 14 Tage</SelectItem>
+                      <SelectItem value="woechentlich">Wöchentlich</SelectItem>
+                      <SelectItem value="2x_woechentlich">2x Wöchentlich</SelectItem>
+                      <SelectItem value="3x_woechentlich">3x Wöchentlich</SelectItem>
+                      <SelectItem value="4x_woechentlich">4x Wöchentlich</SelectItem>
+                      <SelectItem value="5x_woechentlich">5x Wöchentlich</SelectItem>
+                      <SelectItem value="nach_bedarf">Nach Bedarf</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="termindauer">Termindauer (Std.)</Label>
+                  <Input
+                    id="termindauer"
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    value={customerData.termindauer_stunden}
+                    onChange={(e) => setCustomerData({ ...customerData, termindauer_stunden: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="stunden_kontingent_monat">Stunden / Monat</Label>
                   <Input
                     id="stunden_kontingent_monat"
                     type="number"
@@ -662,10 +877,19 @@ export default function CreateCustomerWizard({
                     onChange={(e) => setCustomerData({ ...customerData, stunden_kontingent_monat: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="startdatum">Startdatum</Label>
+                  <Label>Eintritt</Label>
                   <Input
-                    id="startdatum"
+                    type="month"
+                    value={customerData.eintritt}
+                    onChange={(e) => setCustomerData({ ...customerData, eintritt: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Startdatum</Label>
+                  <Input
                     type="date"
                     value={customerData.startdatum}
                     onChange={(e) => setCustomerData({ ...customerData, startdatum: e.target.value })}
@@ -674,30 +898,10 @@ export default function CreateCustomerWizard({
               </div>
             </div>
 
-            {/* Betreuung */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Betreuung</h3>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="has_regular_appointments"
-                  checked={customerData.has_regular_appointments}
-                  onCheckedChange={(checked) => 
-                    setCustomerData({ 
-                      ...customerData, 
-                      has_regular_appointments: checked as boolean
-                    })
-                  }
-                />
-                <Label htmlFor="has_regular_appointments" className="cursor-pointer">
-                  Kunde hat regelmäßige Termine
-                </Label>
-              </div>
-            </div>
-
-            {/* Zeitfenster Section */}
+            {/* Wochenmatrix */}
             <div className="space-y-3 border-t pt-4">
               <div className="flex items-center justify-between">
-                <Label className="text-lg font-semibold">Zeitfenster</Label>
+                <Label className="text-lg font-semibold">Passende Zeiten (Wochenmatrix)</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -708,100 +912,214 @@ export default function CreateCustomerWizard({
                     <Sparkles className="h-4 w-4 mr-1" />
                     KI-Zeitfenster
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setCustomerData({
-                        ...customerData,
-                        zeitfenster: [...customerData.zeitfenster, {
-                          wochentag: 1,
-                          von: '08:00',
-                          bis: '12:00'
-                        }]
-                      });
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Manuell hinzufügen
-                  </Button>
                 </div>
               </div>
 
-              {customerData.zeitfenster.map((zeitfenster, index) => (
-                <div key={index} className="grid grid-cols-[1fr,1fr,1fr,auto] gap-2 items-end p-3 border rounded-lg">
-                  <div>
-                    <Label className="text-xs">Wochentag</Label>
-                    <select
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
-                      value={zeitfenster.wochentag}
-                      onChange={(e) => {
-                        const updated = [...customerData.zeitfenster];
-                        updated[index] = { ...updated[index], wochentag: parseInt(e.target.value) };
+              {/* Clickable matrix */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="text-left text-xs font-medium text-muted-foreground p-2 w-24"></th>
+                      {[1, 2, 3, 4, 5, 6, 0].map(day => (
+                        <th key={day} className="text-center text-xs font-medium text-muted-foreground p-2">
+                          {WEEKDAY_SHORT[day]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SHIFT_BLOCKS.map(shift => (
+                      <tr key={shift.key}>
+                        <td className="text-xs font-medium text-muted-foreground p-2">
+                          {shift.label}
+                          <span className="block text-[10px] text-muted-foreground/60">{shift.von}–{shift.bis}</span>
+                        </td>
+                        {[1, 2, 3, 4, 5, 6, 0].map(day => {
+                          const isActive = weekMatrix[day]?.[shift.key];
+                          return (
+                            <td key={day} className="p-1 text-center">
+                              <button
+                                type="button"
+                                onClick={() => toggleMatrixCell(day, shift.key)}
+                                className={`w-full h-10 rounded-md border text-xs font-medium transition-all ${
+                                  isActive
+                                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                    : 'bg-background border-border hover:bg-muted hover:border-primary/40'
+                                }`}
+                              >
+                                {isActive ? '✓' : ''}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Additional manual time windows */}
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-xs text-muted-foreground">Oder individuelle Zeitfenster hinzufügen:</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setCustomerData({
+                      ...customerData,
+                      zeitfenster: [...customerData.zeitfenster, { wochentag: 1, von: '08:00', bis: '12:00' }]
+                    });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Manuell
+                </Button>
+              </div>
+
+              {customerData.zeitfenster.filter(z => {
+                // Show only those NOT from matrix
+                return !SHIFT_BLOCKS.some(s => s.von === z.von && s.bis === z.bis);
+              }).map((zeitfenster, index) => {
+                const realIndex = customerData.zeitfenster.indexOf(zeitfenster);
+                return (
+                  <div key={realIndex} className="grid grid-cols-[1fr,1fr,1fr,auto] gap-2 items-end p-3 border rounded-lg">
+                    <div>
+                      <Label className="text-xs">Wochentag</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                        value={zeitfenster.wochentag}
+                        onChange={(e) => {
+                          const updated = [...customerData.zeitfenster];
+                          updated[realIndex] = { ...updated[realIndex], wochentag: parseInt(e.target.value) };
+                          setCustomerData({ ...customerData, zeitfenster: updated });
+                        }}
+                      >
+                        {[0,1,2,3,4,5,6].map(d => (
+                          <option key={d} value={d}>{WEEKDAY_NAMES[d]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Von</Label>
+                      <Input
+                        type="time"
+                        value={zeitfenster.von || ''}
+                        onChange={(e) => {
+                          const updated = [...customerData.zeitfenster];
+                          updated[realIndex] = { ...updated[realIndex], von: e.target.value };
+                          setCustomerData({ ...customerData, zeitfenster: updated });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Bis</Label>
+                      <Input
+                        type="time"
+                        value={zeitfenster.bis || ''}
+                        onChange={(e) => {
+                          const updated = [...customerData.zeitfenster];
+                          updated[realIndex] = { ...updated[realIndex], bis: e.target.value };
+                          setCustomerData({ ...customerData, zeitfenster: updated });
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const updated = customerData.zeitfenster.filter((_, i) => i !== realIndex);
                         setCustomerData({ ...customerData, zeitfenster: updated });
                       }}
                     >
-                      <option value="0">Sonntag</option>
-                      <option value="1">Montag</option>
-                      <option value="2">Dienstag</option>
-                      <option value="3">Mittwoch</option>
-                      <option value="4">Donnerstag</option>
-                      <option value="5">Freitag</option>
-                      <option value="6">Samstag</option>
-                    </select>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
-                  <div>
-                    <Label className="text-xs">Von</Label>
-                    <Input
-                      type="time"
-                      value={zeitfenster.von || ''}
-                      onChange={(e) => {
-                        const updated = [...customerData.zeitfenster];
-                        updated[index] = { ...updated[index], von: e.target.value };
-                        setCustomerData({ ...customerData, zeitfenster: updated });
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Bis</Label>
-                    <Input
-                      type="time"
-                      value={zeitfenster.bis || ''}
-                      onChange={(e) => {
-                        const updated = [...customerData.zeitfenster];
-                        updated[index] = { ...updated[index], bis: e.target.value };
-                        setCustomerData({ ...customerData, zeitfenster: updated });
-                      }}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      const updated = customerData.zeitfenster.filter((_, i) => i !== index);
-                      setCustomerData({ ...customerData, zeitfenster: updated });
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
 
-              {customerData.zeitfenster.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Keine Zeitfenster definiert
-                </p>
+              {customerData.zeitfenster.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  {customerData.zeitfenster.length} Zeitfenster ausgewählt
+                </div>
               )}
             </div>
 
+            {/* Notfallkontakte */}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Notfallkontakte</h3>
+                <Button type="button" variant="outline" size="sm" onClick={addNotfallkontakt}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Kontakt hinzufügen
+                </Button>
+              </div>
+              {customerData.notfallkontakte.map((kontakt, index) => (
+                <div key={index} className="grid grid-cols-[1fr,1fr,1fr,auto] gap-2 items-end p-3 border rounded-lg">
+                  <div>
+                    <Label className="text-xs">Name</Label>
+                    <Input
+                      value={kontakt.name}
+                      onChange={(e) => updateNotfallkontakt(index, 'name', e.target.value)}
+                      placeholder="Name"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Bezug</Label>
+                    <Input
+                      value={kontakt.bezug}
+                      onChange={(e) => updateNotfallkontakt(index, 'bezug', e.target.value)}
+                      placeholder="z.B. Sohn, Nachbar"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Telefon</Label>
+                    <Input
+                      value={kontakt.telefon}
+                      onChange={(e) => updateNotfallkontakt(index, 'telefon', e.target.value)}
+                      placeholder="0511 123456"
+                    />
+                  </div>
+                  {customerData.notfallkontakte.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeNotfallkontakt(index)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Sonstiges */}
+            <div className="space-y-3 border-t pt-4">
+              <h3 className="text-lg font-semibold">Sonstiges</h3>
+              <Textarea
+                value={customerData.sonstiges}
+                onChange={(e) => setCustomerData({ ...customerData, sonstiges: e.target.value })}
+                placeholder="Weitere Notizen, Hinweise, Kommentare..."
+                className="min-h-[80px]"
+              />
+            </div>
+
+            {/* Betreuung */}
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="has_regular_appointments"
+                  checked={customerData.has_regular_appointments}
+                  onCheckedChange={(checked) => 
+                    setCustomerData({ ...customerData, has_regular_appointments: checked as boolean })
+                  }
+                />
+                <Label htmlFor="has_regular_appointments" className="cursor-pointer">
+                  Kunde hat regelmäßige Termine → Mitarbeiter-Matching starten
+                </Label>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 border-t pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleClose}
-              >
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Abbrechen
               </Button>
               <Button 
@@ -959,7 +1277,7 @@ export default function CreateCustomerWizard({
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Regeltermin erstellen
+                      Mitarbeiter zuordnen & Regeltermin erstellen
                     </>
                   )}
                 </Button>
@@ -969,27 +1287,28 @@ export default function CreateCustomerWizard({
         )}
 
         {/* AI Time Windows Dialog */}
-        <Dialog open={showAITimeWindows} onOpenChange={setShowAITimeWindows}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>KI-gestützte Zeitfenster-Erstellung</DialogTitle>
-              <DialogDescription>
-                Beschreiben Sie die gewünschten Zeitfenster in natürlicher Sprache
-              </DialogDescription>
-            </DialogHeader>
-            <AITimeWindowsCreator
-              onConfirm={(windows) => {
-                setCustomerData({
-                  ...customerData,
-                  zeitfenster: windows
-                });
-                setShowAITimeWindows(false);
-                toast.success('Zeitfenster generiert');
-              }}
-              onCancel={() => setShowAITimeWindows(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        {showAITimeWindows && (
+          <AITimeWindowsCreator
+            onConfirm={(windows: TimeWindow[]) => {
+              const newMatrix = { ...weekMatrix };
+              windows.forEach(w => {
+                const matchingShift = SHIFT_BLOCKS.find(s => s.von === w.von && s.bis === w.bis);
+                if (matchingShift) {
+                  if (!newMatrix[w.wochentag]) newMatrix[w.wochentag] = {};
+                  newMatrix[w.wochentag][matchingShift.key] = true;
+                }
+              });
+              setWeekMatrix(newMatrix);
+              setCustomerData(prev => ({
+                ...prev,
+                zeitfenster: [...prev.zeitfenster, ...windows]
+              }));
+              setShowAITimeWindows(false);
+              toast.success(`${windows.length} Zeitfenster hinzugefügt`);
+            }}
+            onCancel={() => setShowAITimeWindows(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

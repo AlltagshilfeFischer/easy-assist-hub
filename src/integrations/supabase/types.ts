@@ -417,11 +417,14 @@ export type Database = {
           email: string | null
           farbe_kalender: string | null
           geburtsdatum: string | null
+          geschlecht: string | null
           haushalt_id: string | null
           id: string
           kasse_privat: string | null
           kategorie: string | null
+          kontaktweg: string | null
           kopie_lw: string | null
+          kunden_nummer: number
           mitarbeiter: string | null
           nachname: string | null
           name: string | null
@@ -430,6 +433,11 @@ export type Database = {
           pflegegrad: number | null
           pflegekasse: string | null
           plz: string | null
+          rechnungskopie: string[] | null
+          rechnungskopie_adresse_name: string | null
+          rechnungskopie_adresse_plz: string | null
+          rechnungskopie_adresse_stadt: string | null
+          rechnungskopie_adresse_strasse: string | null
           sollstunden: number | null
           sonstiges: string | null
           stadt: string | null
@@ -440,6 +448,8 @@ export type Database = {
           stunden_kontingent_monat: number | null
           tage: string | null
           telefonnr: string | null
+          termindauer_stunden: number | null
+          terminfrequenz: string | null
           updated_at: string | null
           verhinderungspflege_status: string | null
           versichertennummer: string | null
@@ -457,11 +467,14 @@ export type Database = {
           email?: string | null
           farbe_kalender?: string | null
           geburtsdatum?: string | null
+          geschlecht?: string | null
           haushalt_id?: string | null
           id?: string
           kasse_privat?: string | null
           kategorie?: string | null
+          kontaktweg?: string | null
           kopie_lw?: string | null
+          kunden_nummer?: number
           mitarbeiter?: string | null
           nachname?: string | null
           name?: string | null
@@ -470,6 +483,11 @@ export type Database = {
           pflegegrad?: number | null
           pflegekasse?: string | null
           plz?: string | null
+          rechnungskopie?: string[] | null
+          rechnungskopie_adresse_name?: string | null
+          rechnungskopie_adresse_plz?: string | null
+          rechnungskopie_adresse_stadt?: string | null
+          rechnungskopie_adresse_strasse?: string | null
           sollstunden?: number | null
           sonstiges?: string | null
           stadt?: string | null
@@ -480,6 +498,8 @@ export type Database = {
           stunden_kontingent_monat?: number | null
           tage?: string | null
           telefonnr?: string | null
+          termindauer_stunden?: number | null
+          terminfrequenz?: string | null
           updated_at?: string | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
@@ -497,11 +517,14 @@ export type Database = {
           email?: string | null
           farbe_kalender?: string | null
           geburtsdatum?: string | null
+          geschlecht?: string | null
           haushalt_id?: string | null
           id?: string
           kasse_privat?: string | null
           kategorie?: string | null
+          kontaktweg?: string | null
           kopie_lw?: string | null
+          kunden_nummer?: number
           mitarbeiter?: string | null
           nachname?: string | null
           name?: string | null
@@ -510,6 +533,11 @@ export type Database = {
           pflegegrad?: number | null
           pflegekasse?: string | null
           plz?: string | null
+          rechnungskopie?: string[] | null
+          rechnungskopie_adresse_name?: string | null
+          rechnungskopie_adresse_plz?: string | null
+          rechnungskopie_adresse_stadt?: string | null
+          rechnungskopie_adresse_strasse?: string | null
           sollstunden?: number | null
           sonstiges?: string | null
           stadt?: string | null
@@ -520,6 +548,8 @@ export type Database = {
           stunden_kontingent_monat?: number | null
           tage?: string | null
           telefonnr?: string | null
+          termindauer_stunden?: number | null
+          terminfrequenz?: string | null
           updated_at?: string | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
@@ -1013,6 +1043,41 @@ export type Database = {
             columns: ["mitarbeiter_id"]
             isOneToOne: false
             referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notfallkontakte: {
+        Row: {
+          bezug: string | null
+          created_at: string
+          id: string
+          kunden_id: string
+          name: string
+          telefon: string
+        }
+        Insert: {
+          bezug?: string | null
+          created_at?: string
+          id?: string
+          kunden_id: string
+          name: string
+          telefon: string
+        }
+        Update: {
+          bezug?: string | null
+          created_at?: string
+          id?: string
+          kunden_id?: string
+          name?: string
+          telefon?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notfallkontakte_kunden_id_fkey"
+            columns: ["kunden_id"]
+            isOneToOne: false
+            referencedRelation: "kunden"
             referencedColumns: ["id"]
           },
         ]
