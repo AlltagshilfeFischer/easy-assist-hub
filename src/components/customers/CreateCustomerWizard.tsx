@@ -162,6 +162,21 @@ export default function CreateCustomerWizard({
       return;
     }
 
+    if (!customerData.strasse.trim()) {
+      toast.error('Bitte Straße und Hausnummer ausfüllen');
+      return;
+    }
+
+    if (!customerData.plz.trim() || !/^\d{5}$/.test(customerData.plz.trim())) {
+      toast.error('Bitte eine gültige 5-stellige PLZ eingeben');
+      return;
+    }
+
+    if (!customerData.telefonnr.trim()) {
+      toast.error('Bitte Telefonnummer ausfüllen');
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Create customer
@@ -482,21 +497,28 @@ export default function CreateCustomerWizard({
               <h3 className="text-lg font-semibold">Kontaktdaten</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2 col-span-3">
-                  <Label htmlFor="strasse">Straße</Label>
+                  <Label htmlFor="strasse">Straße und Hausnummer *</Label>
                   <Input
                     id="strasse"
                     value={customerData.strasse}
                     onChange={(e) => setCustomerData({ ...customerData, strasse: e.target.value })}
                     placeholder="Straße und Hausnummer"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="plz">PLZ</Label>
+                  <Label htmlFor="plz">PLZ *</Label>
                   <Input
                     id="plz"
                     value={customerData.plz}
-                    onChange={(e) => setCustomerData({ ...customerData, plz: e.target.value })}
-                    placeholder="PLZ"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 5);
+                      setCustomerData({ ...customerData, plz: val });
+                    }}
+                    placeholder="30159"
+                    maxLength={5}
+                    inputMode="numeric"
+                    required
                   />
                 </div>
                 <div className="space-y-2 col-span-2">
@@ -520,12 +542,13 @@ export default function CreateCustomerWizard({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="telefonnr">Telefon</Label>
+                  <Label htmlFor="telefonnr">Telefon *</Label>
                   <Input
                     id="telefonnr"
                     value={customerData.telefonnr}
                     onChange={(e) => setCustomerData({ ...customerData, telefonnr: e.target.value })}
                     placeholder="0511 123456"
+                    required
                   />
                 </div>
                 <div>
