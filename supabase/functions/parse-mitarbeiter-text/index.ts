@@ -30,10 +30,30 @@ serve(async (req) => {
             role: "system",
             content: `Du bist ein Daten-Parser für Mitarbeiter-Importe eines Pflegedienstes. 
 Extrahiere aus dem Freitext alle Mitarbeiter-Informationen. 
-Jeder Mitarbeiter braucht mindestens Vorname, Nachname und E-Mail.
-Optional: Telefon, Straße, PLZ, Stadt, Soll-Wochenstunden.
-Erkenne verschiedene Formate: Listen, Tabellen, Fließtext, CSV, etc.
-Wenn keine E-Mail angegeben ist, generiere KEINE - lass sie leer.`,
+Jeder Mitarbeiter braucht mindestens Vorname und Nachname.
+Optional: Telefon, Straße, PLZ, Stadt, Soll-Wochenstunden, Zuständigkeitsbereich (Stadtteil/Gebiet).
+Wenn keine E-Mail angegeben ist, generiere KEINE - lass sie leer.
+
+WICHTIG - Verfügbarkeit / Zeitfenster:
+Mitarbeiter können Verfügbarkeiten haben, z.B. "Mo-Fr 1,2,3,4,5" oder "Di,Mi" oder "Mo-Do 1,2,3,4,5".
+Die Zahlen 1-5 sind Schichtnummern mit festen Zeiten:
+- Schicht 1 = 08:30-10:00
+- Schicht 2 = 10:15-11:45
+- Schicht 3 = 12:00-13:30
+- Schicht 4 = 13:45-15:15
+- Schicht 5 = 15:30-17:00
+
+Wochentage als Zahlen: Mo=1, Di=2, Mi=3, Do=4, Fr=5, Sa=6, So=0.
+
+"Mo-Fr" bedeutet Montag bis Freitag (1,2,3,4,5).
+"Di-Fr" bedeutet Dienstag bis Freitag (2,3,4,5).
+"Mo-Do" bedeutet Montag bis Donnerstag (1,2,3,4).
+"Di,Mi" bedeutet nur Dienstag und Mittwoch.
+
+Wenn Schichtnummern angegeben sind, erzeuge für jeden Wochentag und jede Schicht einen Eintrag in "verfuegbarkeit" mit wochentag, von, bis.
+Wenn KEINE Schichtnummern angegeben sind (z.B. nur "Di,Mi"), erzeuge Einträge für den ganzen Tag (08:30-17:00) an diesen Tagen.
+
+Erkenne verschiedene Formate: Listen, Tabellen, Fließtext, CSV, etc.`,
           },
           {
             role: "user",
@@ -62,6 +82,20 @@ Wenn keine E-Mail angegeben ist, generiere KEINE - lass sie leer.`,
                         plz: { type: "string" },
                         stadt: { type: "string" },
                         soll_wochenstunden: { type: "number" },
+                        zustaendigkeitsbereich: { type: "string", description: "Stadtteil oder Gebiet des Mitarbeiters" },
+                        verfuegbarkeit: {
+                          type: "array",
+                          description: "Verfügbare Zeitfenster pro Wochentag",
+                          items: {
+                            type: "object",
+                            properties: {
+                              wochentag: { type: "number", description: "0=So, 1=Mo, 2=Di, 3=Mi, 4=Do, 5=Fr, 6=Sa" },
+                              von: { type: "string", description: "Startzeit HH:MM" },
+                              bis: { type: "string", description: "Endzeit HH:MM" },
+                            },
+                            required: ["wochentag", "von", "bis"],
+                          },
+                        },
                       },
                       required: ["vorname", "nachname"],
                     },

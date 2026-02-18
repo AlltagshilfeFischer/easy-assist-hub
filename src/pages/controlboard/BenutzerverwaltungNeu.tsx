@@ -957,6 +957,12 @@ function DeactivatedRow({
 }
 
 // ─── Add/Import Mitarbeiter Dialog ───
+interface VerfuegbarkeitSlot {
+  wochentag: number;
+  von: string;
+  bis: string;
+}
+
 interface ManualRow {
   vorname: string;
   nachname: string;
@@ -964,9 +970,27 @@ interface ManualRow {
   strasse: string;
   plz: string;
   stadt: string;
+  zustaendigkeitsbereich: string;
+  verfuegbarkeit: VerfuegbarkeitSlot[];
 }
 
-const emptyRow = (): ManualRow => ({ vorname: '', nachname: '', telefon: '', strasse: '', plz: '', stadt: '' });
+const emptyRow = (): ManualRow => ({ vorname: '', nachname: '', telefon: '', strasse: '', plz: '', stadt: '', zustaendigkeitsbereich: '', verfuegbarkeit: [] });
+
+const WEEKDAY_SHORT: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' };
+
+function formatVerfuegbarkeit(slots: VerfuegbarkeitSlot[]): string {
+  // Group by day
+  const byDay = new Map<number, string[]>();
+  for (const s of slots) {
+    if (!byDay.has(s.wochentag)) byDay.set(s.wochentag, []);
+    byDay.get(s.wochentag)!.push(`${s.von}-${s.bis}`);
+  }
+  const parts: string[] = [];
+  for (const [day, times] of [...byDay.entries()].sort((a, b) => a[0] - b[0])) {
+    parts.push(`${WEEKDAY_SHORT[day] || day}: ${times.join(', ')}`);
+  }
+  return parts.join(' | ');
+}
 
 function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void }) {
   const { toast } = useToast();
@@ -1014,6 +1038,7 @@ function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean
           strasse: r.strasse.trim() || null,
           plz: r.plz.trim() || null,
           stadt: r.stadt.trim() || null,
+          zustaendigkeitsbereich: r.zustaendigkeitsbereich.trim() || null,
           ist_aktiv: true,
         });
         if (error) throw error;
@@ -1047,6 +1072,8 @@ function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean
         strasse: m.strasse || '',
         plz: m.plz || '',
         stadt: m.stadt || '',
+        zustaendigkeitsbereich: m.zustaendigkeitsbereich || '',
+        verfuegbarkeit: Array.isArray(m.verfuegbarkeit) ? m.verfuegbarkeit : [],
       })));
       setAiStep('preview');
     } catch (e: any) {
@@ -1064,18 +1091,33 @@ function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean
     }
     setIsImporting(true);
     let success = 0, failed = 0;
+    const WEEKDAY_NAMES: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' };
     for (const r of valid) {
       try {
-        const { error } = await supabase.from('mitarbeiter').insert({
+        const { data: inserted, error } = await supabase.from('mitarbeiter').insert({
           vorname: r.vorname.trim(),
           nachname: r.nachname.trim(),
           telefon: r.telefon.trim() || null,
           strasse: r.strasse.trim() || null,
           plz: r.plz.trim() || null,
           stadt: r.stadt.trim() || null,
+          zustaendigkeitsbereich: r.zustaendigkeitsbereich.trim() || null,
           ist_aktiv: true,
-        });
+        }).select('id').single();
         if (error) throw error;
+
+        // Insert verfuegbarkeit if available
+        if (r.verfuegbarkeit.length > 0 && inserted?.id) {
+          const slots = r.verfuegbarkeit.map(v => ({
+            mitarbeiter_id: inserted.id,
+            wochentag: v.wochentag,
+            von: v.von,
+            bis: v.bis,
+          }));
+          const { error: vError } = await supabase.from('mitarbeiter_verfuegbarkeit').insert(slots);
+          if (vError) console.error('Verfügbarkeit-Fehler:', vError);
+        }
+
         success++;
       } catch { failed++; }
     }
@@ -1238,11 +1280,17 @@ function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">{m.vorname} {m.nachname}</div>
                         <div className="text-sm text-muted-foreground truncate">
+                          {m.zustaendigkeitsbereich && <Badge variant="outline" className="mr-2 text-xs">{m.zustaendigkeitsbereich}</Badge>}
                           {m.telefon && `Tel: ${m.telefon}`}
                         </div>
                         {(m.strasse || m.stadt) && (
                           <div className="text-xs text-muted-foreground truncate">
                             {[m.strasse, m.plz, m.stadt].filter(Boolean).join(', ')}
+                          </div>
+                        )}
+                        {m.verfuegbarkeit.length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            📅 {formatVerfuegbarkeit(m.verfuegbarkeit)}
                           </div>
                         )}
                       </div>
