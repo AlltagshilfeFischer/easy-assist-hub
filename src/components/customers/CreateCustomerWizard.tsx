@@ -1150,6 +1150,29 @@ export default function CreateCustomerWizard({
                   {customerData.zeitfenster.length} Zeitfenster ausgewählt
                 </div>
               )}
+
+              {showAITimeWindows && (
+                <AITimeWindowsCreator
+                  onConfirm={(windows: TimeWindow[]) => {
+                    const newMatrix = { ...weekMatrix };
+                    windows.forEach(w => {
+                      const matchingShift = SHIFT_BLOCKS.find(s => s.von === w.von && s.bis === w.bis);
+                      if (matchingShift) {
+                        if (!newMatrix[w.wochentag]) newMatrix[w.wochentag] = {};
+                        newMatrix[w.wochentag][matchingShift.key] = true;
+                      }
+                    });
+                    setWeekMatrix(newMatrix);
+                    setCustomerData(prev => ({
+                      ...prev,
+                      zeitfenster: [...prev.zeitfenster, ...windows]
+                    }));
+                    setShowAITimeWindows(false);
+                    toast.success(`${windows.length} Zeitfenster hinzugefügt`);
+                  }}
+                  onCancel={() => setShowAITimeWindows(false)}
+                />
+              )}
             </div>
 
             {/* Notfallkontakte */}
@@ -1681,29 +1704,6 @@ export default function CreateCustomerWizard({
           </div>
         )}
 
-        {/* AI Time Windows Dialog */}
-        {showAITimeWindows && (
-          <AITimeWindowsCreator
-            onConfirm={(windows: TimeWindow[]) => {
-              const newMatrix = { ...weekMatrix };
-              windows.forEach(w => {
-                const matchingShift = SHIFT_BLOCKS.find(s => s.von === w.von && s.bis === w.bis);
-                if (matchingShift) {
-                  if (!newMatrix[w.wochentag]) newMatrix[w.wochentag] = {};
-                  newMatrix[w.wochentag][matchingShift.key] = true;
-                }
-              });
-              setWeekMatrix(newMatrix);
-              setCustomerData(prev => ({
-                ...prev,
-                zeitfenster: [...prev.zeitfenster, ...windows]
-              }));
-              setShowAITimeWindows(false);
-              toast.success(`${windows.length} Zeitfenster hinzugefügt`);
-            }}
-            onCancel={() => setShowAITimeWindows(false)}
-          />
-        )}
       </DialogContent>
     </Dialog>
   );
