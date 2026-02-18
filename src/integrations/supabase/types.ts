@@ -411,6 +411,7 @@ export type Database = {
           angehoerige_ansprechpartner: string | null
           austritt: string | null
           begruendung: string | null
+          budget_prioritaet: string[] | null
           column1: string | null
           created_at: string | null
           eintritt: string | null
@@ -432,6 +433,9 @@ export type Database = {
           notfall_telefon: string | null
           pflegegrad: number | null
           pflegekasse: string | null
+          pflegesachleistung_aktiv: boolean | null
+          pflegesachleistung_beantragt: boolean | null
+          pflegesachleistung_genehmigt: boolean | null
           plz: string | null
           rechnungskopie: string[] | null
           rechnungskopie_adresse_name: string | null
@@ -451,6 +455,10 @@ export type Database = {
           termindauer_stunden: number | null
           terminfrequenz: string | null
           updated_at: string | null
+          verhinderungspflege_aktiv: boolean | null
+          verhinderungspflege_beantragt: boolean | null
+          verhinderungspflege_budget: number | null
+          verhinderungspflege_genehmigt: boolean | null
           verhinderungspflege_status: string | null
           versichertennummer: string | null
           vorname: string | null
@@ -461,6 +469,7 @@ export type Database = {
           angehoerige_ansprechpartner?: string | null
           austritt?: string | null
           begruendung?: string | null
+          budget_prioritaet?: string[] | null
           column1?: string | null
           created_at?: string | null
           eintritt?: string | null
@@ -482,6 +491,9 @@ export type Database = {
           notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
+          pflegesachleistung_aktiv?: boolean | null
+          pflegesachleistung_beantragt?: boolean | null
+          pflegesachleistung_genehmigt?: boolean | null
           plz?: string | null
           rechnungskopie?: string[] | null
           rechnungskopie_adresse_name?: string | null
@@ -501,6 +513,10 @@ export type Database = {
           termindauer_stunden?: number | null
           terminfrequenz?: string | null
           updated_at?: string | null
+          verhinderungspflege_aktiv?: boolean | null
+          verhinderungspflege_beantragt?: boolean | null
+          verhinderungspflege_budget?: number | null
+          verhinderungspflege_genehmigt?: boolean | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
           vorname?: string | null
@@ -511,6 +527,7 @@ export type Database = {
           angehoerige_ansprechpartner?: string | null
           austritt?: string | null
           begruendung?: string | null
+          budget_prioritaet?: string[] | null
           column1?: string | null
           created_at?: string | null
           eintritt?: string | null
@@ -532,6 +549,9 @@ export type Database = {
           notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
+          pflegesachleistung_aktiv?: boolean | null
+          pflegesachleistung_beantragt?: boolean | null
+          pflegesachleistung_genehmigt?: boolean | null
           plz?: string | null
           rechnungskopie?: string[] | null
           rechnungskopie_adresse_name?: string | null
@@ -551,6 +571,10 @@ export type Database = {
           termindauer_stunden?: number | null
           terminfrequenz?: string | null
           updated_at?: string | null
+          verhinderungspflege_aktiv?: boolean | null
+          verhinderungspflege_beantragt?: boolean | null
+          verhinderungspflege_budget?: number | null
+          verhinderungspflege_genehmigt?: boolean | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
           vorname?: string | null

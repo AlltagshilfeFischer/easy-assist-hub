@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -20,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Sparkles, ArrowRight, Loader2, UserCheck, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Sparkles, ArrowRight, Loader2, UserCheck, CheckCircle, GripVertical, Lock, Euro } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
@@ -73,6 +75,7 @@ export default function CreateCustomerWizard({
   onSuccess 
 }: CreateCustomerWizardProps) {
   const [step, setStep] = useState<'customer' | 'timewindows' | 'employees'>('customer');
+  const [activeTab, setActiveTab] = useState('stammdaten');
   const [showAITimeWindows, setShowAITimeWindows] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [createdCustomerId, setCreatedCustomerId] = useState<string | null>(null);
@@ -82,6 +85,8 @@ export default function CreateCustomerWizard({
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<EmployeeSuggestion[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  const [budgetOrder, setBudgetOrder] = useState<string[]>([]);
+  const [draggedBudget, setDraggedBudget] = useState<string | null>(null);
 
   const getCurrentMonth = () => {
     const now = new Date();
@@ -131,6 +136,14 @@ export default function CreateCustomerWizard({
     zeitfenster: [] as TimeWindow[],
     notfallkontakte: [{ name: '', bezug: '', telefon: '' }] as NotfallKontakt[],
     sonstiges: '',
+    // Billing fields
+    verhinderungspflege_aktiv: false,
+    verhinderungspflege_beantragt: false,
+    verhinderungspflege_genehmigt: false,
+    verhinderungspflege_budget: '3539',
+    pflegesachleistung_aktiv: false,
+    pflegesachleistung_beantragt: false,
+    pflegesachleistung_genehmigt: false,
   });
 
   // Wochenmatrix state: [wochentag][shift_key] = boolean
@@ -167,6 +180,7 @@ export default function CreateCustomerWizard({
 
   const resetWizard = () => {
     setStep('customer');
+    setActiveTab('stammdaten');
     setShowAITimeWindows(false);
     setCreatedCustomerId(null);
     setPreferences('');
@@ -174,6 +188,8 @@ export default function CreateCustomerWizard({
     setSuggestions([]);
     setSelectedEmployee(null);
     setWeekMatrix({});
+    setBudgetOrder([]);
+    setDraggedBudget(null);
     setCustomerData({
       kategorie: 'Kunde',
       vorname: '',
@@ -210,6 +226,13 @@ export default function CreateCustomerWizard({
       zeitfenster: [],
       notfallkontakte: [{ name: '', bezug: '', telefon: '' }],
       sonstiges: '',
+      verhinderungspflege_aktiv: false,
+      verhinderungspflege_beantragt: false,
+      verhinderungspflege_genehmigt: false,
+      verhinderungspflege_budget: '3539',
+      pflegesachleistung_aktiv: false,
+      pflegesachleistung_beantragt: false,
+      pflegesachleistung_genehmigt: false,
     });
   };
 
@@ -266,6 +289,15 @@ export default function CreateCustomerWizard({
         kopie_lw: customerData.kopie_lw || null,
         rechnungskopie: customerData.rechnungskopie.length > 0 ? customerData.rechnungskopie : null,
         sonstiges: customerData.sonstiges || null,
+        // Billing fields
+        verhinderungspflege_aktiv: customerData.verhinderungspflege_aktiv,
+        verhinderungspflege_beantragt: customerData.verhinderungspflege_beantragt,
+        verhinderungspflege_genehmigt: customerData.verhinderungspflege_genehmigt,
+        verhinderungspflege_budget: customerData.verhinderungspflege_budget ? parseFloat(customerData.verhinderungspflege_budget) : 3539,
+        pflegesachleistung_aktiv: customerData.pflegesachleistung_aktiv,
+        pflegesachleistung_beantragt: customerData.pflegesachleistung_beantragt,
+        pflegesachleistung_genehmigt: customerData.pflegesachleistung_genehmigt,
+        budget_prioritaet: budgetOrder.length > 0 ? budgetOrder : null,
       };
 
       if (customerData.rechnungskopie.includes('abweichende_adresse')) {
@@ -469,6 +501,8 @@ export default function CreateCustomerWizard({
     });
   };
 
+  const isPflegegrad1 = customerData.pflegegrad === '1';
+
   return (
     <Dialog open={open} onOpenChange={(open) => {
       if (!open) handleClose();
@@ -501,7 +535,18 @@ export default function CreateCustomerWizard({
 
         {/* Step 1: Customer Data */}
         {step === 'customer' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="stammdaten">Persönliche Daten</TabsTrigger>
+              <TabsTrigger value="abrechnung">
+                <Euro className="h-4 w-4 mr-1" />
+                Abrechnung
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ========== TAB: STAMMDATEN ========== */}
+            <TabsContent value="stammdaten" className="space-y-6 mt-4">
             {/* Kategorie-Auswahl */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold">Was möchten Sie anlegen?</h3>
@@ -979,7 +1024,6 @@ export default function CreateCustomerWizard({
               </div>
 
               {customerData.zeitfenster.filter(z => {
-                // Show only those NOT from matrix
                 return !SHIFT_BLOCKS.some(s => s.von === z.von && s.bis === z.bis);
               }).map((zeitfenster, index) => {
                 const realIndex = customerData.zeitfenster.indexOf(zeitfenster);
@@ -1117,6 +1161,240 @@ export default function CreateCustomerWizard({
                 </Label>
               </div>
             </div>
+            </TabsContent>
+
+            {/* ========== TAB: ABRECHNUNG ========== */}
+            <TabsContent value="abrechnung" className="space-y-6 mt-4">
+              {/* Grundkonfiguration */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Grundkonfiguration</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Abrechnungsart</Label>
+                    <Select
+                      value={customerData.kasse_privat}
+                      onValueChange={(value) => setCustomerData({ ...customerData, kasse_privat: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Kasse">Kasse</SelectItem>
+                        <SelectItem value="Privat">Privat</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Pflegegrad</Label>
+                    <div className="flex items-center h-10 px-3 rounded-md border border-input bg-muted/50 text-sm">
+                      {customerData.pflegegrad 
+                        ? (customerData.pflegegrad === 'nicht_vorhanden' ? 'Nicht vorhanden' : `Pflegegrad ${customerData.pflegegrad}`)
+                        : <span className="text-muted-foreground">Nicht gesetzt (Stammdaten-Tab)</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Verhinderungspflege (§ 39) */}
+              <Card className={`${isPflegegrad1 ? 'opacity-50' : ''}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      {isPflegegrad1 && <Lock className="h-4 w-4 text-muted-foreground" />}
+                      Verhinderungspflege (§ 39 SGB XI)
+                    </CardTitle>
+                    <Switch
+                      checked={customerData.verhinderungspflege_aktiv}
+                      onCheckedChange={(checked) => {
+                        if (!isPflegegrad1) {
+                          setCustomerData({ ...customerData, verhinderungspflege_aktiv: checked });
+                          if (checked && !budgetOrder.includes('verhinderungspflege')) {
+                            setBudgetOrder(prev => [...prev, 'verhinderungspflege']);
+                          } else if (!checked) {
+                            setBudgetOrder(prev => prev.filter(b => b !== 'verhinderungspflege'));
+                          }
+                        }
+                      }}
+                      disabled={isPflegegrad1}
+                    />
+                  </div>
+                  {isPflegegrad1 && (
+                    <p className="text-xs text-destructive">Nicht verfügbar bei Pflegegrad 1</p>
+                  )}
+                </CardHeader>
+                {customerData.verhinderungspflege_aktiv && !isPflegegrad1 && (
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label>Beantragt</Label>
+                        <Select
+                          value={customerData.verhinderungspflege_beantragt ? 'ja' : 'nein'}
+                          onValueChange={(value) => setCustomerData({ ...customerData, verhinderungspflege_beantragt: value === 'ja' })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ja">Ja</SelectItem>
+                            <SelectItem value="nein">Nein</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Genehmigt</Label>
+                        <Select
+                          value={customerData.verhinderungspflege_genehmigt ? 'ja' : 'nein'}
+                          onValueChange={(value) => setCustomerData({ ...customerData, verhinderungspflege_genehmigt: value === 'ja' })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ja">Ja</SelectItem>
+                            <SelectItem value="nein">Nein</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Budget (€)</Label>
+                        <Input
+                          type="number"
+                          value={customerData.verhinderungspflege_budget}
+                          onChange={(e) => setCustomerData({ ...customerData, verhinderungspflege_budget: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      💡 Jährliche Neubeantragung zum 01.01. – System erinnert automatisch.
+                    </p>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Umwandlung Pflegesachleistung (§ 45a) */}
+              <Card className={`${isPflegegrad1 ? 'opacity-50' : ''}`}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      {isPflegegrad1 && <Lock className="h-4 w-4 text-muted-foreground" />}
+                      Umwandlung Pflegesachleistung (§ 45a SGB XI)
+                    </CardTitle>
+                    <Switch
+                      checked={customerData.pflegesachleistung_aktiv}
+                      onCheckedChange={(checked) => {
+                        if (!isPflegegrad1) {
+                          setCustomerData({ ...customerData, pflegesachleistung_aktiv: checked });
+                          if (checked && !budgetOrder.includes('pflegesachleistung')) {
+                            setBudgetOrder(prev => [...prev, 'pflegesachleistung']);
+                          } else if (!checked) {
+                            setBudgetOrder(prev => prev.filter(b => b !== 'pflegesachleistung'));
+                          }
+                        }
+                      }}
+                      disabled={isPflegegrad1}
+                    />
+                  </div>
+                  {isPflegegrad1 && (
+                    <p className="text-xs text-destructive">Nicht verfügbar bei Pflegegrad 1</p>
+                  )}
+                </CardHeader>
+                {customerData.pflegesachleistung_aktiv && !isPflegegrad1 && (
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Beantragt</Label>
+                        <Select
+                          value={customerData.pflegesachleistung_beantragt ? 'ja' : 'nein'}
+                          onValueChange={(value) => setCustomerData({ ...customerData, pflegesachleistung_beantragt: value === 'ja' })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ja">Ja</SelectItem>
+                            <SelectItem value="nein">Nein</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Genehmigt</Label>
+                        <Select
+                          value={customerData.pflegesachleistung_genehmigt ? 'ja' : 'nein'}
+                          onValueChange={(value) => setCustomerData({ ...customerData, pflegesachleistung_genehmigt: value === 'ja' })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ja">Ja</SelectItem>
+                            <SelectItem value="nein">Nein</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Budget-Priorisierung */}
+              {budgetOrder.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Budget-Priorisierung</CardTitle>
+                    <CardDescription className="text-xs">
+                      Ziehen Sie die Budgets in die gewünschte Abrechnungsreihenfolge
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {budgetOrder.map((budget, index) => (
+                        <div
+                          key={budget}
+                          draggable
+                          onDragStart={() => setDraggedBudget(budget)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (draggedBudget && draggedBudget !== budget) {
+                              const newOrder = [...budgetOrder];
+                              const fromIndex = newOrder.indexOf(draggedBudget);
+                              const toIndex = newOrder.indexOf(budget);
+                              newOrder.splice(fromIndex, 1);
+                              newOrder.splice(toIndex, 0, draggedBudget);
+                              setBudgetOrder(newOrder);
+                            }
+                            setDraggedBudget(null);
+                          }}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-colors ${
+                            draggedBudget === budget ? 'border-primary bg-primary/5' : 'bg-background hover:bg-muted/50'
+                          }`}
+                        >
+                          <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <Badge variant="outline" className="text-xs">
+                            {index + 1}
+                          </Badge>
+                          <span className="text-sm font-medium">
+                            {budget === 'verhinderungspflege' && 'Verhinderungspflege (§ 39)'}
+                            {budget === 'pflegesachleistung' && 'Pflegesachleistung (§ 45a)'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Die Abrechnungs-Engine verwendet diese Reihenfolge zur Budget-Priorisierung.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {budgetOrder.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Euro className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">Aktivieren Sie oben Budgets, um die Priorisierung festzulegen.</p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
 
             <div className="flex justify-end gap-2 border-t pt-4">
               <Button type="button" variant="outline" onClick={handleClose}>
