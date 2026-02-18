@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Sparkles, ArrowRight, Loader2, UserCheck, CheckCircle, GripVertical, Lock, Euro } from 'lucide-react';
+import { Plus, Trash2, Sparkles, ArrowRight, Loader2, UserCheck, CheckCircle, GripVertical, Lock, Euro, Upload, FileText, X, File } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
@@ -68,6 +68,76 @@ const SHIFT_BLOCKS = [
   { label: 'Nachmittag', key: 'nachmittag', von: '15:00', bis: '18:00' },
 ];
 
+function DocumentUploadZone({ category, files, onFilesChange }: {
+  category: string;
+  files: File[];
+  onFilesChange: (files: File[]) => void;
+}) {
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const dropped = Array.from(e.dataTransfer.files);
+    onFilesChange([...files, ...dropped]);
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      onFilesChange([...files, ...Array.from(e.target.files)]);
+    }
+    e.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    onFilesChange(files.filter((_, i) => i !== index));
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div className="space-y-3">
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleDrop}
+        className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer"
+        onClick={() => document.getElementById(`file-input-${category}`)?.click()}
+      >
+        <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          Dateien hierher ziehen oder <span className="text-primary font-medium">durchsuchen</span>
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">PDF, Bilder und andere Dokumente</p>
+        <input
+          id={`file-input-${category}`}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleFileInput}
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+        />
+      </div>
+      {files.length > 0 && (
+        <div className="space-y-2">
+          {files.map((file, index) => (
+            <div key={index} className="flex items-center justify-between p-2 border rounded-lg bg-muted/30">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm truncate">{file.name}</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0">{formatSize(file.size)}</span>
+              </div>
+              <button type="button" onClick={() => removeFile(index)} className="p-1 hover:bg-destructive/10 rounded">
+                <X className="h-3 w-3 text-destructive" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CreateCustomerWizard({ 
   open, 
   onOpenChange, 
@@ -87,6 +157,11 @@ export default function CreateCustomerWizard({
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [budgetOrder, setBudgetOrder] = useState<string[]>([]);
   const [draggedBudget, setDraggedBudget] = useState<string | null>(null);
+  const [documentFiles, setDocumentFiles] = useState<{
+    vertrag: File[];
+    historie: File[];
+    antragswesen: File[];
+  }>({ vertrag: [], historie: [], antragswesen: [] });
 
   const getCurrentMonth = () => {
     const now = new Date();
@@ -190,6 +265,7 @@ export default function CreateCustomerWizard({
     setWeekMatrix({});
     setBudgetOrder([]);
     setDraggedBudget(null);
+    setDocumentFiles({ vertrag: [], historie: [], antragswesen: [] });
     setCustomerData({
       kategorie: 'Kunde',
       vorname: '',
@@ -348,6 +424,41 @@ export default function CreateCustomerWizard({
           .insert(kontakteToInsert);
 
         if (kontaktError) throw kontaktError;
+      }
+
+      // Upload documents
+      const allDocFiles = [
+        ...documentFiles.vertrag.map(f => ({ file: f, kategorie: 'vertrag' })),
+        ...documentFiles.historie.map(f => ({ file: f, kategorie: 'historie' })),
+        ...documentFiles.antragswesen.map(f => ({ file: f, kategorie: 'antragswesen' })),
+      ];
+
+      if (allDocFiles.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          for (const { file, kategorie } of allDocFiles) {
+            const filePath = `kunden/${customer.id}/${kategorie}/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await supabase.storage
+              .from('dokumente')
+              .upload(filePath, file);
+
+            if (uploadError) {
+              console.error('Upload error:', uploadError);
+              continue;
+            }
+
+            await (supabase as any).from('dokumente').insert({
+              titel: file.name,
+              dateiname: file.name,
+              dateipfad: filePath,
+              mime_type: file.type || 'application/octet-stream',
+              groesse_bytes: file.size,
+              kategorie: kategorie,
+              kunden_id: customer.id,
+              hochgeladen_von: user.id,
+            });
+          }
+        }
       }
 
       toast.success('Kundendaten gespeichert');
@@ -537,11 +648,15 @@ export default function CreateCustomerWizard({
         {step === 'customer' && (
           <div className="space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="stammdaten">Persönliche Daten</TabsTrigger>
               <TabsTrigger value="abrechnung">
                 <Euro className="h-4 w-4 mr-1" />
                 Abrechnung
+              </TabsTrigger>
+              <TabsTrigger value="dokumente">
+                <FileText className="h-4 w-4 mr-1" />
+                Dokumente
               </TabsTrigger>
             </TabsList>
 
@@ -1393,6 +1508,62 @@ export default function CreateCustomerWizard({
                   <p className="text-sm">Aktivieren Sie oben Budgets, um die Priorisierung festzulegen.</p>
                 </div>
               )}
+            </TabsContent>
+
+            {/* ========== TAB: DOKUMENTE (DMS) ========== */}
+            <TabsContent value="dokumente" className="space-y-6 mt-4">
+              {/* Vertrag */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Dienstleistungsvertrag
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DocumentUploadZone
+                    category="vertrag"
+                    files={documentFiles.vertrag}
+                    onFilesChange={(files) => setDocumentFiles(prev => ({ ...prev, vertrag: files }))}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Historie */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <File className="h-4 w-4" />
+                    Leistungsnachweise (Historie)
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Zurückliegende Leistungsnachweise hochladen</p>
+                </CardHeader>
+                <CardContent>
+                  <DocumentUploadZone
+                    category="historie"
+                    files={documentFiles.historie}
+                    onFilesChange={(files) => setDocumentFiles(prev => ({ ...prev, historie: files }))}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Antragswesen */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Antragswesen
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Kopien ausgefüllter Anträge (Pflegekasse etc.)</p>
+                </CardHeader>
+                <CardContent>
+                  <DocumentUploadZone
+                    category="antragswesen"
+                    files={documentFiles.antragswesen}
+                    onFilesChange={(files) => setDocumentFiles(prev => ({ ...prev, antragswesen: files }))}
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
 
