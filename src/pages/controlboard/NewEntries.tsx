@@ -10,8 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
-import AIEmployeeSuggestions from '@/components/schedule/AIEmployeeSuggestions';
+import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator';
+import AIEmployeeSuggestions from '@/components/schedule/ai/AIEmployeeSuggestions';
 import { Checkbox } from '@/components/ui/checkbox';
 
 

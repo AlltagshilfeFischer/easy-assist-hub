@@ -23,7 +23,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, Clock, User, Edit2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CustomerSearchCombobox } from './CustomerSearchCombobox';
+import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
 
 interface Customer {
   id: string;

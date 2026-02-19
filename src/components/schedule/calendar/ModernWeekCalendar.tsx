@@ -2,9 +2,9 @@ import React from "react";
 import { format, getDay, isSameDay, isWeekend } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { DraggableAppointment } from "./DraggableAppointment";
-import { EnhancedDropZone } from "./EnhancedDropZone";
-import { EMPLOYEE_COL_WIDTH } from "./gridConfig";
+import { DraggableAppointment } from "../DraggableAppointment";
+import { EnhancedDropZone } from "../EnhancedDropZone";
+import { EMPLOYEE_COL_WIDTH } from "../gridConfig";
 import type { Employee, CalendarAppointment } from "@/types/domain";
 
 interface ModernWeekCalendarProps {

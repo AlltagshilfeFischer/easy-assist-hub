@@ -3,42 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EmployeeSuggestionCard } from './EmployeeSuggestionCard';
+import { EmployeeSuggestionCard } from '../EmployeeSuggestionCard';
 import { Sparkles, Zap, Clock, Users, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface Employee {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-  name: string;
-  telefon: string;
-  ist_aktiv: boolean;
-  max_termine_pro_tag: number;
-  farbe_kalender: string;
-  workload: number;
-  benutzer?: {
-    email: string;
-    vorname: string;
-    nachname: string;
-  };
-}
-
-interface Appointment {
-  id: string;
-  titel: string;
-  kunden_id: string;
-  mitarbeiter_id: string | null;
-  start_at: string;
-  end_at: string;
-  customer?: any;
-  employee?: Employee;
-}
+import type { Employee, CalendarAppointment } from '@/types/domain';
 
 interface SmartAssignmentPanelProps {
   employees: Employee[];
-  appointments: Appointment[];
-  openAppointments: Appointment[];
+  appointments: CalendarAppointment[];
+  openAppointments: CalendarAppointment[];
   onAssignAppointment: (appointmentId: string, employeeId: string) => void;
   onAutoAssign: () => void;
   className?: string;
@@ -168,7 +141,7 @@ export function SmartAssignmentPanel({
             {openAppointments.slice(0, 10).map((appointment) => (
               <SelectItem key={appointment.id} value={appointment.id}>
                 <div className="flex items-center gap-1 text-xs">
-                  <span>{appointment.customer?.vorname} {appointment.customer?.nachname}</span>
+                  <span>{appointment.customer?.name}</span>
                   <Badge variant="outline" className="text-xs">
                     {new Date(appointment.start_at).toLocaleDateString('de-DE', { 
                       day: '2-digit', 
@@ -189,7 +162,7 @@ export function SmartAssignmentPanel({
             <label className="text-xs font-medium text-muted-foreground">
               KI-Empfehlungen:
             </label>
-            <Select value={suggestionFilter} onValueChange={(value: any) => setSuggestionFilter(value)}>
+            <Select value={suggestionFilter} onValueChange={(value: 'all' | 'available' | 'optimal') => setSuggestionFilter(value)}>
               <SelectTrigger className="h-6 w-16 text-xs">
                 <Filter className="h-3 w-3" />
               </SelectTrigger>

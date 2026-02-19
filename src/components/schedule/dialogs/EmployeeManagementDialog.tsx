@@ -26,16 +26,9 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { SortableEmployeeCard } from './SortableEmployeeCard';
+import { SortableEmployeeCard } from '../SortableEmployeeCard';
 
-interface Employee {
-  id: string;
-  name: string;
-  farbe_kalender: string;
-  ist_aktiv: boolean;
-  max_termine_pro_tag: number;
-  workload?: number;
-}
+import type { Employee } from '@/types/domain';
 
 interface EmployeeManagementDialogProps {
   open: boolean;

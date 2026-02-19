@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
-import { CustomerSearchCombobox } from './CustomerSearchCombobox';
+import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
 import type { CustomerSummary, EmployeeSummary, TerminVorlage } from '@/types/domain';
 
 type RecurringTemplate = Partial<Pick<TerminVorlage, 'id' | 'ist_aktiv'>> & Omit<TerminVorlage, 'id' | 'ist_aktiv'>;

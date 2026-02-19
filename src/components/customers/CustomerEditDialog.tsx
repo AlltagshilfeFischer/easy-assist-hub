@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Plus, Trash2, Sparkles } from 'lucide-react';
-import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
+import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator';
 
 interface CustomerEditDialogProps {
   open: boolean;

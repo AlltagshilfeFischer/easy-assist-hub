@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { AppointmentApprovalDialog } from './AppointmentApprovalDialog';
+import { AppointmentApprovalDialog } from './dialogs/AppointmentApprovalDialog';
 import { cn } from '@/lib/utils';
 
 interface AppointmentChange {

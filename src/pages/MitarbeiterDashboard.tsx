@@ -11,8 +11,8 @@ import { LeistungsnachweisSignature } from '@/components/mitarbeiter/Leistungsna
 import { AbwesenheitAnfrage } from '@/components/mitarbeiter/AbwesenheitAnfrage';
 import { AbwesenheitGenehmigung } from '@/components/mitarbeiter/AbwesenheitGenehmigung';
 import { MeineDokumente } from '@/components/mitarbeiter/MeineDokumente';
-import { EmployeeWeekCalendar } from '@/components/schedule/EmployeeWeekCalendar';
-import { EmployeeChangeRequestDialog } from '@/components/schedule/EmployeeChangeRequestDialog';
+import { EmployeeWeekCalendar } from '@/components/schedule/calendar/EmployeeWeekCalendar';
+import { EmployeeChangeRequestDialog } from '@/components/schedule/dialogs/EmployeeChangeRequestDialog';
 import { getWeekDates, getWeekNumber, formatDE } from '@/utils/date';
 import type { Appointment, EmployeeSummary } from '@/types/domain';
 

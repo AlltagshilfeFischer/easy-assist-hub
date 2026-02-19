@@ -22,7 +22,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { SortableEmployeeCard } from './SortableEmployeeCard';
+import { SortableEmployeeCard } from '../SortableEmployeeCard';
 import type { Employee } from '@/types/domain';
 
 interface EmployeeFilterSidebarProps {
