@@ -2,10 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
-import { de } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
+import { addWeeks, subWeeks } from 'date-fns';
 import { useUserRole } from '@/hooks/useUserRole';
+import { supabase } from '@/integrations/supabase/client';
 import { MyChangeRequests } from '@/components/mitarbeiter/MyChangeRequests';
 import { TerminBestaetigung } from '@/components/mitarbeiter/TerminBestaetigung';
 import { LeistungsnachweisSignature } from '@/components/mitarbeiter/LeistungsnachweisSignature';
@@ -14,33 +13,13 @@ import { AbwesenheitGenehmigung } from '@/components/mitarbeiter/AbwesenheitGene
 import { MeineDokumente } from '@/components/mitarbeiter/MeineDokumente';
 import { EmployeeWeekCalendar } from '@/components/schedule/EmployeeWeekCalendar';
 import { EmployeeChangeRequestDialog } from '@/components/schedule/EmployeeChangeRequestDialog';
-
-interface Appointment {
-  id: string;
-  titel: string;
-  start_at: string;
-  end_at: string;
-  status: string;
-  mitarbeiter_id: string | null;
-  kunden_id: string;
-  customer?: {
-    id: string;
-    name: string;
-    farbe_kalender?: string;
-  };
-}
-
-interface Employee {
-  id: string;
-  vorname: string;
-  nachname: string;
-  farbe_kalender: string;
-}
+import { getWeekDates, getWeekNumber, formatDE } from '@/utils/date';
+import type { Appointment, EmployeeSummary } from '@/types/domain';
 
 export default function MitarbeiterDashboard() {
   const { mitarbeiterId, isGeschaeftsfuehrer } = useUserRole();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [employee, setEmployee] = useState<EmployeeSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -57,7 +36,7 @@ export default function MitarbeiterDashboard() {
         .single();
 
       if (empError) throw empError;
-      setEmployee(empData);
+      setEmployee({ ...empData, name: [empData.vorname, empData.nachname].filter(Boolean).join(' ') || 'Unbenannt' });
 
       const { data, error } = await supabase
         .from('termine')
@@ -81,18 +60,7 @@ export default function MitarbeiterDashboard() {
     loadData();
   }, [mitarbeiterId]);
 
-  const getWeekDates = () => {
-    const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-    const dates = [];
-    let current = weekStart;
-    for (let i = 0; i < 7; i++) {
-      dates.push(new Date(current));
-      current = addDays(current, 1);
-    }
-    return dates;
-  };
-
-  const weekDates = useMemo(() => getWeekDates(), [currentWeek]);
+  const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
 
   if (loading) {
     return (
@@ -150,10 +118,10 @@ export default function MitarbeiterDashboard() {
             </Button>
             <div className="text-center min-w-0">
               <h2 className="text-base sm:text-lg font-semibold">
-                KW {format(weekDates[0], 'w', { locale: de })}
+                KW {getWeekNumber(weekDates[0])}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                {format(weekDates[0], 'dd.MM.', { locale: de })} - {format(weekDates[6], 'dd.MM.yyyy', { locale: de })}
+                {formatDE(weekDates[0], 'dd.MM.')} - {formatDE(weekDates[6], 'dd.MM.yyyy')}
               </p>
             </div>
             <Button
