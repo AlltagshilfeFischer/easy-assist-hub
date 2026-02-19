@@ -5,34 +5,17 @@ import { cn } from "@/lib/utils";
 import { DraggableAppointment } from "./DraggableAppointment";
 import { EnhancedDropZone } from "./EnhancedDropZone";
 import { EMPLOYEE_COL_WIDTH } from "./gridConfig";
-
-interface Employee {
-  id: string;
-  name: string;
-  farbe_kalender: string;
-  max_termine_pro_tag: number;
-  ist_aktiv: boolean;
-}
-
-interface Appointment {
-  id: string;
-  titel: string;
-  start_at: string;
-  end_at: string;
-  mitarbeiter_id: string | null;
-  kunden_id: string;
-  customer?: any;
-}
+import type { Employee, CalendarAppointment } from "@/types/domain";
 
 interface ModernWeekCalendarProps {
   employees: Employee[];
-  appointments: Appointment[];
+  appointments: CalendarAppointment[];
   weekDates: Date[];
   activeAppointmentId: string | null;
-  onEditAppointment: (appointment: Appointment) => void;
+  onEditAppointment: (appointment: CalendarAppointment) => void;
   onSlotClick: (employeeId: string, date: Date) => void;
   conflictingAppointments: Set<string>;
-  onCut: (appointment: Appointment) => void;
+  onCut: (appointment: CalendarAppointment) => void;
 }
 
 export function ModernWeekCalendar({

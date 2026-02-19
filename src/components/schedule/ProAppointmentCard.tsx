@@ -10,22 +10,10 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Scissors, AlertCircle } from "lucide-react";
-
-interface Customer {
-  id: string;
-  name: string;
-  farbe_kalender?: string;
-}
+import type { CalendarAppointment } from '@/types/domain';
 
 interface ProAppointmentCardProps {
-  appointment: {
-    id: string;
-    titel: string;
-    start_at: string;
-    end_at: string;
-    mitarbeiter_id: string | null;
-    customer?: Customer;
-  };
+  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer'>;
   isDragging?: boolean;
   isConflicting?: boolean;
   isHighlighted?: boolean;

@@ -7,30 +7,14 @@ import { cn } from '@/lib/utils';
 import { DraggableAppointment } from './DraggableAppointment';
 import { EnhancedDropZone } from './EnhancedDropZone';
 import { EMPLOYEE_COL_WIDTH } from './gridConfig';
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string | null;
-  telefonnr: string | null;
-}
-
-interface Appointment {
-  id: string;
-  titel: string;
-  kunden_id: string;
-  mitarbeiter_id: string | null;
-  start_at: string;
-  end_at: string;
-  customer?: Customer;
-}
+import type { CalendarAppointment } from '@/types/domain';
 
 interface UnassignedAppointmentsBarProps {
-  appointments: Appointment[];
+  appointments: CalendarAppointment[];
   weekDates: Date[];
   activeId: string | null;
-  onEditAppointment: (appointment: Appointment) => void;
-  onCut?: (appointment: Appointment) => void;
+  onEditAppointment: (appointment: CalendarAppointment) => void;
+  onCut?: (appointment: CalendarAppointment) => void;
   onSlotClick?: (date: Date) => void;
 }
 
@@ -61,7 +45,7 @@ export function UnassignedAppointmentsBar({
 
   // Group unassigned appointments by date
   const groupedAppointments = React.useMemo(() => {
-    const groups: { [key: string]: Appointment[] } = {};
+    const groups: { [key: string]: CalendarAppointment[] } = {};
     
     filteredUnassignedAppointments.forEach(appointment => {
       const dateKey = format(new Date(appointment.start_at), 'yyyy-MM-dd');

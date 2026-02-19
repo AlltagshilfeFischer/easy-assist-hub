@@ -4,21 +4,12 @@ import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { DraggableAppointment } from './DraggableAppointment';
 import { EnhancedDropZone } from './EnhancedDropZone';
-
-interface Appointment {
-  id: string;
-  titel: string;
-  start_at: string;
-  end_at: string;
-  mitarbeiter_id: string | null;
-  kunden_id: string;
-  customer?: any;
-}
+import type { CalendarAppointment } from '@/types/domain';
 
 interface EmployeeWeekCalendarProps {
-  appointments: Appointment[];
+  appointments: CalendarAppointment[];
   weekDates: Date[];
-  onEditAppointment: (appointment: Appointment) => void;
+  onEditAppointment: (appointment: CalendarAppointment) => void;
   onSlotClick: (date: Date) => void;
   employeeName: string;
   employeeColor: string;

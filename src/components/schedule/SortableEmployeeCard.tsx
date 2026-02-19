@@ -2,15 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface Employee {
-  id: string;
-  name: string;
-  farbe_kalender: string;
-  ist_aktiv: boolean;
-  max_termine_pro_tag: number;
-  workload?: number;
-}
+import type { Employee } from '@/types/domain';
 
 interface SortableEmployeeCardProps {
   employee: Employee;

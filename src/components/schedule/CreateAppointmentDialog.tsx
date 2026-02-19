@@ -11,23 +11,13 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { CustomerSearchCombobox } from './CustomerSearchCombobox';
-
-interface Customer {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-}
+import type { CustomerSummary, EmployeeSummary } from '@/types/domain';
 
 interface CreateAppointmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  customers: Customer[];
-  employees: Employee[];
+  customers: CustomerSummary[];
+  employees: EmployeeSummary[];
   onSubmit: (appointment: {
     titel: string;
     kunden_id: string;

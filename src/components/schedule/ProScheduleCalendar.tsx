@@ -6,6 +6,7 @@ import { ProAppointmentCard } from './ProAppointmentCard';
 import { EnhancedDropZone } from './EnhancedDropZone';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import type { Employee, CalendarAppointment } from '@/types/domain';
 
 const ROLE_LABELS: Record<string, string> = {
   globaladmin: 'Admin (geschützt)',
@@ -15,32 +16,7 @@ const ROLE_LABELS: Record<string, string> = {
   mitarbeiter: 'Mitarbeiter',
 };
 
-interface Employee {
-  id: string;
-  name: string;
-  vorname?: string;
-  nachname?: string;
-  farbe_kalender: string;
-  max_termine_pro_tag: number;
-  ist_aktiv: boolean;
-  soll_wochenstunden?: number;
-  avatar_url?: string | null;
-  rolle?: string;
-}
-
-interface Appointment {
-  id: string;
-  titel: string;
-  start_at: string;
-  end_at: string;
-  mitarbeiter_id: string | null;
-  kunden_id: string;
-  customer?: {
-    id: string;
-    name: string;
-    farbe_kalender?: string;
-  };
-}
+// Types imported from @/types/domain
 
 interface Abwesenheit {
   id: string;
@@ -51,14 +27,14 @@ interface Abwesenheit {
 
 interface ProScheduleCalendarProps {
   employees: Employee[];
-  appointments: Appointment[];
+  appointments: CalendarAppointment[];
   abwesenheiten?: Abwesenheit[];
   weekDates: Date[];
   activeAppointmentId: string | null;
-  onEditAppointment: (appointment: Appointment) => void;
+  onEditAppointment: (appointment: CalendarAppointment) => void;
   onSlotClick: (employeeId: string, date: Date) => void;
   conflictingAppointments: Set<string>;
-  onCut: (appointment: Appointment) => void;
+  onCut: (appointment: CalendarAppointment) => void;
   highlightedAppointmentId?: string | null;
 }
 

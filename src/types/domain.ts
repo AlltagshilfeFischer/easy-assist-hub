@@ -102,19 +102,28 @@ export interface CustomerSummary {
 }
 
 // ─── Appointment / Termin ───────────────────────────────────
-export interface Appointment {
+
+/** Minimal appointment fields used by calendar/grid components */
+export interface CalendarAppointment {
   id: string;
   titel: string;
   kunden_id: string;
   mitarbeiter_id: string | null;
   start_at: string;
   end_at: string;
-  status: TerminStatus;
-  customer?: CustomerSummary & Partial<Customer>;
-  employee?: EmployeeSummary & Partial<Employee>;
+  status?: TerminStatus;
+  customer?: { id: string; name: string | null; farbe_kalender?: string; email?: string | null; telefonnr?: string | null };
+  employee?: { id: string; name: string; farbe_kalender: string };
   vorlage_id?: string | null;
   ist_ausnahme?: boolean | null;
   ausnahme_grund?: string | null;
+}
+
+/** Full appointment with all fields */
+export interface Appointment extends CalendarAppointment {
+  status: TerminStatus;
+  customer?: CustomerSummary & Partial<Customer>;
+  employee?: EmployeeSummary & Partial<Employee>;
   notizen?: string | null;
   iststunden?: number | null;
   einsatzort_id?: string | null;

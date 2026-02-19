@@ -11,28 +11,12 @@ import { Clock, User, AlertCircle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-
-interface Customer {
-  id: string;
-  name: string;
-  farbe_kalender?: string;
-}
-
-interface Appointment {
-  id: string;
-  titel: string;
-  kunden_id: string;
-  mitarbeiter_id: string | null;
-  start_at: string;
-  end_at: string;
-  status: string;
-  customer?: Customer;
-}
+import type { CalendarAppointment } from '@/types/domain';
 
 interface EmployeeChangeRequestDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  appointment: Appointment | null;
+  appointment: CalendarAppointment | null;
   mitarbeiterId: string;
 }
 

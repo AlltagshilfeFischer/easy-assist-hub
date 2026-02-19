@@ -12,37 +12,15 @@ import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { CustomerSearchCombobox } from './CustomerSearchCombobox';
+import type { CustomerSummary, EmployeeSummary, TerminVorlage } from '@/types/domain';
 
-interface Customer {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-}
-
-interface RecurringTemplate {
-  id?: string;
-  titel: string;
-  kunden_id: string;
-  mitarbeiter_id: string | null;
-  wochentag: number;
-  start_zeit: string;
-  dauer_minuten: number;
-  intervall: 'weekly' | 'biweekly' | 'monthly';
-  gueltig_von: string;
-  gueltig_bis: string | null;
-  notizen: string | null;
-}
+type RecurringTemplate = Partial<Pick<TerminVorlage, 'id' | 'ist_aktiv'>> & Omit<TerminVorlage, 'id' | 'ist_aktiv'>;
 
 interface CreateRecurringAppointmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  customers: Customer[];
-  employees: Employee[];
+  customers: CustomerSummary[];
+  employees: EmployeeSummary[];
   onSubmit: (template: RecurringTemplate) => Promise<void>;
   editingTemplate?: RecurringTemplate | null;
 }
@@ -90,7 +68,7 @@ export function CreateRecurringAppointmentDialog({
       setWochentag(editingTemplate.wochentag);
       setStartZeit(editingTemplate.start_zeit);
       setDauerMinuten(editingTemplate.dauer_minuten);
-      setIntervall(editingTemplate.intervall);
+      setIntervall(editingTemplate.intervall as 'weekly' | 'biweekly' | 'monthly');
       setGueltigVon(new Date(editingTemplate.gueltig_von));
       setGueltigBis(editingTemplate.gueltig_bis ? new Date(editingTemplate.gueltig_bis) : undefined);
       setNotizen(editingTemplate.notizen || '');

@@ -14,16 +14,7 @@ import { CalendarIcon, Clock, Repeat, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CustomerSearchCombobox } from './CustomerSearchCombobox';
-
-interface Customer {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  name: string;
-}
+import type { CustomerSummary, EmployeeSummary } from '@/types/domain';
 
 interface CreateAppointmentFromSlotDialogProps {
   open: boolean;
@@ -32,8 +23,8 @@ interface CreateAppointmentFromSlotDialogProps {
     employeeId: string;
     date: Date;
   };
-  customers: Customer[];
-  employees: Employee[];
+  customers: CustomerSummary[];
+  employees: EmployeeSummary[];
   onSubmitSingle: (data: any) => Promise<void>;
   onSubmitRecurring: (data: any) => Promise<void>;
 }
