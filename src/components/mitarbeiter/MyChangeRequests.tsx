@@ -18,12 +18,12 @@ interface ChangeRequest {
   old_end_at?: string;
   new_start_at?: string;
   new_end_at?: string;
-  termin: {
+  termin?: {
     titel: string;
-    customer: {
-      name: string;
-    };
-  };
+    customer?: {
+      name: string | null;
+    } | null;
+  } | null;
 }
 
 export function MyChangeRequests() {
@@ -153,9 +153,9 @@ export function MyChangeRequests() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="font-medium">{(request.termin as any)?.titel}</h3>
+                  <h3 className="font-medium">{request.termin?.titel}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {(request.termin as any)?.customer?.name}
+                    {request.termin?.customer?.name}
                   </p>
                 </div>
                 {getStatusBadge(request.status)}

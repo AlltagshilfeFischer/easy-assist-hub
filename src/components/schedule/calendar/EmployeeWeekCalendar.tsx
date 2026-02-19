@@ -2,8 +2,8 @@ import React from 'react';
 import { format, isSameDay, isWeekend as checkWeekend } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { DraggableAppointment } from './DraggableAppointment';
-import { EnhancedDropZone } from './EnhancedDropZone';
+import { DraggableAppointment } from '../DraggableAppointment';
+import { EnhancedDropZone } from '../EnhancedDropZone';
 import type { CalendarAppointment } from '@/types/domain';
 
 interface EmployeeWeekCalendarProps {

@@ -17,81 +17,36 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { ProScheduleCalendar } from '@/components/schedule/ProScheduleCalendar';
+import { ProScheduleCalendar } from '@/components/schedule/calendar/ProScheduleCalendar';
 import { ProScheduleHeader } from '@/components/schedule/ProScheduleHeader';
-import { ProCalendarLegend } from '@/components/schedule/ProCalendarLegend';
-import { EmployeeManagementDialog } from '@/components/schedule/EmployeeManagementDialog';
+import { ProCalendarLegend } from '@/components/schedule/calendar/ProCalendarLegend';
+import { EmployeeManagementDialog } from '@/components/schedule/dialogs/EmployeeManagementDialog';
 
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
 import { AppointmentApprovalBar } from '@/components/schedule/AppointmentApprovalBar';
-import { AppointmentDetailDialog } from '@/components/schedule/AppointmentDetailDialog';
-import { CreateAppointmentDialog } from '@/components/schedule/CreateAppointmentDialog';
-import { CreateRecurringAppointmentDialog } from '@/components/schedule/CreateRecurringAppointmentDialog';
-import { CreateAppointmentFromSlotDialog } from '@/components/schedule/CreateAppointmentFromSlotDialog';
-import { ConflictWarningDialog } from '@/components/schedule/ConflictWarningDialog';
+import { AppointmentDetailDialog } from '@/components/schedule/dialogs/AppointmentDetailDialog';
+import { CreateAppointmentDialog } from '@/components/schedule/dialogs/CreateAppointmentDialog';
+import { CreateRecurringAppointmentDialog } from '@/components/schedule/dialogs/CreateRecurringAppointmentDialog';
+import { CreateAppointmentFromSlotDialog } from '@/components/schedule/dialogs/CreateAppointmentFromSlotDialog';
+import { ConflictWarningDialog } from '@/components/schedule/dialogs/ConflictWarningDialog';
 import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
-import { AIAppointmentCreator } from '@/components/schedule/AIAppointmentCreator';
-import { ConflictsNavigationCard } from '@/components/schedule/ConflictsNavigationCard';
+import { AIAppointmentCreator } from '@/components/schedule/ai/AIAppointmentCreator';
+import { ConflictsNavigationCard } from '@/components/schedule/panels/ConflictsNavigationCard';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 
-interface Employee {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-  name: string;
-  telefon: string;
-  ist_aktiv: boolean;
-  max_termine_pro_tag: number;
-  farbe_kalender: string;
-  workload: number;
-  rolle?: string;
-  benutzer?: {
-    email: string;
-    vorname: string;
-    nachname: string;
-  };
-}
+import type { Employee, Customer, CalendarAppointment } from '@/types/domain';
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string | null;
-  telefonnr: string | null;
-  geburtsdatum: string | null;
-  pflegegrad: number | null;
-  adresse: string | null;
-  stadtteil: string | null;
-  aktiv: boolean;
-  status: string | null;
-  pflegekasse: string | null;
-  versichertennummer: string | null;
-  stunden_kontingent_monat: number | null;
-  tage: string | null;
-  mitarbeiter: string | null;
-  angehoerige_ansprechpartner: string | null;
-  farbe_kalender?: string;
-}
-
-interface Appointment {
-  id: string;
-  titel: string;
-  kunden_id: string;
-  mitarbeiter_id: string | null;
-  start_at: string;
-  end_at: string;
+type LocalAppointment = CalendarAppointment & {
   customer?: Customer;
   employee?: Employee;
-  vorlage_id?: string | null;
-  ist_ausnahme?: boolean | null;
-  ausnahme_grund?: string | null;
-}
+};
 
 const ScheduleBuilderModern = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeOrder, setEmployeeOrder] = useState<string[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<LocalAppointment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerTimeWindows, setCustomerTimeWindows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,10 +71,10 @@ const ScheduleBuilderModern = () => {
     conflicts: [],
     targetDate: undefined
   });
-  const [cutAppointment, setCutAppointment] = useState<Appointment | null>(null);
+  const [cutAppointment, setCutAppointment] = useState<LocalAppointment | null>(null);
   const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null);
   const [seriesMoveDialog, setSeriesMoveDialog] = useState<{
-    appointment: Appointment;
+    appointment: LocalAppointment;
     employeeId: string;
     targetDate: Date;
   } | null>(null);
@@ -164,8 +119,8 @@ const ScheduleBuilderModern = () => {
       
       if (appointmentsError) throw appointmentsError;
 
-      const transformedEmployees = employeesData?.map(emp => {
-        const benutzer = (emp as any).benutzer;
+      const transformedEmployees: Employee[] = employeesData?.map((emp: any) => {
+        const benutzer = emp.benutzer;
         const fullName = benutzer?.vorname && benutzer?.nachname 
           ? `${benutzer.vorname} ${benutzer.nachname}` 
           : `Mitarbeiter ${emp.id.slice(0, 8)}`;
@@ -173,12 +128,11 @@ const ScheduleBuilderModern = () => {
           ...emp,
           name: fullName,
           rolle: benutzer?.rolle || undefined,
-          workload: Math.floor(Math.random() * 40) + 60
         };
       }) || [];
 
-      const transformedAppointments = appointmentsData?.map(app => {
-        const empData = app.employee as any;
+      const transformedAppointments: LocalAppointment[] = appointmentsData?.map((app: any) => {
+        const empData = app.employee;
         return {
           id: app.id,
           titel: app.titel,
@@ -186,22 +140,13 @@ const ScheduleBuilderModern = () => {
           mitarbeiter_id: app.mitarbeiter_id,
           start_at: app.start_at,
           end_at: app.end_at,
+          vorlage_id: app.vorlage_id,
+          ist_ausnahme: app.ist_ausnahme,
+          ausnahme_grund: app.ausnahme_grund,
+          status: app.status,
           customer: app.customer ? {
-            id: app.customer.id,
-            name: (app.customer as any).name || '',
-            email: app.customer.email || null,
-            telefonnr: (app.customer as any).telefonnr || null,
-            geburtsdatum: (app.customer as any).geburtsdatum || null,
-            pflegegrad: (app.customer as any).pflegegrad || null,
-            adresse: (app.customer as any).adresse || null,
-            stadtteil: (app.customer as any).stadtteil || null,
-            aktiv: (app.customer as any).aktiv || false,
-            pflegekasse: (app.customer as any).pflegekasse || null,
-            versichertennummer: (app.customer as any).versichertennummer || null,
-            stunden_kontingent_monat: (app.customer as any).stunden_kontingent_monat || null,
-            mitarbeiter: (app.customer as any).mitarbeiter || null,
-            angehoerige_ansprechpartner: (app.customer as any).angehoerige_ansprechpartner || null,
-            farbe_kalender: (app.customer as any).farbe_kalender || '#10B981'
+            ...app.customer,
+            farbe_kalender: app.customer.farbe_kalender || '#10B981'
           } as Customer : undefined,
           employee: empData ? {
             id: empData.id,
@@ -210,28 +155,14 @@ const ScheduleBuilderModern = () => {
             ist_aktiv: empData.ist_aktiv || false,
             max_termine_pro_tag: empData.max_termine_pro_tag || 8,
             farbe_kalender: empData.farbe_kalender || '#10B981',
-            workload: Math.floor(Math.random() * 40) + 60
           } as Employee : undefined
-        } as Appointment;
+        };
       }) || [];
 
-      const transformedCustomers = customersData?.map(cust => ({
-        id: cust.id,
-        name: (cust as any).name || '',
-        email: cust.email || null,
-        telefonnr: (cust as any).telefonnr || null,
-        geburtsdatum: (cust as any).geburtsdatum || null,
-        pflegegrad: (cust as any).pflegegrad || null,
-        adresse: (cust as any).adresse || null,
-        stadtteil: (cust as any).stadtteil || null,
-        aktiv: (cust as any).aktiv || false,
-        status: (cust as any).status || null,
-        pflegekasse: (cust as any).pflegekasse || null,
-        versichertennummer: (cust as any).versichertennummer || null,
-        stunden_kontingent_monat: (cust as any).stunden_kontingent_monat || null,
-        mitarbeiter: (cust as any).mitarbeiter || null,
-        angehoerige_ansprechpartner: (cust as any).angehoerige_ansprechpartner || null
-      }) as Customer) || [];
+      const transformedCustomers: Customer[] = (customersData ?? []).map(cust => ({
+        ...cust,
+        farbe_kalender: cust.farbe_kalender || '#10B981',
+      })) as Customer[];
 
       setEmployees(transformedEmployees);
       
@@ -337,13 +268,22 @@ const ScheduleBuilderModern = () => {
   const stats = useMemo(() => {
     const total = appointments.length;
     const assigned = appointments.filter(app => app.mitarbeiter_id).length;
-    // Use the filtered unassigned count (future + current month only)
     const unassigned = unassignedAppointments.length;
     const conflicts = conflictingAppointments.size;
     const activeEmployees = employees.filter(e => e.ist_aktiv).length;
     const totalEmployees = employees.length;
-    const avgWorkload = employees.length > 0 
-      ? Math.round(employees.reduce((sum, e) => sum + (e.workload || 0), 0) / employees.length)
+
+    // Compute real workload: appointments per employee / max_termine_pro_tag
+    const avgWorkload = activeEmployees > 0
+      ? Math.round(
+          employees
+            .filter(e => e.ist_aktiv)
+            .reduce((sum, e) => {
+              const empApps = appointments.filter(a => a.mitarbeiter_id === e.id).length;
+              const max = e.max_termine_pro_tag || 8;
+              return sum + (empApps / max) * 100;
+            }, 0) / activeEmployees
+        )
       : 0;
 
     return {
@@ -810,7 +750,7 @@ const ScheduleBuilderModern = () => {
   const draggedAppointment = appointments.find(app => app.id === activeId);
 
   // Cut/Paste handlers
-  const handleCutAppointment = (appointment: Appointment) => {
+  const handleCutAppointment = (appointment: LocalAppointment) => {
     setCutAppointment(appointment);
     toast({
       title: 'Ausgeschnitten',

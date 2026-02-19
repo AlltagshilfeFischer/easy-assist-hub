@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -41,7 +42,7 @@ export function TerminBestaetigung({ appointments, onUpdate }: TerminBestaetigun
     try {
       const { error } = await supabase
         .from('termine')
-        .update({ status: newStatus as any })
+        .update({ status: newStatus as Database['public']['Enums']['termin_status'] })
         .eq('id', appointmentId);
 
       if (error) throw error;

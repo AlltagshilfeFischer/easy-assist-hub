@@ -5,11 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { EnhancedDropZone } from './EnhancedDropZone';
-import { DraggableAppointment } from './DraggableAppointment';
+import { EnhancedDropZone } from '../EnhancedDropZone';
+import { DraggableAppointment } from '../DraggableAppointment';
 import { Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from './gridConfig';
+import { EMPLOYEE_COL_WIDTH, DAY_COL_WIDTH } from '../gridConfig';
 
 interface Employee {
   id: string;

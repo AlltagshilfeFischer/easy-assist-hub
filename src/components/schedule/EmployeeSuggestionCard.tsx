@@ -4,25 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, Clock, TrendingUp, AlertTriangle, ThumbsUp, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Employee } from '@/types/domain';
 
-interface Employee {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-  name: string;
-  telefon: string;
-  ist_aktiv: boolean;
-  max_termine_pro_tag: number;
-  farbe_kalender: string;
-  workload: number;
-  benutzer?: {
-    email: string;
-    vorname: string;
-    nachname: string;
-  };
-}
-
-interface Suggestion {
+export interface Suggestion {
   employee: Employee;
   score: number;
   reasons: string[];

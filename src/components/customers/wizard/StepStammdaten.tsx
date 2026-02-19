@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Trash2, Sparkles } from 'lucide-react';
-import AITimeWindowsCreator from '@/components/schedule/AITimeWindowsCreator';
+import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator';
 import { useState } from 'react';
 
 interface TimeWindow {

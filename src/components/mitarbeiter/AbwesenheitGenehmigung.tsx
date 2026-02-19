@@ -106,7 +106,7 @@ export function AbwesenheitGenehmigung() {
       </CardHeader>
       <CardContent className="space-y-3">
         {pendingRequests.map((req) => {
-          const ma = req.mitarbeiter as any;
+          const ma = req.mitarbeiter as { id: string; vorname: string | null; nachname: string | null } | null;
           const name = ma ? `${ma.vorname || ''} ${ma.nachname || ''}`.trim() : 'Unbekannt';
           const isPending = approveMutation.isPending || rejectMutation.isPending;
           

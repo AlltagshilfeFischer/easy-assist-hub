@@ -13,7 +13,7 @@ import { de } from 'date-fns/locale';
 import { CalendarIcon, Clock, Repeat, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CustomerSearchCombobox } from './CustomerSearchCombobox';
+import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
 import type { CustomerSummary, EmployeeSummary } from '@/types/domain';
 
 interface CreateAppointmentFromSlotDialogProps {
