@@ -52,6 +52,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const logAuthEvent = async (operation: string, email?: string) => {
+    try {
+      await supabase.from('audit_log').insert({
+        table_name: 'auth',
+        operation,
+        new_data: { email: email || null, timestamp: new Date().toISOString() } as any,
+      });
+    } catch (e) {
+      console.warn('Audit log insert failed:', e);
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -59,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (!error) {
       setInitialPassword(password);
+      logAuthEvent('LOGIN', email);
     }
     return { error };
   };
@@ -105,7 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    // Robust logout: redirect regardless of server response (handles 403 session_not_found)
+    const email = user?.email;
+    try {
+      await logAuthEvent('LOGOUT', email || undefined);
+    } catch (_) {}
     try {
       await supabase.auth.signOut();
     } catch (e) {
@@ -135,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!error) {
       setRecoveryMode(false);
       setInitialPassword(null);
+      logAuthEvent('PASSWORD_CHANGE', user?.email || undefined);
     }
     return { error };
   };
