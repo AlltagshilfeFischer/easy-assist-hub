@@ -2,13 +2,9 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Check, ChevronsUpDown, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Fuse from 'fuse.js';
+import type { CustomerSummary } from '@/types/domain';
 
-interface Customer {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-  name: string;
-}
+type Customer = CustomerSummary & { name: string };
 
 interface CustomerSearchComboboxProps {
   customers: Customer[];

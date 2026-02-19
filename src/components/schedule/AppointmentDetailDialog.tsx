@@ -15,63 +15,9 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CreateRecurringAppointmentDialog } from './CreateRecurringAppointmentDialog';
+import type { Employee, Customer, Appointment, CustomerTimeWindow } from '@/types/domain';
 
-interface Employee {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-  name: string;
-  telefon: string;
-  ist_aktiv: boolean;
-  max_termine_pro_tag: number;
-  farbe_kalender: string;
-  workload: number;
-  benutzer?: {
-    email: string;
-    vorname: string;
-    nachname: string;
-  };
-}
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string | null;
-  telefonnr: string | null;
-  geburtsdatum: string | null;
-  pflegegrad: number | null;
-  adresse: string | null;
-  stadtteil: string | null;
-  aktiv: boolean;
-  status: string | null;
-  pflegekasse: string | null;
-  versichertennummer: string | null;
-  stunden_kontingent_monat: number | null;
-  mitarbeiter: string | null;
-  angehoerige_ansprechpartner: string | null;
-  farbe_kalender?: string;
-}
-
-interface CustomerTimeWindow {
-  wochentag: number;
-  von: string;
-  bis: string;
-}
-
-interface Appointment {
-  id: string;
-  titel: string;
-  kunden_id: string;
-  mitarbeiter_id: string | null;
-  start_at: string;
-  end_at: string;
-  status: 'unassigned' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'abgerechnet' | 'bezahlt' | 'nicht_angetroffen' | 'abgesagt_rechtzeitig';
-  customer?: Customer;
-  employee?: Employee;
-  vorlage_id?: string | null;
-  ist_ausnahme?: boolean | null;
-  ausnahme_grund?: string | null;
-}
+// Types imported from @/types/domain
 
 interface AppointmentDetailDialogProps {
   isOpen: boolean;

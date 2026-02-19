@@ -12,8 +12,8 @@ interface ConflictingAppointment {
   start_at: string;
   end_at: string;
   customer?: {
-    vorname: string;
-    nachname: string;
+    vorname?: string | null;
+    nachname?: string | null;
   };
 }
 

@@ -2,26 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
-
-interface Appointment {
-  id: string;
-  titel: string;
-  kunden_id: string;
-  mitarbeiter_id: string | null;
-  start_at: string;
-  end_at: string;
-  customer?: {
-    id: string;
-    name: string;
-  };
-  employee?: {
-    id: string;
-    name: string;
-  };
-}
+import type { CalendarAppointment } from '@/types/domain';
 
 interface ConflictsNavigationCardProps {
-  appointments: Appointment[];
+  appointments: CalendarAppointment[];
   onNavigateToConflict: (appointmentId: string) => void;
 }
 
@@ -33,7 +17,7 @@ export function ConflictsNavigationCard({
 
   // Calculate conflicting appointments
   const conflictAppointments = useMemo(() => {
-    const conflicts: Appointment[] = [];
+    const conflicts: CalendarAppointment[] = [];
     const conflictIds = new Set<string>();
     
     const sortedApps = [...appointments].sort((a, b) => 

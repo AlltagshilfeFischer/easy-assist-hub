@@ -6,40 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users, Clock, MapPin, Phone, Mail, Calendar, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Employee, Customer, Appointment, CustomerTimeWindow } from '@/types/domain';
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string | null;
-  telefonnr: string | null;
-}
-
-interface Employee {
-  id: string;
-  vorname?: string;
-  nachname?: string;
-  telefon: string;
-  ist_aktiv: boolean;
-  max_termine_pro_tag: number;
-  benutzer?: {
-    email: string;
-    vorname: string;
-    nachname: string;
-  };
-}
-
-interface Appointment {
-  id: string;
-  start_at: string;
-  end_at: string;
-  mitarbeiter_id: string | null;
-}
-
-interface TimeSlot {
-  wochentag: number;
-  von: string;
-  bis: string;
-}
+type TimeSlot = CustomerTimeWindow;
 
 interface SmartMatchingPanelProps {
   customers: Customer[];
