@@ -85,12 +85,10 @@ export default function MitarbeiterDashboard() {
     <div className="w-full space-y-4 sm:space-y-6">
       <div className="mb-2 sm:mb-4">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-          {isGF ? 'Mein Bereich' : 'Mein Kalender'}
+          Mein Bereich
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-1">
-          {isGF
-            ? 'Ihre persönlichen Termine, Abwesenheiten und Aufgaben'
-            : 'Ihre Termine im Überblick'}
+          Ihre persönlichen Termine, Abwesenheiten und Aufgaben
         </p>
       </div>
 

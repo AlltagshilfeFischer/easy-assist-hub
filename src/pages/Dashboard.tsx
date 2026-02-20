@@ -52,6 +52,7 @@ export default function Dashboard() {
       <DashboardLayout>
         <Routes>
           <Route path="/" element={<MitarbeiterStart />} />
+          <Route path="/mein-bereich" element={<MitarbeiterDashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
