@@ -59,6 +59,13 @@ export function ForcePasswordChange({ children }: { children: React.ReactNode })
         description: error.message || 'Passwort konnte nicht geändert werden.',
       });
     } else {
+      // Update benutzer status from 'eingeladen' to 'approved'
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        await supabase.from('benutzer').update({ status: 'approved' as any }).eq('id', user.id);
+      } catch (e) {
+        console.error('Status update failed:', e);
+      }
       toast({
         title: 'Passwort geändert',
         description: 'Ihr Passwort wurde erfolgreich geändert.',

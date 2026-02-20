@@ -1777,7 +1777,7 @@ export type Database = {
         | "buchhaltung"
         | "globaladmin"
       approval_status: "pending" | "approved" | "rejected"
-      benutzer_status: "pending" | "approved" | "rejected"
+      benutzer_status: "pending" | "eingeladen" | "approved" | "rejected"
       kostentraeger_typ:
         | "pflegekasse"
         | "krankenkasse"
@@ -1956,7 +1956,7 @@ export const Constants = {
         "globaladmin",
       ],
       approval_status: ["pending", "approved", "rejected"],
-      benutzer_status: ["pending", "approved", "rejected"],
+      benutzer_status: ["pending", "eingeladen", "approved", "rejected"],
       kostentraeger_typ: [
         "pflegekasse",
         "krankenkasse",

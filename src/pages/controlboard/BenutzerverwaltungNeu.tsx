@@ -43,6 +43,7 @@ interface Mitarbeiter {
   benutzer_id: string | null;
   benutzer?: {
     email: string;
+    status: string;
   };
 }
 
@@ -92,7 +93,7 @@ export default function BenutzerverwaltungNeu() {
       const [mitarbeiterResponse, rolesResponse] = await Promise.all([
         supabase
           .from('mitarbeiter')
-          .select(`*, benutzer:benutzer_id (email)`)
+          .select(`*, benutzer:benutzer_id (email, status)`)
           .order('nachname', { ascending: true }),
         supabase
           .from('user_roles')
@@ -826,10 +827,15 @@ function EmployeeRow({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{fullName}</p>
-            {hasAccount ? (
+            {hasAccount && m.benutzer?.status === 'approved' ? (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-300 text-green-700 dark:border-green-700 dark:text-green-400 gap-1 shrink-0">
                 <CheckCircle2 className="h-2.5 w-2.5" />
                 Registriert
+              </Badge>
+            ) : hasAccount && m.benutzer?.status === 'eingeladen' ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400 gap-1 shrink-0">
+                <Mail className="h-2.5 w-2.5" />
+                Eingeladen
               </Badge>
             ) : (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400 gap-1 shrink-0">

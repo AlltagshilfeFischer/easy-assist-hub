@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
         id: targetUserId,
         email: email,
         rolle: preAssignedRole as any,
-        status: 'approved',
+        status: 'eingeladen',
         vorname: mitarbeiter.vorname || null,
         nachname: mitarbeiter.nachname || null,
       }, { onConflict: 'id' });
