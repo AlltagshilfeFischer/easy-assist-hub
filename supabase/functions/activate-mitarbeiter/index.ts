@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
     // Generate password reset link and send via Resend
     const siteUrl = Deno.env.get('SITE_URL') || `https://easy-assist-hub.lovable.app`;
     
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: linkData, error: genLinkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email,
       options: {
@@ -196,8 +196,8 @@ Deno.serve(async (req) => {
       },
     });
 
-    if (linkError) {
-      console.warn('Could not generate recovery link:', linkError.message);
+    if (genLinkError) {
+      console.warn('Could not generate recovery link:', genLinkError.message);
     } else {
       const recoveryLink = linkData?.properties?.action_link;
       console.log('Recovery link generated');
