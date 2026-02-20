@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       throw new Error(`E-Mail konnte nicht gesendet werden: ${resendData?.message || 'Unknown error'}`);
     }
 
-    console.log('Password reset email sent via Resend:', { to: email, id: resendData.id });
+    console.log('Password reset email sent successfully');
 
     return new Response(
       JSON.stringify({ success: true, provider: 'resend' }),

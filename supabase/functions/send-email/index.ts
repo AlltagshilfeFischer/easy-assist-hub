@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       throw new Error(`E-Mail konnte nicht gesendet werden: ${resendData?.message || resendResponse.statusText}`);
     }
 
-    console.log('Email sent successfully via Resend:', { to, subject, resendId: resendData.id });
+    console.log('Email sent successfully');
 
     return new Response(
       JSON.stringify({ success: true, id: resendData.id }),

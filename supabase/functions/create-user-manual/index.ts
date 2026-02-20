@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Creating user manually:', { email, vorname, nachname, rolle: finalRole });
+    console.log('Creating user manually for role:', finalRole);
 
     // 1. Check if auth user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     let userId: string;
 
     if (existingUser) {
-      console.log('Auth user already exists, updating:', existingUser.id);
+      console.log('Auth user already exists, updating');
       userId = existingUser.id;
       // Update password and confirm email
       await supabaseAdmin.auth.admin.updateUserById(userId, {
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       }
       userId = authData.user.id;
     }
-    console.log('Auth user ready:', userId);
+    console.log('Auth user ready');
 
     // 2. Upsert benutzer record (approved)
     const { error: benutzerError } = await supabaseAdmin

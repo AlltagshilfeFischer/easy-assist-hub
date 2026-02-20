@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       throw new Error('registration_id and email are required');
     }
 
-    console.log('Approving registration:', { registration_id, email });
+    console.log('Approving registration:', registration_id);
 
     const { data: registration, error: regErr } = await supabaseAdmin
       .from('pending_registrations')
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       targetUserId = created.user.id;
       createdNewUser = true;
       emailConfirmed = !!created.user.email_confirmed_at;
-      console.log('Auth user created:', targetUserId);
+      console.log('Auth user created');
     } catch (e: any) {
       console.warn('Create user failed, attempting to link existing user:', e?.message);
 
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       targetUserId = existing.id;
       createdNewUser = false;
       emailConfirmed = !!existing.email_confirmed_at;
-      console.log('Using existing auth user:', targetUserId);
+      console.log('Using existing auth user');
     }
 
     // --- ROLE SYNC: Check for pre-assigned roles ---
@@ -256,7 +256,7 @@ Deno.serve(async (req) => {
       if (mitarbeiterError) {
         throw new Error(`Failed to link mitarbeiter: ${mitarbeiterError.message}`);
       }
-      console.log('Linked auth user to existing mitarbeiter:', linkedMitarbeiterId);
+      console.log('Linked auth user to existing mitarbeiter');
     } else {
       const { error: mitarbeiterError } = await supabaseAdmin
         .from('mitarbeiter')
@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
       if (mitarbeiterError) {
         throw new Error(`Failed to upsert mitarbeiter: ${mitarbeiterError.message}`);
       }
-      console.log('Created new mitarbeiter record for user:', targetUserId);
+      console.log('Created new mitarbeiter record');
     }
 
     // Update registration status

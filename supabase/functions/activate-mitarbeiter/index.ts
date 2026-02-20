@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Activating mitarbeiter:', { mitarbeiter_id, email });
+    console.log('Activating mitarbeiter:', mitarbeiter_id);
 
     // Check for pre-assigned role from placeholder benutzer
     let preAssignedRole = 'mitarbeiter';
@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
       if (createErr) throw createErr;
       targetUserId = created.user.id;
-      console.log('Auth user created:', targetUserId);
+      console.log('Auth user created');
     } catch (e: any) {
       // User might already exist
       const { data: usersPage } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
           mitarbeiter_id: mitarbeiter_id,
         }
       });
-      console.log('Existing auth user updated:', targetUserId);
+      console.log('Existing auth user updated');
     }
 
     // Create/update benutzer record
@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
       console.warn('Could not generate recovery link:', linkError.message);
     } else {
       const recoveryLink = linkData?.properties?.action_link;
-      console.log('Recovery link generated for:', email);
+      console.log('Recovery link generated');
 
       // Send activation email via Resend
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -253,7 +253,7 @@ Deno.serve(async (req) => {
           if (!resendResponse.ok) {
             console.warn('Resend error:', resendData);
           } else {
-            console.log('Activation email sent via Resend:', resendData.id);
+            console.log('Activation email sent successfully');
           }
         } catch (emailErr) {
           console.warn('Failed to send email via Resend:', emailErr);
@@ -266,7 +266,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Mitarbeiter activated successfully:', { mitarbeiter_id, email, role: preAssignedRole });
+    console.log('Mitarbeiter activated successfully:', mitarbeiter_id);
 
     return new Response(
       JSON.stringify({
