@@ -185,19 +185,85 @@ Deno.serve(async (req) => {
       throw new Error(`Mitarbeiter konnte nicht verknüpft werden: ${linkError.message}`);
     }
 
-    // Send password reset email so user can set their own password
+    // Generate password reset link and send via Resend
     const siteUrl = Deno.env.get('SITE_URL') || `https://easy-assist-hub.lovable.app`;
     
-    // IMPORTANT: generateLink only creates the link but does NOT send an email.
-    // We must use resetPasswordForEmail to actually send the email to the user.
-    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/?type=recovery`,
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: {
+        redirectTo: `${siteUrl}/?type=recovery`,
+      },
     });
 
-    if (resetError) {
-      console.warn('Password reset email could not be sent:', resetError.message);
+    if (linkError) {
+      console.warn('Could not generate recovery link:', linkError.message);
     } else {
-      console.log('Password reset email sent to:', email);
+      const recoveryLink = linkData?.properties?.action_link;
+      console.log('Recovery link generated for:', email);
+
+      // Send activation email via Resend
+      const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      if (RESEND_API_KEY && recoveryLink) {
+        const displayName = [mitarbeiter.vorname, mitarbeiter.nachname].filter(Boolean).join(' ') || 'Mitarbeiter/in';
+        
+        const emailHtml = `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 32px 24px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Alltagshilfe Fischer</h1>
+              <p style="color: #bfdbfe; margin: 8px 0 0; font-size: 14px;">Ihr Zugang zum Mitarbeiterportal</p>
+            </div>
+            <div style="padding: 32px 24px;">
+              <p style="font-size: 16px; color: #1e293b; margin: 0 0 16px;">Hallo ${displayName},</p>
+              <p style="font-size: 15px; color: #475569; line-height: 1.6; margin: 0 0 24px;">
+                Ihr Konto bei Alltagshilfe Fischer wurde aktiviert. Bitte klicken Sie auf den folgenden Button, um Ihr persönliches Passwort festzulegen:
+              </p>
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${recoveryLink}" style="display: inline-block; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
+                  Passwort festlegen
+                </a>
+              </div>
+              <p style="font-size: 13px; color: #94a3b8; line-height: 1.5; margin: 24px 0 0;">
+                Falls der Button nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:<br>
+                <a href="${recoveryLink}" style="color: #2563eb; word-break: break-all;">${recoveryLink}</a>
+              </p>
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+              <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+                Diese E-Mail wurde automatisch versendet. Bitte antworten Sie nicht auf diese Nachricht.
+              </p>
+            </div>
+          </div>
+        `;
+
+        try {
+          const resendResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'Alltagshilfe Fischer <noreply@alltagshilfe-fischer.de>',
+              to: [email],
+              subject: 'Ihr Zugang zum Alltagshilfe Fischer Portal',
+              html: emailHtml,
+            }),
+          });
+          const resendData = await resendResponse.json();
+          if (!resendResponse.ok) {
+            console.warn('Resend error:', resendData);
+          } else {
+            console.log('Activation email sent via Resend:', resendData.id);
+          }
+        } catch (emailErr) {
+          console.warn('Failed to send email via Resend:', emailErr);
+        }
+      } else {
+        console.warn('RESEND_API_KEY not configured or no recovery link - falling back to Supabase email');
+        await supabaseAdmin.auth.resetPasswordForEmail(email, {
+          redirectTo: `${siteUrl}/?type=recovery`,
+        });
+      }
     }
 
     console.log('Mitarbeiter activated successfully:', { mitarbeiter_id, email, role: preAssignedRole });

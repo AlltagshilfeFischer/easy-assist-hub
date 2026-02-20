@@ -134,13 +134,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    // Don't check benutzer table - RLS blocks unauthenticated reads.
-    // Supabase handles non-existent emails gracefully (no error, no email sent).
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/?type=recovery`,
-    });
-    
-    return { error };
+    // Send password reset email via Resend edge function
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-password-email', {
+        body: { email },
+      });
+      
+      if (error) {
+        console.warn('Edge function error, falling back to Supabase:', error);
+        // Fallback to built-in Supabase email
+        const { error: fallbackError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/?type=recovery`,
+        });
+        return { error: fallbackError };
+      }
+      
+      return { error: null };
+    } catch (e) {
+      console.warn('Reset password via Resend failed, using fallback:', e);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/?type=recovery`,
+      });
+      return { error };
+    }
   };
 
   const updatePassword = async (newPassword: string) => {
