@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: 'Alltagshilfe Fischer <noreply@alltagshilfe-fischer.de>',
+              from: 'Alltagshilfe Fischer <noreply@af-verwaltung.de>',
               to: [email],
               subject: 'Ihr Zugang zum Alltagshilfe Fischer Portal',
               html: emailHtml,
