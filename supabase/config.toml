@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.batch-billing]
 verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.reset-password-email]
+verify_jwt = false
