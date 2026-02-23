@@ -371,11 +371,32 @@ export default function BenutzerverwaltungNeu() {
         await supabase.from('benutzer').update({ rolle: newRole as any }).eq('id', benutzerId);
       }
 
-      const roleLabels: Record<string, string> = { globaladmin: 'Admin', geschaeftsfuehrer: 'Geschäftsführer', admin: 'Disponent', buchhaltung: 'Buchhaltung', mitarbeiter: 'Mitarbeiter' };
-      toast({
-        title: 'Rolle geändert',
-        description: `Rolle wurde auf "${roleLabels[newRole] || newRole}" gesetzt.`,
-      });
+      // Force logout the affected user so new role takes effect on next login
+      if (benutzerId === user?.id) {
+        // Current user changed their own role → sign out locally
+        const roleLabels: Record<string, string> = { globaladmin: 'Admin', geschaeftsfuehrer: 'Geschäftsführer', admin: 'Disponent', buchhaltung: 'Buchhaltung', mitarbeiter: 'Mitarbeiter' };
+        toast({
+          title: 'Rolle geändert',
+          description: `Rolle wurde auf "${roleLabels[newRole] || newRole}" gesetzt. Sie werden jetzt abgemeldet.`,
+        });
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+        }, 1500);
+      } else {
+        // Other user → invalidate their session server-side
+        try {
+          await supabase.functions.invoke('force-signout', {
+            body: { target_user_id: benutzerId },
+          });
+        } catch (e) {
+          console.warn('Could not force sign out target user:', e);
+        }
+        const roleLabels: Record<string, string> = { globaladmin: 'Admin', geschaeftsfuehrer: 'Geschäftsführer', admin: 'Disponent', buchhaltung: 'Buchhaltung', mitarbeiter: 'Mitarbeiter' };
+        toast({
+          title: 'Rolle geändert',
+          description: `Rolle wurde auf "${roleLabels[newRole] || newRole}" gesetzt. Der Benutzer wird beim nächsten Zugriff abgemeldet.`,
+        });
+      }
       loadData();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Fehler', description: error.message });
