@@ -161,6 +161,7 @@ const ScheduleBuilderModern = () => {
 
       const transformedCustomers: Customer[] = (customersData ?? []).map(cust => ({
         ...cust,
+        name: cust.name || [cust.vorname, cust.nachname].filter(Boolean).join(' ') || `Kunde ${cust.kunden_nummer}`,
         farbe_kalender: cust.farbe_kalender || '#10B981',
       })) as Customer[];
 
