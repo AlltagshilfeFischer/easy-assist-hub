@@ -130,7 +130,7 @@ export function CreateRecurringAppointmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto z-[201]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Repeat className="h-5 w-5" />
@@ -159,7 +159,7 @@ export function CreateRecurringAppointmentDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Nicht zugewiesen (später zuweisen)" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[202]">
                 <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
                 {employees
                   .filter((emp) => emp)
@@ -182,7 +182,7 @@ export function CreateRecurringAppointmentDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[202]">
                   {WEEKDAYS.map((day) => (
                     <SelectItem key={day.value} value={day.value.toString()}>
                       {day.label}
@@ -198,7 +198,7 @@ export function CreateRecurringAppointmentDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[202]">
                   {INTERVALS.map((int) => (
                     <SelectItem key={int.value} value={int.value}>
                       {int.label}
@@ -255,7 +255,7 @@ export function CreateRecurringAppointmentDialog({
                     {gueltigVon ? format(gueltigVon, 'PPP', { locale: de }) : 'Datum wählen'}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-[202]" align="start">
                   <Calendar
                     mode="single"
                     selected={gueltigVon}
@@ -282,7 +282,7 @@ export function CreateRecurringAppointmentDialog({
                     {gueltigBis ? format(gueltigBis, 'PPP', { locale: de }) : 'Unbegrenzt'}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-[202]" align="start">
                   <Calendar
                     mode="single"
                     selected={gueltigBis}
