@@ -172,19 +172,21 @@ export function ProScheduleCalendar({
                   </Avatar>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-foreground truncate flex items-center gap-1.5">
+                  <div className="font-medium text-sm text-foreground truncate">
                     {employee.name}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "text-xs font-medium",
+                      weekHours > sollStunden ? "text-destructive" : "text-primary"
+                    )}>
+                      {weekHours}/{sollStunden} Std.
+                    </span>
                     {employee.rolle && employee.rolle !== 'mitarbeiter' && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
                         {ROLE_LABELS[employee.rolle] || employee.rolle}
                       </Badge>
                     )}
-                  </div>
-                  <div className={cn(
-                    "text-xs font-medium",
-                    weekHours > sollStunden ? "text-destructive" : "text-primary"
-                  )}>
-                    {weekHours}/{sollStunden} Std.
                   </div>
                 </div>
               </div>
