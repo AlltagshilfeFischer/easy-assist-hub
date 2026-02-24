@@ -153,70 +153,69 @@ export default function Leistungsnachweise() {
     enabled: !!selectedLN
   });
 
-  // Generate mutation
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      if (!kunden) throw new Error('Keine Kunden');
-      const von = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
-      const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+  // Auto-generate/update Leistungsnachweise when month data is loaded
+  const autoGenerateNachweise = async () => {
+    if (!kunden) return;
+    const von = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
+    const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
 
-      const { data: allTermine, error: tErr } = await supabase
-        .from('termine')
-        .select('kunden_id, iststunden, start_at, end_at, status')
-        .gte('start_at', von)
-        .lte('start_at', bis);
-      if (tErr) throw tErr;
+    const { data: allTermine, error: tErr } = await supabase
+      .from('termine')
+      .select('kunden_id, iststunden, start_at, end_at, status')
+      .gte('start_at', von)
+      .lte('start_at', bis);
+    if (tErr) return;
 
-      const terminsByKunde = new Map<string, typeof allTermine>();
-      for (const t of allTermine || []) {
-        const arr = terminsByKunde.get(t.kunden_id) || [];
-        arr.push(t);
-        terminsByKunde.set(t.kunden_id, arr);
-      }
+    const terminsByKunde = new Map<string, typeof allTermine>();
+    for (const t of allTermine || []) {
+      const arr = terminsByKunde.get(t.kunden_id) || [];
+      arr.push(t);
+      terminsByKunde.set(t.kunden_id, arr);
+    }
 
-      let created = 0;
-      for (const kunde of kunden) {
-        const kundeTermine = terminsByKunde.get(kunde.id) || [];
-        if (kundeTermine.length === 0) continue;
+    for (const kunde of kunden) {
+      const kundeTermine = terminsByKunde.get(kunde.id) || [];
+      if (kundeTermine.length === 0) continue;
 
-        const geleistet = kundeTermine
-          .filter(t => ['completed', 'nicht_angetroffen'].includes(t.status))
-          .reduce((sum, t) => {
-            if (t.iststunden) return sum + Number(t.iststunden);
-            const start = new Date(t.start_at);
-            const end = new Date(t.end_at);
-            return sum + (end.getTime() - start.getTime()) / 3600000;
-          }, 0);
-
-        const geplant = kundeTermine.reduce((sum, t) => {
+      const geleistet = kundeTermine
+        .filter(t => ['completed', 'nicht_angetroffen'].includes(t.status))
+        .reduce((sum, t) => {
+          if (t.iststunden) return sum + Number(t.iststunden);
           const start = new Date(t.start_at);
           const end = new Date(t.end_at);
           return sum + (end.getTime() - start.getTime()) / 3600000;
         }, 0);
 
-        const { error } = await supabase
-          .from('leistungsnachweise')
-          .upsert({
-            kunden_id: kunde.id,
-            monat: selectedMonth,
-            jahr: selectedYear,
-            geplante_stunden: Math.round(geplant * 100) / 100,
-            geleistete_stunden: Math.round(geleistet * 100) / 100,
-            status: 'entwurf'
-          }, { onConflict: 'kunden_id,monat,jahr', ignoreDuplicates: false });
+      const geplant = kundeTermine.reduce((sum, t) => {
+        const start = new Date(t.start_at);
+        const end = new Date(t.end_at);
+        return sum + (end.getTime() - start.getTime()) / 3600000;
+      }, 0);
 
-        if (!error) created++;
-      }
-      return created;
-    },
-    onSuccess: (count) => {
-      toast.success(`${count} Leistungsnachweis(e) generiert/aktualisiert`);
-      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
-    },
-    onError: (err) => {
-      toast.error('Fehler beim Generieren', { description: err instanceof Error ? err.message : 'Unbekannt' });
+      await supabase
+        .from('leistungsnachweise')
+        .upsert({
+          kunden_id: kunde.id,
+          monat: selectedMonth,
+          jahr: selectedYear,
+          geplante_stunden: Math.round(geplant * 100) / 100,
+          geleistete_stunden: Math.round(geleistet * 100) / 100,
+          status: 'entwurf'
+        }, { onConflict: 'kunden_id,monat,jahr', ignoreDuplicates: false });
     }
-  });
+
+    queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
+  };
+
+  // Trigger auto-generation when kunden and nachweise are loaded
+  const [autoGenDone, setAutoGenDone] = useState<string | null>(null);
+  useEffect(() => {
+    const key = `${selectedMonth}-${selectedYear}`;
+    if (kunden && nachweise !== undefined && autoGenDone !== key) {
+      setAutoGenDone(key);
+      autoGenerateNachweise();
+    }
+  }, [kunden, nachweise, selectedMonth, selectedYear]);
 
   // Update mutation
   const updateMutation = useMutation({
@@ -339,15 +338,6 @@ export default function Leistungsnachweise() {
             </Button>
           </div>
 
-          <Button
-            onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending}
-            size="sm"
-            className="gap-2"
-          >
-            {generateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Generieren
-          </Button>
         </div>
       </div>
 
@@ -424,7 +414,7 @@ export default function Leistungsnachweise() {
                 </div>
                 <p className="font-medium text-foreground">Keine Nachweise gefunden</p>
                 <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                  {nachweise?.length ? 'Passe deine Filter an.' : 'Klicke "Generieren" um automatisch Nachweise aus den Terminen zu erstellen.'}
+                  {nachweise?.length ? 'Passe deine Filter an.' : 'Für diesen Monat gibt es noch keine Termine.'}
                 </p>
               </div>
             ) : (
