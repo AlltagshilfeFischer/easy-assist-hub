@@ -542,23 +542,49 @@ export function SmartDataImport<T extends DataRow>({
     setStep('ai-input');
   };
 
+  // Split text into chunks of roughly maxLinesPerChunk lines
+  const splitTextIntoChunks = (text: string, maxLinesPerChunk = 50): string[] => {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length <= maxLinesPerChunk) return [text];
+    
+    const chunks: string[] = [];
+    for (let i = 0; i < lines.length; i += maxLinesPerChunk) {
+      chunks.push(lines.slice(i, i + maxLinesPerChunk).join('\n'));
+    }
+    return chunks;
+  };
+
   const handleAiParse = async () => {
     if (!aiInput.trim() || !aiParseFunction || !aiParseResultKey) return;
     setIsAiParsing(true);
     try {
-      const { data, error } = await supabase.functions.invoke(aiParseFunction, {
-        body: { text: aiInput },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      
-      const parsed = data?.[aiParseResultKey];
-      if (!parsed?.length) {
+      const chunks = splitTextIntoChunks(aiInput, 50);
+      let allParsed: any[] = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        toast({
+          title: 'KI-Analyse',
+          description: `Teil ${i + 1} von ${chunks.length} wird verarbeitet...`,
+        });
+
+        const { data, error } = await supabase.functions.invoke(aiParseFunction, {
+          body: { text: chunks[i] },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        
+        const parsed = data?.[aiParseResultKey];
+        if (parsed?.length) {
+          allParsed = [...allParsed, ...parsed];
+        }
+      }
+
+      if (!allParsed.length) {
         toast({ title: 'Keine Daten erkannt', description: 'Die KI konnte keine Datensätze aus dem Text extrahieren.', variant: 'destructive' });
         return;
       }
 
-      const newRows: T[] = parsed.map((item: any) => {
+      const newRows: T[] = allParsed.map((item: any) => {
         const row = createEmptyRow();
         for (const col of columns) {
           if (item[col.key] !== undefined && item[col.key] !== null) {
@@ -570,7 +596,7 @@ export function SmartDataImport<T extends DataRow>({
       });
 
       // Add empty rows for editing
-      while (newRows.length < Math.max(parsed.length + 5, 10)) {
+      while (newRows.length < Math.max(allParsed.length + 5, 10)) {
         newRows.push(createEmptyRow());
       }
 
@@ -579,7 +605,7 @@ export function SmartDataImport<T extends DataRow>({
 
       toast({
         title: 'KI-Analyse abgeschlossen',
-        description: `${parsed.length} Datensätze erkannt. Bitte prüfen und korrigieren.`,
+        description: `${allParsed.length} Datensätze erkannt (${chunks.length} Teil${chunks.length > 1 ? 'e' : ''}). Bitte prüfen und korrigieren.`,
       });
     } catch (e: any) {
       toast({ title: 'KI-Fehler', description: e.message, variant: 'destructive' });

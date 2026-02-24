@@ -93,23 +93,43 @@ const ScheduleBuilderModern = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data: employeesData, error: employeesError } = await supabase
-        .from('mitarbeiter')
-        .select('*, benutzer(*)')
-        .eq('ist_aktiv', true)
-        .order('created_at', { ascending: true });
+      // Fetch employees and their roles in parallel
+      const [employeesResult, rolesResult] = await Promise.all([
+        supabase
+          .from('mitarbeiter')
+          .select('*, benutzer(*)')
+          .eq('ist_aktiv', true)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('user_roles')
+          .select('user_id, role'),
+      ]);
       
-      if (employeesError) throw employeesError;
+      if (employeesResult.error) throw employeesResult.error;
 
-      const transformedEmployees: Employee[] = employeesData?.map((emp: any) => {
+      // Build roles map
+      const rolesMap: Record<string, string> = {};
+      if (rolesResult.data) {
+        for (const entry of rolesResult.data) {
+          const current = rolesMap[entry.user_id];
+          const priority: Record<string, number> = { globaladmin: 5, geschaeftsfuehrer: 4, admin: 3, buchhaltung: 2, mitarbeiter: 1 };
+          if (!current || (priority[entry.role] || 0) > (priority[current] || 0)) {
+            rolesMap[entry.user_id] = entry.role;
+          }
+        }
+      }
+
+      const transformedEmployees: Employee[] = employeesResult.data?.map((emp: any) => {
         const benutzer = emp.benutzer;
         const fullName = benutzer?.vorname && benutzer?.nachname 
           ? `${benutzer.vorname} ${benutzer.nachname}` 
           : [emp.vorname, emp.nachname].filter(Boolean).join(' ') || `Mitarbeiter ${emp.id.slice(0, 8)}`;
+        // Get role from user_roles table (more reliable than benutzer.rolle)
+        const userRole = emp.benutzer_id ? rolesMap[emp.benutzer_id] : undefined;
         return {
           ...emp,
           name: fullName,
-          rolle: benutzer?.rolle || undefined,
+          rolle: userRole || benutzer?.rolle || undefined,
         };
       }) || [];
 
