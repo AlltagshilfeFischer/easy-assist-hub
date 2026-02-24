@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
@@ -12,6 +11,7 @@ import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
+import { TIME_SLOTS, DURATION_OPTIONS } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminVorlage } from '@/types/domain';
 
 type RecurringTemplate = Partial<Pick<TerminVorlage, 'id' | 'ist_aktiv'>> & Omit<TerminVorlage, 'id' | 'ist_aktiv'>;
@@ -53,14 +53,13 @@ export function CreateRecurringAppointmentDialog({
   const [mitarbeiterId, setMitarbeiterId] = useState<string>('unassigned');
   const [wochentag, setWochentag] = useState<number>(1);
   const [startZeit, setStartZeit] = useState('09:00');
-  const [dauerMinuten, setDauerMinuten] = useState(60);
+  const [dauerMinuten, setDauerMinuten] = useState(90);
   const [intervall, setIntervall] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [gueltigVon, setGueltigVon] = useState<Date>();
   const [gueltigBis, setGueltigBis] = useState<Date>();
   const [notizen, setNotizen] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Load template data when editing
   React.useEffect(() => {
     if (editingTemplate) {
       setKundenId(editingTemplate.kunden_id);
@@ -81,19 +80,16 @@ export function CreateRecurringAppointmentDialog({
 
     setLoading(true);
     try {
-      // Calculate default end date: 10 years from start, but max 2036-12-31
       let endDate: Date;
       if (gueltigBis) {
         endDate = gueltigBis;
       } else {
         const tenYearsLater = new Date(gueltigVon);
         tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-        
         const maxDate = new Date('2036-12-31');
         endDate = tenYearsLater > maxDate ? maxDate : tenYearsLater;
       }
 
-      // Get customer name for titel
       const customerName = customers.find(c => c.id === kundenId)?.name || 'Unbekannt';
 
       await onSubmit({
@@ -110,12 +106,11 @@ export function CreateRecurringAppointmentDialog({
         notizen: notizen || null,
       });
 
-      // Reset form
       setKundenId('');
       setMitarbeiterId('unassigned');
       setWochentag(1);
       setStartZeit('09:00');
-      setDauerMinuten(60);
+      setDauerMinuten(90);
       setIntervall('weekly');
       setGueltigVon(undefined);
       setGueltigBis(undefined);
@@ -144,30 +139,19 @@ export function CreateRecurringAppointmentDialog({
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="kunde">Kunde</Label>
-              <CustomerSearchCombobox
-                customers={customers}
-                value={kundenId}
-                onValueChange={setKundenId}
-                placeholder="Kunde suchen..."
-              />
+              <CustomerSearchCombobox customers={customers} value={kundenId} onValueChange={setKundenId} placeholder="Kunde suchen..." />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="mitarbeiter">Mitarbeiter (optional)</Label>
             <Select value={mitarbeiterId} onValueChange={setMitarbeiterId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Nicht zugewiesen (später zuweisen)" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Nicht zugewiesen (später zuweisen)" /></SelectTrigger>
               <SelectContent className="z-[202]">
                 <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                {employees
-                  .filter((emp) => emp)
-                  .map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.vorname} {employee.nachname}
-                    </SelectItem>
-                  ))}
+                {employees.filter((emp) => emp).map((employee) => (
+                  <SelectItem key={employee.id} value={employee.id}>{employee.vorname} {employee.nachname}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -175,34 +159,22 @@ export function CreateRecurringAppointmentDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="wochentag">Wochentag</Label>
-              <Select 
-                value={wochentag.toString()} 
-                onValueChange={(val) => setWochentag(Number(val))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={wochentag.toString()} onValueChange={(val) => setWochentag(Number(val))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent className="z-[202]">
                   {WEEKDAYS.map((day) => (
-                    <SelectItem key={day.value} value={day.value.toString()}>
-                      {day.label}
-                    </SelectItem>
+                    <SelectItem key={day.value} value={day.value.toString()}>{day.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="intervall">Wiederholung</Label>
               <Select value={intervall} onValueChange={(val: any) => setIntervall(val)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent className="z-[202]">
                   {INTERVALS.map((int) => (
-                    <SelectItem key={int.value} value={int.value}>
-                      {int.label}
-                    </SelectItem>
+                    <SelectItem key={int.value} value={int.value}>{int.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -211,31 +183,31 @@ export function CreateRecurringAppointmentDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startZeit">Uhrzeit</Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="startZeit"
-                  type="time"
-                  value={startZeit}
-                  onChange={(e) => setStartZeit(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <Label>Uhrzeit</Label>
+              <Select value={startZeit} onValueChange={setStartZeit}>
+                <SelectTrigger>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="z-[202] max-h-[300px]">
+                  {TIME_SLOTS.map(slot => (
+                    <SelectItem key={slot} value={slot}>{slot} Uhr</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="dauer">Dauer (Minuten)</Label>
-              <Input
-                id="dauer"
-                type="number"
-                value={dauerMinuten}
-                onChange={(e) => setDauerMinuten(Number(e.target.value))}
-                min={15}
-                step={15}
-                required
-              />
+              <Label>Dauer</Label>
+              <Select value={dauerMinuten.toString()} onValueChange={(v) => setDauerMinuten(Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="z-[202]">
+                  {DURATION_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -244,52 +216,27 @@ export function CreateRecurringAppointmentDialog({
               <Label>Gültig von</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !gueltigVon && 'text-muted-foreground'
-                    )}
-                  >
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !gueltigVon && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {gueltigVon ? format(gueltigVon, 'PPP', { locale: de }) : 'Datum wählen'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 z-[202]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={gueltigVon}
-                    onSelect={setGueltigVon}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
+                  <Calendar mode="single" selected={gueltigVon} onSelect={setGueltigVon} initialFocus className="pointer-events-auto" />
                 </PopoverContent>
               </Popover>
             </div>
-
             <div className="space-y-2">
               <Label>Gültig bis (optional)</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !gueltigBis && 'text-muted-foreground'
-                    )}
-                  >
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !gueltigBis && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {gueltigBis ? format(gueltigBis, 'PPP', { locale: de }) : 'Unbegrenzt'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 z-[202]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={gueltigBis}
-                    onSelect={setGueltigBis}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
+                  <Calendar mode="single" selected={gueltigBis} onSelect={setGueltigBis} initialFocus className="pointer-events-auto" />
                 </PopoverContent>
               </Popover>
             </div>
@@ -297,19 +244,11 @@ export function CreateRecurringAppointmentDialog({
 
           <div className="space-y-2">
             <Label htmlFor="notizen">Notizen (optional)</Label>
-            <Textarea
-              id="notizen"
-              value={notizen}
-              onChange={(e) => setNotizen(e.target.value)}
-              placeholder="Zusätzliche Informationen..."
-              rows={3}
-            />
+            <Textarea id="notizen" value={notizen} onChange={(e) => setNotizen(e.target.value)} placeholder="Zusätzliche Informationen..." rows={3} />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Abbrechen
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
             <Button type="submit" disabled={loading || !gueltigVon || !kundenId}>
               {loading ? (editingTemplate ? 'Speichere...' : 'Erstelle...') : (editingTemplate ? 'Änderungen speichern' : 'Regeltermin erstellen')}
             </Button>

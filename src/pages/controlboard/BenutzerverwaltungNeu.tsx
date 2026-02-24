@@ -1027,10 +1027,11 @@ interface ManualRow {
   plz: string;
   stadt: string;
   zustaendigkeitsbereich: string;
+  soll_wochenstunden: string;
   verfuegbarkeit: VerfuegbarkeitSlot[];
 }
 
-const emptyRow = (): ManualRow => ({ vorname: '', nachname: '', telefon: '', strasse: '', plz: '', stadt: '', zustaendigkeitsbereich: '', verfuegbarkeit: [] });
+const emptyRow = (): ManualRow => ({ vorname: '', nachname: '', telefon: '', strasse: '', plz: '', stadt: '', zustaendigkeitsbereich: '', soll_wochenstunden: '', verfuegbarkeit: [] });
 
 const WEEKDAY_SHORT: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' };
 
@@ -1095,6 +1096,7 @@ function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean
           plz: r.plz.trim() || null,
           stadt: r.stadt.trim() || null,
           zustaendigkeitsbereich: r.zustaendigkeitsbereich.trim() || null,
+          soll_wochenstunden: r.soll_wochenstunden ? parseFloat(r.soll_wochenstunden) : null,
           ist_aktiv: true,
         });
         if (error) throw error;
@@ -1129,6 +1131,7 @@ function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean
         plz: m.plz || '',
         stadt: m.stadt || '',
         zustaendigkeitsbereich: m.zustaendigkeitsbereich || '',
+        soll_wochenstunden: m.soll_wochenstunden ? String(m.soll_wochenstunden) : '',
         verfuegbarkeit: Array.isArray(m.verfuegbarkeit) ? m.verfuegbarkeit : [],
       })));
       setAiStep('preview');
@@ -1158,6 +1161,7 @@ function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: { open: boolean
           plz: r.plz.trim() || null,
           stadt: r.stadt.trim() || null,
           zustaendigkeitsbereich: r.zustaendigkeitsbereich.trim() || null,
+          soll_wochenstunden: r.soll_wochenstunden ? parseFloat(r.soll_wochenstunden) : null,
           ist_aktiv: true,
         }).select('id').single();
         if (error) throw error;

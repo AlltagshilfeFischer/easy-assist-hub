@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
+import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary } from '@/types/domain';
 
 interface CreateAppointmentDialogProps {
@@ -38,7 +39,7 @@ export function CreateAppointmentDialog({
   const [mitarbeiterId, setMitarbeiterId] = useState<string>('unassigned');
   const [date, setDate] = useState<Date>();
   const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:30');
+  const [dauerMinuten, setDauerMinuten] = useState(90);
   const [loading, setLoading] = useState(false);
   const [isNewInteressent, setIsNewInteressent] = useState(false);
   const [newInteressentName, setNewInteressentName] = useState('');
@@ -55,7 +56,6 @@ export function CreateAppointmentDialog({
       if (isNewInteressent && newInteressentName.trim()) {
         const { supabase } = await import('@/integrations/supabase/client');
         
-        // Split name into vorname and nachname (first word = vorname, rest = nachname)
         const nameParts = newInteressentName.trim().split(' ');
         const vorname = nameParts[0];
         const nachname = nameParts.slice(1).join(' ') || '';
@@ -79,11 +79,11 @@ export function CreateAppointmentDialog({
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       startAt.setHours(startHours, startMinutes, 0, 0);
 
+      const endTime = addMinutesToTime(startTime, dauerMinuten);
       const endAt = new Date(date);
       const [endHours, endMinutes] = endTime.split(':').map(Number);
       endAt.setHours(endHours, endMinutes, 0, 0);
 
-      // Get customer name for titel
       const customerName = isNewInteressent 
         ? newInteressentName.trim() 
         : customers.find(c => c.id === finalKundenId)?.name || 'Unbekannt';
@@ -101,7 +101,7 @@ export function CreateAppointmentDialog({
       setMitarbeiterId('unassigned');
       setDate(undefined);
       setStartTime('09:00');
-      setEndTime('10:30');
+      setDauerMinuten(90);
       setIsNewInteressent(false);
       setNewInteressentName('');
       onOpenChange(false);
@@ -207,33 +207,34 @@ export function CreateAppointmentDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="startTime">Start-Zeit</Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <Label>Startzeit</Label>
+              <Select value={startTime} onValueChange={setStartTime}>
+                <SelectTrigger>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="z-[202] max-h-[300px]">
+                  {TIME_SLOTS.map(slot => (
+                    <SelectItem key={slot} value={slot}>{slot} Uhr</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="endTime">End-Zeit</Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <Label>Dauer</Label>
+              <Select value={dauerMinuten.toString()} onValueChange={(v) => setDauerMinuten(Number(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[202]">
+                  {DURATION_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

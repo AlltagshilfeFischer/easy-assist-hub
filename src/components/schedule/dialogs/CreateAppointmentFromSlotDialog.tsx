@@ -14,6 +14,7 @@ import { CalendarIcon, Clock, Repeat, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
+import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary } from '@/types/domain';
 
 interface CreateAppointmentFromSlotDialogProps {
@@ -64,7 +65,7 @@ export function CreateAppointmentFromSlotDialog({
   const [mitarbeiterId, setMitarbeiterId] = useState(prefilledData.employeeId);
   const [date, setDate] = useState<Date>(prefilledData.date);
   const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:30');
+  const [dauerMinuten, setDauerMinuten] = useState(90);
 
   // Recurring appointment state
   const [recurringKundenId, setRecurringKundenId] = useState('');
@@ -72,12 +73,11 @@ export function CreateAppointmentFromSlotDialog({
   const [wochentag, setWochentag] = useState(prefilledData.date.getDay());
   const [intervall, setIntervall] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [recurringStartTime, setRecurringStartTime] = useState('09:00');
-  const [dauerMinuten, setDauerMinuten] = useState(90);
+  const [recurringDauerMinuten, setRecurringDauerMinuten] = useState(90);
   const [gueltigVon, setGueltigVon] = useState<Date>(prefilledData.date);
   const [gueltigBis, setGueltigBis] = useState<Date | undefined>();
   const [notizen, setNotizen] = useState('');
 
-  // Update prefilled data when slot changes
   useEffect(() => {
     setMitarbeiterId(prefilledData.employeeId);
     setRecurringMitarbeiterId(prefilledData.employeeId);
@@ -93,14 +93,14 @@ export function CreateAppointmentFromSlotDialog({
     setMitarbeiterId(prefilledData.employeeId);
     setDate(prefilledData.date);
     setStartTime('09:00');
-    setEndTime('10:30');
+    setDauerMinuten(90);
     
     setRecurringKundenId('');
     setRecurringMitarbeiterId(prefilledData.employeeId);
     setWochentag(prefilledData.date.getDay());
     setIntervall('weekly');
     setRecurringStartTime('09:00');
-    setDauerMinuten(90);
+    setRecurringDauerMinuten(90);
     setGueltigVon(prefilledData.date);
     setGueltigBis(undefined);
     setNotizen('');
@@ -114,23 +114,15 @@ export function CreateAppointmentFromSlotDialog({
     try {
       let finalKundenId = kundenId;
 
-      // If creating new Interessent, create them first
       if (isNewInteressent && newInteressentName.trim()) {
         const { supabase } = await import('@/integrations/supabase/client');
-        
-        // Split name into vorname and nachname (first word = vorname, rest = nachname)
         const nameParts = newInteressentName.trim().split(' ');
         const vorname = nameParts[0];
         const nachname = nameParts.slice(1).join(' ') || '';
         
         const { data: newKunde, error: kundeError } = await supabase
           .from('kunden')
-          .insert([{
-            vorname: vorname,
-            nachname: nachname,
-            kategorie: 'Interessent',
-            aktiv: true
-          }])
+          .insert([{ vorname, nachname, kategorie: 'Interessent', aktiv: true }])
           .select()
           .single();
 
@@ -139,14 +131,14 @@ export function CreateAppointmentFromSlotDialog({
       }
 
       const startDateTime = new Date(date);
-      const [startHour, startMinute] = startTime.split(':');
-      startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0);
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      startDateTime.setHours(startHour, startMinute, 0);
 
+      const endTimeStr = addMinutesToTime(startTime, dauerMinuten);
       const endDateTime = new Date(date);
-      const [endHour, endMinute] = endTime.split(':');
-      endDateTime.setHours(parseInt(endHour), parseInt(endMinute), 0);
+      const [endHour, endMinute] = endTimeStr.split(':').map(Number);
+      endDateTime.setHours(endHour, endMinute, 0);
 
-      // Get customer name for titel
       const customerName = isNewInteressent 
         ? newInteressentName.trim() 
         : customers.find(c => c.id === finalKundenId)?.name || 'Unbekannt';
@@ -173,7 +165,6 @@ export function CreateAppointmentFromSlotDialog({
 
     setLoading(true);
     try {
-      // Get customer name for titel
       const customerName = customers.find(c => c.id === recurringKundenId)?.name || 'Unbekannt';
       
       await onSubmitRecurring({
@@ -183,7 +174,7 @@ export function CreateAppointmentFromSlotDialog({
         wochentag,
         intervall,
         start_zeit: recurringStartTime,
-        dauer_minuten: dauerMinuten,
+        dauer_minuten: recurringDauerMinuten,
         gueltig_von: format(gueltigVon, 'yyyy-MM-dd'),
         gueltig_bis: gueltigBis ? format(gueltigBis, 'yyyy-MM-dd') : null,
         notizen,
@@ -240,37 +231,17 @@ export function CreateAppointmentFromSlotDialog({
             <div className="space-y-2">
               <Label htmlFor="single-kunde">Kunde / Interessent *</Label>
               <div className="flex gap-2 mb-2">
-                <Button
-                  type="button"
-                  variant={!isNewInteressent ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsNewInteressent(false)}
-                >
+                <Button type="button" variant={!isNewInteressent ? 'default' : 'outline'} size="sm" onClick={() => setIsNewInteressent(false)}>
                   Bestandskunde
                 </Button>
-                <Button
-                  type="button"
-                  variant={isNewInteressent ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsNewInteressent(true)}
-                >
+                <Button type="button" variant={isNewInteressent ? 'default' : 'outline'} size="sm" onClick={() => setIsNewInteressent(true)}>
                   Neuer Interessent
                 </Button>
               </div>
               {!isNewInteressent ? (
-                <CustomerSearchCombobox
-                  customers={customers}
-                  value={kundenId}
-                  onValueChange={setKundenId}
-                  placeholder="Kunde suchen..."
-                />
+                <CustomerSearchCombobox customers={customers} value={kundenId} onValueChange={setKundenId} placeholder="Kunde suchen..." />
               ) : (
-                <Input
-                  value={newInteressentName}
-                  onChange={(e) => setNewInteressentName(e.target.value)}
-                  placeholder="Name des Interessenten eingeben..."
-                  required
-                />
+                <Input value={newInteressentName} onChange={(e) => setNewInteressentName(e.target.value)} placeholder="Name des Interessenten eingeben..." required />
               )}
             </div>
 
@@ -282,9 +253,7 @@ export function CreateAppointmentFromSlotDialog({
                 </SelectTrigger>
                 <SelectContent className="z-[202]">
                   {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </SelectItem>
+                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -294,56 +263,49 @@ export function CreateAppointmentFromSlotDialog({
               <Label>Datum *</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !date && 'text-muted-foreground'
-                    )}
-                  >
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !date && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {date ? format(date, 'PPP', { locale: de }) : <span>Datum wählen</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 z-[202]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => d && setDate(d)}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
+                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus className="pointer-events-auto" />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="single-start">Startzeit</Label>
-                <Input
-                  id="single-start"
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  required
-                />
+                <Label>Startzeit</Label>
+                <Select value={startTime} onValueChange={setStartTime}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <SelectValue />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="z-[202] max-h-[300px]">
+                    {TIME_SLOTS.map(slot => (
+                      <SelectItem key={slot} value={slot}>{slot} Uhr</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="single-end">Endzeit</Label>
-                <Input
-                  id="single-end"
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  required
-                />
+                <Label>Dauer</Label>
+                <Select value={dauerMinuten.toString()} onValueChange={(v) => setDauerMinuten(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent className="z-[202]">
+                    {DURATION_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Abbrechen
-              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
               <Button onClick={handleSubmitSingle} disabled={loading || !date || !kundenId}>
                 {loading ? 'Erstelle...' : 'Einzeltermin erstellen'}
               </Button>
@@ -370,25 +332,16 @@ export function CreateAppointmentFromSlotDialog({
 
             <div className="space-y-2">
               <Label htmlFor="recurring-kunde">Kunde *</Label>
-              <CustomerSearchCombobox
-                customers={customers}
-                value={recurringKundenId}
-                onValueChange={setRecurringKundenId}
-                placeholder="Kunde suchen..."
-              />
+              <CustomerSearchCombobox customers={customers} value={recurringKundenId} onValueChange={setRecurringKundenId} placeholder="Kunde suchen..." />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="recurring-mitarbeiter">Mitarbeiter</Label>
               <Select value={recurringMitarbeiterId} onValueChange={setRecurringMitarbeiterId}>
-                <SelectTrigger id="recurring-mitarbeiter">
-                  <SelectValue placeholder="Mitarbeiter auswählen" />
-                </SelectTrigger>
+                <SelectTrigger id="recurring-mitarbeiter"><SelectValue placeholder="Mitarbeiter auswählen" /></SelectTrigger>
                 <SelectContent className="z-[202]">
                   {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </SelectItem>
+                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -398,30 +351,21 @@ export function CreateAppointmentFromSlotDialog({
               <div className="space-y-2">
                 <Label htmlFor="wochentag">Wochentag</Label>
                 <Select value={wochentag.toString()} onValueChange={(v) => setWochentag(parseInt(v))}>
-                  <SelectTrigger id="wochentag">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger id="wochentag"><SelectValue /></SelectTrigger>
                   <SelectContent className="z-[202]">
                     {WEEKDAYS.map((day) => (
-                      <SelectItem key={day.value} value={day.value.toString()}>
-                        {day.label}
-                      </SelectItem>
+                      <SelectItem key={day.value} value={day.value.toString()}>{day.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="intervall">Intervall</Label>
                 <Select value={intervall} onValueChange={(v: any) => setIntervall(v)}>
-                  <SelectTrigger id="intervall">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger id="intervall"><SelectValue /></SelectTrigger>
                   <SelectContent className="z-[202]">
                     {INTERVALS.map((int) => (
-                      <SelectItem key={int.value} value={int.value}>
-                        {int.label}
-                      </SelectItem>
+                      <SelectItem key={int.value} value={int.value}>{int.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -430,25 +374,31 @@ export function CreateAppointmentFromSlotDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="recurring-time">Startzeit</Label>
-                <Input
-                  id="recurring-time"
-                  type="time"
-                  value={recurringStartTime}
-                  onChange={(e) => setRecurringStartTime(e.target.value)}
-                  required
-                />
+                <Label>Startzeit</Label>
+                <Select value={recurringStartTime} onValueChange={setRecurringStartTime}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <SelectValue />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="z-[202] max-h-[300px]">
+                    {TIME_SLOTS.map(slot => (
+                      <SelectItem key={slot} value={slot}>{slot} Uhr</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dauer">Dauer (Minuten)</Label>
-                <Input
-                  id="dauer"
-                  type="number"
-                  value={dauerMinuten}
-                  onChange={(e) => setDauerMinuten(parseInt(e.target.value))}
-                  min="15"
-                  step="15"
-                />
+                <Label>Dauer</Label>
+                <Select value={recurringDauerMinuten.toString()} onValueChange={(v) => setRecurringDauerMinuten(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent className="z-[202]">
+                    {DURATION_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -457,53 +407,27 @@ export function CreateAppointmentFromSlotDialog({
                 <Label>Gültig ab *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !gueltigVon && 'text-muted-foreground'
-                      )}
-                    >
+                    <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !gueltigVon && 'text-muted-foreground')}>
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {gueltigVon ? format(gueltigVon, 'PPP', { locale: de }) : <span>Datum wählen</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 z-[202]" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={gueltigVon}
-                      onSelect={(d) => d && setGueltigVon(d)}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
+                    <Calendar mode="single" selected={gueltigVon} onSelect={(d) => d && setGueltigVon(d)} initialFocus className="pointer-events-auto" />
                   </PopoverContent>
                 </Popover>
               </div>
-
               <div className="space-y-2">
                 <Label>Gültig bis (optional)</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !gueltigBis && 'text-muted-foreground'
-                      )}
-                    >
+                    <Button variant="outline" className={cn('w-full justify-start text-left font-normal', !gueltigBis && 'text-muted-foreground')}>
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {gueltigBis ? format(gueltigBis, 'PPP', { locale: de }) : <span>Unbegrenzt</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 z-[202]" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={gueltigBis}
-                      onSelect={setGueltigBis}
-                      initialFocus
-                      className="pointer-events-auto"
-                      disabled={(date) => gueltigVon && date < gueltigVon}
-                    />
+                    <Calendar mode="single" selected={gueltigBis} onSelect={setGueltigBis} initialFocus className="pointer-events-auto" disabled={(date) => gueltigVon && date < gueltigVon} />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -511,19 +435,11 @@ export function CreateAppointmentFromSlotDialog({
 
             <div className="space-y-2">
               <Label htmlFor="notizen">Notizen</Label>
-              <Textarea
-                id="notizen"
-                value={notizen}
-                onChange={(e) => setNotizen(e.target.value)}
-                placeholder="Zusätzliche Informationen..."
-                rows={3}
-              />
+              <Textarea id="notizen" value={notizen} onChange={(e) => setNotizen(e.target.value)} placeholder="Zusätzliche Informationen..." rows={3} />
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Abbrechen
-              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
               <Button onClick={handleSubmitRecurring} disabled={loading || !gueltigVon || !recurringKundenId}>
                 {loading ? 'Erstelle...' : 'Terminserie erstellen'}
               </Button>
