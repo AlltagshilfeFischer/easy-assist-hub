@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -10,9 +9,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-
-import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, Check, Plus, Trash2, Sparkles, Loader2, Upload, FileSpreadsheet, ClipboardPaste } from 'lucide-react';
+import { AlertCircle, Check, Plus, Trash2, Loader2, Upload, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -22,8 +19,8 @@ export interface ColumnConfig {
   required?: boolean;
   width?: number;
   hint?: string;
-  validate?: (value: string) => string | null; // Returns error message or null
-  transform?: (value: string) => any; // Transform value before saving
+  validate?: (value: string) => string | null;
+  transform?: (value: string) => any;
 }
 
 export interface DataRow {
@@ -41,120 +38,14 @@ interface SmartDataImportProps<T extends DataRow> {
   onImport: (rows: T[]) => Promise<void>;
   createEmptyRow: () => T;
   initialRowCount?: number;
-  batchSize?: number; // For large imports
-  aiParseFunction?: string; // Edge function name for AI parsing
-  aiParseResultKey?: string; // Key in AI response (e.g. 'kunden', 'mitarbeiter')
+  batchSize?: number;
+  aiParseFunction?: string;
+  aiParseResultKey?: string;
 }
 
 interface CellPosition {
   row: number;
   col: number;
-}
-
-// Intelligent data parser
-function parseRawData(rawText: string, columns: ColumnConfig[]): Record<string, string>[] {
-  const lines = rawText.trim().split('\n').filter(line => line.trim());
-  if (lines.length === 0) return [];
-
-  // Detect delimiter (tab, comma, semicolon)
-  const firstLine = lines[0];
-  let delimiter = '\t';
-  if (!firstLine.includes('\t')) {
-    if (firstLine.includes(';')) delimiter = ';';
-    else if (firstLine.includes(',')) delimiter = ',';
-  }
-
-  // Parse all lines
-  const parsedLines = lines.map(line => {
-    // Handle quoted values
-    const values: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === delimiter && !inQuotes) {
-        values.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    values.push(current.trim());
-    return values;
-  });
-
-  if (parsedLines.length === 0) return [];
-
-  // Try to detect if first line is a header
-  const firstRow = parsedLines[0];
-  const columnLabels = columns.map(c => c.label.toLowerCase());
-  const columnKeys = columns.map(c => c.key.toLowerCase());
-  
-  let headerMap: Map<number, string> | null = null;
-  let dataStartIndex = 0;
-
-  // Check if first row looks like headers
-  const matchCount = firstRow.filter(cell => {
-    const lower = cell.toLowerCase();
-    return columnLabels.some(l => l.includes(lower) || lower.includes(l)) ||
-           columnKeys.some(k => k.includes(lower) || lower.includes(k));
-  }).length;
-
-  if (matchCount >= Math.min(2, columns.filter(c => c.required).length)) {
-    // First row is likely a header
-    headerMap = new Map();
-    firstRow.forEach((header, index) => {
-      const lower = header.toLowerCase().replace(/[^a-zäöüß]/g, '');
-      
-      // Find matching column
-      for (const col of columns) {
-        const labelLower = col.label.toLowerCase().replace(/[^a-zäöüß]/g, '');
-        const keyLower = col.key.toLowerCase();
-        
-        if (lower === labelLower || lower === keyLower || 
-            labelLower.includes(lower) || lower.includes(labelLower)) {
-          headerMap!.set(index, col.key);
-          break;
-        }
-      }
-    });
-    dataStartIndex = 1;
-  }
-
-  // Map data to rows
-  const result: Record<string, string>[] = [];
-  
-  for (let i = dataStartIndex; i < parsedLines.length; i++) {
-    const values = parsedLines[i];
-    const row: Record<string, string> = {};
-    
-    if (headerMap) {
-      // Use header mapping
-      values.forEach((value, index) => {
-        const key = headerMap!.get(index);
-        if (key) {
-          row[key] = value;
-        }
-      });
-    } else {
-      // Use column order
-      columns.forEach((col, index) => {
-        if (index < values.length) {
-          row[col.key] = values[index];
-        }
-      });
-    }
-    
-    // Only add non-empty rows
-    if (Object.values(row).some(v => v && v.trim())) {
-      result.push(row);
-    }
-  }
-
-  return result;
 }
 
 export function SmartDataImport<T extends DataRow>({
@@ -167,13 +58,7 @@ export function SmartDataImport<T extends DataRow>({
   createEmptyRow,
   initialRowCount = 20,
   batchSize = 100,
-  aiParseFunction,
-  aiParseResultKey,
 }: SmartDataImportProps<T>) {
-  const [step, setStep] = useState<'choose' | 'paste' | 'edit' | 'ai-input'>('choose');
-  const [rawInput, setRawInput] = useState('');
-  const [aiInput, setAiInput] = useState('');
-  const [isAiParsing, setIsAiParsing] = useState(false);
   const [rows, setRows] = useState<T[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [activeCell, setActiveCell] = useState<CellPosition | null>(null);
@@ -202,20 +87,16 @@ export function SmartDataImport<T extends DataRow>({
 
   const validateRow = useCallback((row: T): string[] => {
     const errors: string[] = [];
-    
     for (const col of columns) {
       const value = row[col.key] || '';
-      
       if (col.required && !value.trim()) {
         errors.push(`${col.label} erforderlich`);
       }
-      
       if (col.validate && value.trim()) {
         const error = col.validate(value);
         if (error) errors.push(error);
       }
     }
-    
     return errors;
   }, [columns]);
 
@@ -413,42 +294,6 @@ export function SmartDataImport<T extends DataRow>({
     });
   }, [activeCell, columns, createEmptyRow, toast, validateRow]);
 
-  const handleParseRawInput = () => {
-    if (!rawInput.trim()) {
-      toast({ title: 'Keine Daten', description: 'Bitte fügen Sie Daten ein', variant: 'destructive' });
-      return;
-    }
-
-    const parsed = parseRawData(rawInput, columns);
-    
-    if (parsed.length === 0) {
-      toast({ title: 'Keine Daten erkannt', description: 'Die Daten konnten nicht geparst werden', variant: 'destructive' });
-      return;
-    }
-
-    const newRows: T[] = parsed.map(data => {
-      const row = createEmptyRow();
-      for (const key of Object.keys(data)) {
-        row[key as keyof T] = data[key] as any;
-      }
-      row.errors = validateRow(row);
-      return row;
-    });
-
-    // Add some empty rows for editing
-    while (newRows.length < Math.max(parsed.length + 5, 10)) {
-      newRows.push(createEmptyRow());
-    }
-
-    setRows(newRows);
-    setStep('edit');
-    
-    toast({
-      title: 'Daten erkannt',
-      description: `${parsed.length} Datensätze geparst. Bitte prüfen und korrigieren.`,
-    });
-  };
-
   const addRows = (count: number) => {
     setRows(prev => [...prev, ...Array.from({ length: count }, createEmptyRow)]);
   };
@@ -487,7 +332,6 @@ export function SmartDataImport<T extends DataRow>({
     setIsImporting(true);
 
     try {
-      // Batch import if needed
       if (validRows.length > batchSize) {
         for (let i = 0; i < validRows.length; i += batchSize) {
           const batch = validRows.slice(i, i + batchSize);
@@ -507,8 +351,6 @@ export function SmartDataImport<T extends DataRow>({
       });
 
       onOpenChange(false);
-      setStep('choose');
-      setRawInput('');
       setRows([]);
     } catch (error: any) {
       toast({
@@ -523,95 +365,7 @@ export function SmartDataImport<T extends DataRow>({
 
   const handleClose = () => {
     onOpenChange(false);
-    setStep('choose');
-    setRawInput('');
-    setAiInput('');
     setRows([]);
-  };
-
-  const handleChoosePaste = () => {
-    setStep('paste');
-  };
-
-  const handleChooseDirect = () => {
-    setRows(Array.from({ length: initialRowCount }, createEmptyRow) as T[]);
-    setStep('edit');
-  };
-
-  const handleChooseAi = () => {
-    setStep('ai-input');
-  };
-
-  // Split text into chunks of roughly maxLinesPerChunk lines
-  const splitTextIntoChunks = (text: string, maxLinesPerChunk = 50): string[] => {
-    const lines = text.trim().split('\n').filter(l => l.trim());
-    if (lines.length <= maxLinesPerChunk) return [text];
-    
-    const chunks: string[] = [];
-    for (let i = 0; i < lines.length; i += maxLinesPerChunk) {
-      chunks.push(lines.slice(i, i + maxLinesPerChunk).join('\n'));
-    }
-    return chunks;
-  };
-
-  const handleAiParse = async () => {
-    if (!aiInput.trim() || !aiParseFunction || !aiParseResultKey) return;
-    setIsAiParsing(true);
-    try {
-      const chunks = splitTextIntoChunks(aiInput, 50);
-      let allParsed: any[] = [];
-
-      for (let i = 0; i < chunks.length; i++) {
-        toast({
-          title: 'KI-Analyse',
-          description: `Teil ${i + 1} von ${chunks.length} wird verarbeitet...`,
-        });
-
-        const { data, error } = await supabase.functions.invoke(aiParseFunction, {
-          body: { text: chunks[i] },
-        });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        
-        const parsed = data?.[aiParseResultKey];
-        if (parsed?.length) {
-          allParsed = [...allParsed, ...parsed];
-        }
-      }
-
-      if (!allParsed.length) {
-        toast({ title: 'Keine Daten erkannt', description: 'Die KI konnte keine Datensätze aus dem Text extrahieren.', variant: 'destructive' });
-        return;
-      }
-
-      const newRows: T[] = allParsed.map((item: any) => {
-        const row = createEmptyRow();
-        for (const col of columns) {
-          if (item[col.key] !== undefined && item[col.key] !== null) {
-            (row as any)[col.key] = String(item[col.key]);
-          }
-        }
-        row.errors = validateRow(row);
-        return row;
-      });
-
-      // Add empty rows for editing
-      while (newRows.length < Math.max(allParsed.length + 5, 10)) {
-        newRows.push(createEmptyRow());
-      }
-
-      setRows(newRows);
-      setStep('edit');
-
-      toast({
-        title: 'KI-Analyse abgeschlossen',
-        description: `${allParsed.length} Datensätze erkannt (${chunks.length} Teil${chunks.length > 1 ? 'e' : ''}). Bitte prüfen und korrigieren.`,
-      });
-    } catch (e: any) {
-      toast({ title: 'KI-Fehler', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsAiParsing(false);
-    }
   };
 
   return (
@@ -625,281 +379,153 @@ export function SmartDataImport<T extends DataRow>({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {step === 'choose' ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-12 gap-8">
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-medium">Wie möchten Sie die Daten importieren?</h3>
-              <p className="text-sm text-muted-foreground">Wählen Sie die für Sie passende Methode</p>
-            </div>
-            
-            <div className={cn("grid gap-6 max-w-3xl w-full", aiParseFunction ? "grid-cols-3" : "grid-cols-2")}>
-              {/* Option 1: AI Freitext (only if AI function configured) */}
-              {aiParseFunction && (
-                <button
-                  onClick={handleChooseAi}
-                  className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer bg-primary/5"
-                >
-                  <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                    <Sparkles className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="text-center">
-                    <div className="font-medium text-lg">KI Freitext</div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      Beliebigen Text einfügen – die KI erkennt und strukturiert die Daten
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">Empfohlen</Badge>
-                </button>
-              )}
-
-              {/* Option 2: Paste Data */}
-              <button
-                onClick={handleChoosePaste}
-                className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
-              >
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <ClipboardPaste className="h-8 w-8 text-primary" />
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-lg">Daten einfügen</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    CSV oder Excel-Daten mit klarer Spaltenstruktur einfügen
-                  </div>
-                </div>
-              </button>
-
-              {/* Option 3: Direct Edit */}
-              <button
-                onClick={handleChooseDirect}
-                className="flex flex-col items-center gap-4 p-8 rounded-xl border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-all group cursor-pointer"
-              >
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <FileSpreadsheet className="h-8 w-8 text-primary" />
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-lg">Direkt bearbeiten</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    In einer leeren Tabelle manuell Daten eingeben
-                  </div>
-                </div>
-              </button>
-            </div>
+        {/* Stats Bar */}
+        <div className="flex items-center gap-4 py-2 border-b">
+          <Badge variant="secondary" className="gap-1">
+            <Check className="h-3 w-3" />
+            {validRows.length} gültig
+          </Badge>
+          {errorRows.length > 0 && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertCircle className="h-3 w-3" />
+              {errorRows.length} mit Fehlern
+            </Badge>
+          )}
+          <div className="text-xs text-muted-foreground">
+            Tipp: Daten aus Excel kopieren und mit Strg+V einfügen
           </div>
-        ) : step === 'paste' ? (
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ClipboardPaste className="h-4 w-4" />
-              Kopieren Sie Daten aus Excel, CSV oder als Freitext und fügen Sie sie unten ein
-            </div>
-            
-            <Textarea
-              value={rawInput}
-              onChange={(e) => setRawInput(e.target.value)}
-              placeholder={`Beispiel:\nVorname\tNachname\tE-Mail\nMax\tMustermann\tmax@example.com\nErika\tMusterfrau\terika@example.com\n\nOder als CSV:\nVorname;Nachname;E-Mail\nMax;Mustermann;max@example.com`}
-              className="min-h-[300px] font-mono text-sm"
-            />
+          <div className="flex-1" />
+          <Button variant="outline" size="sm" onClick={() => addRows(10)}>
+            <Plus className="h-3 w-3 mr-1" />
+            10 Zeilen
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearAll}>
+            Alles löschen
+          </Button>
+        </div>
 
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-muted-foreground">
-                <Sparkles className="h-4 w-4 inline mr-1" />
-                Die Daten werden automatisch erkannt (CSV, Tab-getrennt, Freitext)
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep('choose')}>
-                  Zurück
-                </Button>
-                <Button onClick={handleParseRawInput}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Daten verarbeiten
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : step === 'ai-input' ? (
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Fügen Sie beliebigen Text ein – die KI erkennt Namen, Adressen, Telefonnummern und weitere Daten automatisch
-            </div>
-            
-            <Textarea
-              value={aiInput}
-              onChange={(e) => setAiInput(e.target.value)}
-              placeholder={`Beliebiger Text, z.B. kopiert aus einer Tabelle, E-Mail oder Notiz:\n\n10594 Simon Lieselotte 3 Karlstraße 29, 30559 Hannover Anderten 0511 587892 6/7/1939 AOK Niedersachsen...\n\nDie KI erkennt automatisch die Struktur und ordnet die Daten den richtigen Spalten zu.`}
-              className="min-h-[300px] font-mono text-sm"
-            />
+        {/* Table */}
+        <div className="flex-1 border rounded-md overflow-auto min-h-0">
+          <div
+            ref={tableRef}
+            className="focus:outline-none"
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+          >
+            <table className="border-collapse text-sm" style={{ minWidth: columns.reduce((sum, c) => sum + (c.width || 100), 60) }}>
+              <thead className="sticky top-0 bg-muted z-10">
+                <tr>
+                  <th className="w-10 px-2 py-2 text-center text-muted-foreground">#</th>
+                  {columns.map(col => (
+                    <th
+                      key={col.key}
+                      className="px-2 py-2 text-left font-medium whitespace-nowrap"
+                      style={{ minWidth: col.width || 100 }}
+                    >
+                      <div className="flex items-center gap-1">
+                        {col.label}
+                        {col.required && <span className="text-destructive">*</span>}
+                      </div>
+                      {col.hint && (
+                        <div className="text-xs font-normal text-muted-foreground">{col.hint}</div>
+                      )}
+                    </th>
+                  ))}
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, rowIndex) => (
+                  <tr
+                    key={row.id}
+                    className={cn(
+                      "border-t hover:bg-muted/30",
+                      row.errors.length > 0 && "bg-destructive/5"
+                    )}
+                  >
+                    <td className="px-2 py-1 text-center text-muted-foreground text-xs">
+                      {rowIndex + 1}
+                    </td>
+                    {columns.map((col, colIndex) => {
+                      const isActive = activeCell?.row === rowIndex && activeCell?.col === colIndex;
+                      const isSelected = isCellSelected(rowIndex, colIndex);
+                      const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
+                      const value = row[col.key] || '';
 
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-muted-foreground">
-                Die KI analysiert den Text und extrahiert alle erkannten Datensätze
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep('choose')}>
-                  Zurück
-                </Button>
-                <Button onClick={handleAiParse} disabled={!aiInput.trim() || isAiParsing}>
-                  {isAiParsing ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> KI analysiert...</>
-                  ) : (
-                    <><Sparkles className="h-4 w-4 mr-2" /> Mit KI analysieren</>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Stats Bar */}
-            <div className="flex items-center gap-4 py-2 border-b">
-              <Badge variant="secondary" className="gap-1">
-                <Check className="h-3 w-3" />
-                {validRows.length} gültig
-              </Badge>
-              {errorRows.length > 0 && (
-                <Badge variant="destructive" className="gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errorRows.length} mit Fehlern
-                </Badge>
-              )}
-              <div className="flex-1" />
-              <Button variant="outline" size="sm" onClick={() => setStep('choose')}>
-                Zurück zur Auswahl
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => addRows(10)}>
-                <Plus className="h-3 w-3 mr-1" />
-                10 Zeilen
-              </Button>
-              <Button variant="ghost" size="sm" onClick={clearAll}>
-                Alles löschen
-              </Button>
-            </div>
-
-            {/* Table */}
-            <div className="flex-1 border rounded-md overflow-auto min-h-0">
-              <div
-                ref={tableRef}
-                className="focus:outline-none"
-                tabIndex={0}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-              >
-                <table className="border-collapse text-sm" style={{ minWidth: columns.reduce((sum, c) => sum + (c.width || 100), 60) }}>
-                  <thead className="sticky top-0 bg-muted z-10">
-                    <tr>
-                      <th className="w-10 px-2 py-2 text-center text-muted-foreground">#</th>
-                      {columns.map(col => (
-                        <th
+                      return (
+                        <td
                           key={col.key}
-                          className="px-2 py-2 text-left font-medium whitespace-nowrap"
-                          style={{ minWidth: col.width || 100 }}
-                        >
-                          <div className="flex items-center gap-1">
-                            {col.label}
-                            {col.required && <span className="text-destructive">*</span>}
-                          </div>
-                          {col.hint && (
-                            <div className="text-xs font-normal text-muted-foreground">{col.hint}</div>
+                          className={cn(
+                            "px-1 py-0.5 border-r cursor-cell relative",
+                            isActive && "ring-2 ring-primary ring-inset",
+                            isSelected && !isActive && "bg-primary/10"
                           )}
-                        </th>
-                      ))}
-                      <th className="w-10" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, rowIndex) => (
-                      <tr
-                        key={row.id}
-                        className={cn(
-                          "border-t hover:bg-muted/30",
-                          row.errors.length > 0 && "bg-destructive/5"
-                        )}
+                          onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
+                          onDoubleClick={() => handleCellDoubleClick(rowIndex, colIndex)}
+                        >
+                          {isEditing ? (
+                            <input
+                              ref={inputRef}
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={commitEdit}
+                              className="w-full px-1 py-0.5 bg-background border-0 focus:outline-none focus:ring-0"
+                            />
+                          ) : (
+                            <div className="px-1 py-0.5 truncate min-h-[24px]">
+                              {value}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="px-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                        onClick={() => removeRow(rowIndex)}
                       >
-                        <td className="px-2 py-1 text-center text-muted-foreground text-xs">
-                          {rowIndex + 1}
-                        </td>
-                        {columns.map((col, colIndex) => {
-                          const isActive = activeCell?.row === rowIndex && activeCell?.col === colIndex;
-                          const isSelected = isCellSelected(rowIndex, colIndex);
-                          const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
-                          const value = row[col.key] || '';
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-                          return (
-                            <td
-                              key={col.key}
-                              className={cn(
-                                "px-1 py-0.5 border-r cursor-cell relative",
-                                isActive && "ring-2 ring-primary ring-inset",
-                                isSelected && !isActive && "bg-primary/10"
-                              )}
-                              onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
-                              onDoubleClick={() => handleCellDoubleClick(rowIndex, colIndex)}
-                            >
-                              {isEditing ? (
-                                <input
-                                  ref={inputRef}
-                                  type="text"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onBlur={commitEdit}
-                                  className="w-full px-1 py-0.5 bg-background border-0 focus:outline-none focus:ring-0"
-                                />
-                              ) : (
-                                <div className="px-1 py-0.5 truncate min-h-[24px]">
-                                  {value}
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                        <td className="px-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
-                            onClick={() => removeRow(rowIndex)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Error Summary */}
-            {errorRows.length > 0 && (
-              <div className="text-sm text-destructive flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                {errorRows.length} Zeile(n) haben Fehler und werden nicht importiert
-              </div>
-            )}
-          </>
+        {/* Error Summary */}
+        {errorRows.length > 0 && (
+          <div className="text-sm text-destructive flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {errorRows.length} Zeile(n) haben Fehler und werden nicht importiert
+          </div>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
             Abbrechen
           </Button>
-          {step === 'edit' && (
-            <Button
-              onClick={handleImport}
-              disabled={isImporting || validRows.length === 0}
-            >
-              {isImporting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Importiere...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  {validRows.length} importieren
-                </>
-              )}
-            </Button>
-          )}
+          <Button
+            onClick={handleImport}
+            disabled={isImporting || validRows.length === 0}
+          >
+            {isImporting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Importiere...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                {validRows.length} importieren
+              </>
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
