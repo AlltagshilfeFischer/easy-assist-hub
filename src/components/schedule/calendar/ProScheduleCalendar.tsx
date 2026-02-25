@@ -135,7 +135,13 @@ export function ProScheduleCalendar({
                   Mitarbeiter verwalten
                 </div>
                 <div className="max-h-[300px] overflow-y-auto space-y-0.5">
-                  {(allEmployees || employees).filter(e => e.ist_aktiv).map((emp, idx, arr) => {
+                {(() => {
+                  const list = (allEmployees || employees).filter(e => e.ist_aktiv);
+                  // Sort by the same order as displayed employees
+                  const orderMap = new Map(employees.map((e, i) => [e.id, i]));
+                  list.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+                  return list;
+                })().map((emp, idx, arr) => {
                     const isHidden = hiddenEmployeeIds.has(emp.id);
                     const initials = emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                     return (
