@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Check, Plus, Trash2, Loader2, Upload, FileSpreadsheet } from 'lucide-react';
+import { AlertCircle, Check, Plus, Trash2, Loader2, Upload, FileSpreadsheet, Copy, ClipboardPaste } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +66,8 @@ export function SmartDataImport<T extends DataRow>({
   const [selectionEnd, setSelectionEnd] = useState<CellPosition | null>(null);
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const { toast } = useToast();
   const tableRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +86,15 @@ export function SmartDataImport<T extends DataRow>({
       inputRef.current.select();
     }
   }, [editingCell]);
+
+  // Mouse up listener for drag selection
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (isDragging) setIsDragging(false);
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [isDragging]);
 
   const validateRow = useCallback((row: T): string[] => {
     const errors: string[] = [];
@@ -111,7 +122,7 @@ export function SmartDataImport<T extends DataRow>({
     }));
   };
 
-  const getSelection = (): { minRow: number; maxRow: number; minCol: number; maxCol: number } | null => {
+  const getSelection = useCallback((): { minRow: number; maxRow: number; minCol: number; maxCol: number } | null => {
     if (!selectionStart || !selectionEnd) return null;
     return {
       minRow: Math.min(selectionStart.row, selectionEnd.row),
@@ -119,22 +130,62 @@ export function SmartDataImport<T extends DataRow>({
       minCol: Math.min(selectionStart.col, selectionEnd.col),
       maxCol: Math.max(selectionStart.col, selectionEnd.col),
     };
-  };
+  }, [selectionStart, selectionEnd]);
 
   const isCellSelected = (row: number, col: number): boolean => {
+    // Check row-level selection
+    if (selectedRows.has(row)) return true;
     const sel = getSelection();
     if (!sel) return false;
     return row >= sel.minRow && row <= sel.maxRow && col >= sel.minCol && col <= sel.maxCol;
   };
 
-  const handleCellClick = (row: number, col: number, e: React.MouseEvent) => {
+  const handleCellMouseDown = (row: number, col: number, e: React.MouseEvent) => {
+    if (e.button !== 0) return; // Only left click
+    
     if (e.shiftKey && activeCell) {
       setSelectionEnd({ row, col });
     } else {
       setActiveCell({ row, col });
       setSelectionStart({ row, col });
       setSelectionEnd({ row, col });
+      setSelectedRows(new Set());
     }
+    setEditingCell(null);
+    setIsDragging(true);
+  };
+
+  const handleCellMouseEnter = (row: number, col: number) => {
+    if (isDragging) {
+      setSelectionEnd({ row, col });
+    }
+  };
+
+  const handleRowHeaderClick = (rowIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (e.shiftKey && selectedRows.size > 0) {
+      // Extend row selection
+      const existing = Array.from(selectedRows);
+      const minExisting = Math.min(...existing);
+      const maxExisting = Math.max(...existing);
+      const newSet = new Set(selectedRows);
+      const from = Math.min(minExisting, rowIndex);
+      const to = Math.max(maxExisting, rowIndex);
+      for (let i = from; i <= to; i++) newSet.add(i);
+      setSelectedRows(newSet);
+    } else if (e.ctrlKey || e.metaKey) {
+      // Toggle single row
+      const newSet = new Set(selectedRows);
+      if (newSet.has(rowIndex)) newSet.delete(rowIndex);
+      else newSet.add(rowIndex);
+      setSelectedRows(newSet);
+    } else {
+      // Select single row
+      setSelectedRows(new Set([rowIndex]));
+      setSelectionStart({ row: rowIndex, col: 0 });
+      setSelectionEnd({ row: rowIndex, col: columns.length - 1 });
+    }
+    setActiveCell({ row: rowIndex, col: 0 });
     setEditingCell(null);
   };
 
@@ -150,7 +201,101 @@ export function SmartDataImport<T extends DataRow>({
     }
   };
 
+  // Copy selection to clipboard
+  const copySelection = useCallback(() => {
+    let sel = getSelection();
+
+    // If rows are selected, use full row range
+    if (selectedRows.size > 0) {
+      const rowArr = Array.from(selectedRows).sort((a, b) => a - b);
+      sel = { minRow: rowArr[0], maxRow: rowArr[rowArr.length - 1], minCol: 0, maxCol: columns.length - 1 };
+    }
+
+    if (!sel) {
+      if (activeCell) {
+        const value = rows[activeCell.row]?.[columns[activeCell.col]?.key] || '';
+        navigator.clipboard.writeText(value);
+        toast({ title: 'Kopiert', description: '1 Zelle kopiert' });
+      }
+      return;
+    }
+
+    const lines: string[] = [];
+    for (let r = sel.minRow; r <= sel.maxRow; r++) {
+      // Skip rows not in selectedRows if row selection is active
+      if (selectedRows.size > 0 && !selectedRows.has(r)) continue;
+      const cells: string[] = [];
+      for (let c = sel.minCol; c <= sel.maxCol; c++) {
+        cells.push(rows[r]?.[columns[c]?.key] || '');
+      }
+      lines.push(cells.join('\t'));
+    }
+    const text = lines.join('\n');
+    navigator.clipboard.writeText(text);
+    
+    const cellCount = lines.length * (sel.maxCol - sel.minCol + 1);
+    toast({ title: 'Kopiert', description: `${cellCount} Zelle(n) kopiert` });
+  }, [getSelection, selectedRows, activeCell, rows, columns, toast]);
+
+  // Cut selection
+  const cutSelection = useCallback(() => {
+    copySelection();
+    
+    let sel = getSelection();
+    if (selectedRows.size > 0) {
+      const rowArr = Array.from(selectedRows).sort((a, b) => a - b);
+      sel = { minRow: rowArr[0], maxRow: rowArr[rowArr.length - 1], minCol: 0, maxCol: columns.length - 1 };
+    }
+
+    if (!sel && activeCell) {
+      updateCell(activeCell.row, columns[activeCell.col].key, '');
+      return;
+    }
+
+    if (sel) {
+      setRows(prev => prev.map((row, ri) => {
+        if (ri >= sel!.minRow && ri <= sel!.maxRow && (selectedRows.size === 0 || selectedRows.has(ri))) {
+          const updated = { ...row } as any;
+          for (let ci = sel!.minCol; ci <= sel!.maxCol; ci++) {
+            updated[columns[ci].key] = '';
+          }
+          updated.errors = validateRow(updated);
+          return updated as T;
+        }
+        return row;
+      }));
+    }
+  }, [copySelection, getSelection, selectedRows, activeCell, columns, validateRow]);
+
+  // Select all
+  const selectAll = useCallback(() => {
+    if (rows.length === 0) return;
+    setSelectionStart({ row: 0, col: 0 });
+    setSelectionEnd({ row: rows.length - 1, col: columns.length - 1 });
+    setActiveCell({ row: 0, col: 0 });
+    setSelectedRows(new Set());
+  }, [rows.length, columns.length]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Global shortcuts (work even without activeCell)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+      e.preventDefault();
+      selectAll();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      e.preventDefault();
+      copySelection();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+      e.preventDefault();
+      cutSelection();
+      return;
+    }
+
     if (!activeCell) return;
 
     if (editingCell) {
@@ -217,6 +362,19 @@ export function SmartDataImport<T extends DataRow>({
       case 'Delete':
       case 'Backspace':
         e.preventDefault();
+        // Delete selected rows content
+        if (selectedRows.size > 0) {
+          setRows(prev => prev.map((row, ri) => {
+            if (selectedRows.has(ri)) {
+              const updated = { ...row } as any;
+              for (const col of columns) updated[col.key] = '';
+              updated.errors = validateRow(updated);
+              return updated as T;
+            }
+            return row;
+          }));
+          return;
+        }
         const sel = getSelection();
         if (sel) {
           setRows(prev => prev.map((row, ri) => {
@@ -240,19 +398,21 @@ export function SmartDataImport<T extends DataRow>({
         if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
           setEditingCell(activeCell);
           setEditValue(e.key);
+          setSelectedRows(new Set());
           return;
         }
     }
 
     const newPos = { row: newRow, col: newCol };
-    if (e.shiftKey && e.key.startsWith('Arrow')) {
+    if (e.shiftKey && (e.key.startsWith('Arrow'))) {
       setSelectionEnd(newPos);
     } else {
       setSelectionStart(newPos);
       setSelectionEnd(newPos);
+      setSelectedRows(new Set());
     }
     setActiveCell(newPos);
-  }, [activeCell, editingCell, rows, columns, validateRow, editValue]);
+  }, [activeCell, editingCell, rows, columns, validateRow, editValue, selectAll, copySelection, cutSelection, getSelection, selectedRows]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const clipboardData = e.clipboardData.getData('text');
@@ -288,14 +448,36 @@ export function SmartDataImport<T extends DataRow>({
       return newRows;
     });
 
+    // Select the pasted area
+    setSelectionStart({ row: startRow, col: startCol });
+    const pastedRows = lines.length;
+    const pastedCols = Math.max(...lines.map(l => l.split('\t').length));
+    setSelectionEnd({ 
+      row: Math.min(startRow + pastedRows - 1, rows.length + pastedRows - 1), 
+      col: Math.min(startCol + pastedCols - 1, columns.length - 1) 
+    });
+    setSelectedRows(new Set());
+
     toast({
       title: 'Daten eingefügt',
       description: `${lines.length} Zeile(n) eingefügt`,
     });
-  }, [activeCell, columns, createEmptyRow, toast, validateRow]);
+  }, [activeCell, columns, createEmptyRow, toast, validateRow, rows.length]);
 
   const addRows = (count: number) => {
     setRows(prev => [...prev, ...Array.from({ length: count }, createEmptyRow)]);
+  };
+
+  const removeSelectedRows = () => {
+    if (selectedRows.size === 0) return;
+    setRows(prev => {
+      const filtered = prev.filter((_, i) => !selectedRows.has(i));
+      return filtered.length === 0 ? Array.from({ length: 5 }, createEmptyRow) as T[] : filtered;
+    });
+    setSelectedRows(new Set());
+    setActiveCell(null);
+    setSelectionStart(null);
+    setSelectionEnd(null);
   };
 
   const removeRow = (index: number) => {
@@ -311,6 +493,7 @@ export function SmartDataImport<T extends DataRow>({
     setSelectionStart(null);
     setSelectionEnd(null);
     setEditingCell(null);
+    setSelectedRows(new Set());
   };
 
   const validRows = rows.filter(row => {
@@ -366,7 +549,15 @@ export function SmartDataImport<T extends DataRow>({
   const handleClose = () => {
     onOpenChange(false);
     setRows([]);
+    setSelectedRows(new Set());
   };
+
+  const sel = getSelection();
+  const selectionInfo = selectedRows.size > 0
+    ? `${selectedRows.size} Zeile(n) ausgewählt`
+    : sel
+      ? `${sel.maxRow - sel.minRow + 1}×${sel.maxCol - sel.minCol + 1} ausgewählt`
+      : null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -379,8 +570,8 @@ export function SmartDataImport<T extends DataRow>({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {/* Stats Bar */}
-        <div className="flex items-center gap-4 py-2 border-b">
+        {/* Stats & Actions Bar */}
+        <div className="flex items-center gap-2 py-2 border-b flex-wrap">
           <Badge variant="secondary" className="gap-1">
             <Check className="h-3 w-3" />
             {validRows.length} gültig
@@ -388,13 +579,28 @@ export function SmartDataImport<T extends DataRow>({
           {errorRows.length > 0 && (
             <Badge variant="destructive" className="gap-1">
               <AlertCircle className="h-3 w-3" />
-              {errorRows.length} mit Fehlern
+              {errorRows.length} Fehler
             </Badge>
           )}
-          <div className="text-xs text-muted-foreground">
-            Tipp: Daten aus Excel kopieren und mit Strg+V einfügen
+          {selectionInfo && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              {selectionInfo}
+            </Badge>
+          )}
+          <div className="text-xs text-muted-foreground hidden sm:block">
+            Strg+C Kopieren · Strg+V Einfügen · Strg+A Alles · Shift+Klick Bereich
           </div>
           <div className="flex-1" />
+          {selectedRows.size > 0 && (
+            <Button variant="destructive" size="sm" onClick={removeSelectedRows}>
+              <Trash2 className="h-3 w-3 mr-1" />
+              {selectedRows.size} Zeilen löschen
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={copySelection} title="Auswahl kopieren (Strg+C)">
+            <Copy className="h-3 w-3 mr-1" />
+            Kopieren
+          </Button>
           <Button variant="outline" size="sm" onClick={() => addRows(10)}>
             <Plus className="h-3 w-3 mr-1" />
             10 Zeilen
@@ -405,7 +611,7 @@ export function SmartDataImport<T extends DataRow>({
         </div>
 
         {/* Table */}
-        <div className="flex-1 border rounded-md overflow-auto min-h-0">
+        <div className="flex-1 border rounded-md overflow-auto min-h-0 select-none">
           <div
             ref={tableRef}
             className="focus:outline-none"
@@ -416,7 +622,13 @@ export function SmartDataImport<T extends DataRow>({
             <table className="border-collapse text-sm" style={{ minWidth: columns.reduce((sum, c) => sum + (c.width || 100), 60) }}>
               <thead className="sticky top-0 bg-muted z-10">
                 <tr>
-                  <th className="w-10 px-2 py-2 text-center text-muted-foreground">#</th>
+                  <th 
+                    className="w-10 px-2 py-2 text-center text-muted-foreground cursor-pointer hover:bg-primary/10"
+                    onClick={() => selectAll()}
+                    title="Alles auswählen"
+                  >
+                    #
+                  </th>
                   {columns.map(col => (
                     <th
                       key={col.key}
@@ -436,63 +648,74 @@ export function SmartDataImport<T extends DataRow>({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, rowIndex) => (
-                  <tr
-                    key={row.id}
-                    className={cn(
-                      "border-t hover:bg-muted/30",
-                      row.errors.length > 0 && "bg-destructive/5"
-                    )}
-                  >
-                    <td className="px-2 py-1 text-center text-muted-foreground text-xs">
-                      {rowIndex + 1}
-                    </td>
-                    {columns.map((col, colIndex) => {
-                      const isActive = activeCell?.row === rowIndex && activeCell?.col === colIndex;
-                      const isSelected = isCellSelected(rowIndex, colIndex);
-                      const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
-                      const value = row[col.key] || '';
-
-                      return (
-                        <td
-                          key={col.key}
-                          className={cn(
-                            "px-1 py-0.5 border-r cursor-cell relative",
-                            isActive && "ring-2 ring-primary ring-inset",
-                            isSelected && !isActive && "bg-primary/10"
-                          )}
-                          onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
-                          onDoubleClick={() => handleCellDoubleClick(rowIndex, colIndex)}
-                        >
-                          {isEditing ? (
-                            <input
-                              ref={inputRef}
-                              type="text"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={commitEdit}
-                              className="w-full px-1 py-0.5 bg-background border-0 focus:outline-none focus:ring-0"
-                            />
-                          ) : (
-                            <div className="px-1 py-0.5 truncate min-h-[24px]">
-                              {value}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="px-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
-                        onClick={() => removeRow(rowIndex)}
+                {rows.map((row, rowIndex) => {
+                  const isRowSelected = selectedRows.has(rowIndex);
+                  return (
+                    <tr
+                      key={row.id}
+                      className={cn(
+                        "border-t hover:bg-muted/30",
+                        row.errors.length > 0 && "bg-destructive/5",
+                        isRowSelected && "bg-primary/10"
+                      )}
+                    >
+                      <td 
+                        className={cn(
+                          "px-2 py-1 text-center text-muted-foreground text-xs cursor-pointer hover:bg-primary/20 border-r",
+                          isRowSelected && "bg-primary/20 font-bold text-primary"
+                        )}
+                        onMouseDown={(e) => handleRowHeaderClick(rowIndex, e)}
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                        {rowIndex + 1}
+                      </td>
+                      {columns.map((col, colIndex) => {
+                        const isActive = activeCell?.row === rowIndex && activeCell?.col === colIndex;
+                        const isSelected = isCellSelected(rowIndex, colIndex);
+                        const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
+                        const value = row[col.key] || '';
+
+                        return (
+                          <td
+                            key={col.key}
+                            className={cn(
+                              "px-1 py-0.5 border-r cursor-cell relative",
+                              isActive && "ring-2 ring-primary ring-inset",
+                              isSelected && !isActive && "bg-primary/10"
+                            )}
+                            onMouseDown={(e) => handleCellMouseDown(rowIndex, colIndex, e)}
+                            onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
+                            onDoubleClick={() => handleCellDoubleClick(rowIndex, colIndex)}
+                          >
+                            {isEditing ? (
+                              <input
+                                ref={inputRef}
+                                type="text"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={commitEdit}
+                                className="w-full px-1 py-0.5 bg-background border-0 focus:outline-none focus:ring-0"
+                              />
+                            ) : (
+                              <div className="px-1 py-0.5 truncate min-h-[24px]">
+                                {value}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="px-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 opacity-0 hover:opacity-100"
+                          onClick={() => removeRow(rowIndex)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
