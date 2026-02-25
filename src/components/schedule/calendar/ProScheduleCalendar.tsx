@@ -9,7 +9,24 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
-import { Settings2, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
+import { Settings2, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Employee, CalendarAppointment } from '@/types/domain';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -52,7 +69,42 @@ interface ProScheduleCalendarProps {
   highlightedAppointmentId?: string | null;
   hiddenEmployeeIds?: Set<string>;
   onToggleEmployee?: (id: string) => void;
-  onMoveEmployee?: (id: string, direction: 'up' | 'down') => void;
+  onReorderEmployees?: (orderedIds: string[]) => void;
+}
+
+// Inline sortable item for the popover
+function SortablePopoverItem({ emp, isHidden, onToggle }: { emp: Employee; isHidden: boolean; onToggle: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: emp.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  const initials = emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 px-2 py-1.5 rounded-md text-sm",
+        isHidden && "opacity-50",
+        isDragging && "opacity-50 bg-muted shadow-sm z-50"
+      )}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground">
+        <GripVertical className="h-3.5 w-3.5" />
+      </div>
+      <div
+        className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+        style={{ backgroundColor: emp.farbe_kalender || 'hsl(var(--primary))' }}
+      >
+        {initials}
+      </div>
+      <span className="flex-1 truncate text-xs">{emp.name}</span>
+      <Switch
+        checked={!isHidden}
+        onCheckedChange={onToggle}
+        className="h-4 w-7 data-[state=checked]:bg-primary"
+      />
+    </div>
+  );
 }
 
 export function ProScheduleCalendar({
@@ -69,8 +121,29 @@ export function ProScheduleCalendar({
   highlightedAppointmentId,
   hiddenEmployeeIds = new Set(),
   onToggleEmployee,
-  onMoveEmployee,
+  onReorderEmployees,
 }: ProScheduleCalendarProps) {
+
+  const popoverSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const sortedAllEmployees = useMemo(() => {
+    const list = (allEmployees || employees).filter(e => e.ist_aktiv);
+    const orderMap = new Map(employees.map((e, i) => [e.id, i]));
+    return [...list].sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+  }, [allEmployees, employees]);
+
+  const handlePopoverDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id && onReorderEmployees) {
+      const oldIndex = sortedAllEmployees.findIndex(e => e.id === active.id);
+      const newIndex = sortedAllEmployees.findIndex(e => e.id === over.id);
+      const reordered = arrayMove(sortedAllEmployees, oldIndex, newIndex);
+      onReorderEmployees(reordered.map(e => e.id));
+    }
+  };
   
   const getAppointmentsForEmployeeAndDate = (employeeId: string, date: Date) => {
     return appointments
@@ -134,60 +207,20 @@ export function ProScheduleCalendar({
                 <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 pb-2">
                   Mitarbeiter verwalten
                 </div>
-                <div className="max-h-[300px] overflow-y-auto space-y-0.5">
-                {(() => {
-                  const list = (allEmployees || employees).filter(e => e.ist_aktiv);
-                  // Sort by the same order as displayed employees
-                  const orderMap = new Map(employees.map((e, i) => [e.id, i]));
-                  list.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
-                  return list;
-                })().map((emp, idx, arr) => {
-                    const isHidden = hiddenEmployeeIds.has(emp.id);
-                    const initials = emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-                    return (
-                      <div
-                        key={emp.id}
-                        className={cn(
-                          "flex items-center gap-2 px-2 py-1.5 rounded-md text-sm",
-                          isHidden ? "opacity-50" : ""
-                        )}
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          {onMoveEmployee && (
-                            <>
-                              <button
-                                onClick={() => onMoveEmployee(emp.id, 'up')}
-                                disabled={idx === 0}
-                                className="text-muted-foreground hover:text-foreground disabled:opacity-20 h-2.5"
-                              >
-                                <ChevronUp className="h-3 w-3" />
-                              </button>
-                              <button
-                                onClick={() => onMoveEmployee(emp.id, 'down')}
-                                disabled={idx === arr.length - 1}
-                                className="text-muted-foreground hover:text-foreground disabled:opacity-20 h-2.5"
-                              >
-                                <ChevronDown className="h-3 w-3" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                        <div
-                          className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                          style={{ backgroundColor: emp.farbe_kalender || 'hsl(var(--primary))' }}
-                        >
-                          {initials}
-                        </div>
-                        <span className="flex-1 truncate text-xs">{emp.name}</span>
-                        <Switch
-                          checked={!isHidden}
-                          onCheckedChange={() => onToggleEmployee(emp.id)}
-                          className="h-4 w-7 data-[state=checked]:bg-primary"
+                <DndContext sensors={popoverSensors} collisionDetection={closestCenter} onDragEnd={handlePopoverDragEnd}>
+                  <SortableContext items={sortedAllEmployees.map(e => e.id)} strategy={verticalListSortingStrategy}>
+                    <div className="max-h-[300px] overflow-y-auto space-y-0.5">
+                      {sortedAllEmployees.map((emp) => (
+                        <SortablePopoverItem
+                          key={emp.id}
+                          emp={emp}
+                          isHidden={hiddenEmployeeIds.has(emp.id)}
+                          onToggle={() => onToggleEmployee!(emp.id)}
                         />
-                      </div>
-                    );
-                  })}
-                </div>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </PopoverContent>
             </Popover>
           )}

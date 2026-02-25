@@ -949,16 +949,8 @@ const ScheduleBuilderModern = () => {
                   return next;
                 });
               }}
-              onMoveEmployee={(id, direction) => {
-                setEmployeeOrder(prev => {
-                  const order = [...prev];
-                  const idx = order.indexOf(id);
-                  if (idx === -1) return prev;
-                  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-                  if (swapIdx < 0 || swapIdx >= order.length) return prev;
-                  [order[idx], order[swapIdx]] = [order[swapIdx], order[idx]];
-                  return order;
-                });
+              onReorderEmployees={(orderedIds) => {
+                setEmployeeOrder(orderedIds);
               }}
             />
           </div>
