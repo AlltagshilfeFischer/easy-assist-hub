@@ -930,7 +930,11 @@ const ScheduleBuilderModern = () => {
           <div className="flex-1 overflow-auto">
             <ProScheduleCalendar
               employees={filteredEmployees}
-              allEmployees={employees.filter(e => e.ist_aktiv)}
+              allEmployees={[...employees.filter(e => e.ist_aktiv)].sort((a, b) => {
+                const ai = employeeOrder.indexOf(a.id);
+                const bi = employeeOrder.indexOf(b.id);
+                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+              })}
               appointments={appointments}
               abwesenheiten={abwesenheiten}
               weekDates={getWeekDates()}
