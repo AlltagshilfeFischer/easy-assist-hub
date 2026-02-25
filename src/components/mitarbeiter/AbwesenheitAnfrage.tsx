@@ -72,6 +72,25 @@ export function AbwesenheitAnfrage({ directEntry = false }: AbwesenheitAnfragePr
           bis,
         });
       if (error) throw error;
+
+      // If direct entry (GF), immediately unassign overlapping appointments
+      if (directEntry) {
+        const { data: overlapping } = await supabase
+          .from('termine')
+          .select('id')
+          .eq('mitarbeiter_id', mitarbeiterId)
+          .gte('start_at', startDate.toISOString())
+          .lte('start_at', endDate.toISOString())
+          .not('status', 'in', '("cancelled","completed","abgerechnet","bezahlt")');
+
+        if (overlapping?.length) {
+          const ids = overlapping.map(t => t.id);
+          await supabase
+            .from('termine')
+            .update({ mitarbeiter_id: null, status: 'unassigned' })
+            .in('id', ids);
+        }
+      }
     },
     onSuccess: () => {
       toast.success(directEntry ? 'Abwesenheit eingetragen' : 'Urlaubsantrag eingereicht');

@@ -32,8 +32,10 @@ export function AbwesenheitGenehmigung() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (request: typeof pendingRequests extends (infer T)[] | undefined ? T : never) => {
       if (!user) throw new Error('Nicht angemeldet');
+      
+      // 1. Approve the absence
       const { error } = await supabase
         .from('mitarbeiter_abwesenheiten')
         .update({
@@ -41,11 +43,36 @@ export function AbwesenheitGenehmigung() {
           approved_by: user.id,
           approved_at: new Date().toISOString(),
         })
-        .eq('id', id);
+        .eq('id', request.id);
       if (error) throw error;
+
+      // 2. Unassign overlapping appointments for this employee
+      if (request.von && request.bis && request.mitarbeiter_id) {
+        const startDate = new Date(request.von);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(request.bis);
+        endDate.setHours(23, 59, 59, 999);
+
+        const { data: overlapping } = await supabase
+          .from('termine')
+          .select('id')
+          .eq('mitarbeiter_id', request.mitarbeiter_id)
+          .gte('start_at', startDate.toISOString())
+          .lte('start_at', endDate.toISOString())
+          .not('status', 'in', '("cancelled","completed","abgerechnet","bezahlt")');
+
+        if (overlapping?.length) {
+          const ids = overlapping.map(t => t.id);
+          await supabase
+            .from('termine')
+            .update({ mitarbeiter_id: null, status: 'unassigned' })
+            .in('id', ids);
+        }
+      }
     },
-    onSuccess: () => {
-      toast.success('Abwesenheit genehmigt');
+    onSuccess: (_, request) => {
+      const count = request.von && request.bis ? '' : '';
+      toast.success('Abwesenheit genehmigt – betroffene Termine wurden freigegeben');
       queryClient.invalidateQueries({ queryKey: ['pending-absence-requests'] });
     },
     onError: () => toast.error('Fehler beim Genehmigen'),
@@ -136,7 +163,7 @@ export function AbwesenheitGenehmigung() {
                   size="sm"
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
                   disabled={isPending}
-                  onClick={() => approveMutation.mutate(req.id)}
+                  onClick={() => approveMutation.mutate(req)}
                 >
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Genehmigen
