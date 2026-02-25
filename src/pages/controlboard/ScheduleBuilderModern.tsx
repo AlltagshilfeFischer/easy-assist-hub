@@ -930,6 +930,7 @@ const ScheduleBuilderModern = () => {
           <div className="flex-1 overflow-auto">
             <ProScheduleCalendar
               employees={filteredEmployees}
+              allEmployees={employees.filter(e => e.ist_aktiv)}
               appointments={appointments}
               abwesenheiten={abwesenheiten}
               weekDates={getWeekDates()}
@@ -939,6 +940,26 @@ const ScheduleBuilderModern = () => {
               conflictingAppointments={conflictingAppointments}
               onCut={handleCutAppointment}
               highlightedAppointmentId={highlightedAppointmentId}
+              hiddenEmployeeIds={hiddenEmployeeIds}
+              onToggleEmployee={(id) => {
+                setHiddenEmployeeIds(prev => {
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                });
+              }}
+              onMoveEmployee={(id, direction) => {
+                setEmployeeOrder(prev => {
+                  const order = [...prev];
+                  const idx = order.indexOf(id);
+                  if (idx === -1) return prev;
+                  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+                  if (swapIdx < 0 || swapIdx >= order.length) return prev;
+                  [order[idx], order[swapIdx]] = [order[swapIdx], order[idx]];
+                  return order;
+                });
+              }}
             />
           </div>
           

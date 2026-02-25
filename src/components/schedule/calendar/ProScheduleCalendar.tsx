@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { format, isSameDay, getWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,10 @@ import { ProAppointmentCard } from '../ProAppointmentCard';
 import { EnhancedDropZone } from '../EnhancedDropZone';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { Settings2, GripVertical, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react';
 import type { Employee, CalendarAppointment } from '@/types/domain';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -36,6 +40,7 @@ const TYP_LABELS: Record<string, string> = {
 
 interface ProScheduleCalendarProps {
   employees: Employee[];
+  allEmployees?: Employee[];
   appointments: CalendarAppointment[];
   abwesenheiten?: Abwesenheit[];
   weekDates: Date[];
@@ -45,10 +50,14 @@ interface ProScheduleCalendarProps {
   conflictingAppointments: Set<string>;
   onCut: (appointment: CalendarAppointment) => void;
   highlightedAppointmentId?: string | null;
+  hiddenEmployeeIds?: Set<string>;
+  onToggleEmployee?: (id: string) => void;
+  onMoveEmployee?: (id: string, direction: 'up' | 'down') => void;
 }
 
 export function ProScheduleCalendar({
   employees,
+  allEmployees,
   appointments,
   abwesenheiten = [],
   weekDates,
@@ -58,6 +67,9 @@ export function ProScheduleCalendar({
   conflictingAppointments,
   onCut,
   highlightedAppointmentId,
+  hiddenEmployeeIds = new Set(),
+  onToggleEmployee,
+  onMoveEmployee,
 }: ProScheduleCalendarProps) {
   
   const getAppointmentsForEmployeeAndDate = (employeeId: string, date: Date) => {
@@ -108,9 +120,71 @@ export function ProScheduleCalendar({
       {/* Header Row */}
       <div className="grid border-b border-border bg-muted/30" 
            style={{ gridTemplateColumns: '220px repeat(7, 1fr)' }}>
-        {/* Mitarbeiter Header */}
-        <div className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-r border-border">
-          Mitarbeiter
+        {/* Mitarbeiter Header with Settings */}
+        <div className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-r border-border flex items-center justify-between">
+          <span>Mitarbeiter</span>
+          {onToggleEmployee && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
+                  <Settings2 className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-64 p-2" sideOffset={8}>
+                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 pb-2">
+                  Mitarbeiter verwalten
+                </div>
+                <div className="max-h-[300px] overflow-y-auto space-y-0.5">
+                  {(allEmployees || employees).filter(e => e.ist_aktiv).map((emp, idx, arr) => {
+                    const isHidden = hiddenEmployeeIds.has(emp.id);
+                    const initials = emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                    return (
+                      <div
+                        key={emp.id}
+                        className={cn(
+                          "flex items-center gap-2 px-2 py-1.5 rounded-md text-sm",
+                          isHidden ? "opacity-50" : ""
+                        )}
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          {onMoveEmployee && (
+                            <>
+                              <button
+                                onClick={() => onMoveEmployee(emp.id, 'up')}
+                                disabled={idx === 0}
+                                className="text-muted-foreground hover:text-foreground disabled:opacity-20 h-2.5"
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => onMoveEmployee(emp.id, 'down')}
+                                disabled={idx === arr.length - 1}
+                                className="text-muted-foreground hover:text-foreground disabled:opacity-20 h-2.5"
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        <div
+                          className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                          style={{ backgroundColor: emp.farbe_kalender || 'hsl(var(--primary))' }}
+                        >
+                          {initials}
+                        </div>
+                        <span className="flex-1 truncate text-xs">{emp.name}</span>
+                        <Switch
+                          checked={!isHidden}
+                          onCheckedChange={() => onToggleEmployee(emp.id)}
+                          className="h-4 w-7 data-[state=checked]:bg-primary"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
         
         {/* Day Headers */}
