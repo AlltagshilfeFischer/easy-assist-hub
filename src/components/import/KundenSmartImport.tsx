@@ -102,7 +102,45 @@ export function KundenSmartImport({ open, onOpenChange }: KundenSmartImportProps
   const queryClient = useQueryClient();
 
   const handleImport = async (rows: KundenRow[]) => {
-    const customersToInsert = rows.map(row => ({
+    // 1. Bestehende Kunden laden für Duplikat-Check
+    const { data: existingCustomers } = await supabase
+      .from('kunden')
+      .select('vorname, nachname, strasse');
+
+    const existingKeys = new Set(
+      (existingCustomers ?? []).map(c =>
+        `${(c.vorname || '').trim().toLowerCase()}|${(c.nachname || '').trim().toLowerCase()}|${(c.strasse || '').trim().toLowerCase()}`
+      )
+    );
+
+    // 2. Import-Zeilen prüfen (DB-Duplikate + Duplikate innerhalb des Imports)
+    const seenInBatch = new Set<string>();
+    const duplicates: string[] = [];
+    const uniqueRows: typeof rows = [];
+
+    for (const row of rows) {
+      const key = `${row.vorname.trim().toLowerCase()}|${row.nachname.trim().toLowerCase()}|${(row.strasse || '').trim().toLowerCase()}`;
+      if (existingKeys.has(key) || seenInBatch.has(key)) {
+        duplicates.push(`${row.vorname} ${row.nachname}`);
+      } else {
+        seenInBatch.add(key);
+        uniqueRows.push(row);
+      }
+    }
+
+    if (duplicates.length > 0) {
+      toast({
+        title: `${duplicates.length} Duplikat(e) übersprungen`,
+        description: duplicates.slice(0, 5).join(', ') + (duplicates.length > 5 ? ` und ${duplicates.length - 5} weitere` : ''),
+        variant: 'destructive',
+      });
+    }
+
+    if (uniqueRows.length === 0) {
+      throw new Error('Alle Einträge sind bereits vorhanden.');
+    }
+
+    const customersToInsert = uniqueRows.map(row => ({
       vorname: row.vorname.trim(),
       nachname: row.nachname.trim(),
       telefonnr: row.telefonnr?.trim() || null,
