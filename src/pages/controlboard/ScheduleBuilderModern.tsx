@@ -71,6 +71,7 @@ const ScheduleBuilderModern = () => {
     conflicts: [],
     targetDate: undefined
   });
+  const [abwesenheiten, setAbwesenheiten] = useState<any[]>([]);
   const [cutAppointment, setCutAppointment] = useState<LocalAppointment | null>(null);
   const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null);
   const [seriesMoveDialog, setSeriesMoveDialog] = useState<{
@@ -195,6 +196,13 @@ const ScheduleBuilderModern = () => {
       
       setCustomers(transformedCustomers);
       setAppointments(transformedAppointments);
+
+      // Load approved absences for the schedule
+      const { data: abwesenheitenData } = await supabase
+        .from('mitarbeiter_abwesenheiten')
+        .select('id, mitarbeiter_id, grund, zeitraum, typ, status, von, bis')
+        .eq('status', 'approved');
+      setAbwesenheiten(abwesenheitenData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -923,6 +931,7 @@ const ScheduleBuilderModern = () => {
             <ProScheduleCalendar
               employees={filteredEmployees}
               appointments={appointments}
+              abwesenheiten={abwesenheiten}
               weekDates={getWeekDates()}
               activeAppointmentId={activeId}
               onEditAppointment={setEditingAppointment}

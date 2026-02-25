@@ -23,7 +23,16 @@ interface Abwesenheit {
   mitarbeiter_id: string;
   grund: string;
   zeitraum: string; // tstzrange from DB
+  typ?: string;
+  status?: string;
 }
+
+const TYP_LABELS: Record<string, string> = {
+  urlaub: 'Urlaub',
+  krank: 'Krankheit',
+  fortbildung: 'Fortbildung',
+  sonstiges: 'Sonstiges',
+};
 
 interface ProScheduleCalendarProps {
   employees: Employee[];
@@ -210,9 +219,9 @@ export function ProScheduleCalendar({
                       // Abwesenheitsanzeige
                       <div className="h-full flex items-center justify-center p-2">
                         <div className="text-xs text-muted-foreground italic text-center">
-                          <span className="text-primary/70">Abwesenheit:</span>
+                          <span className="text-primary/70">{TYP_LABELS[abwesenheit.typ || 'urlaub'] || 'Abwesenheit'}</span>
                           <br />
-                          {abwesenheit.grund || 'Urlaub'}
+                          {abwesenheit.grund || ''}
                         </div>
                       </div>
                     ) : (
