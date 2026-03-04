@@ -146,3 +146,27 @@ All colors MUST be HSL.
   background-size: 400% 400%;
   animation: auth-gradient-shift 15s ease infinite;
 }
+
+/* Print styles for Leistungsnachweis */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area, .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}

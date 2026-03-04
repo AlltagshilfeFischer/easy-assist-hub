@@ -1031,7 +1031,7 @@ export function SmartDataImport<T extends DataRow>({
                             {isRowSel
                               ? <Check className="h-3 w-3" />
                               : rowHasError
-                              ? <AlertCircle className="h-3 w-3 text-destructive" title={row.errors.join(', ')} />
+                              ? <AlertCircle className="h-3 w-3 text-destructive" />
                               : ri + 1
                             }
                           </div>

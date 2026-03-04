@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   FileText, Eye, Printer, Calendar, Clock,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import LeistungsnachweisPreview from '@/components/leistungsnachweis/LeistungsnachweisPreview';
 
 interface LeistungsnachweisRow {
   id: string;
@@ -91,6 +93,8 @@ export default function Leistungsnachweise() {
   const [statusFilter, setStatusFilter] = useState<string>('alle');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortAsc, setSortAsc] = useState(true);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
 
   const isCurrentMonth = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
 
@@ -125,7 +129,7 @@ export default function Leistungsnachweise() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kunden')
-        .select('id, vorname, nachname, name, pflegegrad, stunden_kontingent_monat')
+        .select('id, vorname, nachname, name, pflegegrad, stunden_kontingent_monat, strasse, plz, stadt, adresse, geburtsdatum, pflegekasse, versichertennummer')
         .eq('aktiv', true)
         .order('nachname');
       if (error) throw error;
@@ -363,8 +367,8 @@ export default function Leistungsnachweise() {
         ))}
       </div>
 
-      {/* Main Content: Split View */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4 min-h-0">
+      {/* Main Content: Full Width List */}
+      <div className="flex-1 min-h-0">
         {/* Left: List */}
         <Card className="flex flex-col min-h-0 border-border/60">
           {/* Search & Filter Bar */}
@@ -447,7 +451,7 @@ export default function Leistungsnachweise() {
                       <TableRow
                         key={ln.id}
                         className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/50'}`}
-                        onClick={() => setSelectedLN(ln)}
+                        onClick={() => { setSelectedLN(ln); setShowDetail(true); }}
                       >
                         <TableCell className="font-medium">{getKundeName(ln.kunden_id)}</TableCell>
                         <TableCell>
@@ -495,42 +499,31 @@ export default function Leistungsnachweise() {
             )}
           </ScrollArea>
         </Card>
+      </div>
 
-        {/* Right: Detail / Editor Panel */}
-        <Card className="flex flex-col min-h-0 border-border/60">
-          {!selectedLN ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Eye className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="font-medium text-foreground">Nachweis auswählen</p>
-              <p className="text-sm text-muted-foreground mt-1">Wähle links einen Leistungsnachweis um ihn hier zu bearbeiten.</p>
-            </div>
-          ) : (
+      {/* Detail Dialog */}
+      <Dialog open={showDetail && !!selectedLN} onOpenChange={(open) => { if (!open) setShowDetail(false); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          {selectedLN && (
             <>
-              {/* Panel Header */}
-              <div className="p-4 border-b border-border flex items-center justify-between">
+              {/* Dialog Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-border">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="rounded-full bg-primary/10 p-2">
-                    <User className="h-4 w-4 text-primary" />
+                    <User className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-foreground truncate">{getKundeName(selectedLN.kunden_id)}</p>
-                    <p className="text-xs text-muted-foreground">{monthNames[selectedLN.monat - 1]} {selectedLN.jahr}</p>
+                    <p className="font-semibold text-lg text-foreground truncate">{getKundeName(selectedLN.kunden_id)}</p>
+                    <p className="text-sm text-muted-foreground">{monthNames[selectedLN.monat - 1]} {selectedLN.jahr}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.print()} title="Drucken">
-                    <Printer className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedLN(null)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowPrint(true)}>
+                  <Printer className="h-4 w-4" /> Drucken
+                </Button>
               </div>
 
-              <ScrollArea className="flex-1">
-                <div className="p-4 space-y-5">
+              <ScrollArea className="flex-1 -mx-6 px-6">
+                <div className="space-y-5 py-4">
                   {/* Hours Summary */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-border p-3 text-center">
@@ -657,7 +650,7 @@ export default function Leistungsnachweise() {
               </ScrollArea>
 
               {/* Save button */}
-              <div className="p-3 border-t border-border">
+              <div className="pt-4 border-t border-border">
                 <Button
                   className="w-full"
                   onClick={() => {
@@ -681,8 +674,30 @@ export default function Leistungsnachweise() {
               </div>
             </>
           )}
-        </Card>
-      </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Preview Dialog */}
+      <Dialog open={showPrint} onOpenChange={setShowPrint}>
+        <DialogContent className="max-w-[240mm] max-h-[95vh] overflow-auto p-0 print:shadow-none print:border-none">
+          <div className="p-4 border-b border-border flex items-center justify-between no-print">
+            <h2 className="font-semibold text-foreground">Druckvorschau</h2>
+            <Button variant="default" size="sm" className="gap-2" onClick={() => window.print()}>
+              <Printer className="h-4 w-4" /> Drucken
+            </Button>
+          </div>
+          {selectedLN && (() => {
+            const kunde = kundenMap.get(selectedLN.kunden_id);
+            return kunde ? (
+              <LeistungsnachweisPreview
+                kunde={kunde}
+                nachweis={selectedLN}
+                termine={termine || []}
+              />
+            ) : null;
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
