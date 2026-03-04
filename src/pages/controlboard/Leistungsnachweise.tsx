@@ -17,7 +17,8 @@ import {
   FileText, Eye, Printer, Calendar, Clock,
   CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw,
   Search, ArrowUpDown, ChevronLeft, ChevronRight, X,
-  User, TrendingUp, FileCheck, PenLine, Send, ExternalLink
+  User, TrendingUp, FileCheck, PenLine, Send, ExternalLink,
+  WifiOff, Wifi
 } from 'lucide-react';
 import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -97,6 +98,20 @@ export default function Leistungsnachweise() {
   const [showDetail, setShowDetail] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
   const [signerName, setSignerName] = useState('');
+
+  // Online status tracking
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Canvas refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -267,37 +282,110 @@ export default function Leistungsnachweise() {
     }
   });
 
-  // Signature mutation
+  // Helper to sync a pending signature to the database
+  const syncSignatureToDb = async (lnId: string, data: { dataUrl: string; zeitstempel: string; durch: string }) => {
+    const { error } = await supabase
+      .from('leistungsnachweise')
+      .update({
+        unterschrift_kunde_bild: data.dataUrl,
+        unterschrift_kunde_zeitstempel: data.zeitstempel,
+        unterschrift_kunde_durch: data.durch,
+        status: 'unterschrieben',
+      })
+      .eq('id', lnId);
+    if (error) throw error;
+  };
+
+  // Signature mutation – offline-capable
   const signMutation = useMutation({
     mutationFn: async () => {
       if (!selectedLN || !canvasRef.current) throw new Error('Keine Daten');
       const dataUrl = canvasRef.current.toDataURL('image/png');
-      const { error } = await supabase
-        .from('leistungsnachweise')
-        .update({
-          unterschrift_kunde_bild: dataUrl,
+      const zeitstempel = new Date().toISOString();
+      const durch = signerName || 'Kunde';
+      const pendingData = { dataUrl, zeitstempel, durch };
+
+      // Always save to localStorage first
+      localStorage.setItem(`pending_signature_${selectedLN.id}`, JSON.stringify(pendingData));
+
+      if (isOnline) {
+        // Try to sync immediately
+        await syncSignatureToDb(selectedLN.id, pendingData);
+        localStorage.removeItem(`pending_signature_${selectedLN.id}`);
+      }
+    },
+    onSuccess: () => {
+      const dataUrl = canvasRef.current?.toDataURL('image/png') || null;
+      const zeitstempel = new Date().toISOString();
+      const durch = signerName || 'Kunde';
+
+      // Update local state immediately
+      setSelectedLN(prev => prev ? {
+        ...prev,
+        unterschrift_kunde_bild: dataUrl,
+        unterschrift_kunde_zeitstempel: zeitstempel,
+        unterschrift_kunde_durch: durch,
+        status: 'unterschrieben',
+      } : null);
+
+      if (isOnline) {
+        toast.success('Unterschrift gespeichert');
+      } else {
+        toast.success('Unterschrift lokal gespeichert', {
+          description: 'Wird automatisch synchronisiert, sobald Internet verfügbar ist.',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+    },
+    onError: (err) => {
+      // If online sync failed, signature is still in localStorage
+      if (!isOnline) {
+        toast.success('Unterschrift lokal gespeichert', {
+          description: 'Wird automatisch synchronisiert, sobald Internet verfügbar ist.',
+        });
+        // Update local state anyway
+        setSelectedLN(prev => prev ? {
+          ...prev,
+          unterschrift_kunde_bild: canvasRef.current?.toDataURL('image/png') || null,
           unterschrift_kunde_zeitstempel: new Date().toISOString(),
           unterschrift_kunde_durch: signerName || 'Kunde',
           status: 'unterschrieben',
-        })
-        .eq('id', selectedLN.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Unterschrift gespeichert');
-      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
-      setSelectedLN(prev => prev ? {
-        ...prev,
-        unterschrift_kunde_bild: canvasRef.current?.toDataURL('image/png') || null,
-        unterschrift_kunde_zeitstempel: new Date().toISOString(),
-        unterschrift_kunde_durch: signerName || 'Kunde',
-        status: 'unterschrieben',
-      } : null);
-    },
-    onError: (err) => {
-      toast.error('Fehler beim Speichern', { description: err instanceof Error ? err.message : 'Unbekannt' });
+        } : null);
+      } else {
+        toast.error('Fehler beim Speichern', { description: err instanceof Error ? err.message : 'Unbekannt' });
+      }
     }
   });
+
+  // Auto-sync pending signatures on reconnect
+  useEffect(() => {
+    if (!isOnline) return;
+
+    const syncPending = async () => {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('pending_signature_'));
+      if (keys.length === 0) return;
+
+      for (const key of keys) {
+        const lnId = key.replace('pending_signature_', '');
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '');
+          await syncSignatureToDb(lnId, data);
+          localStorage.removeItem(key);
+          toast.success('Unterschrift erfolgreich synchronisiert');
+        } catch (err) {
+          console.error('Sync fehlgeschlagen für', lnId, err);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+    };
+
+    syncPending();
+  }, [isOnline]);
+
+  // Check if there are pending signatures
+  const hasPendingSignatures = useMemo(() => {
+    return Object.keys(localStorage).some(k => k.startsWith('pending_signature_'));
+  }, [isOnline, selectedLN]);
 
   const getKundeName = (kundenId: string) => {
     const k = kunden?.find(c => c.id === kundenId);
@@ -722,6 +810,23 @@ export default function Leistungsnachweise() {
                         <PenLine className="h-4 w-4 text-muted-foreground" />
                         Unterschrift Kunde
                       </h3>
+
+                      {/* Offline indicator */}
+                      {!isOnline && (
+                        <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">
+                          <WifiOff className="h-4 w-4 text-warning" />
+                          <span className="text-warning font-medium">Offline-Modus</span>
+                          <span className="text-muted-foreground">– Unterschrift wird lokal gespeichert</span>
+                        </div>
+                      )}
+
+                      {hasPendingSignatures && isOnline && (
+                        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+                          <RefreshCw className="h-4 w-4 text-primary animate-spin" />
+                          <span className="text-primary font-medium">Synchronisiere ausstehende Unterschriften...</span>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label className="text-xs">Name des Unterzeichners</Label>
                         <Input
@@ -758,8 +863,8 @@ export default function Leistungsnachweise() {
                         disabled={signMutation.isPending}
                       >
                         {signMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                        <CheckCircle2 className="h-4 w-4" />
-                        Unterschreiben & Bestätigen
+                        {!isOnline ? <WifiOff className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {!isOnline ? 'Unterschrift lokal speichern' : 'Unterschreiben & Bestätigen'}
                       </Button>
                     </div>
                   )}
