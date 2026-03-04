@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,10 +17,11 @@ import {
   FileText, Eye, Printer, Calendar, Clock,
   CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw,
   Search, ArrowUpDown, ChevronLeft, ChevronRight, X,
-  User, TrendingUp, FileCheck, PenLine, Send
+  User, TrendingUp, FileCheck, PenLine, Send, ExternalLink
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { Link } from 'react-router-dom';
 import LeistungsnachweisPreview from '@/components/leistungsnachweis/LeistungsnachweisPreview';
 
 interface LeistungsnachweisRow {
@@ -95,6 +96,11 @@ export default function Leistungsnachweise() {
   const [sortAsc, setSortAsc] = useState(true);
   const [showDetail, setShowDetail] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [signerName, setSignerName] = useState('');
+
+  // Canvas refs
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = useRef(false);
 
   const isCurrentMonth = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
 
@@ -156,6 +162,12 @@ export default function Leistungsnachweise() {
     },
     enabled: !!selectedLN
   });
+
+  // Filter: only show planned + past termine, no cancelled/abgesagt
+  const filteredTermine = useMemo(() => {
+    if (!termine) return [];
+    return termine.filter(t => !['cancelled', 'abgesagt_rechtzeitig'].includes(t.status));
+  }, [termine]);
 
   // Auto-generate/update Leistungsnachweise when month data is loaded
   const autoGenerateNachweise = async () => {
@@ -255,6 +267,37 @@ export default function Leistungsnachweise() {
     }
   });
 
+  // Signature mutation
+  const signMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedLN || !canvasRef.current) throw new Error('Keine Daten');
+      const dataUrl = canvasRef.current.toDataURL('image/png');
+      const { error } = await supabase
+        .from('leistungsnachweise')
+        .update({
+          unterschrift_kunde_bild: dataUrl,
+          unterschrift_kunde_zeitstempel: new Date().toISOString(),
+          unterschrift_kunde_durch: signerName || 'Kunde',
+          status: 'unterschrieben',
+        })
+        .eq('id', selectedLN.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Unterschrift gespeichert');
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+      setSelectedLN(prev => prev ? {
+        ...prev,
+        unterschrift_kunde_bild: canvasRef.current?.toDataURL('image/png') || null,
+        unterschrift_kunde_zeitstempel: new Date().toISOString(),
+        unterschrift_kunde_durch: signerName || 'Kunde',
+        status: 'unterschrieben',
+      } : null);
+    },
+    onError: (err) => {
+      toast.error('Fehler beim Speichern', { description: err instanceof Error ? err.message : 'Unbekannt' });
+    }
+  });
 
   const getKundeName = (kundenId: string) => {
     const k = kunden?.find(c => c.id === kundenId);
@@ -312,6 +355,77 @@ export default function Leistungsnachweise() {
     };
   }, [nachweise]);
 
+  // Canvas drawing helpers
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }, []);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
+
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    isDrawingRef.current = true;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingRef.current) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const endDraw = () => { isDrawingRef.current = false; };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+
+  // Initialize canvas when detail dialog opens for signing
+  useEffect(() => {
+    if (showDetail && selectedLN?.status === 'veröffentlicht') {
+      setTimeout(initCanvas, 100);
+    }
+  }, [showDetail, selectedLN?.status, initCanvas]);
+
+  // Dienstplan link with week param
+  const getDienstplanLink = () => {
+    const firstOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
+    const weekStart = startOfWeek(firstOfMonth, { weekStartsOn: 1 });
+    return `/dashboard/dienstplan?week=${format(weekStart, 'yyyy-MM-dd')}`;
+  };
+
+  const canSign = selectedLN?.status === 'veröffentlicht' && !selectedLN?.unterschrift_kunde_zeitstempel;
+
   return (
     <div className="flex flex-col h-full gap-6">
       {/* Header with month navigation */}
@@ -341,7 +455,6 @@ export default function Leistungsnachweise() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-
         </div>
       </div>
 
@@ -369,7 +482,6 @@ export default function Leistungsnachweise() {
 
       {/* Main Content: Full Width List */}
       <div className="flex-1 min-h-0">
-        {/* Left: List */}
         <Card className="flex flex-col min-h-0 border-border/60">
           {/* Search & Filter Bar */}
           <div className="p-3 border-b border-border flex flex-wrap items-center gap-2">
@@ -501,9 +613,9 @@ export default function Leistungsnachweise() {
         </Card>
       </div>
 
-      {/* Detail Dialog */}
+      {/* Detail Dialog – wide fullscreen-like */}
       <Dialog open={showDetail && !!selectedLN} onOpenChange={(open) => { if (!open) setShowDetail(false); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
           {selectedLN && (
             <>
               {/* Dialog Header */}
@@ -517,9 +629,11 @@ export default function Leistungsnachweise() {
                     <p className="text-sm text-muted-foreground">{monthNames[selectedLN.monat - 1]} {selectedLN.jahr}</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowPrint(true)}>
-                  <Printer className="h-4 w-4" /> Drucken
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowPrint(true)}>
+                    <Printer className="h-4 w-4" /> Drucken
+                  </Button>
+                </div>
               </div>
 
               <ScrollArea className="flex-1 -mx-6 px-6">
@@ -536,41 +650,136 @@ export default function Leistungsnachweise() {
                     </div>
                   </div>
 
-                  {/* Termine */}
+                  {/* Termine – wider table layout */}
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      Termine ({termine?.length || 0})
-                    </h3>
-                    {!termine?.length ? (
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        Termine ({filteredTermine.length})
+                      </h3>
+                      <Link
+                        to={getDienstplanLink()}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Im Dienstplan prüfen
+                      </Link>
+                    </div>
+                    {!filteredTermine.length ? (
                       <p className="text-sm text-muted-foreground py-4 text-center">Keine Termine</p>
                     ) : (
-                      <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
-                        {termine.map(t => {
-                          const start = new Date(t.start_at);
-                          const end = new Date(t.end_at);
-                          const hours = t.iststunden ?? ((end.getTime() - start.getTime()) / 3600000);
-                          const sts = terminStatusLabel[t.status] || { label: t.status, color: 'text-muted-foreground bg-muted' };
-                          return (
-                            <div key={t.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm hover:bg-muted/30 transition-colors">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium text-foreground truncate">
-                                  {format(start, 'dd.MM.', { locale: de })} · {format(start, 'HH:mm')}–{format(end, 'HH:mm')}
-                                </p>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {t.mitarbeiter ? `${t.mitarbeiter.vorname || ''} ${t.mitarbeiter.nachname || ''}`.trim() : 'Kein MA'}
-                                </p>
-                              </div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${sts.color}`}>
-                                {sts.label}
-                              </span>
-                              <span className="text-xs font-semibold tabular-nums text-foreground w-10 text-right">{Math.round(hours * 100) / 100}h</span>
-                            </div>
-                          );
-                        })}
+                      <div className="border border-border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent bg-muted/30">
+                              <TableHead className="text-xs">Datum</TableHead>
+                              <TableHead className="text-xs">Uhrzeit</TableHead>
+                              <TableHead className="text-xs">Mitarbeiter</TableHead>
+                              <TableHead className="text-xs">Status</TableHead>
+                              <TableHead className="text-xs text-right">Stunden</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredTermine.map(t => {
+                              const start = new Date(t.start_at);
+                              const end = new Date(t.end_at);
+                              const hours = t.iststunden ?? ((end.getTime() - start.getTime()) / 3600000);
+                              const sts = terminStatusLabel[t.status] || { label: t.status, color: 'text-muted-foreground bg-muted' };
+                              return (
+                                <TableRow key={t.id} className="hover:bg-muted/20">
+                                  <TableCell className="text-sm font-medium">
+                                    {format(start, 'dd.MM.yyyy', { locale: de })}
+                                  </TableCell>
+                                  <TableCell className="text-sm tabular-nums">
+                                    {format(start, 'HH:mm')}–{format(end, 'HH:mm')}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {t.mitarbeiter ? `${t.mitarbeiter.vorname || ''} ${t.mitarbeiter.nachname || ''}`.trim() : '–'}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${sts.color}`}>
+                                      {sts.label}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-sm font-semibold tabular-nums text-right">
+                                    {Math.round(hours * 100) / 100}h
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
                   </div>
+
+                  <Separator />
+
+                  {/* Signature Section – only if veröffentlicht */}
+                  {canSign && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <PenLine className="h-4 w-4 text-muted-foreground" />
+                        Unterschrift Kunde
+                      </h3>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Name des Unterzeichners</Label>
+                        <Input
+                          className="h-8 text-sm max-w-xs"
+                          value={signerName}
+                          onChange={e => setSignerName(e.target.value)}
+                          placeholder="Name eingeben..."
+                        />
+                      </div>
+                      <div className="relative">
+                        <canvas
+                          ref={canvasRef}
+                          className="w-full h-32 border border-border rounded-lg bg-card cursor-crosshair touch-none"
+                          onMouseDown={startDraw}
+                          onMouseMove={draw}
+                          onMouseUp={endDraw}
+                          onMouseLeave={endDraw}
+                          onTouchStart={startDraw}
+                          onTouchMove={draw}
+                          onTouchEnd={endDraw}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute top-1 right-1 h-6 text-xs text-muted-foreground"
+                          onClick={clearCanvas}
+                        >
+                          Löschen
+                        </Button>
+                      </div>
+                      <Button
+                        className="w-full gap-2"
+                        onClick={() => signMutation.mutate()}
+                        disabled={signMutation.isPending}
+                      >
+                        {signMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                        <CheckCircle2 className="h-4 w-4" />
+                        Unterschreiben & Bestätigen
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Signature info if already signed */}
+                  {selectedLN.unterschrift_kunde_zeitstempel && (
+                    <div className="rounded-lg bg-success/10 border border-success/20 p-3">
+                      <div className="flex items-center gap-2 text-sm text-success">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="font-medium">Kunde hat unterschrieben</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedLN.unterschrift_kunde_durch && `Durch: ${selectedLN.unterschrift_kunde_durch} · `}
+                        {format(new Date(selectedLN.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy HH:mm', { locale: de })}
+                      </p>
+                      {selectedLN.unterschrift_kunde_bild && (
+                        <img src={selectedLN.unterschrift_kunde_bild} alt="Unterschrift" className="h-16 mt-2 border rounded bg-card" />
+                      )}
+                    </div>
+                  )}
 
                   <Separator />
 
@@ -628,23 +837,6 @@ export default function Leistungsnachweise() {
                       <Label className="text-xs">GF-Unterschrift Name</Label>
                       <Input className="h-8 text-sm" value={selectedLN.unterschrift_gf_name || ''} onChange={e => setSelectedLN({ ...selectedLN, unterschrift_gf_name: e.target.value })} placeholder="Name der Geschäftsführung" />
                     </div>
-
-                    {/* Signature Info */}
-                    {selectedLN.unterschrift_kunde_zeitstempel && (
-                      <div className="rounded-lg bg-success/10 border border-success/20 p-3">
-                        <div className="flex items-center gap-2 text-sm text-success">
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span className="font-medium">Kunde hat unterschrieben</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {selectedLN.unterschrift_kunde_durch && `Durch: ${selectedLN.unterschrift_kunde_durch} · `}
-                          {format(new Date(selectedLN.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy HH:mm', { locale: de })}
-                        </p>
-                        {selectedLN.unterschrift_kunde_bild && (
-                          <img src={selectedLN.unterschrift_kunde_bild} alt="Unterschrift" className="h-12 mt-2 border rounded bg-card" />
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               </ScrollArea>
@@ -692,7 +884,7 @@ export default function Leistungsnachweise() {
               <LeistungsnachweisPreview
                 kunde={kunde}
                 nachweis={selectedLN}
-                termine={termine || []}
+                termine={filteredTermine}
               />
             ) : null;
           })()}
