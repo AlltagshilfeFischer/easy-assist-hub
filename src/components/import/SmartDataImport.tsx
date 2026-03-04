@@ -135,15 +135,14 @@ export function SmartDataImport<T extends DataRow>({
     }
   }, [open, initialRowCount, createEmptyRow, rows.length]);
 
-  // ─── Focus input when entering edit mode ─────────────────────────
+  // ─── Focus management ────────────────────────────────────────────
+  // Re-focus the table div whenever edit mode ends or the dialog opens.
+  // This ensures keyboard navigation and Ctrl+V paste always work.
   useEffect(() => {
-    if (!editingCell || !inputRef.current) return;
-    inputRef.current.focus();
-    if (editModeRef.current === 'append') {
-      const len = inputRef.current.value.length;
-      inputRef.current.setSelectionRange(len, len);
+    if (!editingCell && open) {
+      tableRef.current?.focus({ preventScroll: true });
     }
-  }, [editingCell]);
+  }, [editingCell, open]);
 
   // ─── Global mouseup to end drag selection ────────────────────────
   useEffect(() => {
@@ -236,11 +235,11 @@ export function SmartDataImport<T extends DataRow>({
 
   const getSelection = useCallback((): SelectionRange | null => {
     if (selectedCols.size > 0) {
-      const arr = Array.from(selectedCols).sort((a, b) => a - b);
+      const arr = Array.from<number>(selectedCols).sort((a, b) => a - b);
       return { minRow: 0, maxRow: rows.length - 1, minCol: arr[0], maxCol: arr[arr.length - 1] };
     }
     if (selectedRows.size > 0) {
-      const arr = Array.from(selectedRows).sort((a, b) => a - b);
+      const arr = Array.from<number>(selectedRows).sort((a, b) => a - b);
       return { minRow: arr[0], maxRow: arr[arr.length - 1], minCol: 0, maxCol: columns.length - 1 };
     }
     if (!selectionStart || !selectionEnd) return null;
@@ -524,6 +523,10 @@ export function SmartDataImport<T extends DataRow>({
   // ─── Mouse event handlers ─────────────────────────────────────────
   const handleCellMouseDown = useCallback((row: number, col: number, e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    // Don't interfere when clicking inside the currently editing cell – let the input handle it
+    if (editingCell?.row === row && editingCell?.col === col) return;
+    // Ensure the table div keeps focus so keyboard events and Ctrl+V work
+    tableRef.current?.focus({ preventScroll: true });
     setContextMenu(null);
     if (e.shiftKey && activeCell) {
       setSelectionEnd({ row, col });
@@ -536,7 +539,7 @@ export function SmartDataImport<T extends DataRow>({
     }
     setEditingCell(null);
     setIsDragging(true);
-  }, [activeCell, clearSelectionModes]);
+  }, [activeCell, clearSelectionModes, editingCell]);
 
   const handleCellMouseEnter = useCallback((row: number, col: number) => {
     if (isDragging) setSelectionEnd({ row, col });
@@ -556,10 +559,11 @@ export function SmartDataImport<T extends DataRow>({
 
   const handleRowHeaderClick = useCallback((rowIndex: number, e: React.MouseEvent) => {
     e.preventDefault();
+    tableRef.current?.focus({ preventScroll: true });
     setSelectedCols(new Set());
     setEditingCell(null);
     if (e.shiftKey && selectedRows.size > 0) {
-      const existing = Array.from(selectedRows);
+      const existing = Array.from<number>(selectedRows);
       const from = Math.min(Math.min(...existing), rowIndex);
       const to = Math.max(Math.max(...existing), rowIndex);
       const next = new Set<number>();
@@ -579,10 +583,11 @@ export function SmartDataImport<T extends DataRow>({
 
   const handleColHeaderClick = useCallback((colIndex: number, e: React.MouseEvent) => {
     e.preventDefault();
+    tableRef.current?.focus({ preventScroll: true });
     setSelectedRows(new Set());
     setEditingCell(null);
     if (e.shiftKey && selectedCols.size > 0) {
-      const existing = Array.from(selectedCols);
+      const existing = Array.from<number>(selectedCols);
       const from = Math.min(Math.min(...existing), colIndex);
       const to = Math.max(Math.max(...existing), colIndex);
       const next = new Set<number>();
@@ -1046,11 +1051,20 @@ export function SmartDataImport<T extends DataRow>({
                             >
                               {isEditing ? (
                                 <input
-                                  ref={inputRef}
+                                  ref={el => {
+                                    inputRef.current = el;
+                                    if (el) {
+                                      el.focus();
+                                      if (editModeRef.current === 'append') {
+                                        el.setSelectionRange(el.value.length, el.value.length);
+                                      }
+                                    }
+                                  }}
                                   type="text"
                                   value={editValue}
                                   onChange={(e) => setEditValue(e.target.value)}
                                   onBlur={commitEdit}
+                                  onMouseDown={(e) => e.stopPropagation()}
                                   className="w-full px-2 py-1 bg-white border-0 focus:outline-none focus:ring-0 text-sm min-h-[28px]"
                                   style={{ minWidth: (col.width ?? 100) - 2 }}
                                 />
