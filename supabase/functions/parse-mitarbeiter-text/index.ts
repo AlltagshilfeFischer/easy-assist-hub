@@ -145,7 +145,7 @@ Erkenne verschiedene Formate: Listen, Tabellen, Fließtext, CSV, etc.`,
   } catch (error) {
     console.error("parse-mitarbeiter-text error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Unbekannter Fehler" }),
+      JSON.stringify({ error: (error as Error).message || "Unbekannter Fehler" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

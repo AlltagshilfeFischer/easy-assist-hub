@@ -197,9 +197,9 @@ serve(async (req) => {
     const validationErrors: string[] = [];
     const validationWarnings: string[] = [];
 
-    for (const termin of termine as TerminForBilling[]) {
-      const kundenLeistungen = (leistungen || []).filter(
-        (l: Leistung) => l.kunden_id === termin.kunden_id
+    for (const termin of (termine as unknown as TerminForBilling[])) {
+      const kundenLeistungen = (leistungen as any[] || []).filter(
+        (l: any) => l.kunden_id === termin.kunden_id
       );
 
       if (kundenLeistungen.length === 0) {
@@ -211,7 +211,7 @@ serve(async (req) => {
 
       // Find matching leistung for termin date
       const terminDate = termin.start_at.split("T")[0];
-      const matchingLeistung = kundenLeistungen.find((l: Leistung) => {
+      const matchingLeistung = kundenLeistungen.find((l: any) => {
         const gueltigVon = l.gueltig_von;
         const gueltigBis = l.gueltig_bis || "9999-12-31";
         return terminDate >= gueltigVon && terminDate <= gueltigBis;
@@ -228,7 +228,7 @@ serve(async (req) => {
       const kundenPflegegrad = termin.kunden?.pflegegrad;
       const matchingRegel = (regeln || []).find((r: Abrechnungsregel) => {
         if (!matchingLeistung.kostentraeger) return false;
-        return r.kostentraeger_typ === matchingLeistung.kostentraeger.typ &&
+        return r.kostentraeger_typ === (matchingLeistung as any).kostentraeger?.typ &&
                r.leistungsart === matchingLeistung.art;
       });
 
@@ -394,7 +394,7 @@ serve(async (req) => {
           const { error: kontingentError } = await supabase.rpc("update_kontingent", {
             p_leistung_id: leistungId,
             p_stunden: stunden
-          }).catch(() => ({ error: null })); // RPC may not exist yet
+          }).then((res: any) => res, () => ({ error: null })); // RPC may not exist yet
         }
 
         // Log to audit

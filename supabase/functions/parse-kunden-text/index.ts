@@ -137,7 +137,7 @@ EXTREM WICHTIG: Extrahiere ALLE Kunden aus dem Text, auch wenn es 50+ sind. Übe
   } catch (error) {
     console.error("parse-kunden-text error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Unbekannter Fehler" }),
+      JSON.stringify({ error: (error as Error).message || "Unbekannter Fehler" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

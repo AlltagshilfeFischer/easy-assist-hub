@@ -200,7 +200,7 @@ Gib die Top 3-5 Mitarbeiter zurück mit Begründung.`;
   } catch (error) {
     console.error('Error in suggest-employees:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({ error: (error as Error).message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
