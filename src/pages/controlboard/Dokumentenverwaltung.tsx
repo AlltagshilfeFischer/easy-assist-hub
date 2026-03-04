@@ -316,32 +316,37 @@ export default function Dokumentenverwaltung() {
 
     setUploading(false);
 
-    const successCount = pendingFiles.filter((pf) => pf.status === 'done').length;
-    const errorCount = pendingFiles.filter((pf) => pf.status === 'error').length;
+    // Use functional update to read latest state (avoid stale closure)
+    setPendingFiles((prev) => {
+      const successCount = prev.filter((pf) => pf.status === 'done').length;
+      const errorCount = prev.filter((pf) => pf.status === 'error').length;
 
-    if (successCount > 0) {
-      toast({
-        title: 'Erfolg',
-        description: `${successCount} Dokument${successCount !== 1 ? 'e' : ''} erfolgreich hochgeladen`,
-      });
-      loadDokumente();
-    }
+      if (successCount > 0) {
+        toast({
+          title: 'Erfolg',
+          description: `${successCount} Dokument${successCount !== 1 ? 'e' : ''} erfolgreich hochgeladen`,
+        });
+        loadDokumente();
+      }
 
-    if (errorCount > 0) {
-      toast({
-        title: 'Warnung',
-        description: `${errorCount} Upload${errorCount !== 1 ? 's' : ''} fehlgeschlagen`,
-        variant: 'destructive',
-      });
-    }
+      if (errorCount > 0) {
+        toast({
+          title: 'Warnung',
+          description: `${errorCount} Upload${errorCount !== 1 ? 's' : ''} fehlgeschlagen`,
+          variant: 'destructive',
+        });
+      }
 
-    // Clear successful uploads
-    setPendingFiles((prev) => prev.filter((pf) => pf.status !== 'done'));
-    
-    if (pendingFiles.every((pf) => pf.status === 'done')) {
-      setUploadDialogOpen(false);
-      resetUploadForm();
-    }
+      if (prev.every((pf) => pf.status === 'done')) {
+        setTimeout(() => {
+          setUploadDialogOpen(false);
+          resetUploadForm();
+        }, 0);
+        return [];
+      }
+
+      return prev.filter((pf) => pf.status !== 'done');
+    });
   };
 
   const resetUploadForm = () => {
