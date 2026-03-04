@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CreateRecurringAppointmentDialog } from './CreateRecurringAppointmentDialog';
+import { KundenDetailDialog } from '@/components/customers/KundenDetailDialog';
+import { useUserRole } from '@/hooks/useUserRole';
 import type { Employee, Customer, Appointment, CustomerTimeWindow } from '@/types/domain';
 
 // Types imported from @/types/domain
@@ -58,7 +60,9 @@ export function AppointmentDetailDialog({
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [customerFaultNote, setCustomerFaultNote] = useState('');
+  const [showKundenDetail, setShowKundenDetail] = useState(false);
   const { toast } = useToast();
+  const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
 
   React.useEffect(() => {
     if (appointment) {
@@ -445,6 +449,7 @@ export function AppointmentDetailDialog({
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
@@ -676,6 +681,11 @@ export function AppointmentDetailDialog({
                     </div>
                   )}
                 </div>
+                {(isGeschaeftsfuehrer || isAdmin) && (
+                  <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => setShowKundenDetail(true)}>
+                    Kundendetails anzeigen
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -1051,5 +1061,12 @@ export function AppointmentDetailDialog({
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+
+    <KundenDetailDialog
+      isOpen={showKundenDetail}
+      onClose={() => setShowKundenDetail(false)}
+      kundenId={editedAppointment?.kunden_id || null}
+    />
+    </>
   );
 }

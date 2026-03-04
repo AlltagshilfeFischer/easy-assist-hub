@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Power, Trash2 } from 'lucide-react';
+import { Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Power, Trash2, Eye } from 'lucide-react';
 import type { SortKey, SortDirection } from '@/hooks/useCustomerFilters';
 
 interface CustomerTableProps {
@@ -21,6 +21,7 @@ interface CustomerTableProps {
   onToggleStatus: (params: { kundenId: string; currentStatus: boolean }) => void;
   onDelete: (id: string) => void;
   onConvert: (id: string) => void;
+  onViewDetail?: (customerId: string) => void;
   togglePending: boolean;
   convertPending: boolean;
   // Column filters
@@ -67,6 +68,7 @@ export function CustomerTable({
   onToggleStatus,
   onDelete,
   onConvert,
+  onViewDetail,
   togglePending,
   convertPending,
   nameFilter, setNameFilter,
@@ -143,6 +145,7 @@ export function CustomerTable({
               </TableCell>
               <TableCell>
                 <div className="flex gap-2">
+                  {onViewDetail && <Button variant="outline" size="sm" onClick={() => onViewDetail(customer.id)} title="Details anzeigen"><Eye className="h-3 w-3" /></Button>}
                   <Button variant="outline" size="sm" onClick={() => onEdit(customer)} title="Bearbeiten"><Edit className="h-3 w-3" /></Button>
                   <Button variant={customer.aktiv ? 'outline' : 'default'} size="sm" onClick={() => onToggleStatus({ kundenId: customer.id, currentStatus: customer.aktiv })} disabled={togglePending} title={customer.aktiv ? 'Deaktivieren' : 'Aktivieren'}><Power className="h-3 w-3" /></Button>
                   <Button variant="destructive" size="sm" onClick={() => onDelete(customer.id)} title="Löschen"><Trash2 className="h-3 w-3" /></Button>

@@ -19,6 +19,7 @@ import { KundenSmartImport } from '@/components/import/KundenSmartImport';
 import { CustomerFilters } from '@/components/customers/CustomerFilters';
 import { CustomerTable } from '@/components/customers/CustomerTable';
 import { CustomerEditDialog } from '@/components/customers/CustomerEditDialog';
+import { KundenDetailDialog } from '@/components/customers/KundenDetailDialog';
 import { useCustomerFilters } from '@/hooks/useCustomerFilters';
 import { useCustomerMutations } from '@/hooks/useCustomerMutations';
 
@@ -38,6 +39,7 @@ export default function MasterData() {
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [showSmartImport, setShowSmartImport] = useState(false);
+  const [detailKundenId, setDetailKundenId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: customers, isLoading: customersLoading } = useQuery({
@@ -146,6 +148,7 @@ export default function MasterData() {
               onToggleStatus={(p) => toggleCustomerStatusMutation.mutate(p)}
               onDelete={(id) => setDeleteCustomerId(id)}
               onConvert={(id) => convertToCustomerMutation.mutate(id)}
+              onViewDetail={(id) => setDetailKundenId(id)}
               togglePending={toggleCustomerStatusMutation.isPending}
               convertPending={convertToCustomerMutation.isPending}
               nameFilter={filters.nameFilter} setNameFilter={filters.setNameFilter}
@@ -189,6 +192,7 @@ export default function MasterData() {
 
       <CreateCustomerWizard open={isCreatingCustomer} onOpenChange={setIsCreatingCustomer} employees={employees || []} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['customers'] })} />
       <KundenSmartImport open={showSmartImport} onOpenChange={setShowSmartImport} />
+      <KundenDetailDialog isOpen={!!detailKundenId} onClose={() => setDetailKundenId(null)} kundenId={detailKundenId} />
     </div>
   );
 }
