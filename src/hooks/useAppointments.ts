@@ -31,7 +31,7 @@ export function useAppointments(options?: UseAppointmentsOptions) {
           id, titel, kunden_id, mitarbeiter_id, start_at, end_at, status,
           vorlage_id, ist_ausnahme, ausnahme_grund, notizen, iststunden, einsatzort_id,
           customer:kunden(id, name, vorname, nachname, farbe_kalender, email, telefonnr,
-            geburtsdatum, pflegegrad, adresse, stadtteil, aktiv, pflegekasse,
+            geburtsdatum, pflegegrad, adresse, strasse, plz, stadt, stadtteil, aktiv, pflegekasse,
             versichertennummer, stunden_kontingent_monat, mitarbeiter,
             angehoerige_ansprechpartner),
           employee:mitarbeiter(id, vorname, nachname, farbe_kalender, telefon, ist_aktiv,

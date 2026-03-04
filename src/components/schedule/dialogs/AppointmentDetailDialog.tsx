@@ -650,6 +650,31 @@ export function AppointmentDetailDialog({
                       </div>
                     </div>
                   </div>
+                  {/* Address with Google Maps link */}
+                  {(editedAppointment.customer?.strasse || editedAppointment.customer?.stadt) && (
+                    <div className="mt-3">
+                      <Label className="text-sm font-medium text-muted-foreground">Adresse</Label>
+                      <div className="flex items-start gap-2 mt-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm">
+                            {[editedAppointment.customer.strasse, [editedAppointment.customer.plz, editedAppointment.customer.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                            {editedAppointment.customer.stadtteil && (
+                              <span className="text-muted-foreground"> ({editedAppointment.customer.stadtteil})</span>
+                            )}
+                          </p>
+                          <a
+                            href={`https://maps.google.com/?q=${encodeURIComponent([editedAppointment.customer.strasse, editedAppointment.customer.plz, editedAppointment.customer.stadt].filter(Boolean).join(' '))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline mt-0.5 inline-block"
+                          >
+                            In Google Maps öffnen →
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

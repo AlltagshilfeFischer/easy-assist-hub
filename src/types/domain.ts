@@ -112,7 +112,7 @@ export interface CalendarAppointment {
   start_at: string;
   end_at: string;
   status?: TerminStatus;
-  customer?: { id: string; name: string | null; farbe_kalender?: string; email?: string | null; telefonnr?: string | null };
+  customer?: { id: string; name: string | null; farbe_kalender?: string; email?: string | null; telefonnr?: string | null; strasse?: string | null; plz?: string | null; stadt?: string | null; stadtteil?: string | null };
   employee?: { id: string; name: string; farbe_kalender: string };
   vorlage_id?: string | null;
   ist_ausnahme?: boolean | null;

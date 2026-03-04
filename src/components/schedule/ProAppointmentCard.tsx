@@ -9,7 +9,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Scissors, AlertCircle } from "lucide-react";
+import { Scissors, AlertCircle, MapPin } from "lucide-react";
 import type { CalendarAppointment } from '@/types/domain';
 
 interface ProAppointmentCardProps {
@@ -89,6 +89,14 @@ export function ProAppointmentCard({
             <div className="font-medium text-xs text-foreground truncate">
               {appointment.customer?.name || appointment.titel}
             </div>
+
+            {/* Stadtteil Badge */}
+            {appointment.customer?.stadtteil && (
+              <div className="flex items-center gap-0.5 mt-0.5">
+                <MapPin className="h-2.5 w-2.5 text-muted-foreground flex-shrink-0" />
+                <span className="text-[10px] text-muted-foreground truncate">{appointment.customer.stadtteil}</span>
+              </div>
+            )}
             
             {/* Optional: Titel/Type */}
             {appointment.titel && appointment.customer?.name && appointment.titel !== appointment.customer.name && (
