@@ -311,7 +311,11 @@ export default function Dokumentenverwaltung() {
 
         updatePendingFile(i, { status: 'done', progress: 100 });
       } catch (error: any) {
-        updatePendingFile(i, { status: 'error', error: error.message || 'Upload fehlgeschlagen' });
+        const msg = error.message || 'Upload fehlgeschlagen';
+        const detail = error.statusCode === 403 || msg.includes('security') || msg.includes('policy')
+          ? `${msg} — Bitte prüfen Sie die Berechtigungen (Storage-Bucket oder Datenbankrichtlinien).`
+          : msg;
+        updatePendingFile(i, { status: 'error', error: detail });
       }
     }
 
