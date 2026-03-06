@@ -954,17 +954,15 @@ export default function Dokumentenverwaltung() {
                       </CardDescription>
                     </div>
                   </div>
-                  {activeTab === 'intern' && (
-                    <div className="relative w-64">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-9 h-9"
-                        placeholder="Dokument suchen..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                  )}
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9 h-9"
+                      placeholder="Dokument suchen..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
                 </div>
               </CardHeader>
               
