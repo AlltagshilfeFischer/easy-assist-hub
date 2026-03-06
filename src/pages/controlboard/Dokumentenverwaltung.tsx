@@ -832,6 +832,7 @@ export default function Dokumentenverwaltung() {
         setActiveTab(v as DokumentKategorie);
         setSelectedEntityId(null);
         setSearchQuery('');
+        setEntitySearchQuery('');
       }} className="flex-1 flex flex-col min-h-0">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="kunde" className="flex items-center gap-2">
