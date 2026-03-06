@@ -76,6 +76,7 @@ export default function Dokumentenverwaltung() {
   const [activeTab, setActiveTab] = useState<DokumentKategorie>('kunde');
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [entitySearchQuery, setEntitySearchQuery] = useState('');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
   const { toast } = useToast();
