@@ -1,28 +1,28 @@
 
 
-## Plan: Kundenbearbeitung mit Tabs (Stammdaten, Abrechnung, Dokumente)
+## Plan: Dokumentenverwaltung - Suche und Upload reparieren
 
-### Problem
-Der aktuelle `CustomerEditDialog` ist ein flaches Formular ohne Tabs. Der Erstellungs-Wizard (`CreateCustomerWizard`) hat dagegen drei Tabs: Stammdaten, Abrechnung, Dokumente. Beim Bearbeiten fehlen die Abrechnung- und Dokumente-Tabs komplett.
+### Gefundene Probleme
 
-### Loesung
-Den `CustomerEditDialog` auf eine Tab-basierte Struktur umbauen, die die gleichen Wizard-Step-Komponenten wiederverwendet.
+**Problem 1: Suchfeld-Kollision**
+Die Sidebar-Suche (Kunde/Mitarbeiter filtern, Zeile 861) und die Dokumenten-Suche (Zeile 953) teilen denselben State `searchQuery`. Wenn man in der Sidebar einen Kundennamen sucht, filtert das gleichzeitig die Dokumente -- und umgekehrt. Die Sidebar-Entities werden gar nicht gefiltert, da `searchQuery` nur im `entityDocuments`-useMemo auf Dokumente angewandt wird. Die Entity-Liste zeigt immer alle Eintraege.
+
+**Problem 2: Dokumenten-Suche nur bei "intern" sichtbar**
+Das Dokumenten-Suchfeld (Zeile 947-957) wird nur angezeigt wenn `activeTab === 'intern'`. Bei Kunde/Mitarbeiter-Tabs gibt es kein Suchfeld fuer Dokumente -- nur das Sidebar-Suchfeld, das faelschlicherweise Dokumente filtert statt Entities.
+
+**Problem 3: Upload -- kein offensichtlicher Code-Bug sichtbar**
+Die Upload-Logik (Zeilen 225-350) sieht korrekt aus: Storage-Upload + Metadaten-Insert. Potenzielle Probleme: Storage-Bucket-Berechtigungen oder RLS auf der `dokumente`-Tabelle. Der Code selbst ist funktional. Ich pruefe das genauer und stelle sicher, dass Fehlermeldungen korrekt angezeigt werden.
 
 ### Aenderungen
 
-**1. `src/components/customers/CustomerEditDialog.tsx`**
-- Tabs einfuehren: `Stammdaten`, `Abrechnung`, `Dokumente`
-- **Tab Stammdaten**: Bestehende Formularfelder (persoenliche Daten, Kontakt, Pflege, Status, Ein-/Austritt, Zeitfenster) bleiben wie bisher
-- **Tab Abrechnung**: `StepAbrechnung`-Komponente einbinden (Kasse/Privat, Verhinderungspflege, Pflegesachleistung, Budget-Priorisierung). State fuer `budgetOrder` und `draggedBudget` hinzufuegen, initialisiert aus `editingCustomer.budget_prioritaet`
-- **Tab Dokumente**: `StepDokumente`-Komponente einbinden fuer neue Uploads. Zusaetzlich vorhandene Dokumente aus DB laden und anzeigen
-- Budget-Felder (`verhinderungspflege_aktiv/beantragt/genehmigt/budget`, `pflegesachleistung_*`, `budget_prioritaet`) werden beim Speichern mit uebernommen
+**`src/pages/controlboard/Dokumentenverwaltung.tsx`**
 
-**2. `src/hooks/useCustomerMutations.ts`**
-- `updateCustomerMutation` erweitern: `budget_prioritaet`, alle `verhinderungspflege_*` und `pflegesachleistung_*` Felder mit speichern (aktuell werden diese vermutlich schon durchgereicht, muss verifiziert werden)
-
-**3. `src/pages/controlboard/MasterData.tsx`**
-- `handleEditCustomer`: Beim Laden des Kunden auch `budget_prioritaet` in `budgetOrder` State initialisieren, damit die Abrechnung-Tab korrekt vorausgefuellt ist
+1. **Neuen State `entitySearchQuery` einfuehren** -- getrennt von `searchQuery` (das fuer Dokumente bleibt)
+2. **Sidebar-Entity-Liste filtern** mit `entitySearchQuery`: Kunden/Mitarbeiter-Liste im Sidebar nach Name filtern
+3. **Sidebar-Suchfeld** auf `entitySearchQuery` umverdrahten
+4. **Dokumenten-Suchfeld immer anzeigen** -- nicht nur bei `intern`, sondern auch bei Kunde/Mitarbeiter-Tabs (im rechten Panel-Header)
+5. **Tab-Wechsel**: Beide Suchfelder zuruecksetzen
+6. **Upload-Fehlerbehandlung verbessern**: Detailliertere Fehlermeldungen bei Storage- und RLS-Fehlern ausgeben, damit der Nutzer sehen kann was schiefgeht
 
 ### Keine DB-Aenderungen noetig
-Alle Felder existieren bereits in der `kunden`-Tabelle.
 
