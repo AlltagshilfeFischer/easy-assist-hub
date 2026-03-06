@@ -857,11 +857,11 @@ export default function Dokumentenverwaltung() {
                 <CardHeader className="py-3 px-4 border-b">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+                     <Input
                       className="pl-9 h-9"
                       placeholder={`${activeTab === 'kunde' ? 'Kunde' : 'Mitarbeiter'} suchen...`}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      value={entitySearchQuery}
+                      onChange={(e) => setEntitySearchQuery(e.target.value)}
                     />
                   </div>
                 </CardHeader>
