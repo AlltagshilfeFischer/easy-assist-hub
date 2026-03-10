@@ -85,6 +85,7 @@ export default function Dashboard() {
           <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
           <Route path="/controlboard/billing" element={<Billing />} />
           <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
+          <Route path="/controlboard/entwicklung" element={<EntwicklungsStatus />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </DashboardLayout>
