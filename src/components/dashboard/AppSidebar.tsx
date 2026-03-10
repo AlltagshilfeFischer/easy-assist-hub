@@ -45,6 +45,7 @@ const controlboardItems: SidebarItem[] = [
   { title: 'Dokumentenverwaltung', url: '/dashboard/controlboard/dokumentenverwaltung', icon: FolderOpen, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin'] },
   { title: 'Leistungsnachweise', url: '/dashboard/controlboard/leistungsnachweise', icon: ClipboardCheck, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin'] },
   { title: 'Aktivitätslog', url: '/dashboard/controlboard/aktivitaetslog', icon: ScrollText, requiredRoles: ['globaladmin'] },
+  { title: 'Entwicklungsstand', url: '/dashboard/controlboard/entwicklung', icon: BarChart3, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
 ];
 
 const systemItems: SidebarItem[] = [

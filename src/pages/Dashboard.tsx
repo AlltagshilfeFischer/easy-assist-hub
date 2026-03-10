@@ -13,6 +13,7 @@ import Billing from './controlboard/Billing';
 import Leistungsnachweise from './controlboard/Leistungsnachweise';
 import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import AktivitaetsLog from './controlboard/AktivitaetsLog';
+import EntwicklungsStatus from './controlboard/EntwicklungsStatus';
 import MitarbeiterStart from './MitarbeiterStart';
 
 import Settings from './Settings';
