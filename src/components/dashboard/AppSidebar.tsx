@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   UserCircle,
   ScrollText,
+  BarChart3,
 } from 'lucide-react';
 import {
   Sidebar,
