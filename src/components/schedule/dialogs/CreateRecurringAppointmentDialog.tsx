@@ -94,7 +94,7 @@ export function CreateRecurringAppointmentDialog({
 
       await onSubmit({
         ...(editingTemplate?.id && { id: editingTemplate.id }),
-        titel: `Termin: ${customerName}`,
+        titel: customerName,
         kunden_id: kundenId,
         mitarbeiter_id: mitarbeiterId === 'unassigned' ? null : mitarbeiterId || null,
         wochentag,

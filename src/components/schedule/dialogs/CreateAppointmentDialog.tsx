@@ -89,7 +89,7 @@ export function CreateAppointmentDialog({
         : customers.find(c => c.id === finalKundenId)?.name || 'Unbekannt';
 
       await onSubmit({
-        titel: `Termin: ${customerName}`,
+        titel: customerName,
         kunden_id: finalKundenId,
         mitarbeiter_id: mitarbeiterId === 'unassigned' ? null : mitarbeiterId || null,
         start_at: startAt.toISOString(),
