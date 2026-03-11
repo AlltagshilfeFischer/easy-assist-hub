@@ -162,7 +162,8 @@ export function LeistungsnachweisSignature() {
 
   useEffect(() => {
     if (signDialogOpen) {
-      setTimeout(initCanvas, 100);
+      const timerId = setTimeout(initCanvas, 100);
+      return () => clearTimeout(timerId);
     }
   }, [signDialogOpen, initCanvas]);
 

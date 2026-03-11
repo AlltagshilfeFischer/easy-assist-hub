@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -90,7 +89,7 @@ export default function Billing() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKunde, setSelectedKunde] = useState<string | null>(null);
-  const { toast } = useToast();
+
 
   // Billing period selection
   const lastMonth = subMonths(new Date(), 1);
@@ -258,11 +257,7 @@ export default function Billing() {
       setAppointments(termineData || []);
     } catch (error) {
       console.error('Error loading data:', error);
-      toast({
-        title: 'Fehler',
-        description: 'Daten konnten nicht geladen werden',
-        variant: 'destructive',
-      });
+      sonnerToast.error('Fehler', { description: 'Daten konnten nicht geladen werden' });
     } finally {
       setLoading(false);
     }
@@ -281,17 +276,10 @@ export default function Billing() {
         prev.map(apt => apt.id === terminId ? { ...apt, iststunden: newValue } : apt)
       );
 
-      toast({
-        title: 'Erfolg',
-        description: 'Stunden wurden aktualisiert',
-      });
+      sonnerToast.success('Stunden wurden aktualisiert');
     } catch (error) {
       console.error('Error updating hours:', error);
-      toast({
-        title: 'Fehler',
-        description: 'Stunden konnten nicht aktualisiert werden',
-        variant: 'destructive',
-      });
+      sonnerToast.error('Fehler', { description: 'Stunden konnten nicht aktualisiert werden' });
     }
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell } from 'lucide-react';
@@ -47,6 +47,7 @@ export function AppointmentApprovalBar() {
   const [pendingChanges, setPendingChanges] = useState<AppointmentChange[]>([]);
   const [showDialog, setShowDialog] = useState(false);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
   const loadPendingChanges = async () => {
     setLoading(true);
@@ -58,30 +59,36 @@ export function AppointmentApprovalBar() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPendingChanges((data as any) || []);
+      if (mountedRef.current) {
+        setPendingChanges((data as any) || []);
+      }
     } catch (error) {
       console.error('Error loading pending changes:', error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    mountedRef.current = true;
     loadPendingChanges();
-    
+
     // Subscribe to changes
     const subscription = supabase
       .channel('termin_aenderungen_changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'termin_aenderungen' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'termin_aenderungen'
       }, () => {
         loadPendingChanges();
       })
       .subscribe();
 
     return () => {
+      mountedRef.current = false;
       subscription.unsubscribe();
     };
   }, []);

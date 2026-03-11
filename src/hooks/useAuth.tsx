@@ -2,7 +2,7 @@ import * as React from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-const { createContext, useContext, useEffect, useState } = React;
+const { createContext, useContext, useEffect, useState, useRef } = React;
 
 interface AuthContextType {
   user: User | null;
@@ -13,7 +13,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
   forcePasswordChange: boolean;
-  initialPassword: string | null;
+  checkIsInitialPassword: (password: string) => boolean;
   loading: boolean;
 }
 
@@ -24,13 +24,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
-  const [initialPassword, setInitialPassword] = useState<string | null>(null);
+  // Store password in a ref (not state/context) so it's never exposed via React DevTools
+  const initialPasswordRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let authStateResolved = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Auth event logged without sensitive data
+        authStateResolved = true;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -42,11 +45,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // THEN check for existing session
+    // THEN check for existing session — only update if onAuthStateChange hasn't fired yet
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      if (!authStateResolved) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -64,13 +69,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const checkIsInitialPassword = (password: string): boolean => {
+    return initialPasswordRef.current !== null && password === initialPasswordRef.current;
+  };
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (!error) {
-      setInitialPassword(password);
+      initialPasswordRef.current = password;
       logAuthEvent('LOGIN', email);
     }
     return { error };
@@ -121,7 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const email = user?.email;
     try {
       await logAuthEvent('LOGOUT', email || undefined);
-    } catch (_) {}
+    } catch (e) {
+      console.warn('Audit log failed during signOut:', e);
+    }
     try {
       await supabase.auth.signOut();
     } catch (e) {
@@ -166,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (!error) {
       setRecoveryMode(false);
-      setInitialPassword(null);
+      initialPasswordRef.current = null;
       logAuthEvent('PASSWORD_CHANGE', user?.email || undefined);
     }
     return { error };
@@ -184,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     updatePassword,
     forcePasswordChange,
-    initialPassword,
+    checkIsInitialPassword,
     loading,
   };
 

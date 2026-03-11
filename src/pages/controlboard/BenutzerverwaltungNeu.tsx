@@ -53,8 +53,7 @@ export default function BenutzerverwaltungNeu() {
   const [userRolesMap, setUserRolesMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [bulkActionLoading] = useState(false);
-   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
    const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
    const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<string | null>(null);
    const [editDialogOpen, setEditDialogOpen] = useState(false);

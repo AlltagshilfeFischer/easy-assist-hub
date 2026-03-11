@@ -74,9 +74,12 @@ export function useCustomerMutations() {
 
   const deleteCustomerMutation = useMutation({
     mutationFn: async (kundenId: string) => {
-      await supabase.from('dokumente').delete().eq('kunden_id', kundenId);
-      await supabase.from('termine').delete().eq('kunden_id', kundenId);
-      await supabase.from('kunden_zeitfenster').delete().eq('kunden_id', kundenId);
+      const { error: dokumenteError } = await supabase.from('dokumente').delete().eq('kunden_id', kundenId);
+      if (dokumenteError) throw dokumenteError;
+      const { error: termineError } = await supabase.from('termine').delete().eq('kunden_id', kundenId);
+      if (termineError) throw termineError;
+      const { error: zeitfensterError } = await supabase.from('kunden_zeitfenster').delete().eq('kunden_id', kundenId);
+      if (zeitfensterError) throw zeitfensterError;
       const { error } = await supabase.from('kunden').delete().eq('id', kundenId);
       if (error) throw error;
     },

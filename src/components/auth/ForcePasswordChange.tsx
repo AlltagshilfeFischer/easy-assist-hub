@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { KeyRound, Eye, EyeOff } from 'lucide-react';
 
 export function ForcePasswordChange({ children }: { children: React.ReactNode }) {
-  const { user, forcePasswordChange, updatePassword, signOut, initialPassword } = useAuth();
+  const { user, forcePasswordChange, updatePassword, signOut, checkIsInitialPassword } = useAuth();
   const { toast } = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,7 +31,7 @@ export function ForcePasswordChange({ children }: { children: React.ReactNode })
       return;
     }
 
-    if (initialPassword && newPassword === initialPassword) {
+    if (checkIsInitialPassword(newPassword)) {
       toast({
         variant: 'destructive',
         title: 'Fehler',

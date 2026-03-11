@@ -142,6 +142,15 @@ const ScheduleBuilderModern = () => {
       
       if (customersError) throw customersError;
 
+      // Load a rolling 6-month window (2 months back, 4 months forward) to avoid
+      // loading the entire appointment history into memory
+      const rangeStart = new Date();
+      rangeStart.setMonth(rangeStart.getMonth() - 2);
+      rangeStart.setHours(0, 0, 0, 0);
+      const rangeEnd = new Date();
+      rangeEnd.setMonth(rangeEnd.getMonth() + 4);
+      rangeEnd.setHours(23, 59, 59, 999);
+
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('termine')
         .select(`
@@ -149,6 +158,8 @@ const ScheduleBuilderModern = () => {
           customer:kunden(*),
           employee:mitarbeiter(*)
         `)
+        .gte('start_at', rangeStart.toISOString())
+        .lte('start_at', rangeEnd.toISOString())
         .order('start_at');
       
       if (appointmentsError) throw appointmentsError;
@@ -215,10 +226,10 @@ const ScheduleBuilderModern = () => {
     }
   };
 
-  const getWeekDates = () => {
+  const weekDates = useMemo(() => {
     const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
-    const dates = [];
+    const dates: Date[] = [];
     let current = weekStart;
 
     while (current <= weekEnd) {
@@ -226,7 +237,7 @@ const ScheduleBuilderModern = () => {
       current = addDays(current, 1);
     }
     return dates;
-  };
+  }, [currentWeek]);
 
   const filteredEmployees = useMemo(() => {
     const filtered = employees.filter(emp => 
@@ -487,7 +498,6 @@ const ScheduleBuilderModern = () => {
     if (gridMatch) {
       employeeId = gridMatch[1];
       const dayIndex = parseInt(gridMatch[2]);
-      const weekDates = getWeekDates();
       targetDate = weekDates[dayIndex];
     } else {
       // Try format: "<employeeId>-YYYY-MM-DD" (from ModernWeekCalendar)
@@ -915,7 +925,7 @@ const ScheduleBuilderModern = () => {
           {/* Unassigned Bar */}
           <UnassignedAppointmentsBar
             appointments={appointments}
-            weekDates={getWeekDates()}
+            weekDates={weekDates}
             activeId={activeId}
             onEditAppointment={setEditingAppointment}
             onCut={handleCutAppointment}
@@ -937,7 +947,7 @@ const ScheduleBuilderModern = () => {
               })}
               appointments={appointments}
               abwesenheiten={abwesenheiten}
-              weekDates={getWeekDates()}
+              weekDates={weekDates}
               activeAppointmentId={activeId}
               onEditAppointment={setEditingAppointment}
               onSlotClick={handleSlotClick}
