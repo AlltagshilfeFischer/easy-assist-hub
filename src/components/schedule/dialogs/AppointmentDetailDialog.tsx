@@ -805,12 +805,9 @@ export function AppointmentDetailDialog({
                       if (!editedAppointment) return;
                       setNoteSaving(true);
                       try {
-                        const { error } = await supabase
-                          .from('termine')
-                          .update({ notizen: editedAppointment.notizen || null })
-                          .eq('id', editedAppointment.id);
-                        if (error) throw error;
-                        queryClient.invalidateQueries({ queryKey: ['termine'] });
+                        await onUpdate({
+                          ...editedAppointment,
+                        });
                         toast({ title: 'Notiz gespeichert' });
                       } catch (e: any) {
                         toast({ title: 'Fehler', description: e.message, variant: 'destructive' });
