@@ -45,8 +45,13 @@ const COLUMNS: ColumnConfig[] = [
   { key: 'stadtteil', label: 'Stadtteil', required: false, width: 100 },
   { key: 'geburtsdatum', label: 'Geburtsdatum', required: false, width: 120, hint: 'TT.MM.JJJJ',
     validate: (value) => {
-      if (value && !value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)) {
-        return 'Datum: TT.MM.JJJJ';
+      if (!value) return null;
+      const match = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (!match) return 'Datum: TT.MM.JJJJ';
+      const [, day, month, year] = match;
+      const date = new Date(`${year}-${month}-${day}`);
+      if (isNaN(date.getTime()) || date.getDate() !== parseInt(day, 10)) {
+        return 'Ungültiges Datum (z.B. 31.02. existiert nicht)';
       }
       return null;
     }
@@ -89,7 +94,11 @@ const parseGermanDate = (dateStr: string): string | null => {
   const match = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
   if (!match) return null;
   const [, day, month, year] = match;
-  return `${year}-${month}-${day}`;
+  const isoStr = `${year}-${month}-${day}`;
+  const date = new Date(isoStr);
+  // Prüfen ob das Datum tatsächlich existiert (z.B. 31.02. → overflow würde falsches Datum ergeben)
+  if (isNaN(date.getTime()) || date.getDate() !== parseInt(day, 10)) return null;
+  return isoStr;
 };
 
 interface KundenSmartImportProps {

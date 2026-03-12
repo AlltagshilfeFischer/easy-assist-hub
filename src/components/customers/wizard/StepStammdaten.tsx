@@ -121,7 +121,24 @@ export function StepStammdaten({ customerData, setCustomerData, weekMatrix, setW
         <div className="grid grid-cols-4 gap-4">
           <div><Label htmlFor="vorname">Vorname *</Label><Input id="vorname" value={customerData.vorname} onChange={(e) => setCustomerData((p: any) => ({ ...p, vorname: e.target.value }))} placeholder="Max" required /></div>
           <div><Label htmlFor="nachname">Nachname *</Label><Input id="nachname" value={customerData.nachname} onChange={(e) => setCustomerData((p: any) => ({ ...p, nachname: e.target.value }))} placeholder="Mustermann" required /></div>
-          <div><Label htmlFor="geburtsdatum">Geburtsdatum</Label><Input id="geburtsdatum" type="date" value={customerData.geburtsdatum} onChange={(e) => setCustomerData((p: any) => ({ ...p, geburtsdatum: e.target.value }))} /></div>
+          <div>
+            <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
+            <Input
+              id="geburtsdatum"
+              type="date"
+              value={customerData.geburtsdatum}
+              onChange={(e) => setCustomerData((p: any) => ({ ...p, geburtsdatum: e.target.value }))}
+              onPaste={(e) => {
+                const text = e.clipboardData.getData('text').trim();
+                const match = text.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
+                if (match) {
+                  e.preventDefault();
+                  const [, day, month, year] = match;
+                  setCustomerData((p: any) => ({ ...p, geburtsdatum: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` }));
+                }
+              }}
+            />
+          </div>
           <div>
             <Label>Geschlecht</Label>
             <Select value={customerData.geschlecht} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, geschlecht: v }))}>

@@ -26,7 +26,6 @@ const TABLE_LABELS: Record<string, string> = {
   leistungsnachweise: 'Leistungsnachweise',
   dokumente: 'Dokumente',
   rechnungen: 'Rechnungen',
-  haushalte: 'Haushalte',
   leistungen: 'Leistungen',
   mitarbeiter_abwesenheiten: 'Abwesenheiten',
   termin_vorlagen: 'Terminvorlagen',
@@ -56,7 +55,7 @@ const FIELD_LABELS: Record<string, string> = {
   unterschrift_kunde_bild: 'Kundenunterschrift', unterschrift_kunde_durch: 'Unterschrieben durch',
 };
 
-const HIDDEN_FIELDS = new Set(['updated_at', 'created_at', 'id', 'haushalt_id', 'benutzer_id', 'column1']);
+const HIDDEN_FIELDS = new Set(['updated_at', 'created_at', 'id', 'benutzer_id', 'column1']);
 
 const DATE_RANGES = [
   { label: 'Heute', days: 0 },

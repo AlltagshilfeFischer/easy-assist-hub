@@ -29,7 +29,7 @@ export function useAppointments(options?: UseAppointmentsOptions) {
         .from('termine')
         .select(`
           id, titel, kunden_id, mitarbeiter_id, start_at, end_at, status,
-          vorlage_id, ist_ausnahme, ausnahme_grund, notizen, iststunden, einsatzort_id,
+          vorlage_id, ist_ausnahme, ausnahme_grund, notizen, iststunden,
           customer:kunden(id, name, vorname, nachname, farbe_kalender, email, telefonnr,
             geburtsdatum, pflegegrad, adresse, strasse, plz, stadt, stadtteil, aktiv, pflegekasse,
             versichertennummer, stunden_kontingent_monat, mitarbeiter,

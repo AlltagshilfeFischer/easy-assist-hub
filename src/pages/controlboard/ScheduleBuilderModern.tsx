@@ -43,6 +43,10 @@ type LocalAppointment = CalendarAppointment & {
 
 const ScheduleBuilderModern = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [calendarScale, setCalendarScale] = useState<number>(() => {
+    const saved = localStorage.getItem('calendarScale');
+    return saved ? parseFloat(saved) : 0.9;
+  });
   const [activeId, setActiveId] = useState<string | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeOrder, setEmployeeOrder] = useState<string[]>([]);
@@ -177,6 +181,7 @@ const ScheduleBuilderModern = () => {
           ist_ausnahme: app.ist_ausnahme,
           ausnahme_grund: app.ausnahme_grund,
           status: app.status,
+          notizen: app.notizen,
           customer: app.customer ? {
             ...app.customer,
             farbe_kalender: app.customer.farbe_kalender || '#10B981'
@@ -908,7 +913,33 @@ const ScheduleBuilderModern = () => {
         {/* Action Buttons */}
         <div className="flex items-center justify-between gap-2 flex-shrink-0">
           <AppointmentApprovalBar />
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {/* Zoom-Steuerung */}
+            <div className="flex items-center gap-1 border rounded-md px-1 bg-card">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = Math.max(0.6, parseFloat((calendarScale - 0.1).toFixed(1)));
+                  setCalendarScale(next);
+                  localStorage.setItem('calendarScale', String(next));
+                }}
+                className="p-1 hover:bg-muted rounded text-sm font-mono leading-none"
+                title="Verkleinern"
+              >−</button>
+              <span className="text-xs text-muted-foreground w-10 text-center select-none">
+                {Math.round(calendarScale * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = Math.min(1.3, parseFloat((calendarScale + 0.1).toFixed(1)));
+                  setCalendarScale(next);
+                  localStorage.setItem('calendarScale', String(next));
+                }}
+                className="p-1 hover:bg-muted rounded text-sm font-mono leading-none"
+                title="Vergrößern"
+              >+</button>
+            </div>
             <Button onClick={() => setShowCreateAppointment(true)} size="sm" className="gap-2">
               <Plus className="h-4 w-4" />
               Neuer Termin
@@ -938,6 +969,7 @@ const ScheduleBuilderModern = () => {
           
           {/* Calendar Grid */}
           <div className="flex-1 overflow-auto">
+            <div style={{ zoom: calendarScale }}>
             <ProScheduleCalendar
               employees={filteredEmployees}
               allEmployees={[...employees.filter(e => e.ist_aktiv)].sort((a, b) => {
@@ -967,6 +999,7 @@ const ScheduleBuilderModern = () => {
                 setEmployeeOrder(orderedIds);
               }}
             />
+            </div>
           </div>
           
           {/* Legend Footer */}

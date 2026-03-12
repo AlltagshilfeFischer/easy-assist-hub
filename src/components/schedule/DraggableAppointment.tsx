@@ -13,7 +13,7 @@ import { Scissors, MapPin } from "lucide-react";
 import type { CalendarAppointment } from '@/types/domain';
 
 interface DraggableAppointmentProps {
-  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer'>;
+  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer' | 'notizen'>;
   isDragging?: boolean;
   isConflicting?: boolean;
   onClick?: () => void;
@@ -53,7 +53,7 @@ export function DraggableAppointment({
             opacity: isDragging ? 0.5 : 1
           }}
           className={cn(
-            "cursor-grab active:cursor-grabbing transition-all duration-200",
+            "relative cursor-grab active:cursor-grabbing transition-all duration-200",
             "border border-white/20 rounded-md p-1.5 shadow-sm",
             "text-xs w-full min-h-[32px] flex-shrink-0 box-border overflow-hidden",
             isDragging && "scale-95 z-50",
@@ -66,6 +66,13 @@ export function DraggableAppointment({
             onClick?.();
           }}
         >
+          {/* Notiz-Indikator */}
+          {appointment.notizen && (
+            <div className="absolute top-1 right-1 z-10" title={`Notiz: ${appointment.notizen}`}>
+              <div className="w-2 h-2 rounded-full bg-white/80 shadow-sm" />
+            </div>
+          )}
+
           {/* Compact layout for more appointments */}
           <div className="flex items-center justify-between gap-1">
             <div className="flex-1 min-w-0">

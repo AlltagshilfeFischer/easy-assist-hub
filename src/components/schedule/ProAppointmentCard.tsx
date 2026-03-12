@@ -13,7 +13,7 @@ import { Scissors, AlertCircle, MapPin } from "lucide-react";
 import type { CalendarAppointment } from '@/types/domain';
 
 interface ProAppointmentCardProps {
-  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer'>;
+  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer' | 'notizen'>;
   isDragging?: boolean;
   isConflicting?: boolean;
   isHighlighted?: boolean;
@@ -59,7 +59,7 @@ export function ProAppointmentCard({
           ref={setNodeRef}
           style={style}
           className={cn(
-            "cursor-grab active:cursor-grabbing transition-all duration-200",
+            "relative cursor-grab active:cursor-grabbing transition-all duration-200",
             "bg-card border border-border rounded-md overflow-hidden",
             "border-l-4 shadow-sm hover:shadow-md",
             getBorderColor(),
@@ -74,6 +74,13 @@ export function ProAppointmentCard({
             onClick?.();
           }}
         >
+          {/* Notiz-Indikator — kleiner Punkt oben rechts */}
+          {appointment.notizen && (
+            <div className="absolute top-1.5 right-1.5 z-10" title={`Notiz: ${appointment.notizen}`}>
+              <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
+            </div>
+          )}
+
           <div className="p-2">
             {/* Time Range */}
             <div className="flex items-center justify-between gap-1 mb-0.5">
@@ -84,7 +91,7 @@ export function ProAppointmentCard({
                 <AlertCircle className="h-3 w-3 text-destructive flex-shrink-0" />
               )}
             </div>
-            
+
             {/* Customer Name */}
             <div className="font-medium text-xs text-foreground truncate">
               {appointment.customer?.name || appointment.titel}
@@ -97,7 +104,6 @@ export function ProAppointmentCard({
                 <span className="text-[10px] text-muted-foreground truncate">{appointment.customer.stadtteil}</span>
               </div>
             )}
-            
           </div>
           
           {/* Color indicator bar at bottom */}

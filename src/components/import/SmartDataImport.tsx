@@ -790,10 +790,13 @@ export function SmartDataImport<T extends DataRow>({
     return hasRequired && row.errors.length === 0;
   });
 
-  const errorRows = effectiveRows.filter(row => {
-    const hasAnyData = columns.some(c => String(row[c.key] ?? '').trim());
-    return hasAnyData && row.errors.length > 0;
-  });
+  const errorRowsWithIndex = effectiveRows
+    .map((row, i) => ({ row, displayIndex: i + 1 }))
+    .filter(({ row }) => {
+      const hasAnyData = columns.some(c => String(row[c.key] ?? '').trim());
+      return hasAnyData && row.errors.length > 0;
+    });
+  const errorRows = errorRowsWithIndex.map(e => e.row);
 
   const handleImport = async () => {
     // Auto-commit any pending edit before importing
@@ -801,22 +804,56 @@ export function SmartDataImport<T extends DataRow>({
       updateCell(editingCell.row, columns[editingCell.col].key, editValue);
       setEditingCell(null);
     }
-    if (validRows.length === 0) { toast.error('Keine gültigen Daten zum Importieren'); return; }
+    if (validRows.length === 0) {
+      if (errorRowsWithIndex.length > 0) {
+        const nums = errorRowsWithIndex.slice(0, 5).map(e => `#${e.displayIndex}`).join(', ');
+        const more = errorRowsWithIndex.length > 5 ? ` +${errorRowsWithIndex.length - 5} weitere` : '';
+        toast.error('Keine gültigen Daten zum Importieren', {
+          description: `Zeilen ${nums}${more} haben Fehler und können nicht importiert werden.`,
+        });
+      } else {
+        toast.error('Keine gültigen Daten zum Importieren');
+      }
+      return;
+    }
+
+    // Hinweis welche Zeilen wegen Fehlern übersprungen werden
+    if (errorRowsWithIndex.length > 0) {
+      const nums = errorRowsWithIndex.slice(0, 5).map(e => `#${e.displayIndex}`).join(', ');
+      const more = errorRowsWithIndex.length > 5 ? ` +${errorRowsWithIndex.length - 5} weitere` : '';
+      toast.warning(`${errorRowsWithIndex.length} Zeile(n) übersprungen`, {
+        description: `Zeilen ${nums}${more} haben Validierungsfehler und werden nicht importiert.`,
+      });
+    }
+
     setIsImporting(true);
+    let importedCount = 0;
     try {
       if (validRows.length > batchSize) {
         for (let i = 0; i < validRows.length; i += batchSize) {
-          await onImport(validRows.slice(i, i + batchSize));
-          toast.info('Fortschritt', { description: `${Math.min(i + batchSize, validRows.length)} / ${validRows.length} importiert` });
+          const batch = validRows.slice(i, i + batchSize);
+          await onImport(batch);
+          importedCount += batch.length;
+          toast.info('Fortschritt', { description: `${importedCount} / ${validRows.length} importiert` });
         }
       } else {
         await onImport(validRows);
+        importedCount = validRows.length;
       }
-      toast.success('Import erfolgreich', { description: `${validRows.length} Datensätze importiert` });
+      toast.success('Import erfolgreich', { description: `${importedCount} Datensätze importiert` });
       onOpenChange(false);
       setRows([]);
     } catch (err: unknown) {
-      toast.error('Import fehlgeschlagen', { description: err instanceof Error ? err.message : 'Unbekannter Fehler' });
+      const msg = err instanceof Error ? err.message : 'Unbekannter Fehler';
+      if (importedCount > 0) {
+        // Partial failure: einige Batches waren erfolgreich, dann kam ein Fehler
+        // Dialog bleibt offen (kein onOpenChange/setRows), damit User den Stand sieht
+        toast.error(`Import teilweise fehlgeschlagen`, {
+          description: `${importedCount} von ${validRows.length} Datensätzen wurden importiert. Fehler: ${msg}`,
+        });
+      } else {
+        toast.error('Import fehlgeschlagen', { description: msg });
+      }
     } finally {
       setIsImporting(false);
     }

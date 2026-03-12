@@ -606,6 +606,29 @@ export function AppointmentDetailDialog({
             </CardContent>
           </Card>
 
+          {/* Notizen */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-medium mb-3 flex items-center gap-2">
+                <Edit className="h-4 w-4" />
+                Notiz
+              </h3>
+              {isEditing ? (
+                <Textarea
+                  value={editedAppointment.notizen || ''}
+                  onChange={(e) => setEditedAppointment({ ...editedAppointment, notizen: e.target.value })}
+                  placeholder="Notiz zum Termin..."
+                  rows={3}
+                  className="text-sm"
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {editedAppointment.notizen || 'Keine Notiz'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Customer Information */}
           {editedAppointment.customer && (
             <Card>

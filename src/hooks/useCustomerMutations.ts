@@ -36,8 +36,9 @@ export function useCustomerMutations() {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({ title: 'Erfolg', description: 'Kundendaten wurden aktualisiert' });
     },
-    onError: () => {
-      toast({ title: 'Fehler', description: 'Kundendaten konnten nicht aktualisiert werden', variant: 'destructive' });
+    onError: (error: Error) => {
+      console.error('[useCustomerMutations] Update-Fehler:', error);
+      toast({ title: 'Fehler', description: error.message || 'Kundendaten konnten nicht aktualisiert werden', variant: 'destructive' });
     },
   });
 

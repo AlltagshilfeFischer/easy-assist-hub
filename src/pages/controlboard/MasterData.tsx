@@ -30,7 +30,8 @@ const getCurrentMonth = () => {
 
 const monthToDate = (monthString: string | null) => {
   if (!monthString) return null;
-  return `${monthString}-01`;
+  // Handle both "YYYY-MM" (from month input) and "YYYY-MM-DD" (already full date in DB)
+  return `${monthString.substring(0, 7)}-01`;
 };
 
 export default function MasterData() {
@@ -81,13 +82,14 @@ export default function MasterData() {
     setIsDialogOpen(true);
   };
 
-  const handleSaveCustomer = (e: React.FormEvent) => {
+  const handleSaveCustomer = (e: React.FormEvent, overrides?: Partial<any>) => {
     e.preventDefault();
     if (editingCustomer) {
+      const merged = overrides ? { ...editingCustomer, ...overrides } : editingCustomer;
       const customerData = {
-        ...editingCustomer,
-        eintritt: monthToDate(editingCustomer.eintritt),
-        austritt: monthToDate(editingCustomer.austritt),
+        ...merged,
+        eintritt: monthToDate(merged.eintritt),
+        austritt: monthToDate(merged.austritt),
       };
       updateCustomerMutation.mutate(customerData, {
         onSuccess: () => {
