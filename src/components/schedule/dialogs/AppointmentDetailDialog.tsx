@@ -810,6 +810,7 @@ export function AppointmentDetailDialog({
                           .update({ notizen: editedAppointment.notizen || null })
                           .eq('id', editedAppointment.id);
                         if (error) throw error;
+                        queryClient.invalidateQueries({ queryKey: ['termine'] });
                         toast({ title: 'Notiz gespeichert' });
                       } catch (e: any) {
                         toast({ title: 'Fehler', description: e.message, variant: 'destructive' });
