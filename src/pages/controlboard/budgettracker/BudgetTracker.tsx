@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getYear, getMonth } from 'date-fns';
-import { Search, AlertTriangle } from 'lucide-react';
+import { Search, AlertTriangle, ChevronRight } from 'lucide-react';
 import * as Progress from '@radix-ui/react-progress';
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,12 +20,15 @@ import {
   aggregateConsumed,
   buildAvailability,
   hasExpiryWarning,
+  getBillingStatus,
+  buildBillingSuggestion,
+  assignTransactionTypes,
 } from '@/lib/pflegebudget/budgetCalculations';
-import type { CareLevel, Tariff } from '@/types/domain';
+import type { AllocationStatus } from '@/types/domain';
 
 // ─── Hilfskomponenten ────────────────────────────────────────
 
-function BudgetProgressBar({ percentage }: { percentage: number }) {
+function BudgetProgressBar({ percentage, exceeded }: { percentage: number; exceeded?: boolean }) {
   const clamped = Math.min(Math.max(percentage, 0), 100);
   return (
     <Progress.Root
@@ -33,7 +36,7 @@ function BudgetProgressBar({ percentage }: { percentage: number }) {
       value={clamped}
     >
       <Progress.Indicator
-        className="bg-primary h-full transition-transform duration-300"
+        className={`h-full transition-transform duration-300 ${exceeded ? 'bg-destructive' : 'bg-primary'}`}
         style={{ transform: `translateX(-${100 - clamped}%)` }}
       />
     </Progress.Root>
@@ -42,28 +45,38 @@ function BudgetProgressBar({ percentage }: { percentage: number }) {
 
 function BudgetCell({
   consumed,
-  yearlyTotal,
+  total,
   available,
+  label,
 }: {
   consumed: number;
-  yearlyTotal: number;
+  total: number;
   available: number;
+  label?: string;
 }) {
-  const percentage = yearlyTotal > 0 ? (consumed / yearlyTotal) * 100 : 0;
+  const percentage = total > 0 ? (consumed / total) * 100 : 0;
+  const exceeded = percentage > 100;
   return (
     <div className="space-y-1 min-w-[120px]">
+      {label && <p className="text-xs text-muted-foreground">{label}</p>}
       <span className="text-sm font-medium">{formatCurrency(available)}</span>
-      <BudgetProgressBar percentage={percentage} />
+      <BudgetProgressBar percentage={percentage} exceeded={exceeded} />
       <p className="text-xs text-muted-foreground">
-        {formatCurrency(consumed)} von {formatCurrency(yearlyTotal)}
+        {formatCurrency(consumed)} / {formatCurrency(total)}
       </p>
     </div>
   );
 }
 
+function StatusBadge({ status }: { status: AllocationStatus }) {
+  if (status === 'OK') return <Badge className="bg-green-100 text-green-800 border-green-200">OK</Badge>;
+  if (status === 'OPTIMIZE') return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Optimieren</Badge>;
+  return <Badge className="bg-red-100 text-red-800 border-red-200">Überschritten</Badge>;
+}
+
 // ─── Hauptkomponente ─────────────────────────────────────────
 
-export default function PflegebudgetTracker() {
+export default function BudgetTracker() {
   const navigate = useNavigate();
   const now = new Date();
   const currentYear = getYear(now);
@@ -71,13 +84,12 @@ export default function PflegebudgetTracker() {
 
   const [search, setSearch] = useState('');
   const [pflegegradFilter, setPflegegradFilter] = useState<string>('all');
-  const [budgetartFilter, setBudgetartFilter] = useState<string>('all');
-  const [expiringFilter, setExpiringFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: customers = [] } = useCustomers({ onlyActive: true });
   const { data: tariffs = [] } = useTariffs();
   const { data: careLevels = [] } = useCareLevels();
-  const { data: allMonthsData = [] } = useBudgetTransactionsByYear(currentYear);
+  const { data: allYearData = [] } = useBudgetTransactionsByYear(currentYear);
 
   const trackerRows = useMemo(() => {
     if (!tariffs.length || !careLevels.length) return [];
@@ -85,20 +97,7 @@ export default function PflegebudgetTracker() {
     return customers
       .filter((k) => (k.pflegegrad ?? 0) >= 1)
       .map((kunde) => {
-        const clientTx = allMonthsData.filter((tx) => tx.client_id === kunde.id);
-        const billedTx = clientTx.filter((tx) => tx.billed);
-        const consumedYear = aggregateConsumed(billedTx, tariffs, true);
-
-        // Kombi: nur aktuellen Monat
-        const currentMonthTx = billedTx.filter((tx) => {
-          const d = new Date(tx.service_date);
-          return getMonth(d) + 1 === currentMonth;
-        });
-        const consumedKombiMonth = aggregateConsumed(
-          currentMonthTx.filter((tx) => tx.service_type === 'KOMBI'),
-          tariffs,
-          true,
-        ).KOMBI;
+        const clientTx = allYearData.filter((tx) => tx.client_id === kunde.id);
 
         const kundeExtended = kunde as typeof kunde & {
           entlastung_genehmigt?: boolean | null;
@@ -106,6 +105,26 @@ export default function PflegebudgetTracker() {
           pflegesachleistung_genehmigt?: boolean | null;
           initial_budget_entlastung?: number | null;
         };
+
+        // Consumed aus abgerechneten Transaktionen
+        const billedTx = clientTx.filter((tx) => tx.billed);
+        const consumedYear = aggregateConsumed(billedTx, tariffs, true);
+
+        // Privat-Verbrauch (alle Transaktionen, auch nicht abgerechnet)
+        const privatConsumed = clientTx
+          .filter((tx) => tx.service_type === 'PRIVAT')
+          .reduce((sum, tx) => sum + tx.total_amount, 0);
+
+        // Kombi: nur aktuellen Monat
+        const currentMonthBilledTx = billedTx.filter((tx) => {
+          const d = new Date(tx.service_date);
+          return getMonth(d) + 1 === currentMonth;
+        });
+        const consumedKombiMonth = aggregateConsumed(
+          currentMonthBilledTx.filter((tx) => tx.service_type === 'KOMBI'),
+          tariffs,
+          true,
+        ).KOMBI;
 
         const availability = buildAvailability(
           kundeExtended,
@@ -122,11 +141,18 @@ export default function PflegebudgetTracker() {
           currentMonth,
         );
 
-        const totalMonthlyAvailable =
-          (availability.entlastungYearlyTotal / 12) +
-          availability.kombiMonthlyMax;
-        const totalYearlyRemaining =
-          availability.entlastungAvailable + availability.vpRemainingYear;
+        const isPrivate = isPrivateInsured(kunde.versichertennummer);
+
+        // Status berechnen via Suggestion
+        const assigned = assignTransactionTypes(clientTx, kundeExtended, availability, tariffs);
+        const suggestion = buildBillingSuggestion(assigned, tariffs);
+        const status = getBillingStatus(
+          kunde.pflegegrad ?? 0,
+          suggestion,
+          kundeExtended.initial_budget_entlastung,
+          currentMonth,
+          consumedYear.ENTLASTUNG,
+        );
 
         return {
           kundenId: kunde.id,
@@ -134,36 +160,33 @@ export default function PflegebudgetTracker() {
           pflegegrad: kunde.pflegegrad ?? 0,
           availability,
           expiryWarning,
-          totalMonthlyAvailable,
-          totalYearlyRemaining,
-          hasEntlastung: (availability.entlastungYearlyTotal > 0),
-          hasKombi: (availability.kombiMonthlyMax > 0),
-          hasVP: (availability.vpYearlyTotal > 0),
           consumedYear,
+          privatConsumed,
+          status,
+          isPrivate,
+          hasEntlastung: availability.entlastungYearlyTotal > 0,
+          hasKombi: availability.kombiMonthlyMax > 0,
+          hasVP: availability.vpYearlyTotal > 0,
         };
       });
-  }, [customers, allMonthsData, tariffs, careLevels, currentMonth, currentYear]);
+  }, [customers, allYearData, tariffs, careLevels, currentMonth, currentYear]);
 
-  // Filter
   const filteredRows = useMemo(() => {
     return trackerRows.filter((row) => {
       if (search && !row.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (pflegegradFilter !== 'all' && row.pflegegrad !== parseInt(pflegegradFilter)) return false;
-      if (budgetartFilter === 'ENTLASTUNG' && !row.hasEntlastung) return false;
-      if (budgetartFilter === 'KOMBI' && !row.hasKombi) return false;
-      if (budgetartFilter === 'VERHINDERUNG' && !row.hasVP) return false;
-      if (expiringFilter === 'expiring' && !row.expiryWarning) return false;
+      if (statusFilter !== 'all' && row.status !== statusFilter) return false;
       return true;
     });
-  }, [trackerRows, search, pflegegradFilter, budgetartFilter, expiringFilter]);
+  }, [trackerRows, search, pflegegradFilter, statusFilter]);
 
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Budgettracker</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Budgettracker {currentYear}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Jahresübersicht aller Pflegebudgets {currentYear}
+          Jahresübersicht aller Pflegebudgets — Klicken Sie auf einen Klienten für Details
         </p>
       </div>
 
@@ -180,7 +203,7 @@ export default function PflegebudgetTracker() {
         </div>
 
         <Select value={pflegegradFilter} onValueChange={setPflegegradFilter}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-40">
             <SelectValue placeholder="Pflegegrad" />
           </SelectTrigger>
           <SelectContent>
@@ -193,25 +216,15 @@ export default function PflegebudgetTracker() {
           </SelectContent>
         </Select>
 
-        <Select value={budgetartFilter} onValueChange={setBudgetartFilter}>
-          <SelectTrigger className="w-52">
-            <SelectValue placeholder="Budgetart" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Alle Budgets</SelectItem>
-            <SelectItem value="ENTLASTUNG">Entlastungsbetrag</SelectItem>
-            <SelectItem value="KOMBI">Kombinationsleistung</SelectItem>
-            <SelectItem value="VERHINDERUNG">Verhinderungspflege</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={expiringFilter} onValueChange={setExpiringFilter}>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Ablauf" />
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle</SelectItem>
-            <SelectItem value="expiring">Ablauf bald</SelectItem>
+            <SelectItem value="all">Alle Status</SelectItem>
+            <SelectItem value="OK">OK</SelectItem>
+            <SelectItem value="OPTIMIZE">Optimieren</SelectItem>
+            <SelectItem value="BUDGET_EXCEEDED">Überschritten</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -224,17 +237,18 @@ export default function PflegebudgetTracker() {
               <TableRow>
                 <TableHead>Klient</TableHead>
                 <TableHead>PG</TableHead>
-                <TableHead>Entlastung</TableHead>
+                <TableHead>Entlastungsbetrag</TableHead>
                 <TableHead>Kombinationsleistung</TableHead>
                 <TableHead>Verhinderungspflege</TableHead>
-                <TableHead className="text-right">Monatlich</TableHead>
-                <TableHead className="text-right">Restjahr</TableHead>
+                <TableHead className="text-right">Privat</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Keine Klienten gefunden
                   </TableCell>
                 </TableRow>
@@ -244,14 +258,14 @@ export default function PflegebudgetTracker() {
                     key={row.kundenId}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() =>
-                      navigate(`/dashboard/controlboard/master-data?kundenId=${row.kundenId}`)
+                      navigate(`/dashboard/controlboard/budgettracker/${row.kundenId}`)
                     }
                   >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {row.name}
                         {row.expiryWarning && (
-                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                          <AlertTriangle className="h-4 w-4 text-orange-500" title="Vorjahresrest läuft bald ab" />
                         )}
                       </div>
                     </TableCell>
@@ -262,40 +276,48 @@ export default function PflegebudgetTracker() {
                       {row.hasEntlastung ? (
                         <BudgetCell
                           consumed={row.consumedYear.ENTLASTUNG}
-                          yearlyTotal={row.availability.entlastungYearlyTotal}
+                          total={row.availability.entlastungYearlyTotal}
                           available={row.availability.entlastungAvailable}
                         />
                       ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {row.hasKombi ? (
                         <BudgetCell
                           consumed={row.availability.kombiConsumed}
-                          yearlyTotal={row.availability.kombiMonthlyMax}
+                          total={row.availability.kombiMonthlyMax}
                           available={row.availability.kombiAvailable}
+                          label="Monatslimit"
                         />
                       ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {row.hasVP ? (
                         <BudgetCell
                           consumed={row.consumedYear.VERHINDERUNG}
-                          yearlyTotal={row.availability.vpYearlyTotal}
+                          total={row.availability.vpYearlyTotal}
                           available={row.availability.vpRemainingYear}
                         />
                       ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(row.totalMonthlyAvailable)}
+                    <TableCell className="text-right">
+                      {row.privatConsumed > 0 ? (
+                        <span className="text-sm font-medium">{formatCurrency(row.privatConsumed)}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(row.totalYearlyRemaining)}
+                    <TableCell className="text-center">
+                      <StatusBadge status={row.status} />
+                    </TableCell>
+                    <TableCell>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ))

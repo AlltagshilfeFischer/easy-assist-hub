@@ -6,7 +6,6 @@ import {
   Home,
   Users,
   FileText,
-  Receipt,
   Settings,
   UserCog,
   FolderOpen,
@@ -14,7 +13,6 @@ import {
   UserCircle,
   ScrollText,
   BarChart3,
-  Euro,
   TrendingUp,
 } from 'lucide-react';
 import {
@@ -47,9 +45,7 @@ const controlboardItems: SidebarItem[] = [
   { title: 'Mitarbeiter', url: '/dashboard/controlboard/admin', icon: UserCog, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
   { title: 'Dokumentenverwaltung', url: '/dashboard/controlboard/dokumentenverwaltung', icon: FolderOpen, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin'] },
   { title: 'Leistungsnachweise', url: '/dashboard/controlboard/leistungsnachweise', icon: ClipboardCheck, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin'] },
-  { title: 'Abrechnung', url: '/dashboard/controlboard/billing', icon: Receipt, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin', 'buchhaltung'] },
-  { title: 'Pflegebudget', url: '/dashboard/controlboard/pflegebudget', icon: Euro, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin', 'buchhaltung'] },
-  { title: 'Budgettracker', url: '/dashboard/controlboard/pflegebudget/tracker', icon: TrendingUp, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin', 'buchhaltung'] },
+  { title: 'Budgettracker', url: '/dashboard/controlboard/budgettracker', icon: TrendingUp, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'admin', 'buchhaltung'] },
   { title: 'Aktivitätslog', url: '/dashboard/controlboard/aktivitaetslog', icon: ScrollText, requiredRoles: ['globaladmin'] },
   { title: 'Entwicklungsstand', url: '/dashboard/controlboard/entwicklung', icon: BarChart3, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
 ];

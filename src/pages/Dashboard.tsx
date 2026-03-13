@@ -9,15 +9,13 @@ import ScheduleBuilderModern from './controlboard/ScheduleBuilderModern';
 import MasterData from './controlboard/MasterData';
 import NewEntries from './controlboard/NewEntries';
 import BenutzerverwaltungNeu from './controlboard/BenutzerverwaltungNeu';
-import Billing from './controlboard/Billing';
 import Leistungsnachweise from './controlboard/Leistungsnachweise';
 import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import AktivitaetsLog from './controlboard/AktivitaetsLog';
 import EntwicklungsStatus from './controlboard/EntwicklungsStatus';
 import MitarbeiterStart from './MitarbeiterStart';
-import PflegebudgetAbrechnung from './controlboard/pflegebudget/PflegebudgetAbrechnung';
-import PflegebudgetAbrechnungDetail from './controlboard/pflegebudget/PflegebudgetAbrechnungDetail';
-import PflegebudgetTracker from './controlboard/pflegebudget/PflegebudgetTracker';
+import BudgetTracker from './controlboard/budgettracker/BudgetTracker';
+import BudgetTrackerDetail from './controlboard/budgettracker/BudgetTrackerDetail';
 
 import Settings from './Settings';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -71,10 +69,8 @@ export default function Dashboard() {
       <DashboardLayout>
         <Routes>
           <Route path="/" element={<DashboardHome />} />
-          <Route path="/controlboard/billing" element={<Billing />} />
-          <Route path="/controlboard/pflegebudget" element={<PflegebudgetAbrechnung />} />
-          <Route path="/controlboard/pflegebudget/:kundenId/:year/:month" element={<PflegebudgetAbrechnungDetail />} />
-          <Route path="/controlboard/pflegebudget/tracker" element={<PflegebudgetTracker />} />
+          <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
+          <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </DashboardLayout>
@@ -91,10 +87,8 @@ export default function Dashboard() {
           <Route path="/controlboard/master-data" element={<MasterData />} />
           <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
           <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
-          <Route path="/controlboard/billing" element={<Billing />} />
-          <Route path="/controlboard/pflegebudget" element={<PflegebudgetAbrechnung />} />
-          <Route path="/controlboard/pflegebudget/:kundenId/:year/:month" element={<PflegebudgetAbrechnungDetail />} />
-          <Route path="/controlboard/pflegebudget/tracker" element={<PflegebudgetTracker />} />
+          <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
+          <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
           <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
           <Route path="/controlboard/entwicklung" element={<EntwicklungsStatus />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -115,10 +109,8 @@ export default function Dashboard() {
         <Route path="/controlboard/admin" element={<BenutzerverwaltungNeu />} />
         <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
         <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
-        <Route path="/controlboard/billing" element={<Billing />} />
-        <Route path="/controlboard/pflegebudget" element={<PflegebudgetAbrechnung />} />
-        <Route path="/controlboard/pflegebudget/:kundenId/:year/:month" element={<PflegebudgetAbrechnungDetail />} />
-        <Route path="/controlboard/pflegebudget/tracker" element={<PflegebudgetTracker />} />
+        <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
+        <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
         <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
         <Route path="/controlboard/entwicklung" element={<EntwicklungsStatus />} />
         <Route path="/settings" element={<Settings />} />
