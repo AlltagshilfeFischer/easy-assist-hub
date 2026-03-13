@@ -289,7 +289,7 @@ export default function BudgetTracker() {
                         <div className="flex items-center gap-2">
                           {row.name || '(Kein Name)'}
                           {row.expiryWarning && (
-                            <AlertTriangle className="h-4 w-4 text-orange-500" title="Vorjahresrest läuft bald ab" />
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
                           )}
                         </div>
                       </TableCell>
