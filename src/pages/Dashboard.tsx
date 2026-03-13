@@ -12,7 +12,7 @@ import BenutzerverwaltungNeu from './controlboard/BenutzerverwaltungNeu';
 import Leistungsnachweise from './controlboard/Leistungsnachweise';
 import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import AktivitaetsLog from './controlboard/AktivitaetsLog';
-import EntwicklungsStatus from './controlboard/EntwicklungsStatus';
+
 import MitarbeiterStart from './MitarbeiterStart';
 import BudgetTracker from './controlboard/budgettracker/BudgetTracker';
 import BudgetTrackerDetail from './controlboard/budgettracker/BudgetTrackerDetail';
@@ -90,7 +90,6 @@ export default function Dashboard() {
           <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
           <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
           <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
-          <Route path="/controlboard/entwicklung" element={<EntwicklungsStatus />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </DashboardLayout>
@@ -112,7 +111,6 @@ export default function Dashboard() {
         <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
         <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
         <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
-        <Route path="/controlboard/entwicklung" element={<EntwicklungsStatus />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
