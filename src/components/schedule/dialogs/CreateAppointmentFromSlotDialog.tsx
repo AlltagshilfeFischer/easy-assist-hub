@@ -20,7 +20,7 @@ import type { CustomerSummary, EmployeeSummary, TerminKategorie } from '@/types/
 interface CreateAppointmentFromSlotDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  prefilledData: {
+  prefilledData?: {
     employeeId: string;
     date: Date;
   };
@@ -66,12 +66,16 @@ export function CreateAppointmentFromSlotDialog({
   const [mode, setMode] = useState<'single' | 'recurring'>('single');
   const [loading, setLoading] = useState(false);
 
+  const defaultDate = prefilledData?.date ?? new Date();
+  const defaultEmployeeId = prefilledData?.employeeId ?? 'unassigned';
+
   // Single appointment state
   const [kundenId, setKundenId] = useState('');
   const [isNewInteressent, setIsNewInteressent] = useState(false);
   const [newInteressentName, setNewInteressentName] = useState('');
-  const [mitarbeiterId, setMitarbeiterId] = useState(prefilledData.employeeId);
-  const [date, setDate] = useState<Date>(prefilledData.date);
+  const [isInternTermin, setIsInternTermin] = useState(false);
+  const [mitarbeiterId, setMitarbeiterId] = useState(defaultEmployeeId);
+  const [date, setDate] = useState<Date>(defaultDate);
   const [startTime, setStartTime] = useState('09:00');
   const [dauerMinuten, setDauerMinuten] = useState(90);
   const [singleKategorie, setSingleKategorie] = useState<string>('');
@@ -79,59 +83,63 @@ export function CreateAppointmentFromSlotDialog({
 
   // Recurring appointment state
   const [recurringKundenId, setRecurringKundenId] = useState('');
-  const [recurringMitarbeiterId, setRecurringMitarbeiterId] = useState(prefilledData.employeeId);
-  const [wochentag, setWochentag] = useState(prefilledData.date.getDay());
+  const [recurringMitarbeiterId, setRecurringMitarbeiterId] = useState(defaultEmployeeId);
+  const [wochentag, setWochentag] = useState(defaultDate.getDay());
   const [intervall, setIntervall] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
   const [recurringStartTime, setRecurringStartTime] = useState('09:00');
   const [recurringDauerMinuten, setRecurringDauerMinuten] = useState(90);
-  const [gueltigVon, setGueltigVon] = useState<Date>(prefilledData.date);
+  const [gueltigVon, setGueltigVon] = useState<Date>(defaultDate);
   const [gueltigBis, setGueltigBis] = useState<Date | undefined>();
   const [notizen, setNotizen] = useState('');
 
   useEffect(() => {
-    setMitarbeiterId(prefilledData.employeeId);
-    setRecurringMitarbeiterId(prefilledData.employeeId);
-    setDate(prefilledData.date);
-    setGueltigVon(prefilledData.date);
-    setWochentag(prefilledData.date.getDay());
-  }, [prefilledData.employeeId, prefilledData.date]);
+    if (prefilledData) {
+      setMitarbeiterId(prefilledData.employeeId);
+      setRecurringMitarbeiterId(prefilledData.employeeId);
+      setDate(prefilledData.date);
+      setGueltigVon(prefilledData.date);
+      setWochentag(prefilledData.date.getDay());
+    }
+  }, [prefilledData?.employeeId, prefilledData?.date]);
 
   const resetForm = () => {
     setKundenId('');
     setIsNewInteressent(false);
     setNewInteressentName('');
-    setMitarbeiterId(prefilledData.employeeId);
-    setDate(prefilledData.date);
+    setIsInternTermin(false);
+    setMitarbeiterId(defaultEmployeeId);
+    setDate(defaultDate);
     setStartTime('09:00');
     setDauerMinuten(90);
     setSingleKategorie('');
     setSingleNotizen('');
-    
+
     setRecurringKundenId('');
-    setRecurringMitarbeiterId(prefilledData.employeeId);
-    setWochentag(prefilledData.date.getDay());
+    setRecurringMitarbeiterId(defaultEmployeeId);
+    setWochentag(defaultDate.getDay());
     setIntervall('weekly');
     setRecurringStartTime('09:00');
     setRecurringDauerMinuten(90);
-    setGueltigVon(prefilledData.date);
+    setGueltigVon(defaultDate);
     setGueltigBis(undefined);
     setNotizen('');
     setLoading(false);
   };
 
   const handleSubmitSingle = async () => {
-    if (!date || (isNewInteressent && !newInteressentName.trim())) return;
+    if (!date) return;
+    if (!isInternTermin && isNewInteressent && !newInteressentName.trim()) return;
 
     setLoading(true);
     try {
-      let finalKundenId: string | null = kundenId || null;
+      let finalKundenId: string | null = isInternTermin ? null : (kundenId || null);
 
-      if (isNewInteressent && newInteressentName.trim()) {
+      if (!isInternTermin && isNewInteressent && newInteressentName.trim()) {
         const { supabase } = await import('@/integrations/supabase/client');
         const nameParts = newInteressentName.trim().split(' ');
         const vorname = nameParts[0];
         const nachname = nameParts.slice(1).join(' ') || '';
-        
+
         const { data: newKunde, error: kundeError } = await supabase
           .from('kunden')
           .insert([{ vorname, nachname, kategorie: 'Interessent', aktiv: true }])
@@ -151,12 +159,14 @@ export function CreateAppointmentFromSlotDialog({
       const [endHour, endMinute] = endTimeStr.split(':').map(Number);
       endDateTime.setHours(endHour, endMinute, 0);
 
-      const customerName = isNewInteressent 
-        ? newInteressentName.trim() 
-        : customers.find(c => c.id === finalKundenId)?.name || singleKategorie || 'Einzeltermin';
+      const titel = isInternTermin
+        ? (singleKategorie || 'Interner Termin')
+        : isNewInteressent
+          ? newInteressentName.trim()
+          : customers.find(c => c.id === finalKundenId)?.name || singleKategorie || 'Einzeltermin';
 
       await onSubmitSingle({
-        titel: customerName,
+        titel,
         kunden_id: finalKundenId,
         mitarbeiter_id: mitarbeiterId === 'unassigned' ? null : mitarbeiterId,
         start_at: startDateTime.toISOString(),
@@ -244,7 +254,10 @@ export function CreateAppointmentFromSlotDialog({
 
             <div className="space-y-2">
               <Label>Kategorie / Label (optional)</Label>
-              <Select value={singleKategorie} onValueChange={setSingleKategorie}>
+              <Select value={singleKategorie} onValueChange={(val) => {
+                setSingleKategorie(val);
+                setIsInternTermin(val === 'Schulung' || val === 'Intern');
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Kategorie wählen" />
                 </SelectTrigger>
@@ -256,22 +269,35 @@ export function CreateAppointmentFromSlotDialog({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="single-kunde">Kunde / Interessent (optional)</Label>
-              <div className="flex gap-2 mb-2">
-                <Button type="button" variant={!isNewInteressent ? 'default' : 'outline'} size="sm" onClick={() => setIsNewInteressent(false)}>
-                  Bestandskunde
-                </Button>
-                <Button type="button" variant={isNewInteressent ? 'default' : 'outline'} size="sm" onClick={() => setIsNewInteressent(true)}>
-                  Neuer Interessent
-                </Button>
-              </div>
-              {!isNewInteressent ? (
-                <CustomerSearchCombobox customers={customers} value={kundenId} onValueChange={setKundenId} placeholder="Kunde suchen..." />
-              ) : (
-                <Input value={newInteressentName} onChange={(e) => setNewInteressentName(e.target.value)} placeholder="Name des Interessenten eingeben..." required />
-              )}
+            {/* Intern-Toggle */}
+            <div className="flex items-center gap-3">
+              <Button type="button" variant={!isInternTermin ? 'default' : 'outline'} size="sm" onClick={() => setIsInternTermin(false)}>
+                Mit Kunde
+              </Button>
+              <Button type="button" variant={isInternTermin ? 'default' : 'outline'} size="sm" onClick={() => setIsInternTermin(true)}>
+                Interner Termin (ohne Kunde)
+              </Button>
             </div>
+
+            {/* Kunde — nur wenn kein interner Termin */}
+            {!isInternTermin && (
+              <div className="space-y-2">
+                <Label htmlFor="single-kunde">Kunde / Interessent (optional)</Label>
+                <div className="flex gap-2 mb-2">
+                  <Button type="button" variant={!isNewInteressent ? 'default' : 'outline'} size="sm" onClick={() => setIsNewInteressent(false)}>
+                    Bestandskunde
+                  </Button>
+                  <Button type="button" variant={isNewInteressent ? 'default' : 'outline'} size="sm" onClick={() => setIsNewInteressent(true)}>
+                    Neuer Interessent
+                  </Button>
+                </div>
+                {!isNewInteressent ? (
+                  <CustomerSearchCombobox customers={customers} value={kundenId} onValueChange={setKundenId} placeholder="Kunde suchen..." />
+                ) : (
+                  <Input value={newInteressentName} onChange={(e) => setNewInteressentName(e.target.value)} placeholder="Name des Interessenten eingeben..." required />
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="single-mitarbeiter">Mitarbeiter</Label>
@@ -346,8 +372,8 @@ export function CreateAppointmentFromSlotDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-              <Button onClick={handleSubmitSingle} disabled={loading || !date || (isNewInteressent && !newInteressentName.trim())}>
-                {loading ? 'Erstelle...' : 'Einzeltermin erstellen'}
+              <Button onClick={handleSubmitSingle} disabled={loading || !date || (!isInternTermin && isNewInteressent && !newInteressentName.trim())}>
+                {loading ? 'Erstelle...' : isInternTermin ? 'Internen Termin erstellen' : 'Einzeltermin erstellen'}
               </Button>
             </DialogFooter>
           </TabsContent>

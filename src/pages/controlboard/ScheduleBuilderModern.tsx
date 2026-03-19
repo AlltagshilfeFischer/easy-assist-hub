@@ -29,7 +29,7 @@ import { EmployeeManagementDialog } from '@/components/schedule/dialogs/Employee
 import { UnassignedAppointmentsBar } from '@/components/schedule/UnassignedAppointmentsBar';
 import { AppointmentApprovalBar } from '@/components/schedule/AppointmentApprovalBar';
 import { AppointmentDetailDialog } from '@/components/schedule/dialogs/AppointmentDetailDialog';
-import { CreateAppointmentDialog } from '@/components/schedule/dialogs/CreateAppointmentDialog';
+// CreateAppointmentDialog entfernt — CreateAppointmentFromSlotDialog wird für beides genutzt
 import { CreateRecurringAppointmentDialog } from '@/components/schedule/dialogs/CreateRecurringAppointmentDialog';
 import { CreateAppointmentFromSlotDialog } from '@/components/schedule/dialogs/CreateAppointmentFromSlotDialog';
 import { ConflictWarningDialog } from '@/components/schedule/dialogs/ConflictWarningDialog';
@@ -1363,20 +1363,20 @@ const ScheduleBuilderModern = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        <CreateAppointmentDialog
+        {/* Einheitlicher Termin-Dialog: sowohl für "+" Button als auch für Slot-Klick */}
+        <CreateAppointmentFromSlotDialog
           open={showCreateAppointment}
           onOpenChange={setShowCreateAppointment}
           customers={customers}
           employees={employees}
-          onSubmit={handleCreateAppointment}
-        />
-
-        <CreateRecurringAppointmentDialog
-          open={showCreateRecurring}
-          onOpenChange={setShowCreateRecurring}
-          customers={customers}
-          employees={employees}
-          onSubmit={handleCreateRecurringAppointment}
+          onSubmitSingle={async (data) => {
+            await handleCreateAppointment(data);
+            setShowCreateAppointment(false);
+          }}
+          onSubmitRecurring={async (data) => {
+            await handleCreateRecurringAppointment(data);
+            setShowCreateAppointment(false);
+          }}
         />
 
         <EmployeeManagementDialog
