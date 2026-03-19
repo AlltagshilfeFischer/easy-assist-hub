@@ -20,7 +20,9 @@
       "Bash(find /home/deploy/KITech/projects/easy-assist-hub/.cursor -o -path */.github/copilot*)",
       "Bash(ls -la /home/deploy/KITech/projects/easy-assist-hub/.cursor*)",
       "Bash(xargs cat:*)",
-      "Bash(node /home/deploy/KITech/projects/easy-assist-hub/.tmp/test_uuid.mjs)"
+      "Bash(node /home/deploy/KITech/projects/easy-assist-hub/.tmp/test_uuid.mjs)",
+      "Read(//home/deploy/KITech/projects/easy-assist-hub/**)",
+      "Bash(supabase status:*)"
     ],
     "additionalDirectories": [
       "/home/deploy/KITech/projects/easy-assist-hub/.claude/rules",

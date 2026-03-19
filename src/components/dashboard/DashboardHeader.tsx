@@ -30,7 +30,7 @@ export function DashboardHeader() {
   };
 
   return (
-    <header className="relative z-[100] pointer-events-auto h-16 border-b bg-card px-6 flex items-center justify-between">
+    <header className="sticky top-0 z-30 pointer-events-auto h-16 border-b bg-card px-6 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="h-8 w-8" />
         <div>

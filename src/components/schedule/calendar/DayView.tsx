@@ -92,13 +92,12 @@ export function DayView({
       <div
         className="grid border-b border-border bg-muted/30"
         style={{
-          gridTemplateColumns: `80px 220px repeat(${visibleEmployees.length}, 1fr)${showUnassignedCol ? ' 1fr' : ''}`,
+          gridTemplateColumns: `80px repeat(${visibleEmployees.length}, 1fr)${showUnassignedCol ? ' 1fr' : ''}`,
         }}
       >
         <div className="px-2 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-r border-border">
           Zeit
         </div>
-        <div className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-r border-border" />
         {visibleEmployees.map((emp) => {
           const initials = emp.name
             .split(' ')
@@ -176,12 +175,9 @@ export function DayView({
         <div
           className="absolute left-[80px] right-0 top-0 grid h-full"
           style={{
-            gridTemplateColumns: `220px repeat(${visibleEmployees.length}, 1fr)${showUnassignedCol ? ' 1fr' : ''}`,
+            gridTemplateColumns: `repeat(${visibleEmployees.length}, 1fr)${showUnassignedCol ? ' 1fr' : ''}`,
           }}
         >
-          {/* Spacer column for alignment */}
-          <div className="border-r border-border" />
-
           {visibleEmployees.map((emp) => {
             const empApps = dayAppointments.filter(
               (a) => a.mitarbeiter_id === emp.id
