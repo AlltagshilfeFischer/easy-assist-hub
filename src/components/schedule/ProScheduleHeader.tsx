@@ -13,8 +13,8 @@ interface ProScheduleHeaderProps {
   onToday: () => void;
   onEmployeeManagement: () => void;
   onNewAppointment?: () => void;
-  view?: 'day' | 'week' | 'month';
-  onViewChange?: (view: 'day' | 'week' | 'month') => void;
+  view?: 'week' | 'month';
+  onViewChange?: (view: 'week' | 'month') => void;
 }
 
 export function ProScheduleHeader({
@@ -31,21 +31,13 @@ export function ProScheduleHeader({
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
 
-  const titleText = view === 'day'
-    ? 'Tagesplanung'
-    : view === 'month'
-    ? 'Monatsplanung'
-    : 'Wochenplanung';
+  const titleText = view === 'month' ? 'Monatsplanung' : 'Wochenplanung';
 
-  const titleHighlight = view === 'day'
-    ? format(currentWeek, 'EEEE, d. MMMM yyyy', { locale: de })
-    : view === 'month'
+  const titleHighlight = view === 'month'
     ? format(currentWeek, 'MMMM yyyy', { locale: de })
     : `KW ${weekNumber}`;
 
-  const dateRange = view === 'day'
-    ? format(currentWeek, 'd. MMM yyyy', { locale: de })
-    : view === 'month'
+  const dateRange = view === 'month'
     ? format(currentWeek, 'MMMM yyyy', { locale: de })
     : `${format(weekStart, 'd. MMM', { locale: de })} - ${format(weekEnd, 'd. MMM yyyy', { locale: de })}`;
 
@@ -93,18 +85,9 @@ export function ProScheduleHeader({
         <ToggleGroup 
           type="single" 
           value={view} 
-          onValueChange={(v) => v && onViewChange?.(v as 'day' | 'week' | 'month')}
+          onValueChange={(v) => v && onViewChange?.(v as 'week' | 'month')}
           className="bg-muted rounded-lg p-0.5"
         >
-          <ToggleGroupItem 
-            value="day" 
-            className={cn(
-              "px-3 py-1 text-xs font-medium rounded-md transition-all",
-              view === 'day' ? "bg-background shadow-sm" : "hover:bg-background/50"
-            )}
-          >
-            Tag
-          </ToggleGroupItem>
           <ToggleGroupItem 
             value="week"
             className={cn(

@@ -20,7 +20,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { ProScheduleCalendar } from '@/components/schedule/calendar/ProScheduleCalendar';
-import { DayView } from '@/components/schedule/calendar/DayView';
+// DayView entfernt — nur Wochen- und Monatsansicht
 import { MonthView } from '@/components/schedule/calendar/MonthView';
 import { ProScheduleHeader } from '@/components/schedule/ProScheduleHeader';
 import { ProCalendarLegend } from '@/components/schedule/calendar/ProCalendarLegend';
@@ -50,7 +50,7 @@ const ScheduleBuilderModern = () => {
     const weekParam = searchParams.get('week');
     return weekParam ? parseISO(weekParam) : new Date();
   });
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week');
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentDay, setCurrentDay] = useState(new Date());
   const [calendarScale, setCalendarScale] = useState<number>(() => {
     const saved = localStorage.getItem('calendarScale');
@@ -1063,15 +1063,13 @@ const ScheduleBuilderModern = () => {
       <div className="h-[calc(100vh-4rem)] flex flex-col gap-3 p-4 bg-background overflow-hidden">
         {/* Pro Header */}
         <ProScheduleHeader
-          currentWeek={viewMode === 'day' ? currentDay : currentWeek}
+          currentWeek={currentWeek}
           onPreviousWeek={() => {
-            if (viewMode === 'day') setCurrentDay(prev => subDays(prev, 1));
-            else if (viewMode === 'week') setCurrentWeek(prev => subWeeks(prev, 1));
+            if (viewMode === 'week') setCurrentWeek(prev => subWeeks(prev, 1));
             else setCurrentWeek(prev => subMonths(prev, 1));
           }}
           onNextWeek={() => {
-            if (viewMode === 'day') setCurrentDay(prev => addDays(prev, 1));
-            else if (viewMode === 'week') setCurrentWeek(prev => addWeeks(prev, 1));
+            if (viewMode === 'week') setCurrentWeek(prev => addWeeks(prev, 1));
             else setCurrentWeek(prev => addMonths(prev, 1));
           }}
           onToday={() => {
@@ -1187,17 +1185,6 @@ const ScheduleBuilderModern = () => {
                 onReorderEmployees={(orderedIds) => {
                   setEmployeeOrder(orderedIds);
                 }}
-              />
-            )}
-            {viewMode === 'day' && (
-              <DayView
-                employees={filteredEmployees}
-                appointments={appointments}
-                currentDate={currentDay}
-                onEditAppointment={setEditingAppointment}
-                onSlotClick={handleSlotClick}
-                abwesenheiten={abwesenheiten}
-                hiddenEmployeeIds={hiddenEmployeeIds}
               />
             )}
             {viewMode === 'month' && (

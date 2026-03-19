@@ -86,14 +86,16 @@ export function DayView({
     });
   };
 
+  const colCount = visibleEmployees.length + (showUnassignedCol ? 1 : 0);
+  const MIN_COL_WIDTH = 140; // px Mindestbreite pro Mitarbeiter
+  const gridCols = `80px repeat(${colCount}, minmax(${MIN_COL_WIDTH}px, 1fr))`;
+
   return (
-    <div className="bg-card rounded-lg border border-border overflow-hidden">
+    <div className="bg-card rounded-lg border border-border overflow-x-auto">
       {/* Header */}
       <div
-        className="grid border-b border-border bg-muted/30"
-        style={{
-          gridTemplateColumns: `80px repeat(${visibleEmployees.length}, 1fr)${showUnassignedCol ? ' 1fr' : ''}`,
-        }}
+        className="grid border-b border-border bg-muted/30 sticky top-0 z-10"
+        style={{ gridTemplateColumns: gridCols, minWidth: 80 + colCount * MIN_COL_WIDTH }}
       >
         <div className="px-2 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-r border-border">
           Zeit
@@ -146,7 +148,7 @@ export function DayView({
       </div>
 
       {/* Time Grid */}
-      <div className="relative" style={{ height: gridHeight }}>
+      <div className="relative" style={{ height: gridHeight, minWidth: 80 + colCount * MIN_COL_WIDTH }}>
         {/* Time labels + horizontal lines */}
         {HOURS.map((hour) => {
           const top = (hour - START_HOUR) * SLOT_HEIGHT * 2;
@@ -175,7 +177,7 @@ export function DayView({
         <div
           className="absolute left-[80px] right-0 top-0 grid h-full"
           style={{
-            gridTemplateColumns: `repeat(${visibleEmployees.length}, 1fr)${showUnassignedCol ? ' 1fr' : ''}`,
+            gridTemplateColumns: `repeat(${colCount}, minmax(${MIN_COL_WIDTH}px, 1fr))`,
           }}
         >
           {visibleEmployees.map((emp) => {
