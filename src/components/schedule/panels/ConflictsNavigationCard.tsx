@@ -89,7 +89,7 @@ export function ConflictsNavigationCard({
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end" sideOffset={8}>
+      <PopoverContent className="w-96 p-0 max-h-[70vh] flex flex-col" align="end" sideOffset={8}>
         <div className="px-3 py-2 border-b bg-destructive/5">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -98,7 +98,7 @@ export function ConflictsNavigationCard({
             </span>
           </div>
         </div>
-        <ScrollArea className="max-h-72">
+        <ScrollArea className="flex-1 overflow-auto">
           <div className="p-2 space-y-1.5">
             {conflictPairs.map((pair, idx) => (
               <div
