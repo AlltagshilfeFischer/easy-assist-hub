@@ -493,33 +493,18 @@ const ScheduleBuilderModern = () => {
     const appointment = appointments.find(app => app.id === appointmentId);
     if (!appointment) return;
 
-    // Handle drop into "Unassigned" bar (ids like "unassigned-YYYY-MM-DD")
-    if (overId.startsWith('unassigned-')) {
+    // Handle drop into "Unassigned" zone — nur mitarbeiter_id entfernen, Datum behalten
+    if (overId === 'unassigned' || overId.startsWith('unassigned-')) {
       try {
-        const dateStr = overId.replace('unassigned-', '');
-        const targetDate = new Date(dateStr);
-        
-        const originalStart = new Date(appointment.start_at);
-        const originalEnd = new Date(appointment.end_at);
-        
-        // Create new dates with target date but original times
-        const newStart = new Date(targetDate);
-        newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
-        
-        const newEnd = new Date(targetDate);
-        newEnd.setHours(originalEnd.getHours(), originalEnd.getMinutes(), 0, 0);
-
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           mitarbeiter_id: null,
           status: 'unassigned',
-          start_at: newStart.toISOString(),
-          end_at: newEnd.toISOString()
         };
 
         // Mark as exception if it's a recurring appointment
         if (appointment.vorlage_id && !appointment.ist_ausnahme) {
           updateData.ist_ausnahme = true;
-          updateData.ausnahme_grund = 'Verschoben per Drag & Drop';
+          updateData.ausnahme_grund = 'Zuordnung entfernt per Drag & Drop';
         }
 
         const { error } = await supabase
@@ -532,18 +517,19 @@ const ScheduleBuilderModern = () => {
         // Optimistisch lokalen State updaten
         setAppointments(prev => prev.map(app =>
           app.id === appointmentId
-            ? { ...app, ...updateData }
+            ? { ...app, mitarbeiter_id: null, status: 'unassigned' as const }
             : app
         ));
 
+        const appointmentLabel = appointment.customer?.name || appointment.titel || 'Termin';
         toast({
-          title: 'Erfolg',
-          description: `Termin nicht zugewiesen am ${format(targetDate, 'dd.MM.yyyy')}`
+          title: 'Zuordnung entfernt',
+          description: `${appointmentLabel} ist jetzt unzugeordnet`
         });
       } catch (error) {
         toast({
           title: 'Fehler',
-          description: 'Fehler beim Verschieben des Termins.',
+          description: 'Fehler beim Entfernen der Zuordnung.',
           variant: 'destructive'
         });
         await loadData();
@@ -595,6 +581,28 @@ const ScheduleBuilderModern = () => {
         targetDate: targetDate || new Date(appointment.start_at) 
       });
       return;
+    }
+
+    // Check for employee absences on target date
+    const effectiveDate = targetDate || new Date(appointment.start_at);
+    const hasAbsence = abwesenheiten.some(a => {
+      if (a.mitarbeiter_id !== employeeId) return false;
+      // zeitraum is a PostgreSQL TSTZRANGE stored as string "[start, end)"
+      const match = a.zeitraum?.match(/[\[(](.+?),(.+?)[\])]/);
+      if (!match) return false;
+      const rangeStart = new Date(match[1].trim());
+      const rangeEnd = new Date(match[2].trim());
+      return effectiveDate >= rangeStart && effectiveDate < rangeEnd;
+    });
+
+    if (hasAbsence) {
+      const absentEmployee = employees.find(e => e.id === employeeId);
+      toast({
+        title: 'Warnung: Mitarbeiter abwesend',
+        description: `${absentEmployee?.name || 'Mitarbeiter'} ist an diesem Tag als abwesend eingetragen.`,
+        variant: 'destructive'
+      });
+      // Warning only — don't block the assignment (per spec: "warnen, aber nicht blockieren")
     }
 
     const conflicts = checkForConflicts(appointmentId, employeeId, targetDate);
@@ -1026,10 +1034,12 @@ const ScheduleBuilderModern = () => {
   };
 
   const handleCancelCut = () => {
+    const wasCopy = copyMode;
     setCutAppointment(null);
+    setCopyMode(false);
     toast({
       title: 'Abgebrochen',
-      description: 'Ausschneiden wurde abgebrochen.'
+      description: wasCopy ? 'Kopieren wurde abgebrochen.' : 'Ausschneiden wurde abgebrochen.'
     });
   };
 
@@ -1152,6 +1162,7 @@ const ScheduleBuilderModern = () => {
             activeId={activeId}
             onEditAppointment={setEditingAppointment}
             onCut={handleCutAppointment}
+            onCopy={handleCopyAppointment}
             onSlotClick={(date) => {
               if (cutAppointment) {
                 handlePasteAppointment(null, date);
@@ -1235,9 +1246,9 @@ const ScheduleBuilderModern = () => {
                     </svg>
                   </div>
                   <div>
-                    <div className="font-medium text-sm">Ausgeschnitten:</div>
+                    <div className="font-medium text-sm">{copyMode ? 'Kopiert:' : 'Ausgeschnitten:'}</div>
                     <div className="text-sm text-muted-foreground">
-                      {cutAppointment.titel} - {cutAppointment.customer?.name} 
+                      {cutAppointment.titel} - {cutAppointment.customer?.name}
                       {' '}am {format(new Date(cutAppointment.start_at), 'dd.MM.yyyy HH:mm', { locale: de })}
                     </div>
                   </div>
