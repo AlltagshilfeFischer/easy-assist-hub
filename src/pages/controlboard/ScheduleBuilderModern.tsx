@@ -87,6 +87,7 @@ const ScheduleBuilderModern = () => {
   });
   const [abwesenheiten, setAbwesenheiten] = useState<any[]>([]);
   const [cutAppointment, setCutAppointment] = useState<LocalAppointment | null>(null);
+  const [copyMode, setCopyMode] = useState(false);
   const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null);
   const [seriesMoveDialog, setSeriesMoveDialog] = useState<{
     appointment: LocalAppointment;
@@ -913,11 +914,21 @@ const ScheduleBuilderModern = () => {
 
   const draggedAppointment = appointments.find(app => app.id === activeId);
 
-  // Cut/Paste handlers
+  // Cut/Copy/Paste handlers
   const handleCutAppointment = (appointment: LocalAppointment) => {
     setCutAppointment(appointment);
+    setCopyMode(false);
     toast({
       title: 'Ausgeschnitten',
+      description: `Termin "${appointment.titel}" kann jetzt eingefügt werden.`
+    });
+  };
+
+  const handleCopyAppointment = (appointment: LocalAppointment) => {
+    setCutAppointment(appointment);
+    setCopyMode(true);
+    toast({
+      title: 'Kopiert',
       description: `Termin "${appointment.titel}" kann jetzt eingefügt werden.`
     });
   };
@@ -928,41 +939,83 @@ const ScheduleBuilderModern = () => {
     try {
       const originalStart = new Date(cutAppointment.start_at);
       const originalEnd = new Date(cutAppointment.end_at);
-      
+
       // Create new dates with target date but original times
       const newStart = new Date(targetDate);
       newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
-      
+
       const newEnd = new Date(targetDate);
       newEnd.setHours(originalEnd.getHours(), originalEnd.getMinutes(), 0, 0);
 
-      const { error } = await supabase
-        .from('termine')
-        .update({
-          mitarbeiter_id: employeeId,
-          start_at: newStart.toISOString(),
-          end_at: newEnd.toISOString(),
-          status: employeeId ? 'scheduled' : 'unassigned'
-        })
-        .eq('id', cutAppointment.id);
-
-      if (error) throw error;
-
       const employee = employeeId ? employees.find(emp => emp.id === employeeId) : null;
-      toast({
-        title: 'Eingefügt',
-        description: employee 
-          ? `${cutAppointment.customer?.name} → ${employee.name} am ${format(targetDate, 'dd.MM.yyyy')}`
-          : `${cutAppointment.customer?.name} → Unzugeordnet am ${format(targetDate, 'dd.MM.yyyy')}`
-      });
 
-      // Optimistisch lokalen State updaten
-      setAppointments(prev => prev.map(app =>
-        app.id === cutAppointment.id
-          ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: employeeId ? 'scheduled' as const : 'unassigned' as const }
-          : app
-      ));
-      setCutAppointment(null);
+      if (copyMode) {
+        // COPY: Insert new appointment (Einzeltermin, no vorlage_id)
+        const { data: newAppointment, error } = await supabase
+          .from('termine')
+          .insert({
+            titel: cutAppointment.titel,
+            kunden_id: cutAppointment.kunden_id,
+            mitarbeiter_id: employeeId,
+            start_at: newStart.toISOString(),
+            end_at: newEnd.toISOString(),
+            status: employeeId ? 'scheduled' : 'unassigned',
+            vorlage_id: null,
+            ist_ausnahme: false,
+            notizen: cutAppointment.notizen ?? null,
+            kategorie: cutAppointment.kategorie ?? null,
+          })
+          .select('*, kunden(*), mitarbeiter(*)')
+          .single();
+
+        if (error) throw error;
+
+        toast({
+          title: 'Kopiert & Eingefügt',
+          description: employee
+            ? `${cutAppointment.customer?.name} → ${employee.name} am ${format(targetDate, 'dd.MM.yyyy')}`
+            : `${cutAppointment.customer?.name} → Unzugeordnet am ${format(targetDate, 'dd.MM.yyyy')}`
+        });
+
+        // Add new appointment to local state
+        if (newAppointment) {
+          const mapped: LocalAppointment = {
+            ...newAppointment,
+            customer: newAppointment.kunden ? { id: newAppointment.kunden.id, name: newAppointment.kunden.name, farbe_kalender: newAppointment.kunden.farbe_kalender } : undefined,
+            employee: newAppointment.mitarbeiter ? { id: newAppointment.mitarbeiter.id, name: `${newAppointment.mitarbeiter.vorname || ''} ${newAppointment.mitarbeiter.nachname || ''}`.trim(), farbe_kalender: newAppointment.mitarbeiter.farbe_kalender || '#3B82F6' } : undefined,
+          } as LocalAppointment;
+          setAppointments(prev => [...prev, mapped]);
+        }
+        // Keep clipboard for multiple pastes in copy mode
+      } else {
+        // CUT: Move existing appointment
+        const { error } = await supabase
+          .from('termine')
+          .update({
+            mitarbeiter_id: employeeId,
+            start_at: newStart.toISOString(),
+            end_at: newEnd.toISOString(),
+            status: employeeId ? 'scheduled' : 'unassigned'
+          })
+          .eq('id', cutAppointment.id);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Eingefügt',
+          description: employee
+            ? `${cutAppointment.customer?.name} → ${employee.name} am ${format(targetDate, 'dd.MM.yyyy')}`
+            : `${cutAppointment.customer?.name} → Unzugeordnet am ${format(targetDate, 'dd.MM.yyyy')}`
+        });
+
+        setAppointments(prev => prev.map(app =>
+          app.id === cutAppointment.id
+            ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: employeeId ? 'scheduled' as const : 'unassigned' as const }
+            : app
+        ));
+        setCutAppointment(null);
+        setCopyMode(false);
+      }
     } catch (error) {
       toast({
         title: 'Fehler',
@@ -1104,6 +1157,8 @@ const ScheduleBuilderModern = () => {
                 handlePasteAppointment(null, date);
               }
             }}
+            viewMode={viewMode}
+            currentDay={currentDay}
           />
           
           {/* Calendar Grid */}
@@ -1125,6 +1180,7 @@ const ScheduleBuilderModern = () => {
                 onSlotClick={handleSlotClick}
                 conflictingAppointments={conflictingAppointments}
                 onCut={handleCutAppointment}
+                onCopy={handleCopyAppointment}
                 highlightedAppointmentId={highlightedAppointmentId}
                 hiddenEmployeeIds={hiddenEmployeeIds}
                 onToggleEmployee={(id) => {
