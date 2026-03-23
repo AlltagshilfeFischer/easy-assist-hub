@@ -1087,31 +1087,30 @@ const ScheduleBuilderModern = () => {
         </div>
 
         {/* Konflikte-Popover — erscheint inline vor dem Kalender */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <ConflictsNavigationCard
-            appointments={appointments}
-            onNavigateToConflict={(appointmentId) => {
-              const appointment = appointments.find(a => a.id === appointmentId);
-              if (appointment) {
-                const appointmentDate = new Date(appointment.start_at);
-                const appointmentWeekStart = startOfWeek(appointmentDate, { weekStartsOn: 1 });
-                const currentWeekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-                
-                if (appointmentWeekStart.getTime() !== currentWeekStart.getTime()) {
-                  setCurrentWeek(appointmentDate);
-                }
-                
-                setHighlightedAppointmentId(appointmentId);
-                setEditingAppointment(appointment);
-                setTimeout(() => setHighlightedAppointmentId(null), 3000);
-              }
-            }}
-          />
-        </div>
-
-        {/* Action Buttons */}
+        {/* Konflikte + Genehmigungen + Actions — eine Zeile */}
         <div className="flex items-center justify-between gap-2 flex-shrink-0">
-          <AppointmentApprovalBar />
+          <div className="flex items-center gap-2">
+            <ConflictsNavigationCard
+              appointments={appointments}
+              onNavigateToConflict={(appointmentId) => {
+                const appointment = appointments.find(a => a.id === appointmentId);
+                if (appointment) {
+                  const appointmentDate = new Date(appointment.start_at);
+                  const appointmentWeekStart = startOfWeek(appointmentDate, { weekStartsOn: 1 });
+                  const currentWeekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
+
+                  if (appointmentWeekStart.getTime() !== currentWeekStart.getTime()) {
+                    setCurrentWeek(appointmentDate);
+                  }
+
+                  setHighlightedAppointmentId(appointmentId);
+                  setEditingAppointment(appointment);
+                  setTimeout(() => setHighlightedAppointmentId(null), 3000);
+                }
+              }}
+            />
+            <AppointmentApprovalBar />
+          </div>
           <div className="flex items-center gap-2">
             {/* Zoom-Steuerung */}
             <div className="flex items-center gap-1 border rounded-md px-1 bg-card">

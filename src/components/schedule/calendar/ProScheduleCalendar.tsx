@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
-import { Settings2, GripVertical, Eye, EyeOff, UserX } from 'lucide-react';
+import { Settings2, GripVertical, Eye, EyeOff, UserX, Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import {
   DndContext,
   closestCenter,
@@ -140,13 +141,39 @@ function PopoverEmployeeFilter({
   popoverSensors: ReturnType<typeof useSensors>;
   handlePopoverDragEnd: (event: DragEndEvent) => void;
 }) {
+  const [search, setSearch] = useState('');
   const visibleCount = allEmployees.filter((e) => !hiddenEmployeeIds.has(e.id)).length;
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allEmployees;
+    const q = search.toLowerCase();
+    return allEmployees.filter((e) => e.name.toLowerCase().includes(q));
+  }, [allEmployees, search]);
 
   return (
     <>
+      {/* Suchfeld */}
+      <div className="px-3 pt-3 pb-1">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Mitarbeiter suchen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 pl-8 text-sm"
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Schnellfilter-Chips */}
-      <div className="px-3 pt-3 pb-1 flex flex-wrap gap-1.5">
-        {allEmployees.map((emp) => {
+      <div className="px-3 pb-1 flex flex-wrap gap-1.5">
+        {filtered.map((emp) => {
           const isVisible = !hiddenEmployeeIds.has(emp.id);
           const initials = emp.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
           return (
@@ -169,7 +196,7 @@ function PopoverEmployeeFilter({
         })}
       </div>
 
-      {/* Alle ein/aus */}
+      {/* Alle ein/aus + Counter */}
       <div className="px-3 pb-1 flex items-center justify-between">
         <span className="text-xs text-muted-foreground">{visibleCount}/{allEmployees.length} sichtbar</span>
         <div className="flex gap-1">
@@ -192,16 +219,20 @@ function PopoverEmployeeFilter({
 
       {/* Sortierbare Liste */}
       <DndContext sensors={popoverSensors} collisionDetection={closestCenter} onDragEnd={handlePopoverDragEnd}>
-        <SortableContext items={allEmployees.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={filtered.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           <div className="max-h-[300px] overflow-y-auto p-3 space-y-2 bg-popover border-t">
-            {allEmployees.map((emp) => (
-              <SortablePopoverItem
-                key={emp.id}
-                emp={emp}
-                isHidden={hiddenEmployeeIds.has(emp.id)}
-                onToggle={() => onToggleEmployee(emp.id)}
-              />
-            ))}
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-3">Kein Mitarbeiter gefunden</p>
+            ) : (
+              filtered.map((emp) => (
+                <SortablePopoverItem
+                  key={emp.id}
+                  emp={emp}
+                  isHidden={hiddenEmployeeIds.has(emp.id)}
+                  onToggle={() => onToggleEmployee(emp.id)}
+                />
+              ))
+            )}
           </div>
         </SortableContext>
       </DndContext>
