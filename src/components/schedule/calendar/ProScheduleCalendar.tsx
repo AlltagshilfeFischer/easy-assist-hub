@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
-import { Settings2, GripVertical, Eye, EyeOff, UserX } from 'lucide-react';
+import { Settings2, GripVertical, Eye, EyeOff, UserX, Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import {
   DndContext,
   closestCenter,
@@ -123,6 +124,76 @@ function SortablePopoverItem({ emp, isHidden, onToggle }: { emp: Employee; isHid
         {isHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </Button>
     </div>
+  );
+}
+
+// Popover employee search + list
+function PopoverEmployeeSearch({
+  allEmployees,
+  hiddenEmployeeIds,
+  onToggleEmployee,
+  popoverSensors,
+  handlePopoverDragEnd,
+}: {
+  allEmployees: Employee[];
+  hiddenEmployeeIds: Set<string>;
+  onToggleEmployee: (id: string) => void;
+  popoverSensors: ReturnType<typeof useSensors>;
+  handlePopoverDragEnd: (event: DragEndEvent) => void;
+}) {
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allEmployees;
+    const q = search.toLowerCase();
+    return allEmployees.filter((e) => e.name.toLowerCase().includes(q));
+  }, [allEmployees, search]);
+
+  return (
+    <>
+      <div className="px-3 pt-3 pb-1">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Mitarbeiter suchen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 pl-8 text-sm"
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <DndContext sensors={popoverSensors} collisionDetection={closestCenter} onDragEnd={handlePopoverDragEnd}>
+        <SortableContext items={filtered.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+          <div className="max-h-[360px] overflow-y-auto p-3 space-y-2 bg-popover">
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Kein Mitarbeiter gefunden
+              </p>
+            ) : (
+              filtered.map((emp) => (
+                <SortablePopoverItem
+                  key={emp.id}
+                  emp={emp}
+                  isHidden={hiddenEmployeeIds.has(emp.id)}
+                  onToggle={() => onToggleEmployee(emp.id)}
+                />
+              ))
+            )}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </>
   );
 }
 
@@ -257,20 +328,13 @@ export function ProScheduleCalendar({
                   <p className="text-xs text-muted-foreground mt-1">Ziehen zum Sortieren · Auge zum Ein-/Ausblenden</p>
                 </div>
 
-                <DndContext sensors={popoverSensors} collisionDetection={closestCenter} onDragEnd={handlePopoverDragEnd}>
-                  <SortableContext items={sortedAllEmployees.map(e => e.id)} strategy={verticalListSortingStrategy}>
-                    <div className="max-h-[360px] overflow-y-auto p-3 space-y-2 bg-popover">
-                      {sortedAllEmployees.map((emp) => (
-                        <SortablePopoverItem
-                          key={emp.id}
-                          emp={emp}
-                          isHidden={hiddenEmployeeIds.has(emp.id)}
-                          onToggle={() => onToggleEmployee!(emp.id)}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                <PopoverEmployeeSearch
+                  allEmployees={sortedAllEmployees}
+                  hiddenEmployeeIds={hiddenEmployeeIds}
+                  onToggleEmployee={onToggleEmployee!}
+                  popoverSensors={popoverSensors}
+                  handlePopoverDragEnd={handlePopoverDragEnd}
+                />
               </PopoverContent>
             </Popover>
           )}
