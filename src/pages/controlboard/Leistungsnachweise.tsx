@@ -923,16 +923,16 @@ export default function Leistungsnachweise() {
               </div>
 
               <ScrollArea className="flex-1 -mx-6 px-6">
-                <div className="space-y-5 py-4">
-                  {/* Hours Summary */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-border p-3 text-center">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Geplant</p>
-                      <p className="text-2xl font-bold text-foreground mt-1">{displayHours.geplant}h</p>
+                <div className="space-y-4 py-3">
+                  {/* Hours Summary – compact inline */}
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Geplant:</span>
+                      <span className="font-bold text-foreground">{displayHours.geplant}h</span>
                     </div>
-                    <div className="rounded-lg border border-border p-3 text-center">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Geleistet</p>
-                      <p className="text-2xl font-bold text-primary mt-1">{displayHours.geleistet}h</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Geleistet:</span>
+                      <span className="font-bold text-primary">{displayHours.geleistet}h</span>
                     </div>
                   </div>
 
@@ -952,7 +952,7 @@ export default function Leistungsnachweise() {
                       </Link>
                     </div>
                     {!filteredTermine.length ? (
-                      <p className="text-sm text-muted-foreground py-4 text-center">Keine Termine</p>
+                      <p className="text-sm text-muted-foreground py-2 text-center">Keine Termine</p>
                     ) : (
                       <div className="border border-border rounded-lg overflow-hidden">
                         <Table>
@@ -1048,118 +1048,62 @@ export default function Leistungsnachweise() {
 
                   <Separator />
 
-                  {/* Leistungstöpfe / Abrechnungs-Checkboxen */}
-                  <div className="space-y-3">
+                  {/* Leistungsart / Abrechnung + Einstellungen – kompakt */}
+                  <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-foreground">Leistungsart / Abrechnung</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="cb-kombi"
-                          checked={selectedLN.cb_kombinationsleistung}
-                          onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, cb_kombinationsleistung: !!checked })}
-                        />
-                        <Label htmlFor="cb-kombi" className="text-sm">Kombinationsleistung §38 SGB XI</Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="cb-entlastung"
-                          checked={selectedLN.cb_entlastungsleistung}
-                          onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, cb_entlastungsleistung: !!checked })}
-                        />
-                        <Label htmlFor="cb-entlastung" className="text-sm">Entlastungsleistung §45b SGB XI</Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="cb-vhp"
-                          checked={selectedLN.cb_verhinderungspflege}
-                          onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, cb_verhinderungspflege: !!checked })}
-                        />
-                        <Label htmlFor="cb-vhp" className="text-sm">Verhinderungspflege §39 SGB XI</Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="cb-hh"
-                          checked={selectedLN.cb_haushaltshilfe}
-                          onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, cb_haushaltshilfe: !!checked })}
-                        />
-                        <Label htmlFor="cb-hh" className="text-sm">Haushaltshilfe §38 SGB XI</Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          id="cb-deckeln"
-                          checked={selectedLN.cb_deckeln_45b}
-                          onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, cb_deckeln_45b: !!checked })}
-                        />
-                        <Label htmlFor="cb-deckeln" className="text-sm">Deckeln §45b</Label>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={selectedLN.cb_kombinationsleistung} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_kombinationsleistung: !!c })} />
+                        Kombileistung §38
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={selectedLN.cb_entlastungsleistung} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_entlastungsleistung: !!c })} />
+                        Entlastung §45b
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={selectedLN.cb_verhinderungspflege} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_verhinderungspflege: !!c })} />
+                        Verhinderungspflege §39
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={selectedLN.cb_haushaltshilfe} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_haushaltshilfe: !!c })} />
+                        Haushaltshilfe §38
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={selectedLN.cb_deckeln_45b} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_deckeln_45b: !!c })} />
+                        Deckeln §45b
                         {selectedLN.cb_deckeln_45b && (
-                          <Input
-                            type="number"
-                            className="h-7 w-24 text-sm"
-                            value={selectedLN.cb_deckeln_45b_betrag ?? ''}
-                            onChange={e => setSelectedLN({ ...selectedLN, cb_deckeln_45b_betrag: e.target.value ? Number(e.target.value) : null })}
-                            placeholder="EUR"
-                          />
+                          <Input type="number" className="h-6 w-20 text-xs" value={selectedLN.cb_deckeln_45b_betrag ?? ''} onChange={e => setSelectedLN({ ...selectedLN, cb_deckeln_45b_betrag: e.target.value ? Number(e.target.value) : null })} placeholder="EUR" />
                         )}
-                        <span className="text-xs text-muted-foreground">Rest privat</span>
-                      </div>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={selectedLN.ist_privat} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, ist_privat: !!c })} />
+                        Privatperson
+                      </label>
                     </div>
+                    {selectedLN.ist_privat && (
+                      <div className="pl-6">
+                        <Input className="h-7 text-sm" value={selectedLN.privat_empfaenger_name || ''} onChange={e => setSelectedLN({ ...selectedLN, privat_empfaenger_name: e.target.value })} placeholder="Privat-Empfänger" />
+                      </div>
+                    )}
                   </div>
 
-                  <Separator />
-
-                  {/* Edit Options */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-foreground">Einstellungen</h3>
-
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        id="abw-addr"
-                        checked={selectedLN.abweichende_rechnungsadresse}
-                        onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, abweichende_rechnungsadresse: !!checked })}
-                      />
-                      <Label htmlFor="abw-addr" className="text-sm">Abweichende Rechnungsadresse</Label>
-                    </div>
-
+                  {/* Einstellungen – kompakt */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox checked={selectedLN.abweichende_rechnungsadresse} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, abweichende_rechnungsadresse: !!c })} />
+                      Abweichende Rechnungsadresse
+                    </label>
                     {selectedLN.abweichende_rechnungsadresse && (
-                      <div className="grid grid-cols-2 gap-2 pl-6">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Name</Label>
-                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_name || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_name: e.target.value })} />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Straße</Label>
-                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_strasse || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_strasse: e.target.value })} />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">PLZ</Label>
-                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_plz || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_plz: e.target.value })} />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Stadt</Label>
-                          <Input className="h-8 text-sm" value={selectedLN.rechnungsadresse_stadt || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_stadt: e.target.value })} />
-                        </div>
+                      <div className="grid grid-cols-4 gap-1.5 pl-6">
+                        <Input className="h-7 text-xs" value={selectedLN.rechnungsadresse_name || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_name: e.target.value })} placeholder="Name" />
+                        <Input className="h-7 text-xs" value={selectedLN.rechnungsadresse_strasse || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_strasse: e.target.value })} placeholder="Straße" />
+                        <Input className="h-7 text-xs" value={selectedLN.rechnungsadresse_plz || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_plz: e.target.value })} placeholder="PLZ" />
+                        <Input className="h-7 text-xs" value={selectedLN.rechnungsadresse_stadt || ''} onChange={e => setSelectedLN({ ...selectedLN, rechnungsadresse_stadt: e.target.value })} placeholder="Stadt" />
                       </div>
                     )}
-
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        id="privat"
-                        checked={selectedLN.ist_privat}
-                        onCheckedChange={(checked) => setSelectedLN({ ...selectedLN, ist_privat: !!checked })}
-                      />
-                      <Label htmlFor="privat" className="text-sm">Privatperson statt Kasse</Label>
-                    </div>
-
-                    {selectedLN.ist_privat && (
-                      <div className="pl-6 space-y-1">
-                        <Label className="text-xs">Privat-Empfänger</Label>
-                        <Input className="h-8 text-sm" value={selectedLN.privat_empfaenger_name || ''} onChange={e => setSelectedLN({ ...selectedLN, privat_empfaenger_name: e.target.value })} />
-                      </div>
-                    )}
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">GF-Unterschrift Name</Label>
-                      <Input className="h-8 text-sm" value={selectedLN.unterschrift_gf_name || ''} onChange={e => setSelectedLN({ ...selectedLN, unterschrift_gf_name: e.target.value })} placeholder="Name der Geschäftsführung" />
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground whitespace-nowrap">GF-Unterschrift:</Label>
+                      <Input className="h-7 text-sm flex-1" value={selectedLN.unterschrift_gf_name || ''} onChange={e => setSelectedLN({ ...selectedLN, unterschrift_gf_name: e.target.value })} placeholder="Name der Geschäftsführung" />
                     </div>
                   </div>
 
