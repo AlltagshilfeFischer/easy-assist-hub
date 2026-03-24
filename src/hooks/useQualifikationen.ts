@@ -75,11 +75,11 @@ export function useCreateQualifikation() {
 
   return useMutation({
     mutationFn: async ({ name, kategorie = 'Allgemein' }: { name: string; kategorie?: string }) => {
-      const { data, error } = await supabase
-        .from('qualifikationen')
-        .insert({ name, kategorie })
+      const { data, error } = await (supabase
+        .from('qualifikationen' as any)
+        .insert({ name, kategorie } as any)
         .select('id, name, kategorie')
-        .single();
+        .single()) as any;
       if (error) throw error;
       return data;
     },

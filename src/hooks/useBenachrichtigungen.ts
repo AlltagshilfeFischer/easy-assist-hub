@@ -89,11 +89,11 @@ export function useMarkAllAsRead() {
   return useMutation({
     mutationFn: async () => {
       if (!user?.id) return;
-      const { error } = await supabase
-        .from('benachrichtigungen')
-        .update({ gelesen: true })
+      const { error } = await (supabase
+        .from('benachrichtigungen' as any)
+        .update({ gelesen: true } as any)
         .eq('benutzer_id', user.id)
-        .eq('gelesen', false);
+        .eq('gelesen', false)) as any;
       if (error) throw error;
     },
     onSuccess: () => {
