@@ -46,21 +46,20 @@ export function useSaveMitarbeiterQualifikationen() {
   return useMutation({
     mutationFn: async ({ mitarbeiterId, qualifikationIds }: { mitarbeiterId: string; qualifikationIds: string[] }) => {
       // Delete existing
-      const { error: deleteError } = await supabase
-        .from('mitarbeiter_qualifikationen')
+      const { error: deleteError } = await (supabase
+        .from('mitarbeiter_qualifikationen' as any)
         .delete()
-        .eq('mitarbeiter_id', mitarbeiterId);
+        .eq('mitarbeiter_id', mitarbeiterId)) as any;
       if (deleteError) throw deleteError;
 
-      // Insert new
       if (qualifikationIds.length > 0) {
         const rows = qualifikationIds.map((qId) => ({
           mitarbeiter_id: mitarbeiterId,
           qualifikation_id: qId,
         }));
-        const { error: insertError } = await supabase
-          .from('mitarbeiter_qualifikationen')
-          .insert(rows);
+        const { error: insertError } = await (supabase
+          .from('mitarbeiter_qualifikationen' as any)
+          .insert(rows as any)) as any;
         if (insertError) throw insertError;
       }
     },
