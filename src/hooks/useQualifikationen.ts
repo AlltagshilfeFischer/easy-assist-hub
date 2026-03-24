@@ -12,13 +12,13 @@ export function useQualifikationen() {
   return useQuery({
     queryKey: ['qualifikationen'],
     queryFn: async (): Promise<Qualifikation[]> => {
-      const { data, error } = await supabase
-        .from('qualifikationen')
+      const { data, error } = await (supabase
+        .from('qualifikationen' as any)
         .select('id, name, kategorie')
         .order('kategorie')
-        .order('name');
+        .order('name')) as any;
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as Qualifikation[];
     },
   });
 }
