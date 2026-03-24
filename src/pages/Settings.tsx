@@ -8,10 +8,10 @@ export default function Settings() {
   const { settings, updateSettings } = useSettings();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Einstellungen</h1>
-        <p className="text-muted-foreground">Passe die Anwendung an deine Bedürfnisse an</p>
+        <h1 className="text-xl sm:text-2xl font-bold">Einstellungen</h1>
+        <p className="text-sm text-muted-foreground">Passe die Anwendung an deine Bedürfnisse an</p>
       </div>
 
       <Card>
