@@ -12,8 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { 
-  FileText, PenLine, CheckCircle2, Clock, 
-  Loader2, Trash2, Calendar
+  FileText, PenLine, CheckCircle2, Clock,
+  Loader2, Trash2, Calendar, EyeOff
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -60,6 +60,22 @@ export function LeistungsnachweisSignature() {
   const [signDialogOpen, setSignDialogOpen] = useState(false);
   const [selectedLN, setSelectedLN] = useState<LNRow | null>(null);
   const [signerName, setSignerName] = useState('');
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('ln-hidden-ids');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const hideNachweis = (id: string) => {
+    setHiddenIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem('ln-hidden-ids', JSON.stringify([...next]));
+      return next;
+    });
+    toast.success('Leistungsnachweis ausgeblendet');
+  };
 
   // Canvas refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -245,7 +261,7 @@ export function LeistungsnachweisSignature() {
     );
   }
 
-  const pendingNachweise = nachweise?.filter(n => !n.unterschrift_kunde_zeitstempel) || [];
+  const pendingNachweise = nachweise?.filter(n => !n.unterschrift_kunde_zeitstempel && !hiddenIds.has(n.id)) || [];
 
   return (
     <>
@@ -271,12 +287,23 @@ export function LeistungsnachweisSignature() {
                       {monthNames[ln.monat - 1]} {ln.jahr} • {ln.geleistete_stunden}h geleistet
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => { setSelectedLN(ln); setSignDialogOpen(true); }}
-                  >
-                    <PenLine className="h-4 w-4 mr-1" /> Unterschreiben
-                  </Button>
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => hideNachweis(ln.id)}
+                      title="Ausblenden"
+                    >
+                      <EyeOff className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => { setSelectedLN(ln); setSignDialogOpen(true); }}
+                    >
+                      <PenLine className="h-4 w-4 mr-1" /> Unterschreiben
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
