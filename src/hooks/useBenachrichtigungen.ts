@@ -70,10 +70,10 @@ export function useMarkAsRead() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('benachrichtigungen')
-        .update({ gelesen: true })
-        .eq('id', id);
+      const { error } = await (supabase
+        .from('benachrichtigungen' as any)
+        .update({ gelesen: true } as any)
+        .eq('id', id)) as any;
       if (error) throw error;
     },
     onSuccess: () => {
