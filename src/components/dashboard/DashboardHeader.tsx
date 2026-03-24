@@ -3,6 +3,8 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { LogOut, User, Shield } from 'lucide-react';
+import { NotificationBell } from '@/components/dashboard/NotificationBell';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 export function DashboardHeader() {
   const { user, signOut } = useAuth();
   const { role, getRoleLabel, getRoleBadgeVariant } = useUserRole();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
@@ -48,6 +51,7 @@ export function DashboardHeader() {
       </div>
 
       <div className="flex items-center gap-4">
+        <NotificationBell onClick={() => navigate('/dashboard/mein-bereich')} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">

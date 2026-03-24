@@ -263,11 +263,12 @@ export default function Reporting() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="termine">Termine & Stunden</TabsTrigger>
           <TabsTrigger value="auslastung">Auslastung</TabsTrigger>
           <TabsTrigger value="umsatz">Umsatz</TabsTrigger>
           <TabsTrigger value="kunden">Kunden-Statistik</TabsTrigger>
+          <TabsTrigger value="regional">Regional</TabsTrigger>
         </TabsList>
 
         {/* ─── Tab 1: Termine & Stunden ──────────────────────────── */}
@@ -623,6 +624,81 @@ export default function Reporting() {
               </Card>
             </>
           )}
+        </TabsContent>
+
+        {/* ─── Tab 5: Regional (Stadtteil) ──────────────────────── */}
+        <TabsContent value="regional" className="space-y-6 mt-4">
+          {reportData && (() => {
+            const activeTermine = reportData.termine.filter(t => !['cancelled', 'abgesagt_rechtzeitig'].includes(t.status));
+            const stadtteilMap = new Map<string, { termine: number; stunden: number }>();
+            for (const t of activeTermine) {
+              const key = t.kundenStadtteil || 'Unbekannt';
+              const existing = stadtteilMap.get(key) ?? { termine: 0, stunden: 0 };
+              stadtteilMap.set(key, { termine: existing.termine + 1, stunden: existing.stunden + t.dauerStunden });
+            }
+            const stadtteilData = Array.from(stadtteilMap.entries())
+              .map(([name, data]) => ({ name, ...data }))
+              .sort((a, b) => b.stunden - a.stunden);
+
+            return (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <SummaryCard title="Stadtteile" value={stadtteilData.length} subtitle="mit Einsaetzen" icon={TrendingUp} />
+                  <SummaryCard title="Gesamt Stunden" value={`${Math.round(activeTermine.reduce((s, t) => s + t.dauerStunden, 0))}h`} subtitle="alle Stadtteile" icon={Clock} />
+                  <SummaryCard title="Top-Stadtteil" value={stadtteilData[0]?.name ?? '–'} subtitle={stadtteilData[0] ? `${Math.round(stadtteilData[0].stunden)}h` : ''} icon={Users} />
+                </div>
+
+                {stadtteilData.length > 0 && (
+                  <Card>
+                    <CardHeader><CardTitle>Stunden nach Stadtteil</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="h-[350px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={stadtteilData} layout="vertical" margin={{ left: 100 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" tickFormatter={(v) => `${v}h`} />
+                            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12 }} />
+                            <Tooltip formatter={(val: number) => `${val.toFixed(1)}h`} />
+                            <Bar dataKey="stunden" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card>
+                  <CardHeader><CardTitle>Detail nach Stadtteil</CardTitle></CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Stadtteil</TableHead>
+                          <TableHead className="text-right">Termine</TableHead>
+                          <TableHead className="text-right">Stunden</TableHead>
+                          <TableHead className="text-right">Anteil</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stadtteilData.map((s) => {
+                          const totalH = activeTermine.reduce((sum, t) => sum + t.dauerStunden, 0);
+                          const pct = totalH > 0 ? ((s.stunden / totalH) * 100).toFixed(1) : '0';
+                          return (
+                            <TableRow key={s.name}>
+                              <TableCell className="font-medium">{s.name}</TableCell>
+                              <TableCell className="text-right">{s.termine}</TableCell>
+                              <TableCell className="text-right">{s.stunden.toFixed(1)}h</TableCell>
+                              <TableCell className="text-right">{pct}%</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>

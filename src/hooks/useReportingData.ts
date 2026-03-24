@@ -21,7 +21,7 @@ interface RawTerminRow {
   iststunden: number | null;
   kunden_id: string;
   mitarbeiter_id: string | null;
-  customer: { id: string; name: string | null; vorname: string | null; nachname: string | null } | null;
+  customer: { id: string; name: string | null; vorname: string | null; nachname: string | null; stadtteil: string | null } | null;
   employee: { id: string; vorname: string | null; nachname: string | null; farbe_kalender: string | null } | null;
 }
 
@@ -34,6 +34,7 @@ export interface ReportingTermin {
   dauerStunden: number;
   kundenId: string;
   kundenName: string;
+  kundenStadtteil: string;
   mitarbeiterId: string | null;
   mitarbeiterName: string;
 }
@@ -100,7 +101,7 @@ export function useReportingData(filters: ReportingFilters) {
         .from('termine')
         .select(`
           id, titel, start_at, end_at, status, iststunden, kunden_id, mitarbeiter_id,
-          customer:kunden(id, name, vorname, nachname),
+          customer:kunden(id, name, vorname, nachname, stadtteil),
           employee:mitarbeiter(id, vorname, nachname, farbe_kalender)
         `)
         .gte('start_at', dateFrom.toISOString())
@@ -130,6 +131,7 @@ export function useReportingData(filters: ReportingFilters) {
         dauerStunden: computeDauerStunden(row),
         kundenId: row.kunden_id,
         kundenName: buildCustomerName(row.customer),
+        kundenStadtteil: row.customer?.stadtteil || 'Unbekannt',
         mitarbeiterId: row.mitarbeiter_id,
         mitarbeiterName: buildEmployeeName(row.employee),
       }));

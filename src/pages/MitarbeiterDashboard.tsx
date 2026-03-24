@@ -11,6 +11,7 @@ import { LeistungsnachweisSignature } from '@/components/mitarbeiter/Leistungsna
 import { AbwesenheitAnfrage } from '@/components/mitarbeiter/AbwesenheitAnfrage';
 import { AbwesenheitGenehmigung } from '@/components/mitarbeiter/AbwesenheitGenehmigung';
 import { MeineDokumente } from '@/components/mitarbeiter/MeineDokumente';
+import { Benachrichtigungen } from '@/components/mitarbeiter/Benachrichtigungen';
 import { EmployeeWeekCalendar } from '@/components/schedule/calendar/EmployeeWeekCalendar';
 import { EmployeeChangeRequestDialog } from '@/components/schedule/dialogs/EmployeeChangeRequestDialog';
 import { KundenInfoDialog } from '@/components/mitarbeiter/KundenInfoDialog';
@@ -104,6 +105,9 @@ export default function MitarbeiterDashboard() {
 
       {/* Offene Terminbestätigungen */}
       <TerminBestaetigung appointments={appointments} onUpdate={loadData} />
+
+      {/* Benachrichtigungen */}
+      <Benachrichtigungen />
 
       {/* Leistungsnachweise zur Unterschrift */}
       <LeistungsnachweisSignature />

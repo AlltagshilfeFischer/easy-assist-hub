@@ -19,6 +19,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUserRole, type UserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 import { AddMitarbeiterDialog } from '@/components/mitarbeiter/AddMitarbeiterDialog';
+import { QualifikationenPicker } from '@/components/mitarbeiter/QualifikationenPicker';
+import { VerfuegbarkeitEditor } from '@/components/mitarbeiter/VerfuegbarkeitEditor';
+import { useMitarbeiterQualifikationen, useSaveMitarbeiterQualifikationen } from '@/hooks/useQualifikationen';
+import { downloadCsv } from '@/lib/csvExport';
+import { Download } from 'lucide-react';
 
 // Geschützte System-Accounts die nicht gelöscht werden dürfen
 const PROTECTED_EMAILS = ['admin@af-verwaltung.de'];
@@ -68,10 +73,13 @@ export default function BenutzerverwaltungNeu() {
    const [createUserForm, setCreateUserForm] = useState({ email: '', password: '', vorname: '', nachname: '', rolle: 'geschaeftsfuehrer' });
    const [createUserLoading, setCreateUserLoading] = useState(false);
    const [deactivatedSectionOpen, setDeactivatedSectionOpen] = useState(false);
-  
+   const [editQualifikationIds, setEditQualifikationIds] = useState<string[]>([]);
+
   // Multi-select removed - unified list now
 
   const { toast } = useToast();
+  const saveQualifikationen = useSaveMitarbeiterQualifikationen();
+  const { data: currentQualifikationIds = [] } = useMitarbeiterQualifikationen(editingMitarbeiter?.id ?? null);
   const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
   const { user } = useAuth();
   
@@ -94,6 +102,13 @@ export default function BenutzerverwaltungNeu() {
 
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  // Sync qualifikation IDs when edit dialog opens or data loads
+  useEffect(() => {
+    if (editDialogOpen && currentQualifikationIds.length >= 0) {
+      setEditQualifikationIds(currentQualifikationIds);
+    }
+  }, [editDialogOpen, currentQualifikationIds]);
 
   const loadData = async () => {
     try {
@@ -243,6 +258,11 @@ export default function BenutzerverwaltungNeu() {
         max_termine_pro_tag: editingMitarbeiter.max_termine_pro_tag,
       }).eq('id', editingMitarbeiter.id);
       if (error) throw error;
+      // Save qualifikationen
+      await saveQualifikationen.mutateAsync({
+        mitarbeiterId: editingMitarbeiter.id,
+        qualifikationIds: editQualifikationIds,
+      });
       toast({ title: 'Erfolgreich', description: 'Mitarbeiter-Daten wurden aktualisiert.' });
       setEditDialogOpen(false);
       setEditingMitarbeiter(null);
@@ -473,6 +493,26 @@ export default function BenutzerverwaltungNeu() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              const activeMa = mitarbeiter.filter(m => m.ist_aktiv);
+              downloadCsv(
+                ['Vorname', 'Nachname', 'Telefon', 'E-Mail', 'Strasse', 'PLZ', 'Stadt', 'Zustaendigkeitsbereich', 'Rolle'],
+                activeMa.map(m => [
+                  m.vorname, m.nachname, m.telefon,
+                  m.benutzer?.email ?? '', m.strasse, m.plz, m.stadt,
+                  m.zustaendigkeitsbereich, userRolesMap[m.benutzer_id || ''] ?? '',
+                ]),
+                `mitarbeiter_${new Date().toISOString().slice(0, 10)}.csv`
+              );
+            }}
+          >
+            <Download className="h-4 w-4" />
+            CSV
+          </Button>
           {isGeschaeftsfuehrer && (
             <Button variant="outline" size="sm" onClick={() => setCreateUserDialogOpen(true)} className="gap-2">
               <KeyRound className="h-4 w-4" />
@@ -766,6 +806,19 @@ export default function BenutzerverwaltungNeu() {
                   <Label>Max. Termine pro Tag</Label>
                   <Input type="number" min="0" value={editingMitarbeiter.max_termine_pro_tag || ''} onChange={(e) => setEditingMitarbeiter({ ...editingMitarbeiter, max_termine_pro_tag: e.target.value ? parseInt(e.target.value) : null })} />
                 </div>
+              </div>
+
+              {/* Qualifikationen */}
+              <div className="border-t pt-4">
+                <QualifikationenPicker
+                  selectedIds={editQualifikationIds}
+                  onChange={setEditQualifikationIds}
+                />
+              </div>
+
+              {/* Verfuegbarkeiten */}
+              <div className="border-t pt-4">
+                <VerfuegbarkeitEditor mitarbeiterId={editingMitarbeiter.id} />
               </div>
             </div>
           )}

@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getYear, getMonth } from 'date-fns';
-import { Search, AlertTriangle, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, AlertTriangle, ChevronRight, Loader2, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { downloadCsv } from '@/lib/csvExport';
 import * as Progress from '@radix-ui/react-progress';
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -200,10 +202,34 @@ export default function BudgetTracker() {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Budgettracker {currentYear}</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Jahresübersicht aller Pflegebudgets — Klicken Sie auf einen Kunden für Details
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Budgettracker {currentYear}</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Jahresübersicht aller Pflegebudgets — Klicken Sie auf einen Kunden für Details
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              downloadCsv(
+                ['Kunde', 'Pflegegrad', 'Entlastung', 'Kombi', 'Verhinderungspflege', 'Privat', 'Status'],
+                filteredRows.map(r => [
+                  r.name, r.pflegegrad,
+                  r.consumedYear.ENTLASTUNG, r.consumedYear.KOMBI,
+                  r.consumedYear.VERHINDERUNG, r.privatConsumed, r.status,
+                ]),
+                `budgettracker_${currentYear}.csv`
+              );
+            }}
+            disabled={!filteredRows.length}
+          >
+            <Download className="h-4 w-4" />
+            CSV
+          </Button>
+        </div>
       </div>
 
       {/* Filter */}

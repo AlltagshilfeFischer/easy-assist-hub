@@ -27,7 +27,9 @@
       "Read(//home/deploy/.claude/**)",
       "Bash(find /home/deploy/KITech/projects/easy-assist-hub/supabase/functions -type f -name *)",
       "Bash(find /home/deploy/.claude/projects/-home-deploy-KITech-projects-easy-assist-hub/memory -type f -name *.md)",
-      "Bash(find /home/deploy/KITech/projects/easy-assist-hub/.claude/rules -type f -name *.md)"
+      "Bash(find /home/deploy/KITech/projects/easy-assist-hub/.claude/rules -type f -name *.md)",
+      "Bash(ls -la /home/deploy/KITech/projects/easy-assist-hub/supabase/migrations/202603241201*.sql)",
+      "Bash(grep -l \"CREATE TABLE.*benachrichtigungen\" /home/deploy/KITech/projects/easy-assist-hub/supabase/migrations/*.sql)"
     ],
     "additionalDirectories": [
       "/home/deploy/KITech/projects/easy-assist-hub/.claude/rules",

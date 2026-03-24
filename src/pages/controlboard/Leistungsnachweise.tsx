@@ -24,6 +24,10 @@ import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import LeistungsnachweisPreview from '@/components/leistungsnachweis/LeistungsnachweisPreview';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
+import { exportElementToPdf } from '@/lib/pdfExport';
+import { downloadCsv } from '@/lib/csvExport';
+import { Download } from 'lucide-react';
 
 interface LeistungsnachweisRow {
   id: string;
@@ -104,6 +108,36 @@ export default function Leistungsnachweise() {
   const [showDetail, setShowDetail] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
   const [signerName, setSignerName] = useState('');
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerateLN = async () => {
+    setGenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-leistungsnachweise`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ monat: selectedMonth, jahr: selectedYear }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Fehler');
+      toast.success(`${result.created} Leistungsnachweise erstellt`, {
+        description: result.skipped > 0 ? `${result.skipped} bereits vorhanden` : undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Fehler beim Generieren';
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   // Online status tracking
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -586,6 +620,38 @@ export default function Leistungsnachweise() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateLN}
+            disabled={generating}
+          >
+            {generating ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileText className="h-4 w-4 mr-1.5" />}
+            LN generieren
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (!nachweise?.length) return;
+              downloadCsv(
+                ['Kunde', 'Monat', 'Jahr', 'Geplant (h)', 'Geleistet (h)', 'Status'],
+                nachweise.map(ln => [
+                  getKundeName(ln.kunden_id),
+                  monthNames[ln.monat - 1],
+                  ln.jahr,
+                  ln.geplante_stunden,
+                  ln.geleistete_stunden,
+                  ln.status,
+                ]),
+                `leistungsnachweise_${monthNames[selectedMonth - 1]}_${selectedYear}.csv`
+              );
+            }}
+            disabled={!nachweise?.length}
+          >
+            <Download className="h-4 w-4 mr-1.5" />
+            CSV
+          </Button>
           <div className="flex items-center rounded-lg border border-border bg-card shadow-sm">
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-r-none" onClick={prevMonth}>
               <ChevronLeft className="h-4 w-4" />
@@ -780,6 +846,19 @@ export default function Leistungsnachweise() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={async () => {
+                      const el = document.getElementById('ln-preview-pdf');
+                      if (!el) { toast.error('Preview nicht gefunden'); return; }
+                      const kundeName = getKundeName(selectedLN.kunden_id).replace(/\s+/g, '_');
+                      await exportElementToPdf(el, `LN_${kundeName}_${monthNames[selectedLN.monat - 1]}_${selectedLN.jahr}.pdf`);
+                    }}
+                  >
+                    <Download className="h-4 w-4" /> PDF
+                  </Button>
                   <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowPrint(true)}>
                     <Printer className="h-4 w-4" /> Drucken
                   </Button>
@@ -835,13 +914,44 @@ export default function Leistungsnachweise() {
                               const end = new Date(t.end_at);
                               const hours = t.iststunden ?? ((end.getTime() - start.getTime()) / 3600000);
                               const sts = terminStatusLabel[t.status] || { label: t.status, color: 'text-muted-foreground bg-muted' };
+                              const canEdit = selectedLN && ['entwurf', 'veröffentlicht'].includes(selectedLN.status);
                               return (
                                 <TableRow key={t.id} className="hover:bg-muted/20">
                                   <TableCell className="text-sm font-medium">
                                     {format(start, 'dd.MM.yyyy', { locale: de })}
                                   </TableCell>
                                   <TableCell className="text-sm tabular-nums">
-                                    {format(start, 'HH:mm')}–{format(end, 'HH:mm')}
+                                    {canEdit ? (
+                                      <div className="flex items-center gap-1">
+                                        <Input
+                                          type="time"
+                                          defaultValue={format(start, 'HH:mm')}
+                                          className="w-24 h-7 text-xs"
+                                          onBlur={async (e) => {
+                                            const [h, m] = e.target.value.split(':').map(Number);
+                                            const newStart = new Date(start);
+                                            newStart.setHours(h, m, 0, 0);
+                                            await supabase.from('termine').update({ start_at: newStart.toISOString() }).eq('id', t.id);
+                                            queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
+                                          }}
+                                        />
+                                        <span className="text-muted-foreground">–</span>
+                                        <Input
+                                          type="time"
+                                          defaultValue={format(end, 'HH:mm')}
+                                          className="w-24 h-7 text-xs"
+                                          onBlur={async (e) => {
+                                            const [h, m] = e.target.value.split(':').map(Number);
+                                            const newEnd = new Date(end);
+                                            newEnd.setHours(h, m, 0, 0);
+                                            await supabase.from('termine').update({ end_at: newEnd.toISOString() }).eq('id', t.id);
+                                            queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
+                                          }}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <>{format(start, 'HH:mm')}–{format(end, 'HH:mm')}</>
+                                    )}
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
                                     {t.mitarbeiter ? `${t.mitarbeiter.vorname || ''} ${t.mitarbeiter.nachname || ''}`.trim() : '–'}
@@ -852,7 +962,23 @@ export default function Leistungsnachweise() {
                                     </span>
                                   </TableCell>
                                   <TableCell className="text-sm font-semibold tabular-nums text-right">
-                                    {Math.round(hours * 100) / 100}h
+                                    {canEdit ? (
+                                      <Input
+                                        type="number"
+                                        step="0.25"
+                                        min="0"
+                                        defaultValue={Math.round(hours * 100) / 100}
+                                        className="w-20 h-7 text-xs text-right"
+                                        onBlur={async (e) => {
+                                          const val = parseFloat(e.target.value);
+                                          if (isNaN(val)) return;
+                                          await supabase.from('termine').update({ iststunden: val }).eq('id', t.id);
+                                          queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
+                                        }}
+                                      />
+                                    ) : (
+                                      <>{Math.round(hours * 100) / 100}h</>
+                                    )}
                                   </TableCell>
                                 </TableRow>
                               );
@@ -1122,6 +1248,20 @@ export default function Leistungsnachweise() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Hidden PDF preview for export */}
+      {selectedLN && (() => {
+        const kunde = kundenMap.get(selectedLN.kunden_id);
+        return kunde ? (
+          <div id="ln-preview-pdf" style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+            <LeistungsnachweisPreview
+              kunde={kunde}
+              nachweis={selectedLN}
+              termine={filteredTermine}
+            />
+          </div>
+        ) : null;
+      })()}
     </div>
   );
 }

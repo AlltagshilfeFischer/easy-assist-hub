@@ -4,7 +4,8 @@ import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, a
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, X, AlertCircle, Users } from 'lucide-react';
+import { Plus, X, AlertCircle, Users, Filter } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +67,7 @@ const ScheduleBuilderModern = () => {
   const [loading, setLoading] = useState(true);
   const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(new Set());
   const [searchEmployee, setSearchEmployee] = useState('');
+  const [filterKundenId, setFilterKundenId] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
   const [showCreateRecurring, setShowCreateRecurring] = useState(false);
@@ -306,6 +308,12 @@ const ScheduleBuilderModern = () => {
       return aIndex - bIndex;
     });
   }, [employees, searchEmployee, hiddenEmployeeIds, employeeOrder]);
+
+  // Filter appointments by selected customer
+  const displayedAppointments = useMemo(() => {
+    if (!filterKundenId) return appointments;
+    return appointments.filter(a => a.kunden_id === filterKundenId);
+  }, [appointments, filterKundenId]);
 
   const handleReorderEmployees = (reorderedEmployees: Employee[]) => {
     const newOrder = reorderedEmployees.map(emp => emp.id);
@@ -1108,6 +1116,34 @@ const ScheduleBuilderModern = () => {
           onViewChange={setViewMode}
         />
 
+        {/* Kundenfilter */}
+        <div className="flex items-center gap-2 px-1">
+          <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+          <Select
+            value={filterKundenId ?? '__all__'}
+            onValueChange={(v) => setFilterKundenId(v === '__all__' ? null : v)}
+          >
+            <SelectTrigger className="w-56 h-8 text-sm">
+              <SelectValue placeholder="Alle Kunden" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Alle Kunden</SelectItem>
+              {customers
+                .sort((a, b) => ((a.nachname ?? '') + (a.vorname ?? '')).localeCompare((b.nachname ?? '') + (b.vorname ?? '')))
+                .map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {[c.nachname, c.vorname].filter(Boolean).join(', ') || c.name || 'Unbenannt'}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {filterKundenId && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFilterKundenId(null)}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+
         {/* AI Appointment Creator — volle Breite */}
         <div className="flex-shrink-0">
           <AIAppointmentCreator onAppointmentCreated={loadData} />
@@ -1191,7 +1227,7 @@ const ScheduleBuilderModern = () => {
                   const bi = employeeOrder.indexOf(b.id);
                   return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
                 })}
-                appointments={appointments}
+                appointments={displayedAppointments}
                 abwesenheiten={abwesenheiten}
                 weekDates={weekDates}
                 activeAppointmentId={activeId}
@@ -1218,7 +1254,7 @@ const ScheduleBuilderModern = () => {
             {viewMode === 'month' && (
               <MonthView
                 employees={filteredEmployees}
-                appointments={appointments}
+                appointments={displayedAppointments}
                 currentMonth={currentWeek}
                 onEditAppointment={setEditingAppointment}
                 onSlotClick={handleSlotClick}

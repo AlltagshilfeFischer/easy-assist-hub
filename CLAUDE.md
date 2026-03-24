@@ -1,7 +1,7 @@
 # Easy Assist Hub
 
 **Alltagshilfe Fischer GbR** — Care-Management fuer ambulante Alltagshilfe.
-Standorte: Hannover (Hildesheim, Peine geplant). Deadline: 31.03.2026.
+Standort: Hannover. Deadline: 31.03.2026.
 Sprache UI: Deutsch | Code: Englisch
 
 ## Tech Stack

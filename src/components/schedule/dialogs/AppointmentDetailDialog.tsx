@@ -4,14 +4,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { format, getDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Clock, User, Phone, Mail, MapPin, Edit, Save, X, AlertTriangle, Trash2, AlertCircle, Repeat } from 'lucide-react';
+import { Clock, User, Phone, Mail, MapPin, Save, X, AlertTriangle, Trash2, AlertCircle, Repeat, Calendar, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,8 +20,6 @@ import { AppointmentAttachments } from '@/components/schedule/AppointmentAttachm
 import { KundenDetailDialog } from '@/components/customers/KundenDetailDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import type { Employee, Customer, Appointment, CustomerTimeWindow } from '@/types/domain';
-
-// Types imported from @/types/domain
 
 interface AppointmentDetailDialogProps {
   isOpen: boolean;
@@ -36,28 +34,26 @@ interface AppointmentDetailDialogProps {
 }
 
 const KATEGORIE_OPTIONS = [
-  'Erstgespräch',
-  'Schulung',
-  'Meeting',
-  'Bewerbungsgespräch',
-  'Blocker',
-  'Intern',
-  'Regelbesuch',
-  'Sonstiges',
+  'Erstgespräch', 'Schulung', 'Meeting', 'Bewerbungsgespräch',
+  'Blocker', 'Intern', 'Regelbesuch', 'Sonstiges',
 ] as const;
 
-export function AppointmentDetailDialog({ 
-  isOpen, 
-  onClose, 
-  appointment, 
-  employees, 
-  customers, 
-  onUpdate,
-  onDelete,
-  isConflicting = false,
-  customerTimeWindows = []
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  unassigned: { label: 'Offen', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+  scheduled: { label: 'Geplant', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  in_progress: { label: 'In Bearbeitung', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  completed: { label: 'Abgeschlossen', color: 'bg-green-100 text-green-800 border-green-200' },
+  cancelled: { label: 'Abgesagt (kurzfr.)', color: 'bg-red-100 text-red-800 border-red-200' },
+  nicht_angetroffen: { label: 'Nicht angetroffen', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  abgesagt_rechtzeitig: { label: 'Rechtzeitig abgesagt', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+  abgerechnet: { label: 'Abgerechnet', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  bezahlt: { label: 'Bezahlt', color: 'bg-teal-100 text-teal-800 border-teal-200' },
+};
+
+export function AppointmentDetailDialog({
+  isOpen, onClose, appointment, employees, customers,
+  onUpdate, onDelete, isConflicting = false, customerTimeWindows = []
 }: AppointmentDetailDialogProps) {
-  const [isEditing, setIsEditing] = useState(false);
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -71,13 +67,10 @@ export function AppointmentDetailDialog({
   const [cancelAbsageDatum, setCancelAbsageDatum] = useState('');
   const [cancelAbsageKanal, setCancelAbsageKanal] = useState('');
   const [cancelGrund, setCancelGrund] = useState('');
-  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [showCustomerFaultDialog, setShowCustomerFaultDialog] = useState(false);
-  const [rescheduleDate, setRescheduleDate] = useState('');
-  const [rescheduleTime, setRescheduleTime] = useState('');
   const [customerFaultNote, setCustomerFaultNote] = useState('');
   const [showKundenDetail, setShowKundenDetail] = useState(false);
-  const [noteSaving, setNoteSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   const { toast } = useToast();
   const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
   const queryClient = useQueryClient();
@@ -85,124 +78,82 @@ export function AppointmentDetailDialog({
   React.useEffect(() => {
     if (appointment) {
       setEditedAppointment({ ...appointment });
+      setHasChanges(false);
     }
   }, [appointment]);
 
-  const parseLocalDate = (dateString: string) => {
-    const [year, month, day] = dateString.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  };
-
   if (!appointment || !editedAppointment) return null;
 
-  // Check if appointment is outside customer time windows
-  const isOutsideTimeWindow = () => {
-    if (!customerTimeWindows || customerTimeWindows.length === 0) return false;
-    
-    const appointmentStart = new Date(editedAppointment.start_at);
-    const appointmentEnd = new Date(editedAppointment.end_at);
-    const dayOfWeek = getDay(appointmentStart); // 0 = Sunday, 1 = Monday, etc.
-    const startTime = format(appointmentStart, 'HH:mm');
-    const endTime = format(appointmentEnd, 'HH:mm');
-
-    // Check if there's a matching time window for this day
-    const matchingWindows = customerTimeWindows.filter(tw => tw.wochentag === dayOfWeek);
-    
-    if (matchingWindows.length === 0) return true; // No time window defined for this day
-
-    // Check if appointment fits in any of the windows
-    const fitsInWindow = matchingWindows.some(tw => {
-      return startTime >= tw.von && endTime <= tw.bis;
-    });
-
-    return !fitsInWindow;
+  const updateField = (updates: Partial<Appointment>) => {
+    setEditedAppointment((prev) => prev ? { ...prev, ...updates } : prev);
+    setHasChanges(true);
   };
 
-  const timeWindowWarning = isOutsideTimeWindow();
+  const startDate = new Date(editedAppointment.start_at);
+  const endDate = new Date(editedAppointment.end_at);
+  const durationMin = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60));
+  const status = STATUS_MAP[editedAppointment.status] ?? { label: editedAppointment.status, color: '' };
+  const isTerminated = ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'unassigned':
-        return 'bg-orange-50 border-orange-200 text-orange-800';
-      case 'scheduled':
-        return 'bg-blue-50 border-blue-200 text-blue-800';
-      case 'in_progress':
-        return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-      case 'completed':
-        return 'bg-green-50 border-green-200 text-green-800';
-      case 'cancelled':
-        return 'bg-red-50 border-red-200 text-red-800';
-      case 'nicht_angetroffen':
-        return 'bg-amber-50 border-amber-300 text-amber-900';
-      case 'abgesagt_rechtzeitig':
-        return 'bg-slate-50 border-slate-200 text-slate-700';
-      case 'abgerechnet':
-        return 'bg-emerald-50 border-emerald-200 text-emerald-800';
-      case 'bezahlt':
-        return 'bg-teal-50 border-teal-200 text-teal-800';
-      default:
-        return 'bg-gray-50 border-gray-200 text-gray-800';
+  // Time editing helpers
+  const editDate = format(startDate, 'yyyy-MM-dd');
+  const editStartTime = format(startDate, 'HH:mm');
+  const editEndTime = format(endDate, 'HH:mm');
+
+  const handleTimeChange = (field: 'date' | 'startTime' | 'endTime', value: string) => {
+    const curStart = new Date(editedAppointment.start_at);
+    const curEnd = new Date(editedAppointment.end_at);
+
+    if (field === 'date') {
+      const [y, m, d] = value.split('-').map(Number);
+      const newStart = new Date(y, m - 1, d, curStart.getHours(), curStart.getMinutes());
+      const newEnd = new Date(y, m - 1, d, curEnd.getHours(), curEnd.getMinutes());
+      updateField({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() });
+    } else if (field === 'startTime') {
+      const [h, min] = value.split(':').map(Number);
+      const newStart = new Date(curStart);
+      newStart.setHours(h, min, 0, 0);
+      // Keep duration
+      const dur = curEnd.getTime() - curStart.getTime();
+      const newEnd = new Date(newStart.getTime() + dur);
+      updateField({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() });
+    } else {
+      const [h, min] = value.split(':').map(Number);
+      const newEnd = new Date(curStart);
+      newEnd.setHours(h, min, 0, 0);
+      if (newEnd <= curStart) newEnd.setDate(newEnd.getDate() + 1);
+      updateField({ end_at: newEnd.toISOString() });
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      unassigned: 'Unzugewiesen',
-      scheduled: 'Geplant',
-      in_progress: 'In Bearbeitung',
-      completed: 'Abgeschlossen',
-      cancelled: 'Abgesagt',
-      nicht_angetroffen: 'Nicht angetroffen',
-      abgesagt_rechtzeitig: 'Rechtzeitig abgesagt',
-      abgerechnet: 'Abgerechnet',
-      bezahlt: 'Bezahlt'
-    };
-    return variants[status] || 'Unbekannt';
-  };
-
+  // Save
   const handleSave = async () => {
     if (!editedAppointment) return;
-    
-    // Check if this is part of a recurring series
     if (editedAppointment.vorlage_id && !editedAppointment.ist_ausnahme) {
       setShowSeriesDialog(true);
       return;
     }
-    
     await performSave();
   };
 
   const performSave = async () => {
     if (!editedAppointment) return;
-    
     setLoading(true);
     try {
-      // If user chose to update only this appointment, mark as exception
       if (seriesAction === 'single' && editedAppointment.vorlage_id) {
-        await onUpdate({
-          ...editedAppointment,
-          ist_ausnahme: true,
-          ausnahme_grund: 'Manuelle Änderung durch Benutzer'
-        });
+        await onUpdate({ ...editedAppointment, ist_ausnahme: true, ausnahme_grund: 'Manuelle Änderung' });
       } else {
         await onUpdate(editedAppointment);
       }
-      setIsEditing(false);
+      setHasChanges(false);
       setShowSeriesDialog(false);
-    } catch (error: any) {
-      // Error handling is done in onUpdate callback
-    } finally {
-      setLoading(false);
-    }
+      toast({ title: 'Gespeichert' });
+    } catch { /* handled in parent */ }
+    finally { setLoading(false); }
   };
 
-  const handleCancel = () => {
-    setEditedAppointment({ ...appointment });
-    setIsEditing(false);
-  };
-
+  // Delete
   const handleDeleteClick = () => {
-    // Check if this is part of a recurring series
     if (appointment.vorlage_id && !appointment.ist_ausnahme) {
       setDeleteSeriesAction('single');
       setShowDeleteSeriesDialog(true);
@@ -213,754 +164,318 @@ export function AppointmentDetailDialog({
 
   const handleDelete = async () => {
     setLoading(true);
-    try {
-      await onDelete(appointment.id);
-      setShowDeleteDialog(false);
-      onClose();
-    } catch (error: any) {
-      // Error handling is done in onDelete callback
-    } finally {
-      setLoading(false);
-    }
+    try { await onDelete(appointment.id); setShowDeleteDialog(false); onClose(); }
+    catch { /* handled */ }
+    finally { setLoading(false); }
   };
 
   const handleDeleteSeries = async () => {
     setLoading(true);
     try {
       if (deleteSeriesAction === 'single') {
-        // Delete only this appointment
         await onDelete(appointment.id);
-      } else {
-        // Delete the entire series (template and all future appointments)
-        if (appointment.vorlage_id) {
-          // First deactivate the template
-          const { error: templateError } = await supabase
-            .from('termin_vorlagen')
-            .update({ ist_aktiv: false })
-            .eq('id', appointment.vorlage_id);
-
-          if (templateError) throw templateError;
-
-          // Delete all future appointments from this series
-          const { error: appointmentsError } = await supabase
-            .from('termine')
-            .delete()
-            .eq('vorlage_id', appointment.vorlage_id)
-            .gte('start_at', new Date().toISOString());
-
-          if (appointmentsError) throw appointmentsError;
-
-          toast({
-            title: 'Erfolg',
-            description: 'Die Terminserie wurde gelöscht.',
-          });
-        }
+      } else if (appointment.vorlage_id) {
+        await supabase.from('termin_vorlagen').update({ ist_aktiv: false }).eq('id', appointment.vorlage_id);
+        await supabase.from('termine').delete().eq('vorlage_id', appointment.vorlage_id).gte('start_at', new Date().toISOString());
+        toast({ title: 'Terminserie gelöscht' });
       }
       setShowDeleteSeriesDialog(false);
       onClose();
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: 'Fehler beim Löschen: ' + error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) {
+      toast({ title: 'Fehler', description: e.message, variant: 'destructive' });
+    } finally { setLoading(false); }
   };
 
-  const handleEditTemplate = async () => {
-    if (!editedAppointment?.vorlage_id) return;
-    
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('termin_vorlagen')
-        .select('*')
-        .eq('id', editedAppointment.vorlage_id)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setTemplateData(data);
-        setShowEditTemplateDialog(true);
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: 'Vorlage konnte nicht geladen werden: ' + error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTemplateUpdate = async (template: any) => {
-    if (!editedAppointment?.vorlage_id) return;
-    
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('termin_vorlagen')
-        .update({
-          titel: template.titel,
-          kunden_id: template.kunden_id,
-          mitarbeiter_id: template.mitarbeiter_id,
-          wochentag: template.wochentag,
-          start_zeit: template.start_zeit,
-          dauer_minuten: template.dauer_minuten,
-          intervall: template.intervall,
-          gueltig_von: template.gueltig_von,
-          gueltig_bis: template.gueltig_bis,
-          notizen: template.notizen,
-        })
-        .eq('id', editedAppointment.vorlage_id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Erfolg',
-        description: 'Die Terminvorlage wurde aktualisiert. Zukünftige Termine werden entsprechend angepasst.',
-      });
-
-      setShowEditTemplateDialog(false);
-      onClose();
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: 'Vorlage konnte nicht aktualisiert werden: ' + error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Cancel
   const handleCancelAppointment = async () => {
     if (!editedAppointment) return;
-
     setLoading(true);
     try {
-      // 2-Tage-Regel: Absage >= 2 Tage vor Termin → rechtzeitig (nicht abrechenbar)
-      //               Absage < 2 Tage vor Termin → kurzfristig (abrechenbar)
       let cancelStatus: string = 'cancelled';
       if (cancelAbsageDatum && editedAppointment.start_at) {
-        const absageDate = new Date(cancelAbsageDatum);
-        const terminDate = new Date(editedAppointment.start_at);
-        const diffMs = terminDate.getTime() - absageDate.getTime();
-        const diffDays = diffMs / (1000 * 60 * 60 * 24);
-        if (diffDays >= 2) {
-          cancelStatus = 'abgesagt_rechtzeitig';
-        }
+        const diffDays = (new Date(editedAppointment.start_at).getTime() - new Date(cancelAbsageDatum).getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays >= 2) cancelStatus = 'abgesagt_rechtzeitig';
       }
-
-      await onUpdate({
-        ...editedAppointment,
-        status: cancelStatus,
-        absage_datum: cancelAbsageDatum || null,
-        absage_kanal: cancelAbsageKanal || null,
-        ausnahme_grund: cancelGrund || editedAppointment.ausnahme_grund || null,
-      } as any);
-
-      const isTimely = cancelStatus === 'abgesagt_rechtzeitig';
-      toast({
-        title: 'Erfolg',
-        description: isTimely
-          ? 'Der Termin wurde als "Rechtzeitig abgesagt" markiert (nicht abrechenbar).'
-          : 'Der Termin wurde als "Kurzfristig abgesagt" markiert (abrechenbar).',
-      });
-
+      await onUpdate({ ...editedAppointment, status: cancelStatus, absage_datum: cancelAbsageDatum || null, absage_kanal: cancelAbsageKanal || null, ausnahme_grund: cancelGrund || null } as any);
+      toast({ title: cancelStatus === 'abgesagt_rechtzeitig' ? 'Rechtzeitig abgesagt (nicht abrechenbar)' : 'Kurzfristig abgesagt (abrechenbar)' });
       setShowCancelDialog(false);
-      setCancelAbsageDatum('');
-      setCancelAbsageKanal('');
-      setCancelGrund('');
+      setCancelAbsageDatum(''); setCancelAbsageKanal(''); setCancelGrund('');
       onClose();
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: 'Termin konnte nicht abgesagt werden.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReschedule = async () => {
-    if (!editedAppointment || !rescheduleDate || !rescheduleTime) {
-      toast({
-        title: 'Fehler',
-        description: 'Bitte Datum und Uhrzeit angeben.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const currentStart = new Date(editedAppointment.start_at);
-      const currentEnd = new Date(editedAppointment.end_at);
-      const duration = currentEnd.getTime() - currentStart.getTime();
-      
-      const [hours, minutes] = rescheduleTime.split(':');
-      const newStart = parseLocalDate(rescheduleDate);
-      newStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      
-      const newEnd = new Date(newStart.getTime() + duration);
-      
-      await onUpdate({
-        ...editedAppointment,
-        start_at: newStart.toISOString(),
-        end_at: newEnd.toISOString()
-      });
-      
-      toast({
-        title: 'Erfolg',
-        description: 'Der Termin wurde verschoben.',
-      });
-      
-      setShowRescheduleDialog(false);
-      setRescheduleDate('');
-      setRescheduleTime('');
-      onClose();
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: 'Termin konnte nicht verschoben werden.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast({ title: 'Fehler', variant: 'destructive' }); }
+    finally { setLoading(false); }
   };
 
   const handleCustomerFault = async () => {
     if (!editedAppointment) return;
-    
     setLoading(true);
     try {
-      await onUpdate({
-        ...editedAppointment,
-        status: 'nicht_angetroffen' as any,
-        ausnahme_grund: `Nicht angetroffen (eigenverschuldet)${customerFaultNote ? ': ' + customerFaultNote : ''}`
-      });
-      
-      toast({
-        title: 'Erfolg',
-        description: 'Der Termin wurde als "Nicht angetroffen" markiert (wird abgerechnet).',
-      });
-      
-      setShowCustomerFaultDialog(false);
-      setCustomerFaultNote('');
-      onClose();
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: 'Aktion konnte nicht durchgeführt werden.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+      await onUpdate({ ...editedAppointment, status: 'nicht_angetroffen' as any, ausnahme_grund: `Nicht angetroffen${customerFaultNote ? ': ' + customerFaultNote : ''}` });
+      toast({ title: 'Als "Nicht angetroffen" markiert (wird abgerechnet)' });
+      setShowCustomerFaultDialog(false); setCustomerFaultNote(''); onClose();
+    } catch { toast({ title: 'Fehler', variant: 'destructive' }); }
+    finally { setLoading(false); }
   };
 
   const handleTimelyCancel = async () => {
     if (!editedAppointment) return;
-    
     setLoading(true);
     try {
-      await onUpdate({
-        ...editedAppointment,
-        status: 'abgesagt_rechtzeitig' as any,
-      });
-      
-      toast({
-        title: 'Erfolg',
-        description: 'Der Termin wurde als "Rechtzeitig abgesagt" markiert.',
-      });
-      
-      onClose();
-    } catch (error: any) {
-      toast({
-        title: 'Fehler',
-        description: 'Aktion konnte nicht durchgeführt werden.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+      await onUpdate({ ...editedAppointment, status: 'abgesagt_rechtzeitig' as any });
+      toast({ title: 'Rechtzeitig abgesagt' }); onClose();
+    } catch { toast({ title: 'Fehler', variant: 'destructive' }); }
+    finally { setLoading(false); }
   };
+
+  const handleEditTemplate = async () => {
+    if (!editedAppointment?.vorlage_id) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from('termin_vorlagen').select('*').eq('id', editedAppointment.vorlage_id).single();
+      if (error) throw error;
+      setTemplateData(data);
+      setShowEditTemplateDialog(true);
+    } catch (e: any) { toast({ title: 'Fehler', description: e.message, variant: 'destructive' }); }
+    finally { setLoading(false); }
+  };
+
+  const handleTemplateUpdate = async (template: any) => {
+    if (!editedAppointment?.vorlage_id) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('termin_vorlagen').update({
+        titel: template.titel, kunden_id: template.kunden_id, mitarbeiter_id: template.mitarbeiter_id,
+        wochentag: template.wochentag, start_zeit: template.start_zeit, dauer_minuten: template.dauer_minuten,
+        intervall: template.intervall, gueltig_von: template.gueltig_von, gueltig_bis: template.gueltig_bis, notizen: template.notizen,
+      }).eq('id', editedAppointment.vorlage_id);
+      if (error) throw error;
+      toast({ title: 'Terminvorlage aktualisiert' });
+      setShowEditTemplateDialog(false); onClose();
+    } catch (e: any) { toast({ title: 'Fehler', description: e.message, variant: 'destructive' }); }
+    finally { setLoading(false); }
+  };
+
+  const customer = editedAppointment.customer;
+  const employee = editedAppointment.employee;
 
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Termindetails
-            {editedAppointment.vorlage_id && !editedAppointment.ist_ausnahme && (
-              <Badge variant="outline" className="ml-2">
-                <Repeat className="h-3 w-3 mr-1" />
-                Serie
-              </Badge>
-            )}
-            {isConflicting && (
-              <Badge variant="destructive" className="ml-auto">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                Konflikt
-              </Badge>
-            )}
-          </DialogTitle>
-          <DialogDescription className="sr-only">Details eines einzelnen Termins anzeigen und bearbeiten</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-semibold">
+                {customer?.name || editedAppointment.titel || 'Termin'}
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                {editedAppointment.vorlage_id && !editedAppointment.ist_ausnahme && (
+                  <Badge variant="outline" className="text-xs"><Repeat className="h-3 w-3 mr-1" />Serie</Badge>
+                )}
+                <Badge className={cn('text-xs border', status.color)}>{status.label}</Badge>
+              </div>
+            </div>
+            <DialogDescription className="sr-only">Termindetails bearbeiten</DialogDescription>
+          </DialogHeader>
 
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2 pt-4">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowCancelDialog(true)}
-            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
-            className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/60"
-          >
-            <X className="h-3.5 w-3.5 mr-1.5" />
-            Absagen
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const startDate = new Date(editedAppointment.start_at);
-              setRescheduleDate(format(startDate, 'yyyy-MM-dd'));
-              setRescheduleTime(format(startDate, 'HH:mm'));
-              setShowRescheduleDialog(true);
-            }}
-            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
-            className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-300 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-950/60"
-          >
-            <Clock className="h-3.5 w-3.5 mr-1.5" />
-            Verschieben
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowCustomerFaultDialog(true)}
-            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
-            className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 hover:border-amber-300 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400 dark:hover:bg-amber-950/60"
-          >
-            <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
-            Nicht angetroffen
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleTimelyCancel}
-            disabled={loading || ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
-            className="border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-800 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400 dark:hover:bg-slate-800/60"
-          >
-            <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
-            Rechtzeitig abgesagt
-          </Button>
+          {/* Warnungen */}
+          {isConflicting && (
+            <div className="flex items-center gap-2 mt-3 p-2 rounded-md bg-destructive/10 text-destructive text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Zeitliche Überschneidung mit anderem Termin
+            </div>
+          )}
         </div>
 
-        <div className="space-y-6">
-          {/* Status and Basic Info */}
-          <Card className={cn('border', getStatusColor(editedAppointment.status))}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <Badge variant="outline" className="text-sm">
-                  {getStatusBadge(editedAppointment.status)}
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditing(!isEditing)}
-                  disabled={loading}
-                  className="flex items-center gap-1"
-                >
-                  {isEditing ? <X className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-                  {isEditing ? 'Abbrechen' : 'Bearbeiten'}
-                </Button>
-              </div>
+        <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedAppointment.status}
-                      onValueChange={(value: any) => {
-                        const updates: any = { status: value };
-                        if (value === 'unassigned') {
-                          updates.mitarbeiter_id = null;
-                          toast({ title: 'Info', description: 'Mitarbeiter-Zuweisung wird entfernt.' });
-                        }
-                        setEditedAppointment({ ...editedAppointment, ...updates });
-                      }}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unassigned">Unzugewiesen</SelectItem>
-                        <SelectItem value="scheduled">Geplant</SelectItem>
-                        <SelectItem value="in_progress">In Bearbeitung</SelectItem>
-                        <SelectItem value="cancelled">Abgesagt</SelectItem>
-                        <SelectItem value="nicht_angetroffen">Nicht angetroffen</SelectItem>
-                        <SelectItem value="abgesagt_rechtzeitig">Rechtzeitig abgesagt</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm font-medium mt-1">{getStatusBadge(editedAppointment.status)}</p>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Label</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedAppointment.kategorie ?? '__none__'}
-                      onValueChange={(value) => setEditedAppointment({
-                        ...editedAppointment,
-                        kategorie: value === '__none__' ? null : value as any,
-                      })}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Kein Label" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Kein Label</SelectItem>
-                        {KATEGORIE_OPTIONS.map((kategorie) => (
-                          <SelectItem key={kategorie} value={kategorie}>{kategorie}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm font-medium mt-1">{editedAppointment.kategorie || 'Kein Label'}</p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Editierbare Felder */}
+        <div className="px-6 py-4 space-y-5">
 
-          {/* Time Information */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Zeitplan
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Startzeit</Label>
-                  <p className="text-sm font-medium mt-1">
-                    {format(new Date(editedAppointment.start_at), 'dd.MM.yyyy HH:mm', { locale: de })}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Endzeit</Label>
-                  <p className="text-sm font-medium mt-1">
-                    {format(new Date(editedAppointment.end_at), 'dd.MM.yyyy HH:mm', { locale: de })}
-                  </p>
-                </div>
+          {/* Datum & Zeit — DIREKT EDITIERBAR */}
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Datum & Zeit</Label>
+            <div className="grid grid-cols-[1fr,auto,auto] gap-2 mt-2 items-center">
+              <Input type="date" value={editDate} onChange={(e) => handleTimeChange('date', e.target.value)} className="h-9" />
+              <Input type="time" value={editStartTime} onChange={(e) => handleTimeChange('startTime', e.target.value)} className="h-9 w-28" />
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground text-sm">–</span>
+                <Input type="time" value={editEndTime} onChange={(e) => handleTimeChange('endTime', e.target.value)} className="h-9 w-28" />
               </div>
-              <div className="mt-3 pt-3 border-t">
-                <Label className="text-sm font-medium text-muted-foreground">Dauer</Label>
-                <p className="text-sm font-medium mt-1">
-                  {Math.round((new Date(editedAppointment.end_at).getTime() - new Date(editedAppointment.start_at).getTime()) / (1000 * 60))} Minuten
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {format(startDate, 'EEEE', { locale: de })} · {durationMin} Min ({(durationMin / 60).toFixed(1)} Std.)
+            </p>
+          </div>
 
-          {/* Customer Information */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Kunde (optional)
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Name</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedAppointment.kunden_id ?? '__none__'}
-                      onValueChange={(value) => setEditedAppointment({
-                        ...editedAppointment,
-                        kunden_id: value === '__none__' ? null : value
-                      })}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Kein Kunde</SelectItem>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm font-medium mt-1">
-                      {editedAppointment.customer?.name || 'Kein Kunde zugewiesen'}
-                    </p>
-                  )}
-                </div>
-
-                {editedAppointment.customer && (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">E-Mail</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Mail className="h-3 w-3 text-muted-foreground" />
-                          <p className="text-sm">{editedAppointment.customer.email}</p>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">Telefon</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Phone className="h-3 w-3 text-muted-foreground" />
-                          <p className="text-sm">{editedAppointment.customer.telefonnr}</p>
-                        </div>
-                      </div>
+          {/* Mitarbeiter */}
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Mitarbeiter</Label>
+            <Select
+              value={editedAppointment.mitarbeiter_id || 'unassigned'}
+              onValueChange={(v) => updateField({ mitarbeiter_id: v === 'unassigned' ? null : v })}
+            >
+              <SelectTrigger className="mt-1.5 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
+                {employees.map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: emp.farbe_kalender }} />
+                      {emp.name}
                     </div>
-                    {(editedAppointment.customer?.strasse || editedAppointment.customer?.stadt) && (
-                      <div className="mt-3">
-                        <Label className="text-sm font-medium text-muted-foreground">Adresse</Label>
-                        <div className="flex items-start gap-2 mt-1">
-                          <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm">
-                              {[editedAppointment.customer.strasse, [editedAppointment.customer.plz, editedAppointment.customer.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
-                              {editedAppointment.customer.stadtteil && (
-                                <span className="text-muted-foreground"> ({editedAppointment.customer.stadtteil})</span>
-                              )}
-                            </p>
-                            <a
-                              href={`https://maps.google.com/?q=${encodeURIComponent([editedAppointment.customer.strasse, editedAppointment.customer.plz, editedAppointment.customer.stadt].filter(Boolean).join(' '))}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline mt-0.5 inline-block"
-                            >
-                              In Google Maps öffnen →
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {employee && (
+              <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                {employee.telefon && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{employee.telefon}</span>}
+                {employee.benutzer?.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{employee.benutzer.email}</span>}
+              </div>
+            )}
+          </div>
+
+          {/* Status + Label */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</Label>
+              <Select value={editedAppointment.status} onValueChange={(v: any) => {
+                const updates: any = { status: v };
+                if (v === 'unassigned') updates.mitarbeiter_id = null;
+                updateField(updates);
+              }}>
+                <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Offen</SelectItem>
+                  <SelectItem value="scheduled">Geplant</SelectItem>
+                  <SelectItem value="in_progress">In Bearbeitung</SelectItem>
+                  <SelectItem value="completed">Abgeschlossen</SelectItem>
+                  <SelectItem value="cancelled">Abgesagt (kurzfr.)</SelectItem>
+                  <SelectItem value="nicht_angetroffen">Nicht angetroffen</SelectItem>
+                  <SelectItem value="abgesagt_rechtzeitig">Rechtzeitig abgesagt</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Label</Label>
+              <Select value={editedAppointment.kategorie ?? '__none__'} onValueChange={(v) => updateField({ kategorie: v === '__none__' ? null : v as any })}>
+                <SelectTrigger className="mt-1.5 h-9"><SelectValue placeholder="Kein Label" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Kein Label</SelectItem>
+                  {KATEGORIE_OPTIONS.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Kunde */}
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kunde</Label>
+            <Select value={editedAppointment.kunden_id ?? '__none__'} onValueChange={(v) => updateField({ kunden_id: v === '__none__' ? null : v })}>
+              <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Kein Kunde</SelectItem>
+                {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {customer && (
+              <div className="mt-2 p-2.5 rounded-md bg-muted/50 text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{customer.name}</span>
+                  {(isGeschaeftsfuehrer || isAdmin) && (
+                    <button onClick={() => setShowKundenDetail(true)} className="text-primary text-[11px] hover:underline">Details</button>
+                  )}
+                </div>
+                {customer.telefonnr && <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-3 w-3" />{customer.telefonnr}</div>}
+                {(customer.strasse || customer.stadt) && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span>
+                      {[customer.strasse, [customer.plz, customer.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                      {customer.stadtteil && <span className="opacity-60"> ({customer.stadtteil})</span>}
+                    </span>
+                  </div>
                 )}
               </div>
-              {(isGeschaeftsfuehrer || isAdmin) && editedAppointment.kunden_id && (
-                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => setShowKundenDetail(true)}>
-                  Kundendetails anzeigen
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Employee Information */}
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-medium mb-3 flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Zugewiesener Mitarbeiter
-              </h3>
-              {isEditing ? (
-                <Select
-                  value={editedAppointment.mitarbeiter_id || "unassigned"}
-                  onValueChange={(value) => setEditedAppointment({
-                    ...editedAppointment,
-                    mitarbeiter_id: value === "unassigned" ? null : value
-                  })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: employee.farbe_kalender }}
-                          />
-                          {employee.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : editedAppointment.mitarbeiter_id && editedAppointment.employee ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: editedAppointment.employee.farbe_kalender }}
-                    />
-                    <p className="text-sm font-medium">{editedAppointment.employee.name}</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-3 w-3" />
-                      {editedAppointment.employee.benutzer?.email || 'Keine E-Mail'}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3 w-3" />
-                      {editedAppointment.employee.telefon}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Kein Mitarbeiter zugewiesen</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Time Window Warning */}
-          {timeWindowWarning && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-orange-800">
-                  <AlertCircle className="h-4 w-4" />
-                  <h3 className="font-medium">Außerhalb Kundenzeitfenster</h3>
-                </div>
-                <p className="text-sm text-orange-700 mt-2">
-                  Dieser Termin liegt außerhalb der bevorzugten Zeitfenster des Kunden. Der Kunde hat möglicherweise zu dieser Zeit keine Verfügbarkeit angegeben.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Conflict Warning */}
-          {isConflicting && (
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-red-800">
-                  <AlertTriangle className="h-4 w-4" />
-                  <h3 className="font-medium">Terminkonflikt erkannt</h3>
-                </div>
-                <p className="text-sm text-red-700 mt-2">
-                  Dieser Termin überschneidet sich zeitlich mit anderen Terminen des zugewiesenen Mitarbeiters.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+            )}
+          </div>
 
           {/* Notizen */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-sm">Notizen</h3>
-                {!isEditing && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={noteSaving}
-                    onClick={async () => {
-                      if (!editedAppointment) return;
-                      setNoteSaving(true);
-                      try {
-                        await onUpdate({
-                          ...editedAppointment,
-                        });
-                        toast({ title: 'Notiz gespeichert' });
-                      } catch (e: any) {
-                        toast({ title: 'Fehler', description: e.message, variant: 'destructive' });
-                      } finally {
-                        setNoteSaving(false);
-                      }
-                    }}
-                  >
-                    <Save className="h-3 w-3 mr-1" />
-                    {noteSaving ? 'Speichert...' : 'Notiz speichern'}
-                  </Button>
-                )}
-              </div>
-              <Textarea
-                value={editedAppointment.notizen || ''}
-                onChange={(e) =>
-                  setEditedAppointment({ ...editedAppointment, notizen: e.target.value })
-                }
-                placeholder="Keine Notizen"
-                className="min-h-[80px] resize-y"
-              />
-            </CardContent>
-          </Card>
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notizen</Label>
+            <Textarea
+              value={editedAppointment.notizen || ''}
+              onChange={(e) => updateField({ notizen: e.target.value })}
+              placeholder="Notizen zum Termin..."
+              className="mt-1.5 min-h-[60px] resize-y text-sm"
+            />
+          </div>
 
           {/* Anhänge */}
           <AppointmentAttachments terminId={editedAppointment.id} />
         </div>
 
-        <DialogFooter className="gap-2">
-          {!isEditing && (
-            <>
-              <Button 
-                variant="destructive" 
-                onClick={handleDeleteClick}
-                className="mr-auto"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Löschen
+        <Separator />
+
+        {/* Quick Actions */}
+        <div className="px-6 py-3">
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Schnellaktionen</Label>
+          <div className="flex flex-wrap gap-1.5">
+            <Button size="sm" variant="outline" onClick={() => setShowCancelDialog(true)} disabled={loading || isTerminated}
+              className="h-7 text-xs border-red-200 text-red-700 hover:bg-red-50">
+              <X className="h-3 w-3 mr-1" />Absagen
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowCustomerFaultDialog(true)} disabled={loading || isTerminated}
+              className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50">
+              <AlertTriangle className="h-3 w-3 mr-1" />Nicht angetroffen
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleTimelyCancel} disabled={loading || isTerminated}
+              className="h-7 text-xs">
+              <AlertCircle className="h-3 w-3 mr-1" />Rechtzeitig abgesagt
+            </Button>
+            {editedAppointment.vorlage_id && !editedAppointment.ist_ausnahme && (
+              <Button size="sm" variant="outline" onClick={handleEditTemplate} disabled={loading}
+                className="h-7 text-xs">
+                <Repeat className="h-3 w-3 mr-1" />Serie bearbeiten
               </Button>
-              {editedAppointment.vorlage_id && !editedAppointment.ist_ausnahme && (
-                <Button 
-                  variant="outline"
-                  onClick={handleEditTemplate}
-                  disabled={loading}
-                >
-                  <Repeat className="h-4 w-4 mr-2" />
-                  Serie bearbeiten
-                </Button>
-              )}
-            </>
-          )}
-          <Button variant="outline" onClick={onClose}>
-            Schließen
+            )}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Footer */}
+        <div className="px-6 py-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={handleDeleteClick} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs">
+            <Trash2 className="h-3.5 w-3.5 mr-1" />Löschen
           </Button>
-          {isEditing && (
-            <>
-              <Button variant="outline" onClick={handleCancel}>
-                Abbrechen
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onClose} className="h-8">Schließen</Button>
+            {hasChanges && (
+              <Button size="sm" onClick={handleSave} disabled={loading} className="h-8">
+                <Save className="h-3.5 w-3.5 mr-1.5" />{loading ? 'Speichert...' : 'Speichern'}
               </Button>
-              <Button onClick={handleSave} disabled={loading}>
-                <Save className="h-4 w-4 mr-2" />
-                Speichern
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+            )}
+          </div>
+        </div>
       </DialogContent>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Termin wirklich löschen?</AlertDialogTitle>
+            <AlertDialogTitle>Termin löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Der Termin "{appointment.titel}" 
-              am {format(new Date(appointment.start_at), 'dd.MM.yyyy', { locale: de })} 
-              wird dauerhaft gelöscht.
+              "{appointment.titel}" am {format(new Date(appointment.start_at), 'dd.MM.yyyy', { locale: de })} wird dauerhaft gelöscht.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
-              disabled={loading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {loading ? 'Wird gelöscht...' : 'Termin löschen'}
+            <AlertDialogAction onClick={handleDelete} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {loading ? 'Wird gelöscht...' : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -971,47 +486,20 @@ export function AppointmentDetailDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Serientermin löschen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Dieser Termin ist Teil einer Terminserie. Was möchten Sie löschen?
-            </AlertDialogDescription>
+            <AlertDialogDescription>Was möchten Sie löschen?</AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-3 py-4">
-            <button
-              onClick={() => setDeleteSeriesAction('single')}
-              className={cn(
-                "w-full p-4 text-left rounded-lg border-2 transition-colors",
-                deleteSeriesAction === 'single' 
-                  ? "border-destructive bg-destructive/5" 
-                  : "border-border hover:border-destructive/50"
-              )}
-            >
-              <div className="font-medium">Nur diesen Termin</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Nur dieser einzelne Termin wird gelöscht. Die Serie wird normal fortgesetzt.
-              </div>
-            </button>
-            <button
-              onClick={() => setDeleteSeriesAction('all')}
-              className={cn(
-                "w-full p-4 text-left rounded-lg border-2 transition-colors",
-                deleteSeriesAction === 'all' 
-                  ? "border-destructive bg-destructive/5" 
-                  : "border-border hover:border-destructive/50"
-              )}
-            >
-              <div className="font-medium">Gesamte Serie löschen</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Die Vorlage wird deaktiviert und alle zukünftigen Termine dieser Serie werden gelöscht.
-              </div>
-            </button>
+          <div className="space-y-2 py-3">
+            {(['single', 'all'] as const).map((action) => (
+              <button key={action} onClick={() => setDeleteSeriesAction(action)}
+                className={cn("w-full p-3 text-left rounded-lg border-2 transition-colors", deleteSeriesAction === action ? "border-destructive bg-destructive/5" : "border-border hover:border-destructive/50")}>
+                <div className="font-medium text-sm">{action === 'single' ? 'Nur diesen Termin' : 'Gesamte Serie'}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{action === 'single' ? 'Serie wird fortgesetzt' : 'Vorlage deaktiviert + zukünftige Termine gelöscht'}</div>
+              </button>
+            ))}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteSeries} 
-              disabled={loading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDeleteSeries} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {loading ? 'Wird gelöscht...' : 'Löschen'}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1023,155 +511,58 @@ export function AppointmentDetailDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Serientermin bearbeiten</AlertDialogTitle>
-            <AlertDialogDescription>
-              Dieser Termin ist Teil einer Terminserie. Möchten Sie nur diesen einzelnen Termin oder die gesamte Serie ändern?
-            </AlertDialogDescription>
+            <AlertDialogDescription>Nur diesen Termin oder die gesamte Serie ändern?</AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-3 py-4">
-            <button
-              onClick={() => setSeriesAction('single')}
-              className={cn(
-                "w-full p-4 text-left rounded-lg border-2 transition-colors",
-                seriesAction === 'single' 
-                  ? "border-primary bg-primary/5" 
-                  : "border-border hover:border-primary/50"
-              )}
-            >
-              <div className="font-medium">Nur diesen Termin</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Die Serie wird normal fortgesetzt. Dieser Termin wird als Ausnahme markiert.
-              </div>
-            </button>
-            <button
-              onClick={() => setSeriesAction('all')}
-              className={cn(
-                "w-full p-4 text-left rounded-lg border-2 transition-colors",
-                seriesAction === 'all' 
-                  ? "border-primary bg-primary/5" 
-                  : "border-border hover:border-primary/50"
-              )}
-            >
-              <div className="font-medium">Alle zukünftigen Termine</div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Ändert die Vorlage und betrifft alle zukünftigen Termine dieser Serie.
-              </div>
-            </button>
+          <div className="space-y-2 py-3">
+            {(['single', 'all'] as const).map((action) => (
+              <button key={action} onClick={() => setSeriesAction(action)}
+                className={cn("w-full p-3 text-left rounded-lg border-2 transition-colors", seriesAction === action ? "border-primary bg-primary/5" : "border-border hover:border-primary/50")}>
+                <div className="font-medium text-sm">{action === 'single' ? 'Nur diesen Termin' : 'Alle zukünftigen Termine'}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{action === 'single' ? 'Wird als Ausnahme markiert' : 'Vorlage wird angepasst'}</div>
+              </button>
+            ))}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={performSave} disabled={loading}>
-              {loading ? 'Wird gespeichert...' : 'Änderungen übernehmen'}
+              {loading ? 'Speichert...' : 'Übernehmen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Edit Template Dialog */}
+      {/* Edit Template */}
       {templateData && (
-        <CreateRecurringAppointmentDialog
-          open={showEditTemplateDialog}
-          onOpenChange={setShowEditTemplateDialog}
-          customers={customers}
-          employees={employees}
-          onSubmit={handleTemplateUpdate}
-          editingTemplate={templateData}
-        />
+        <CreateRecurringAppointmentDialog open={showEditTemplateDialog} onOpenChange={setShowEditTemplateDialog}
+          customers={customers} employees={employees} onSubmit={handleTemplateUpdate} editingTemplate={templateData} />
       )}
 
-      {/* Cancel Appointment Dialog — mit Storno-Dokumentation */}
+      {/* Cancel Dialog */}
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Termin absagen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bitte dokumentieren Sie die Absage.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Absage dokumentieren (2-Tage-Regel wird automatisch geprüft).</AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="absage-datum">Wann wurde abgesagt?</Label>
-              <Input
-                id="absage-datum"
-                type="date"
-                value={cancelAbsageDatum}
-                onChange={(e) => setCancelAbsageDatum(e.target.value)}
-              />
+          <div className="space-y-3 py-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Absagedatum</Label><Input type="date" value={cancelAbsageDatum} onChange={(e) => setCancelAbsageDatum(e.target.value)} className="mt-1" /></div>
+              <div>
+                <Label className="text-xs">Absagekanal</Label>
+                <Select value={cancelAbsageKanal} onValueChange={setCancelAbsageKanal}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Wählen..." /></SelectTrigger>
+                  <SelectContent>
+                    {['Telefonisch', 'E-Mail', 'Persönlich', 'WhatsApp', 'Sonstiges'].map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="absage-kanal">Wie wurde abgesagt?</Label>
-              <Select value={cancelAbsageKanal} onValueChange={setCancelAbsageKanal}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Absagekanal wählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Telefonisch">Telefonisch</SelectItem>
-                  <SelectItem value="E-Mail">E-Mail</SelectItem>
-                  <SelectItem value="Persönlich">Persönlich</SelectItem>
-                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                  <SelectItem value="Sonstiges">Sonstiges</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="absage-grund">Grund / Anmerkung (optional)</Label>
-              <Textarea
-                id="absage-grund"
-                value={cancelGrund}
-                onChange={(e) => setCancelGrund(e.target.value)}
-                placeholder="Grund der Absage..."
-                rows={2}
-              />
-            </div>
+            <div><Label className="text-xs">Grund (optional)</Label><Textarea value={cancelGrund} onChange={(e) => setCancelGrund(e.target.value)} placeholder="Grund..." rows={2} className="mt-1" /></div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancelAppointment}
-              disabled={loading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {loading ? 'Wird abgesagt...' : 'Termin absagen'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Reschedule Appointment Dialog */}
-      <AlertDialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Termin verschieben</AlertDialogTitle>
-            <AlertDialogDescription>
-              Geben Sie das neue Datum und die neue Uhrzeit für den Termin an.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="reschedule-date">Neues Datum</Label>
-              <Input
-                id="reschedule-date"
-                type="date"
-                value={rescheduleDate}
-                onChange={(e) => setRescheduleDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reschedule-time">Neue Uhrzeit</Label>
-              <Input
-                id="reschedule-time"
-                type="time"
-                value={rescheduleTime}
-                onChange={(e) => setRescheduleTime(e.target.value)}
-              />
-            </div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleReschedule} 
-              disabled={loading || !rescheduleDate || !rescheduleTime}
-            >
-              {loading ? 'Wird verschoben...' : 'Termin verschieben'}
+            <AlertDialogAction onClick={handleCancelAppointment} disabled={loading} className="bg-destructive text-destructive-foreground">
+              {loading ? 'Wird abgesagt...' : 'Absagen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1181,41 +572,25 @@ export function AppointmentDetailDialog({
       <AlertDialog open={showCustomerFaultDialog} onOpenChange={setShowCustomerFaultDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Nicht geklappt zuschulden des Kunden</AlertDialogTitle>
-            <AlertDialogDescription>
-              Der Termin wird als abgesagt markiert und mit dem Vermerk "Nicht geklappt zuschulden des Kunden" versehen.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Nicht angetroffen</AlertDialogTitle>
+            <AlertDialogDescription>Wird als abrechenbar markiert.</AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer-fault-note">Optionale Notiz</Label>
-              <Textarea
-                id="customer-fault-note"
-                placeholder="z.B. Kunde war nicht zu Hause, Kunde hat vergessen..."
-                value={customerFaultNote}
-                onChange={(e) => setCustomerFaultNote(e.target.value)}
-                rows={3}
-              />
-            </div>
+          <div className="py-3">
+            <Label className="text-xs">Optionale Notiz</Label>
+            <Textarea value={customerFaultNote} onChange={(e) => setCustomerFaultNote(e.target.value)}
+              placeholder="z.B. Kunde war nicht zu Hause..." rows={2} className="mt-1" />
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleCustomerFault} 
-              disabled={loading}
-            >
-              {loading ? 'Wird gespeichert...' : 'Markieren'}
+            <AlertDialogAction onClick={handleCustomerFault} disabled={loading}>
+              {loading ? 'Speichert...' : 'Markieren'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
 
-    <KundenDetailDialog
-      isOpen={showKundenDetail}
-      onClose={() => setShowKundenDetail(false)}
-      kundenId={editedAppointment?.kunden_id || null}
-    />
+    <KundenDetailDialog isOpen={showKundenDetail} onClose={() => setShowKundenDetail(false)} kundenId={editedAppointment?.kunden_id || null} />
     </>
   );
 }
