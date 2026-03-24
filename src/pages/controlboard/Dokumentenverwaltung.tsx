@@ -949,7 +949,7 @@ export default function Dokumentenverwaltung() {
             )}
 
             {/* Right content: Documents grouped by year */}
-            <Card className={`${activeTab === 'intern' ? 'col-span-12' : 'col-span-9'} flex flex-col min-h-0`}>
+            <Card className={`${activeTab === 'intern' ? 'md:col-span-12' : 'md:col-span-9'} flex flex-col min-h-0 flex-1`}>
               <CardHeader className="py-3 px-4 border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
