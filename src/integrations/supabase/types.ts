@@ -149,6 +149,47 @@ export type Database = {
         }
         Relationships: []
       }
+      benachrichtigungen: {
+        Row: {
+          benutzer_id: string
+          created_at: string
+          gelesen: boolean
+          id: string
+          nachricht: string | null
+          termin_id: string | null
+          titel: string
+          typ: string
+        }
+        Insert: {
+          benutzer_id: string
+          created_at?: string
+          gelesen?: boolean
+          id?: string
+          nachricht?: string | null
+          termin_id?: string | null
+          titel: string
+          typ?: string
+        }
+        Update: {
+          benutzer_id?: string
+          created_at?: string
+          gelesen?: boolean
+          id?: string
+          nachricht?: string | null
+          termin_id?: string | null
+          titel?: string
+          typ?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "benachrichtigungen_termin_id_fkey"
+            columns: ["termin_id"]
+            isOneToOne: false
+            referencedRelation: "termine"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       benutzer: {
         Row: {
           created_at: string
@@ -849,6 +890,8 @@ export type Database = {
           cb_kombinationsleistung: boolean
           cb_verhinderungspflege: boolean
           created_at: string
+          frozen_geleistete_stunden: number | null
+          frozen_geplante_stunden: number | null
           geleistete_stunden: number
           geplante_stunden: number
           id: string
@@ -879,6 +922,8 @@ export type Database = {
           cb_kombinationsleistung?: boolean
           cb_verhinderungspflege?: boolean
           created_at?: string
+          frozen_geleistete_stunden?: number | null
+          frozen_geplante_stunden?: number | null
           geleistete_stunden?: number
           geplante_stunden?: number
           id?: string
@@ -909,6 +954,8 @@ export type Database = {
           cb_kombinationsleistung?: boolean
           cb_verhinderungspflege?: boolean
           created_at?: string
+          frozen_geleistete_stunden?: number | null
+          frozen_geplante_stunden?: number | null
           geleistete_stunden?: number
           geplante_stunden?: number
           id?: string
@@ -953,6 +1000,7 @@ export type Database = {
           avatar_url: string | null
           benutzer_id: string | null
           created_at: string
+          email_benachrichtigungen: boolean | null
           employment_type: string | null
           farbe_kalender: string | null
           hourly_rate: number | null
@@ -977,6 +1025,7 @@ export type Database = {
           avatar_url?: string | null
           benutzer_id?: string | null
           created_at?: string
+          email_benachrichtigungen?: boolean | null
           employment_type?: string | null
           farbe_kalender?: string | null
           hourly_rate?: number | null
@@ -1001,6 +1050,7 @@ export type Database = {
           avatar_url?: string | null
           benutzer_id?: string | null
           created_at?: string
+          email_benachrichtigungen?: boolean | null
           employment_type?: string | null
           farbe_kalender?: string | null
           hourly_rate?: number | null
@@ -1093,6 +1143,42 @@ export type Database = {
             columns: ["requested_by"]
             isOneToOne: false
             referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mitarbeiter_qualifikationen: {
+        Row: {
+          created_at: string
+          id: string
+          mitarbeiter_id: string
+          qualifikation_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mitarbeiter_id: string
+          qualifikation_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mitarbeiter_id?: string
+          qualifikation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mitarbeiter_qualifikationen_mitarbeiter_id_fkey"
+            columns: ["mitarbeiter_id"]
+            isOneToOne: false
+            referencedRelation: "mitarbeiter"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mitarbeiter_qualifikationen_qualifikation_id_fkey"
+            columns: ["qualifikation_id"]
+            isOneToOne: false
+            referencedRelation: "qualifikationen"
             referencedColumns: ["id"]
           },
         ]
@@ -1228,6 +1314,27 @@ export type Database = {
           beschreibung?: string | null
           created_at?: string
           id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      qualifikationen: {
+        Row: {
+          created_at: string
+          id: string
+          kategorie: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kategorie?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kategorie?: string | null
           name?: string
         }
         Relationships: []
@@ -1596,7 +1703,7 @@ export type Database = {
           id?: string
           intervall?: Database["public"]["Enums"]["recurrence_interval"]
           ist_aktiv?: boolean
-          kunden_id?: string
+          kunden_id?: string | null
           mitarbeiter_id?: string | null
           notizen?: string | null
           start_zeit?: string
@@ -1623,15 +1730,17 @@ export type Database = {
       }
       termine: {
         Row: {
+          absage_datum: string | null
+          absage_kanal: string | null
           ausnahme_grund: string | null
-          auto_completed_at: string | null
           created_at: string
           einsatzort_id: string | null
           end_at: string
           id: string
           ist_ausnahme: boolean | null
           iststunden: number | null
-          kunden_id: string
+          kategorie: string | null
+          kunden_id: string | null
           mitarbeiter_id: string | null
           notizen: string | null
           start_at: string
@@ -1641,15 +1750,17 @@ export type Database = {
           vorlage_id: string | null
         }
         Insert: {
+          absage_datum?: string | null
+          absage_kanal?: string | null
           ausnahme_grund?: string | null
-          auto_completed_at?: string | null
           created_at?: string
           einsatzort_id?: string | null
           end_at: string
           id?: string
           ist_ausnahme?: boolean | null
           iststunden?: number | null
-          kunden_id: string
+          kategorie?: string | null
+          kunden_id?: string | null
           mitarbeiter_id?: string | null
           notizen?: string | null
           start_at: string
@@ -1659,15 +1770,17 @@ export type Database = {
           vorlage_id?: string | null
         }
         Update: {
+          absage_datum?: string | null
+          absage_kanal?: string | null
           ausnahme_grund?: string | null
-          auto_completed_at?: string | null
           created_at?: string
           einsatzort_id?: string | null
           end_at?: string
           id?: string
           ist_ausnahme?: boolean | null
           iststunden?: number | null
-          kunden_id?: string
+          kategorie?: string | null
+          kunden_id?: string | null
           mitarbeiter_id?: string | null
           notizen?: string | null
           start_at?: string
