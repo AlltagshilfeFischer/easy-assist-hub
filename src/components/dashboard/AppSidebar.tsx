@@ -97,7 +97,7 @@ export function AppSidebar() {
     ));
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="offcanvas">
       <SidebarContent className="border-r">
         {/* Logo */}
         <div className="p-4 border-b">

@@ -50,7 +50,7 @@ export function DashboardHeader() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <NotificationBell onClick={() => navigate('/dashboard/mein-bereich')} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
