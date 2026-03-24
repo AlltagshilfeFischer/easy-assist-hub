@@ -548,11 +548,11 @@ export default function Dokumentenverwaltung() {
   };
 
   return (
-    <div className="p-6 h-[calc(100vh-4rem)] flex flex-col">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-3 sm:p-6 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Dokumentenverwaltung</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl sm:text-3xl font-bold">Dokumentenverwaltung</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Dokumente nach Kunden und Mitarbeitern organisiert
           </p>
         </div>
@@ -561,9 +561,10 @@ export default function Dokumentenverwaltung() {
           if (!open) resetUploadForm();
         }}>
           <DialogTrigger asChild>
-            <Button size="lg">
-              <Upload className="mr-2 h-5 w-5" />
-              Dokumente hochladen
+            <Button size="sm" className="sm:size-default gap-2 self-start sm:self-auto">
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Dokumente hochladen</span>
+              <span className="sm:hidden">Hochladen</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -576,7 +577,7 @@ export default function Dokumentenverwaltung() {
             
             <div className="flex-1 overflow-y-auto space-y-4">
               {/* Category Selection */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Kategorie *</Label>
                   <Select
@@ -839,25 +840,29 @@ export default function Dokumentenverwaltung() {
         setEntitySearchQuery('');
       }} className="flex-1 flex flex-col min-h-0">
         <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="kunde" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Kunden ({dokumente.filter(d => d.kategorie === 'kunde').length})
+          <TabsTrigger value="kunde" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <User className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Kunden</span>
+            <span className="sm:hidden">Kd.</span>
+            ({dokumente.filter(d => d.kategorie === 'kunde').length})
           </TabsTrigger>
-          <TabsTrigger value="mitarbeiter" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Mitarbeiter ({dokumente.filter(d => d.kategorie === 'mitarbeiter').length})
+          <TabsTrigger value="mitarbeiter" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Mitarbeiter</span>
+            <span className="sm:hidden">MA</span>
+            ({dokumente.filter(d => d.kategorie === 'mitarbeiter').length})
           </TabsTrigger>
-          <TabsTrigger value="intern" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger value="intern" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
             Intern ({dokumente.filter(d => d.kategorie === 'intern').length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="flex-1 min-h-0 mt-0">
-          <div className="grid grid-cols-12 gap-4 h-full">
+          <div className="flex flex-col md:grid md:grid-cols-12 gap-4 h-full">
             {/* Left sidebar: Entity list */}
             {activeTab !== 'intern' && (
-              <Card className="col-span-3 flex flex-col min-h-0">
+              <Card className="md:col-span-3 flex flex-col min-h-0 max-h-[200px] md:max-h-none">
                 <CardHeader className="py-3 px-4 border-b">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -944,7 +949,7 @@ export default function Dokumentenverwaltung() {
             )}
 
             {/* Right content: Documents grouped by year */}
-            <Card className={`${activeTab === 'intern' ? 'col-span-12' : 'col-span-9'} flex flex-col min-h-0`}>
+            <Card className={`${activeTab === 'intern' ? 'md:col-span-12' : 'md:col-span-9'} flex flex-col min-h-0 flex-1`}>
               <CardHeader className="py-3 px-4 border-b">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

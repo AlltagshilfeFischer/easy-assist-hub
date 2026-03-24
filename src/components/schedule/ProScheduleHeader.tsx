@@ -41,54 +41,58 @@ export function ProScheduleHeader({
     ? format(currentWeek, 'MMMM yyyy', { locale: de })
     : `${format(weekStart, 'd. MMM', { locale: de })} - ${format(weekEnd, 'd. MMM yyyy', { locale: de })}`;
 
+  const dateRangeShort = view === 'month'
+    ? format(currentWeek, 'MMM yy', { locale: de })
+    : `${format(weekStart, 'dd.MM.')} - ${format(weekEnd, 'dd.MM.')}`;
+
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
       {/* Left: Title */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {titleText} <span className="text-primary">{titleHighlight}</span>
+          <h1 className="text-lg sm:text-2xl font-bold text-foreground">
+            <span className="hidden sm:inline">{titleText} </span>
+            <span className="text-primary">{titleHighlight}</span>
           </h1>
         </div>
       </div>
 
-      {/* Center: Navigation */}
-      <div className="flex items-center gap-2">
+      {/* Right section: Navigation + View Toggle */}
+      <div className="flex items-center gap-2 flex-wrap">
         <Button
           variant="outline"
           size="sm"
           onClick={onToday}
-          className="h-8 text-xs font-medium"
+          className="h-7 sm:h-8 text-xs font-medium"
         >
           Heute
         </Button>
-        <div className="flex items-center gap-1 bg-muted rounded-full px-1 py-1">
+        <div className="flex items-center gap-0.5 sm:gap-1 bg-muted rounded-full px-1 py-0.5 sm:py-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={onPreviousWeek}
-            className="h-8 w-8 rounded-full"
+            className="h-7 w-7 sm:h-8 sm:w-8 rounded-full"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          <span className="px-4 py-1.5 text-sm font-medium min-w-[180px] text-center select-none">
-            {dateRange}
+          <span className="px-2 sm:px-4 py-1 text-xs sm:text-sm font-medium min-w-[100px] sm:min-w-[180px] text-center select-none">
+            <span className="hidden sm:inline">{dateRange}</span>
+            <span className="sm:hidden">{dateRangeShort}</span>
           </span>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={onNextWeek}
-            className="h-8 w-8 rounded-full"
+            className="h-7 w-7 sm:h-8 sm:w-8 rounded-full"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-      </div>
-      
-      {/* Right: View Toggle */}
-      <div className="flex items-center gap-2">
+
+        {/* View Toggle */}
         <ToggleGroup 
           type="single" 
           value={view} 
@@ -98,7 +102,7 @@ export function ProScheduleHeader({
           <ToggleGroupItem 
             value="week"
             className={cn(
-              "px-3 py-1 text-xs font-medium rounded-md transition-all",
+              "px-2 sm:px-3 py-1 text-xs font-medium rounded-md transition-all",
               view === 'week' ? "bg-background shadow-sm" : "hover:bg-background/50"
             )}
           >
@@ -107,7 +111,7 @@ export function ProScheduleHeader({
           <ToggleGroupItem 
             value="month"
             className={cn(
-              "px-3 py-1 text-xs font-medium rounded-md transition-all",
+              "px-2 sm:px-3 py-1 text-xs font-medium rounded-md transition-all",
               view === 'month' ? "bg-background shadow-sm" : "hover:bg-background/50"
             )}
           >

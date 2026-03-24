@@ -33,16 +33,16 @@ export function DashboardHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 pointer-events-auto h-16 border-b bg-card px-6 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <SidebarTrigger className="h-8 w-8" />
-        <div>
-          <h1 className="text-lg font-semibold">Alltagshilfe Control Board</h1>
+    <header className="sticky top-0 z-30 pointer-events-auto h-14 sm:h-16 border-b bg-card px-3 sm:px-6 flex items-center justify-between">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        <SidebarTrigger className="h-8 w-8 shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-sm sm:text-lg font-semibold truncate">Alltagshilfe Control Board</h1>
           <div className="flex items-center gap-2">
-            <p className="text-sm text-muted-foreground">Willkommen</p>
+            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Willkommen</p>
             {role && (
-              <Badge variant={getRoleBadgeVariant(role)} className="text-xs">
-                <Shield className="h-3 w-3 mr-1" />
+              <Badge variant={getRoleBadgeVariant(role)} className="text-[10px] sm:text-xs">
+                <Shield className="h-3 w-3 mr-1 hidden sm:inline" />
                 {getRoleLabel(role)}
               </Badge>
             )}
@@ -50,7 +50,7 @@ export function DashboardHeader() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <NotificationBell onClick={() => navigate('/dashboard/mein-bereich')} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

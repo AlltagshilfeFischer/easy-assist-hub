@@ -362,16 +362,16 @@ export function useUmsatzReport(filters: ReportingFilters) {
   return useQuery<UmsatzDaten>({
     queryKey: ['reporting-umsatz', dateFrom.toISOString(), dateTo.toISOString()],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('budget_transactions')
-        .select('service_type, service_date, hours, total_amount')
+      const { data, error } = await (supabase
+        .from('budget_transactions' as any)
+        .select('service_type, service_date, hours, total_amount') as any)
         .gte('service_date', dateFrom.toISOString().split('T')[0])
         .lte('service_date', dateTo.toISOString().split('T')[0]);
 
       if (error) throw error;
-      const rows = data ?? [];
+      const rows = (data ?? []) as any[];
 
-      const gesamtUmsatz = rows.reduce((sum, r) => sum + (r.total_amount ?? 0), 0);
+      const gesamtUmsatz = rows.reduce((sum: number, r: any) => sum + (r.total_amount ?? 0), 0);
 
       // Nach Typ aggregieren
       const typMap = new Map<string, { betrag: number; stunden: number }>();

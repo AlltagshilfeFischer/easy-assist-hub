@@ -21,14 +21,14 @@ export function useBenachrichtigungen() {
     queryKey: ['benachrichtigungen', user?.id],
     enabled: !!user?.id,
     queryFn: async (): Promise<Benachrichtigung[]> => {
-      const { data, error } = await supabase
-        .from('benachrichtigungen')
+      const { data, error } = await (supabase
+        .from('benachrichtigungen' as any)
         .select('id, typ, titel, nachricht, gelesen, termin_id, created_at')
         .eq('benutzer_id', user!.id)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(50)) as any;
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as Benachrichtigung[];
     },
     refetchInterval: 30000, // Poll every 30s
   });
@@ -70,10 +70,10 @@ export function useMarkAsRead() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('benachrichtigungen')
-        .update({ gelesen: true })
-        .eq('id', id);
+      const { error } = await (supabase
+        .from('benachrichtigungen' as any)
+        .update({ gelesen: true } as any)
+        .eq('id', id)) as any;
       if (error) throw error;
     },
     onSuccess: () => {
@@ -89,11 +89,11 @@ export function useMarkAllAsRead() {
   return useMutation({
     mutationFn: async () => {
       if (!user?.id) return;
-      const { error } = await supabase
-        .from('benachrichtigungen')
-        .update({ gelesen: true })
+      const { error } = await (supabase
+        .from('benachrichtigungen' as any)
+        .update({ gelesen: true } as any)
         .eq('benutzer_id', user.id)
-        .eq('gelesen', false);
+        .eq('gelesen', false)) as any;
       if (error) throw error;
     },
     onSuccess: () => {

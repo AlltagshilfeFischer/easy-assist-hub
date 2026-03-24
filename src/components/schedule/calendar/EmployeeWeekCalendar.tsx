@@ -34,35 +34,35 @@ export function EmployeeWeekCalendar({
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="min-w-max">
+      <div className="min-w-max sm:min-w-0">
         {/* Header with dates */}
         <div className="sticky top-0 z-20 bg-background border-b shadow-sm">
           <div className="flex">
-            {/* Weekdays Mo-Fr */}
             {weekdays.map((date) => {
               const isToday = isSameDay(date, new Date());
               return (
                 <div
                   key={date.toISOString()}
                   className={cn(
-                    "flex-1 min-w-[180px] p-4 text-center border-r",
+                    "flex-1 min-w-[120px] sm:min-w-[180px] p-2 sm:p-4 text-center border-r",
                     isToday && "bg-primary/5"
                   )}
                 >
                   <div className={cn(
-                    "text-sm font-medium",
+                    "text-xs sm:text-sm font-medium",
                     isToday && "text-primary"
                   )}>
-                    {format(date, 'EEEE', { locale: de })}
+                    <span className="hidden sm:inline">{format(date, 'EEEE', { locale: de })}</span>
+                    <span className="sm:hidden">{format(date, 'EEE', { locale: de })}</span>
                   </div>
                   <div className={cn(
-                    "text-2xl font-bold",
+                    "text-lg sm:text-2xl font-bold",
                     isToday && "text-primary"
                   )}>
                     {format(date, 'd')}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {format(date, 'MMM yyyy', { locale: de })}
+                  <div className="text-[10px] sm:text-xs text-muted-foreground">
+                    {format(date, 'MMM', { locale: de })}
                   </div>
                 </div>
               );
@@ -75,15 +75,15 @@ export function EmployeeWeekCalendar({
                 <div
                   key={date.toISOString()}
                   className={cn(
-                    "w-24 flex-shrink-0 p-2 text-center border-r bg-muted/30",
+                    "w-16 sm:w-24 flex-shrink-0 p-1 sm:p-2 text-center border-r bg-muted/30",
                     isToday && "bg-primary/10"
                   )}
                 >
-                  <div className="text-xs font-medium text-muted-foreground">
+                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">
                     {format(date, 'EEE', { locale: de })}
                   </div>
                   <div className={cn(
-                    "text-lg font-semibold",
+                    "text-base sm:text-lg font-semibold",
                     isToday && "text-primary"
                   )}>
                     {format(date, 'd')}
@@ -96,7 +96,6 @@ export function EmployeeWeekCalendar({
 
         {/* Calendar grid */}
         <div className="flex border-b">
-          {/* Weekday cells Mo-Fr */}
           {weekdays.map((date) => {
             const dayAppointments = getAppointmentsForDate(date);
             const dropZoneId = `employee-${format(date, 'yyyy-MM-dd')}`;
@@ -104,7 +103,7 @@ export function EmployeeWeekCalendar({
             return (
               <div
                 key={date.toISOString()}
-                className="flex-1 min-w-[180px] border-r"
+                className="flex-1 min-w-[120px] sm:min-w-[180px] border-r"
               >
                 <EnhancedDropZone
                   id={dropZoneId}
@@ -114,7 +113,7 @@ export function EmployeeWeekCalendar({
                   date={format(date, 'dd.MM.yyyy')}
                   onClick={() => onSlotClick(date)}
                   className={cn(
-                    "min-h-[400px] p-2 space-y-2",
+                    "min-h-[200px] sm:min-h-[400px] p-1 sm:p-2 space-y-1 sm:space-y-2",
                     isSameDay(date, new Date()) && "bg-primary/5"
                   )}
                 >
@@ -141,7 +140,7 @@ export function EmployeeWeekCalendar({
             return (
               <div
                 key={date.toISOString()}
-                className="w-24 flex-shrink-0 border-r bg-muted/30"
+                className="w-16 sm:w-24 flex-shrink-0 border-r bg-muted/30"
               >
                 <EnhancedDropZone
                   id={dropZoneId}
@@ -150,7 +149,7 @@ export function EmployeeWeekCalendar({
                   employeeName={employeeName}
                   date={format(date, 'dd.MM.yyyy')}
                   onClick={() => onSlotClick(date)}
-                  className="min-h-[400px] p-1 space-y-1"
+                  className="min-h-[200px] sm:min-h-[400px] p-1 space-y-1"
                 >
                   {dayAppointments.map((appointment) => (
                     <DraggableAppointment

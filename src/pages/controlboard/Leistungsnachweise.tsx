@@ -487,7 +487,7 @@ export default function Leistungsnachweise() {
     for (const n of nachweise) {
       const h = (n.status !== 'offen' && n.frozen_geplante_stunden != null)
         ? { geplant: n.frozen_geplante_stunden, geleistet: n.frozen_geleistete_stunden ?? 0 }
-        : (hoursByKunde.get(n.kunden_id) || { geplant: 0, geleistet: 0 });
+        : { geplant: 0, geleistet: 0 };
       totalPlanned += h.geplant;
       totalDone += h.geleistet;
     }
@@ -498,7 +498,7 @@ export default function Leistungsnachweise() {
       totalPlanned,
       totalDone,
     };
-  }, [nachweise, hoursByKunde]);
+  }, [nachweise]);
 
   // Canvas drawing helpers
   const initCanvas = useCallback(() => {

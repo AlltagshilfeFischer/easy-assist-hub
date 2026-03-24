@@ -54,7 +54,7 @@ function DashboardContent({ children }: DashboardLayoutProps) {
         <AppSidebar />
         <SidebarInset className="flex flex-col w-full">
           <DashboardHeader />
-          <main className="flex-1 w-full p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+          <main className="flex-1 w-full p-2 sm:p-3 md:p-4 lg:p-6 overflow-x-hidden">
             <div className="max-w-[1920px] mx-auto">
               {children}
             </div>

@@ -12,13 +12,13 @@ export function useQualifikationen() {
   return useQuery({
     queryKey: ['qualifikationen'],
     queryFn: async (): Promise<Qualifikation[]> => {
-      const { data, error } = await supabase
-        .from('qualifikationen')
+      const { data, error } = await (supabase
+        .from('qualifikationen' as any)
         .select('id, name, kategorie')
         .order('kategorie')
-        .order('name');
+        .order('name')) as any;
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as Qualifikation[];
     },
   });
 }
@@ -29,12 +29,12 @@ export function useMitarbeiterQualifikationen(mitarbeiterId: string | null) {
     queryKey: ['mitarbeiter_qualifikationen', mitarbeiterId],
     enabled: !!mitarbeiterId,
     queryFn: async (): Promise<string[]> => {
-      const { data, error } = await supabase
-        .from('mitarbeiter_qualifikationen')
+      const { data, error } = await (supabase
+        .from('mitarbeiter_qualifikationen' as any)
         .select('qualifikation_id')
-        .eq('mitarbeiter_id', mitarbeiterId!);
+        .eq('mitarbeiter_id', mitarbeiterId!)) as any;
       if (error) throw error;
-      return (data ?? []).map((d) => d.qualifikation_id);
+      return ((data ?? []) as any[]).map((d: any) => d.qualifikation_id);
     },
   });
 }
@@ -46,21 +46,20 @@ export function useSaveMitarbeiterQualifikationen() {
   return useMutation({
     mutationFn: async ({ mitarbeiterId, qualifikationIds }: { mitarbeiterId: string; qualifikationIds: string[] }) => {
       // Delete existing
-      const { error: deleteError } = await supabase
-        .from('mitarbeiter_qualifikationen')
+      const { error: deleteError } = await (supabase
+        .from('mitarbeiter_qualifikationen' as any)
         .delete()
-        .eq('mitarbeiter_id', mitarbeiterId);
+        .eq('mitarbeiter_id', mitarbeiterId)) as any;
       if (deleteError) throw deleteError;
 
-      // Insert new
       if (qualifikationIds.length > 0) {
         const rows = qualifikationIds.map((qId) => ({
           mitarbeiter_id: mitarbeiterId,
           qualifikation_id: qId,
         }));
-        const { error: insertError } = await supabase
-          .from('mitarbeiter_qualifikationen')
-          .insert(rows);
+        const { error: insertError } = await (supabase
+          .from('mitarbeiter_qualifikationen' as any)
+          .insert(rows as any)) as any;
         if (insertError) throw insertError;
       }
     },
@@ -76,11 +75,11 @@ export function useCreateQualifikation() {
 
   return useMutation({
     mutationFn: async ({ name, kategorie = 'Allgemein' }: { name: string; kategorie?: string }) => {
-      const { data, error } = await supabase
-        .from('qualifikationen')
-        .insert({ name, kategorie })
+      const { data, error } = await (supabase
+        .from('qualifikationen' as any)
+        .insert({ name, kategorie } as any)
         .select('id, name, kategorie')
-        .single();
+        .single()) as any;
       if (error) throw error;
       return data;
     },

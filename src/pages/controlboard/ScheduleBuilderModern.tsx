@@ -778,7 +778,7 @@ const ScheduleBuilderModern = () => {
           ausnahme_grund: inserted.ausnahme_grund,
           status: inserted.status,
           notizen: inserted.notizen,
-          kategorie: inserted.kategorie,
+          kategorie: inserted.kategorie as any,
           customer: inserted.customer ? { ...(inserted.customer as any), farbe_kalender: (inserted.customer as any).farbe_kalender || '#10B981' } : undefined,
           employee: empData ? {
             id: empData.id,
@@ -1021,11 +1021,11 @@ const ScheduleBuilderModern = () => {
 
         // Add new appointment to local state
         if (newAppointment) {
-          const mapped: LocalAppointment = {
+          const mapped = {
             ...newAppointment,
             customer: newAppointment.kunden ? { id: newAppointment.kunden.id, name: newAppointment.kunden.name, farbe_kalender: newAppointment.kunden.farbe_kalender } : undefined,
             employee: newAppointment.mitarbeiter ? { id: newAppointment.mitarbeiter.id, name: `${newAppointment.mitarbeiter.vorname || ''} ${newAppointment.mitarbeiter.nachname || ''}`.trim(), farbe_kalender: newAppointment.mitarbeiter.farbe_kalender || '#3B82F6' } : undefined,
-          } as LocalAppointment;
+          } as unknown as LocalAppointment;
           setAppointments(prev => [...prev, mapped]);
         }
         // Keep clipboard for multiple pastes in copy mode
@@ -1095,7 +1095,7 @@ const ScheduleBuilderModern = () => {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="h-[calc(100vh-4rem)] flex flex-col gap-3 p-4 bg-background overflow-hidden">
+      <div className="h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] flex flex-col gap-2 sm:gap-3 p-2 sm:p-4 bg-background overflow-hidden">
         {/* Pro Header */}
         <ProScheduleHeader
           currentWeek={currentWeek}
@@ -1117,13 +1117,13 @@ const ScheduleBuilderModern = () => {
         />
 
         {/* Kundenfilter */}
-        <div className="flex items-center gap-2 px-1">
+        <div className="flex items-center gap-2 px-1 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
           <Select
             value={filterKundenId ?? '__all__'}
             onValueChange={(v) => setFilterKundenId(v === '__all__' ? null : v)}
           >
-            <SelectTrigger className="w-56 h-8 text-sm">
+            <SelectTrigger className="w-40 sm:w-56 h-8 text-xs sm:text-sm">
               <SelectValue placeholder="Alle Kunden" />
             </SelectTrigger>
             <SelectContent>
@@ -1151,7 +1151,7 @@ const ScheduleBuilderModern = () => {
 
         {/* Konflikte-Popover — erscheint inline vor dem Kalender */}
         {/* Konflikte + Genehmigungen + Actions — eine Zeile */}
-        <div className="flex items-center justify-between gap-2 flex-shrink-0">
+        <div className="flex items-center justify-between gap-2 flex-shrink-0 flex-wrap">
           <div className="flex items-center gap-2">
             <ConflictsNavigationCard
               appointments={appointments}
@@ -1207,9 +1207,10 @@ const ScheduleBuilderModern = () => {
                 title="Vergrößern"
               >+</button>
             </div>
-            <Button onClick={() => setShowCreateAppointment(true)} size="sm" className="gap-2">
+            <Button onClick={() => setShowCreateAppointment(true)} size="sm" className="gap-1 sm:gap-2">
               <Plus className="h-4 w-4" />
-              Neuer Termin
+              <span className="hidden sm:inline">Neuer Termin</span>
+              <span className="sm:hidden">Neu</span>
             </Button>
           </div>
         </div>

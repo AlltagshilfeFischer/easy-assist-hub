@@ -39,7 +39,7 @@ export function QualifikationenPicker({ selectedIds, onChange, disabled }: Quali
     if (!trimmed) return;
     try {
       const created = await createQualifikation.mutateAsync({ name: trimmed });
-      onChange([...selectedIds, created.id]);
+      onChange([...selectedIds, (created as any).id]);
       setNewTag('');
     } catch {
       // Duplicate or error — try to find existing

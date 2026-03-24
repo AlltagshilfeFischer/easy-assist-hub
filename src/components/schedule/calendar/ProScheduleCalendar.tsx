@@ -460,7 +460,6 @@ export function ProScheduleCalendar({
                       isHighlighted={highlightedAppointmentId === appointment.id}
                       onClick={() => onEditAppointment(appointment)}
                       onCut={() => onCut(appointment)}
-                      onCopy={() => onCopy?.(appointment)}
                     />
                   ))}
                 </div>
@@ -543,7 +542,6 @@ export function ProScheduleCalendar({
                     )}
                   >
                     {abwesenheit ? (
-                      // Abwesenheitsanzeige
                       <div className="h-full flex items-center justify-center p-2">
                         <div className="text-xs text-muted-foreground italic text-center">
                           <span className="text-primary/70">{TYP_LABELS[abwesenheit.typ || 'urlaub'] || 'Abwesenheit'}</span>
@@ -571,7 +569,6 @@ export function ProScheduleCalendar({
                               isHighlighted={highlightedAppointmentId === appointment.id}
                               onClick={() => onEditAppointment(appointment)}
                               onCut={() => onCut(appointment)}
-                              onCopy={() => onCopy?.(appointment)}
                             />
                           ))}
                         </div>
