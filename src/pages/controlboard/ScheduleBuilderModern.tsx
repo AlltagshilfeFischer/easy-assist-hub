@@ -1151,7 +1151,7 @@ const ScheduleBuilderModern = () => {
 
         {/* Konflikte-Popover — erscheint inline vor dem Kalender */}
         {/* Konflikte + Genehmigungen + Actions — eine Zeile */}
-        <div className="flex items-center justify-between gap-2 flex-shrink-0">
+        <div className="flex items-center justify-between gap-2 flex-shrink-0 flex-wrap">
           <div className="flex items-center gap-2">
             <ConflictsNavigationCard
               appointments={appointments}
