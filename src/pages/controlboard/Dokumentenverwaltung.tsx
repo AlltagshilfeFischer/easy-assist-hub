@@ -859,10 +859,10 @@ export default function Dokumentenverwaltung() {
         </TabsList>
 
         <TabsContent value={activeTab} className="flex-1 min-h-0 mt-0">
-          <div className="grid grid-cols-12 gap-4 h-full">
+          <div className="flex flex-col md:grid md:grid-cols-12 gap-4 h-full">
             {/* Left sidebar: Entity list */}
             {activeTab !== 'intern' && (
-              <Card className="col-span-3 flex flex-col min-h-0">
+              <Card className="md:col-span-3 flex flex-col min-h-0 max-h-[200px] md:max-h-none">
                 <CardHeader className="py-3 px-4 border-b">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
