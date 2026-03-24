@@ -778,7 +778,7 @@ const ScheduleBuilderModern = () => {
           ausnahme_grund: inserted.ausnahme_grund,
           status: inserted.status,
           notizen: inserted.notizen,
-          kategorie: inserted.kategorie,
+          kategorie: inserted.kategorie as any,
           customer: inserted.customer ? { ...(inserted.customer as any), farbe_kalender: (inserted.customer as any).farbe_kalender || '#10B981' } : undefined,
           employee: empData ? {
             id: empData.id,
