@@ -840,16 +840,20 @@ export default function Dokumentenverwaltung() {
         setEntitySearchQuery('');
       }} className="flex-1 flex flex-col min-h-0">
         <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="kunde" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Kunden ({dokumente.filter(d => d.kategorie === 'kunde').length})
+          <TabsTrigger value="kunde" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <User className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Kunden</span>
+            <span className="sm:hidden">Kd.</span>
+            ({dokumente.filter(d => d.kategorie === 'kunde').length})
           </TabsTrigger>
-          <TabsTrigger value="mitarbeiter" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Mitarbeiter ({dokumente.filter(d => d.kategorie === 'mitarbeiter').length})
+          <TabsTrigger value="mitarbeiter" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Mitarbeiter</span>
+            <span className="sm:hidden">MA</span>
+            ({dokumente.filter(d => d.kategorie === 'mitarbeiter').length})
           </TabsTrigger>
-          <TabsTrigger value="intern" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+          <TabsTrigger value="intern" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
             Intern ({dokumente.filter(d => d.kategorie === 'intern').length})
           </TabsTrigger>
         </TabsList>
