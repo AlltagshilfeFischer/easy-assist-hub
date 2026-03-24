@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, addMonths, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, addMonths, subMonths, startOfMonth, endOfMonth, parseISO, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -493,7 +493,7 @@ const ScheduleBuilderModern = () => {
     const appointment = appointments.find(app => app.id === appointmentId);
     if (!appointment) return;
 
-    // Handle drop into "Unassigned" zone — nur mitarbeiter_id entfernen, Datum behalten
+    // Handle drop into "Unassigned" zone — mitarbeiter_id entfernen + ggf. Datum aendern
     if (overId === 'unassigned' || overId.startsWith('unassigned-')) {
       try {
         const updateData: Record<string, unknown> = {
@@ -507,6 +507,29 @@ const ScheduleBuilderModern = () => {
           updateData.ausnahme_grund = 'Zuordnung entfernt per Drag & Drop';
         }
 
+        // Wenn auf einen bestimmten Tag gedroppt (unassigned-YYYY-MM-DD), Datum anpassen
+        const unassignedDateMatch = overId.match(/^unassigned-(\d{4}-\d{2}-\d{2})$/);
+        let newStartAt = appointment.start_at;
+        let newEndAt = appointment.end_at;
+        if (unassignedDateMatch) {
+          const targetDate = new Date(unassignedDateMatch[1]);
+          const originalStart = new Date(appointment.start_at);
+          const originalEnd = new Date(appointment.end_at);
+          const durationMs = originalEnd.getTime() - originalStart.getTime();
+
+          const newStart = new Date(targetDate);
+          newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), originalStart.getSeconds(), 0);
+          const newEnd = new Date(newStart.getTime() + durationMs);
+
+          // Nur updaten wenn sich das Datum tatsaechlich aendert
+          if (!isSameDay(originalStart, targetDate)) {
+            updateData.start_at = newStart.toISOString();
+            updateData.end_at = newEnd.toISOString();
+            newStartAt = newStart.toISOString();
+            newEndAt = newEnd.toISOString();
+          }
+        }
+
         const { error } = await supabase
           .from('termine')
           .update(updateData)
@@ -517,14 +540,17 @@ const ScheduleBuilderModern = () => {
         // Optimistisch lokalen State updaten
         setAppointments(prev => prev.map(app =>
           app.id === appointmentId
-            ? { ...app, mitarbeiter_id: null, status: 'unassigned' as const }
+            ? { ...app, mitarbeiter_id: null, status: 'unassigned' as const, start_at: newStartAt, end_at: newEndAt }
             : app
         ));
 
         const appointmentLabel = appointment.customer?.name || appointment.titel || 'Termin';
+        const dateChanged = unassignedDateMatch && !isSameDay(new Date(appointment.start_at), new Date(unassignedDateMatch[1]));
         toast({
-          title: 'Zuordnung entfernt',
-          description: `${appointmentLabel} ist jetzt unzugeordnet`
+          title: dateChanged ? 'Verschoben & Zuordnung entfernt' : 'Zuordnung entfernt',
+          description: dateChanged
+            ? `${appointmentLabel} auf ${format(new Date(newStartAt), 'EEEE dd.MM.', { locale: de })} verschoben`
+            : `${appointmentLabel} ist jetzt unzugeordnet`
         });
       } catch (error) {
         toast({

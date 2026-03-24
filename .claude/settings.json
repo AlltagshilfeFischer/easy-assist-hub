@@ -22,7 +22,12 @@
       "Bash(xargs cat:*)",
       "Bash(node /home/deploy/KITech/projects/easy-assist-hub/.tmp/test_uuid.mjs)",
       "Read(//home/deploy/KITech/projects/easy-assist-hub/**)",
-      "Bash(supabase status:*)"
+      "Bash(supabase status:*)",
+      "Bash(find /home/deploy/KITech/projects/easy-assist-hub/.claude -type f -name *)",
+      "Read(//home/deploy/.claude/**)",
+      "Bash(find /home/deploy/KITech/projects/easy-assist-hub/supabase/functions -type f -name *)",
+      "Bash(find /home/deploy/.claude/projects/-home-deploy-KITech-projects-easy-assist-hub/memory -type f -name *.md)",
+      "Bash(find /home/deploy/KITech/projects/easy-assist-hub/.claude/rules -type f -name *.md)"
     ],
     "additionalDirectories": [
       "/home/deploy/KITech/projects/easy-assist-hub/.claude/rules",
