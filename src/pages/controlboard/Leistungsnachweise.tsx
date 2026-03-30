@@ -11,6 +11,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
@@ -18,7 +20,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw,
   Search, ArrowUpDown, ChevronLeft, ChevronRight, X,
   User, TrendingUp, FileCheck, PenLine, ExternalLink,
-  WifiOff, Wifi, RotateCcw, Lock
+  WifiOff, Wifi, RotateCcw, Lock, ChevronsUpDown, Check
 } from 'lucide-react';
 import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -102,6 +104,8 @@ export default function Leistungsnachweise() {
   const [selectedLN, setSelectedLN] = useState<LeistungsnachweisRow | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('alle');
+  const [kundenFilter, setKundenFilter] = useState<string>('alle');
+  const [kundenFilterOpen, setKundenFilterOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortAsc, setSortAsc] = useState(true);
   const [showDetail, setShowDetail] = useState(false);
@@ -467,6 +471,9 @@ export default function Leistungsnachweise() {
       const q = searchQuery.toLowerCase();
       result = result.filter(ln => getKundeName(ln.kunden_id).toLowerCase().includes(q));
     }
+    if (kundenFilter !== 'alle') {
+      result = result.filter(ln => ln.kunden_id === kundenFilter);
+    }
     if (statusFilter !== 'alle') {
       result = result.filter(ln => ln.status === statusFilter);
     }
@@ -483,7 +490,7 @@ export default function Leistungsnachweise() {
     });
 
     return result;
-  }, [nachweise, searchQuery, statusFilter, sortKey, sortAsc, kunden]);
+  }, [nachweise, searchQuery, statusFilter, kundenFilter, sortKey, sortAsc, kunden]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -791,6 +798,46 @@ export default function Leistungsnachweise() {
                 <SelectItem value="abgeschlossen">Abgeschlossen</SelectItem>
               </SelectContent>
             </Select>
+            <Popover open={kundenFilterOpen} onOpenChange={setKundenFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 w-[180px] justify-between font-normal">
+                  <span className="truncate">
+                    {kundenFilter === 'alle' ? 'Alle Kunden' : getKundeName(kundenFilter)}
+                  </span>
+                  <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[220px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Kunde suchen..." />
+                  <CommandList>
+                    <CommandEmpty>Kein Kunde gefunden.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="alle"
+                        onSelect={() => { setKundenFilter('alle'); setKundenFilterOpen(false); }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${kundenFilter === 'alle' ? 'opacity-100' : 'opacity-0'}`} />
+                        Alle Kunden
+                      </CommandItem>
+                      {(kunden || []).map(k => {
+                        const name = k.vorname && k.nachname ? `${k.vorname} ${k.nachname}` : k.name || 'Unbekannt';
+                        return (
+                          <CommandItem
+                            key={k.id}
+                            value={name}
+                            onSelect={() => { setKundenFilter(k.id); setKundenFilterOpen(false); }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${kundenFilter === k.id ? 'opacity-100' : 'opacity-0'}`} />
+                            {name}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {filteredNachweise.length} Ergebnisse
             </span>

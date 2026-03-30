@@ -432,11 +432,12 @@ export default function Dokumentenverwaltung() {
     try {
       const { data, error } = await supabase.storage
         .from('dokumente')
-        .createSignedUrl(dokument.dateipfad, 3600); // 1 hour
+        .download(dokument.dateipfad);
 
       if (error) throw error;
 
-      setPreviewUrl(data.signedUrl);
+      const url = URL.createObjectURL(data);
+      setPreviewUrl(url);
     } catch (error: any) {
       toast({
         title: 'Fehler',
@@ -449,6 +450,9 @@ export default function Dokumentenverwaltung() {
   };
 
   const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setPreviewDokument(null);
     setPreviewUrl(null);
   };
