@@ -1,6 +1,9 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useUserRole, type UserRole } from '@/hooks/useUserRole';
+import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
 import {
   Calendar,
   Home,
@@ -65,7 +68,23 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
-  const { roles } = useUserRole();
+  const { roles, isGeschaeftsfuehrer, isGlobalAdmin } = useUserRole();
+
+  const canSeeUnassignedBadge = isGeschaeftsfuehrer || isGlobalAdmin;
+
+  const { data: unassignedCount = 0 } = useQuery({
+    queryKey: ['unassigned-count'],
+    enabled: canSeeUnassignedBadge,
+    staleTime: 60_000,
+    queryFn: async (): Promise<number> => {
+      const { count, error } = await supabase
+        .from('termine')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'unassigned');
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const visibleDashboard = filterByRole(dashboardItems, roles);
   const visibleControlboard = filterByRole(controlboardItems, roles);
@@ -79,10 +98,13 @@ export function AppSidebar() {
   };
 
   const getNavClass = (path: string) => {
-    return isActive(path) 
-      ? "bg-primary text-primary-foreground font-medium" 
+    return isActive(path)
+      ? "bg-primary text-primary-foreground font-medium"
       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground";
   };
+
+  const isScheduleBuilderUrl = (url: string) =>
+    url === '/dashboard/controlboard/schedule-builder';
 
   const renderMenuItems = (items: SidebarItem[]) =>
     items.map((item) => (
@@ -90,7 +112,15 @@ export function AppSidebar() {
         <SidebarMenuButton asChild>
           <NavLink to={item.url} className={getNavClass(item.url)}>
             <item.icon className="h-4 w-4" />
-            {!collapsed && <span>{item.title}</span>}
+            {!collapsed && <span className="flex-1">{item.title}</span>}
+            {!collapsed && isScheduleBuilderUrl(item.url) && canSeeUnassignedBadge && unassignedCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="text-[10px] px-1.5 py-0 h-4 ml-auto"
+              >
+                {unassignedCount}
+              </Badge>
+            )}
           </NavLink>
         </SidebarMenuButton>
       </SidebarMenuItem>

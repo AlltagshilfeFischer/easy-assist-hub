@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2, Sparkles } from 'lucide-react';
 import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator';
+import { useSettings } from '@/hooks/useSettings';
 import { PflegekasseCombobox } from '@/components/customers/PflegekasseCombobox';
 import { WeekMatrixPicker } from '@/components/customers/WeekMatrixPicker';
 import { useState, useMemo } from 'react';
@@ -43,6 +44,7 @@ interface StepStammdatenProps {
 }
 
 export function StepStammdaten({ customerData, setCustomerData, employees }: StepStammdatenProps) {
+  const { settings } = useSettings();
   const [showAITimeWindows, setShowAITimeWindows] = useState(false);
 
   // weekMatrix abgeleitet aus zeitfenster (bidirektionale Synchronisation)
@@ -176,7 +178,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         </div>
         <div className="grid grid-cols-4 gap-4">
           <div><Label htmlFor="stadtteil">Stadtteil</Label><Input id="stadtteil" value={customerData.stadtteil} onChange={(e) => setCustomerData((p: any) => ({ ...p, stadtteil: e.target.value }))} placeholder="z.B. Linden, Mitte" /></div>
-          <div><Label htmlFor="telefonnr">Telefon *</Label><Input id="telefonnr" value={customerData.telefonnr} onChange={(e) => setCustomerData((p: any) => ({ ...p, telefonnr: e.target.value }))} placeholder="0511 123456" required /></div>
+          <div><Label htmlFor="telefonnr">Telefon *</Label><Input id="telefonnr" value={customerData.telefonnr} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setCustomerData((p: any) => ({ ...p, telefonnr: val })); }} placeholder="0511 123456" inputMode="tel" required /></div>
           <div><Label htmlFor="email">E-Mail</Label><Input id="email" type="email" value={customerData.email} onChange={(e) => setCustomerData((p: any) => ({ ...p, email: e.target.value }))} placeholder="kunde@email.de" /></div>
           <div>
             <Label>Bevorzugter Kontaktweg</Label>
@@ -284,9 +286,11 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">Oder: Individuelle Zeiten</p>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setShowAITimeWindows(true)}>
-              <Sparkles className="h-4 w-4 mr-1" />KI-Zeitfenster
-            </Button>
+            {settings.aiModeEnabled && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowAITimeWindows(true)}>
+                <Sparkles className="h-4 w-4 mr-1" />KI-Zeitfenster
+              </Button>
+            )}
             <Button type="button" variant="outline" size="sm" onClick={() => setCustomerData((p: any) => ({ ...p, zeitfenster: [...p.zeitfenster, { wochentag: 1, von: '08:00', bis: '12:00' }] }))}>
               <Plus className="h-4 w-4 mr-1" />Manuell hinzufügen
             </Button>
@@ -333,7 +337,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
           <div key={index} className="grid grid-cols-[1fr,1fr,1fr,auto] gap-2 items-end p-3 border rounded-lg">
             <div><Label className="text-xs">Name</Label><Input value={kontakt.name} onChange={(e) => updateNotfallkontakt(index, 'name', e.target.value)} placeholder="Name" /></div>
             <div><Label className="text-xs">Bezug</Label><Input value={kontakt.bezug} onChange={(e) => updateNotfallkontakt(index, 'bezug', e.target.value)} placeholder="z.B. Sohn, Nachbar" /></div>
-            <div><Label className="text-xs">Telefon</Label><Input value={kontakt.telefon} onChange={(e) => updateNotfallkontakt(index, 'telefon', e.target.value)} placeholder="0511 123456" /></div>
+            <div><Label className="text-xs">Telefon</Label><Input value={kontakt.telefon} onChange={(e) => updateNotfallkontakt(index, 'telefon', e.target.value.replace(/[^\d+\-\/ ()]/g, ''))} placeholder="0511 123456" inputMode="tel" /></div>
             {customerData.notfallkontakte.length > 1 && (
               <Button type="button" variant="ghost" size="icon" onClick={() => removeNotfallkontakt(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
             )}

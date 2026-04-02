@@ -331,7 +331,7 @@ export function CreateAppointmentFromSlotDialog({
                 ) : (
                   <div className="space-y-2">
                     <Input value={newInteressentName} onChange={(e) => setNewInteressentName(e.target.value)} placeholder="Vor- und Nachname *" required />
-                    <Input value={newInteressentTelefon} onChange={(e) => setNewInteressentTelefon(e.target.value)} placeholder="Telefonnummer" />
+                    <Input value={newInteressentTelefon} onChange={(e) => setNewInteressentTelefon(e.target.value.replace(/[^\d+\-\/ ()]/g, ''))} placeholder="Telefonnummer" inputMode="tel" />
                     <Input value={newInteressentStrasse} onChange={(e) => setNewInteressentStrasse(e.target.value)} placeholder="Straße und Hausnummer" />
                     <div className="grid grid-cols-[120px,1fr] gap-2">
                       <Input value={newInteressentPlz} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 5); setNewInteressentPlz(val); }} placeholder="PLZ" maxLength={5} inputMode="numeric" />

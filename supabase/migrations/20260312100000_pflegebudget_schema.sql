@@ -88,7 +88,7 @@ CREATE TABLE budget_transactions (
 CREATE INDEX budget_transactions_client_id_idx ON budget_transactions(client_id);
 CREATE INDEX budget_transactions_service_date_idx ON budget_transactions(service_date);
 CREATE INDEX budget_transactions_billed_idx ON budget_transactions(billed);
-CREATE INDEX budget_transactions_month_idx ON budget_transactions(date_trunc('month', service_date));
+CREATE INDEX budget_transactions_month_idx ON budget_transactions(date_trunc('month', service_date::timestamp));
 
 ALTER TABLE budget_transactions ENABLE ROW LEVEL SECURITY;
 

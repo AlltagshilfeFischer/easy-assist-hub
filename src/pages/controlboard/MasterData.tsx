@@ -145,7 +145,7 @@ export default function MasterData() {
 
           {customersLoading ? (
             <div className="text-center py-4">Lade Kundendaten...</div>
-          ) : filters.sortedCustomers.length > 0 ? (
+          ) : (
             <CustomerTable
               customers={filters.sortedCustomers}
               customerSort={filters.customerSort}
@@ -165,14 +165,6 @@ export default function MasterData() {
               plzFilter={filters.plzFilter} setPlzFilter={filters.setPlzFilter}
               stadtFilter={filters.stadtFilter} setStadtFilter={filters.setStadtFilter}
             />
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              {filters.customerStatusFilter === 'inactive'
-                ? 'Keine inaktiven Kunden vorhanden'
-                : filters.customerStatusFilter === 'active'
-                  ? 'Keine aktiven Kunden vorhanden'
-                  : 'Keine Kunden gefunden'}
-            </div>
           )}
         </CardContent>
       </Card>

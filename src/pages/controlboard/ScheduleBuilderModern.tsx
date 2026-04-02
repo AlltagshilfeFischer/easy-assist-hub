@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, addMonths, subMonths, startOfMonth, endOfMonth, parseISO, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -39,7 +40,10 @@ import { CreateAppointmentFromSlotDialog } from '@/components/schedule/dialogs/C
 import { ConflictWarningDialog } from '@/components/schedule/dialogs/ConflictWarningDialog';
 import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
 import { AIAppointmentCreator } from '@/components/schedule/ai/AIAppointmentCreator';
+import { useSettings } from '@/hooks/useSettings';
 import { ConflictsNavigationCard } from '@/components/schedule/panels/ConflictsNavigationCard';
+import { UnassignedAppointmentsPanel } from '@/components/schedule/panels/UnassignedAppointmentsPanel';
+import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 
 import type { Employee, Customer, CalendarAppointment } from '@/types/domain';
@@ -50,6 +54,7 @@ type LocalAppointment = CalendarAppointment & {
 };
 
 const ScheduleBuilderModern = () => {
+  const { settings } = useSettings();
   const [searchParams] = useSearchParams();
   const [currentWeek, setCurrentWeek] = useState(() => {
     const weekParam = searchParams.get('week');
@@ -104,6 +109,9 @@ const ScheduleBuilderModern = () => {
   const [pendingCreateData, setPendingCreateData] = useState<Record<string, unknown> | null>(null);
 
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -498,6 +506,7 @@ const ScheduleBuilderModern = () => {
         title: 'Erfolg',
         description: `${appointmentLabel} → ${employee?.name}${targetDate ? ` am ${format(targetDate, 'dd.MM.yyyy')}` : ''}`
       });
+      queryClient.invalidateQueries({ queryKey: ['unassigned-count'] });
     } catch (error: any) {
       console.error('Error assigning appointment:', error);
       const errorMsg = error?.message?.includes('network')
@@ -1182,10 +1191,12 @@ const ScheduleBuilderModern = () => {
           )}
         </div>
 
-        {/* AI Appointment Creator — volle Breite */}
-        <div className="flex-shrink-0">
-          <AIAppointmentCreator onAppointmentCreated={loadData} />
-        </div>
+        {/* AI Appointment Creator — nur wenn KI-Modus aktiv */}
+        {settings.aiModeEnabled && (
+          <div className="flex-shrink-0">
+            <AIAppointmentCreator onAppointmentCreated={loadData} />
+          </div>
+        )}
 
         {/* Konflikte-Popover — erscheint inline vor dem Kalender */}
         {/* Konflikte + Genehmigungen + Actions — eine Zeile */}
@@ -1267,57 +1278,73 @@ const ScheduleBuilderModern = () => {
           </div>
         </div>
 
-        {/* Main Calendar Content */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          {/* Calendar Grid */}
-          <div className="flex-1 overflow-auto">
-            <div style={{ zoom: calendarScale }}>
-            {viewMode === 'week' && (
-              <ProScheduleCalendar
-                employees={filteredEmployees}
-                allEmployees={[...employees.filter(e => e.ist_aktiv)].sort((a, b) => {
-                  const ai = employeeOrder.indexOf(a.id);
-                  const bi = employeeOrder.indexOf(b.id);
-                  return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-                })}
-                appointments={displayedAppointments}
-                abwesenheiten={abwesenheiten}
-                weekDates={weekDates}
-                activeAppointmentId={activeId}
-                onEditAppointment={setEditingAppointment}
-                onSlotClick={handleSlotClick}
-                conflictingAppointments={conflictingAppointments}
-                onCut={handleCutAppointment}
-                onCopy={handleCopyAppointment}
-                highlightedAppointmentId={highlightedAppointmentId}
-                hiddenEmployeeIds={hiddenEmployeeIds}
-                onToggleEmployee={(id) => {
-                  setHiddenEmployeeIds(prev => {
-                    const next = new Set(prev);
-                    if (next.has(id)) next.delete(id);
-                    else next.add(id);
-                    return next;
-                  });
-                }}
-                onReorderEmployees={(orderedIds) => {
-                  setEmployeeOrder(orderedIds);
-                }}
-              />
-            )}
-            {viewMode === 'month' && (
-              <MonthView
-                employees={filteredEmployees}
-                appointments={displayedAppointments}
-                currentMonth={currentWeek}
-                onEditAppointment={setEditingAppointment}
-                onSlotClick={handleSlotClick}
-              />
-            )}
+        {/* Main Content: Calendar + Unassigned Panel */}
+        <div className="flex-1 flex flex-row min-h-0 gap-2 overflow-hidden">
+          {/* Calendar */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            {/* Calendar Grid */}
+            <div className="flex-1 overflow-auto">
+              <div style={{ zoom: calendarScale }}>
+              {viewMode === 'week' && (
+                <ProScheduleCalendar
+                  employees={filteredEmployees}
+                  allEmployees={[...employees.filter(e => e.ist_aktiv)].sort((a, b) => {
+                    const ai = employeeOrder.indexOf(a.id);
+                    const bi = employeeOrder.indexOf(b.id);
+                    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                  })}
+                  appointments={displayedAppointments}
+                  abwesenheiten={abwesenheiten}
+                  weekDates={weekDates}
+                  activeAppointmentId={activeId}
+                  onEditAppointment={setEditingAppointment}
+                  onSlotClick={handleSlotClick}
+                  conflictingAppointments={conflictingAppointments}
+                  onCut={handleCutAppointment}
+                  onCopy={handleCopyAppointment}
+                  highlightedAppointmentId={highlightedAppointmentId}
+                  hiddenEmployeeIds={hiddenEmployeeIds}
+                  onToggleEmployee={(id) => {
+                    setHiddenEmployeeIds(prev => {
+                      const next = new Set(prev);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
+                      return next;
+                    });
+                  }}
+                  onReorderEmployees={(orderedIds) => {
+                    setEmployeeOrder(orderedIds);
+                  }}
+                />
+              )}
+              {viewMode === 'month' && (
+                <MonthView
+                  employees={filteredEmployees}
+                  appointments={displayedAppointments}
+                  currentMonth={currentWeek}
+                  onEditAppointment={setEditingAppointment}
+                  onSlotClick={handleSlotClick}
+                />
+              )}
+              </div>
             </div>
+
+            {/* Legend Footer */}
+            <ProCalendarLegend />
           </div>
-          
-          {/* Legend Footer */}
-          <ProCalendarLegend />
+
+          {/* Unassigned Appointments Side Panel */}
+          <div className="w-72 flex-shrink-0 flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            <UnassignedAppointmentsPanel
+              unassignedAppointments={unassignedAppointments}
+              allAppointments={appointments}
+              employees={employees.filter(e => e.ist_aktiv)}
+              verfuegbarkeiten={allVerfuegbarkeiten}
+              onAssignAppointment={(appointmentId, employeeId) =>
+                assignAppointment(appointmentId, employeeId)
+              }
+            />
+          </div>
         </div>
 
         {/* Cut/Paste Bar */}

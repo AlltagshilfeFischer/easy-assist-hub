@@ -7,7 +7,11 @@ export const customerBaseSchema = z.object({
   strasse: z.string().min(1, 'Straße ist erforderlich').trim(),
   plz: z.string().regex(/^\d{5}$/, 'PLZ muss genau 5 Ziffern haben'),
   stadt: z.string().optional().or(z.literal('')),
-  telefonnr: z.string().min(1, 'Telefonnummer ist erforderlich').trim(),
+  telefonnr: z
+    .string()
+    .min(1, 'Telefonnummer ist erforderlich')
+    .trim()
+    .regex(/^[+\d][\d\s\-\/()]{4,}$/, 'Ungültige Telefonnummer (nur Ziffern, +, -, / erlaubt)'),
   email: z.string().email('Ungültige E-Mail-Adresse').optional().or(z.literal('')),
   // Optionale Felder
   geburtsdatum: z.string().optional().or(z.literal('')),

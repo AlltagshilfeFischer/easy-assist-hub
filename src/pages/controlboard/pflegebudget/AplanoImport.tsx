@@ -21,6 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import { useCustomers } from '@/hooks/useCustomers';
 import { useInsertBudgetTransactions } from '@/hooks/useBudgetTransactions';
+import { useTariffs } from '@/hooks/useTariffs';
+import { calculateTransactionAmount } from '@/lib/pflegebudget/budgetCalculations';
 import type { Customer } from '@/types/domain';
 
 // ─── Typen ──────────────────────────────────────────────────
@@ -368,6 +370,7 @@ function Step3Preview({
 export default function AplanoImport() {
   const navigate = useNavigate();
   const { data: customers = [] } = useCustomers({ onlyActive: true });
+  const { data: tariffs = [] } = useTariffs();
   const insertMutation = useInsertBudgetTransactions();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -446,15 +449,21 @@ export default function AplanoImport() {
     const batch = [];
     for (const row of validRows) {
       if (!row.matchedCustomer) { failed++; continue; }
+      const { hourlyRate, travelFlatTotal, totalAmount } = calculateTransactionAmount(
+        row.hours,
+        1,
+        'ENTLASTUNG',
+        tariffs,
+      );
       batch.push({
         client_id: row.matchedCustomer.id,
         service_date: row.serviceDate,
         hours: row.hours,
         visits: 1,
         service_type: 'ENTLASTUNG' as const,
-        hourly_rate: 0,
-        travel_flat_total: 0,
-        total_amount: 0,
+        hourly_rate: hourlyRate,
+        travel_flat_total: travelFlatTotal,
+        total_amount: totalAmount,
         source: 'APLANO_IMPORT' as const,
         external_ref: null,
         billed: false,

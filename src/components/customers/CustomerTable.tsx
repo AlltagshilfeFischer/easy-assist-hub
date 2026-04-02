@@ -114,6 +114,13 @@ export function CustomerTable({
           </TableRow>
         </TableHeader>
         <TableBody>
+          {customers.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                Keine Kunden gefunden
+              </TableCell>
+            </TableRow>
+          )}
           {customers.map((customer: any) => (
             <TableRow key={customer.id}>
               <TableCell className="font-medium">{customer.vorname} {customer.nachname}</TableCell>

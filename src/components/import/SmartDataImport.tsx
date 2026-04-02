@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useSettings } from '@/hooks/useSettings';
 
 export interface ColumnConfig {
   key: string;
@@ -96,6 +97,9 @@ export function SmartDataImport<T extends DataRow>({
   aiParseFunction,
   aiParseResultKey,
 }: SmartDataImportProps<T>) {
+  const { settings } = useSettings();
+  const aiEnabled = settings.aiModeEnabled && !!aiParseFunction;
+
   // ─── Data state ───────────────────────────────────────────────────
   const [rows, setRows] = useState<T[]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -965,8 +969,8 @@ export function SmartDataImport<T extends DataRow>({
               10 Zeilen
             </Button>
 
-            {/* AI Import */}
-            {aiParseFunction && (
+            {/* AI Import — nur wenn KI-Modus aktiv */}
+            {aiEnabled && (
               <>
                 <div className="w-px h-5 bg-border mx-0.5 flex-shrink-0" />
                 <Button
@@ -1287,7 +1291,7 @@ export function SmartDataImport<T extends DataRow>({
       )}
 
       {/* ─── AI Parse Dialog ────────────────────────────────────── */}
-      {aiParseFunction && (
+      {aiEnabled && (
         <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>

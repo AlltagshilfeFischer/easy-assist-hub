@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, Sparkles, FileText, Receipt, User, AlertCircle } from 'lucide-react';
 import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator';
+import { useSettings } from '@/hooks/useSettings';
 import { StepAbrechnung } from '@/components/customers/wizard/StepAbrechnung';
 import { StepDokumente } from '@/components/customers/wizard/StepDokumente';
 import { PflegekasseCombobox } from '@/components/customers/PflegekasseCombobox';
@@ -60,6 +61,7 @@ export function CustomerEditDialog({
   employees,
   onSave,
 }: CustomerEditDialogProps) {
+  const { settings } = useSettings();
   const [showAITimeWindows, setShowAITimeWindows] = useState(false);
   const [budgetOrder, setBudgetOrder] = useState<string[]>([]);
   const [draggedBudget, setDraggedBudget] = useState<string | null>(null);
@@ -236,7 +238,7 @@ export function CustomerEditDialog({
               <div className="space-y-4 border-t pt-4">
                 <h3 className="text-lg font-semibold">Kontaktdaten</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><Label htmlFor="telefonnr">Telefon</Label><Input id="telefonnr" value={editingCustomer.telefonnr || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, telefonnr: e.target.value })} /></div>
+                  <div><Label htmlFor="telefonnr">Telefon</Label><Input id="telefonnr" value={editingCustomer.telefonnr || ''} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setEditingCustomer({ ...editingCustomer, telefonnr: val }); }} inputMode="tel" /></div>
                   <div><Label htmlFor="email">E-Mail</Label><Input id="email" type="email" value={editingCustomer.email || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })} /></div>
                 </div>
               </div>
@@ -302,9 +304,11 @@ export function CustomerEditDialog({
                 <div className="flex items-center justify-between">
                   <Label className="text-lg font-semibold">Zeitfenster</Label>
                   <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAITimeWindows(true)}>
-                      <Sparkles className="h-4 w-4 mr-1" />KI-Zeitfenster
-                    </Button>
+                    {settings.aiModeEnabled && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowAITimeWindows(true)}>
+                        <Sparkles className="h-4 w-4 mr-1" />KI-Zeitfenster
+                      </Button>
+                    )}
                     <Button type="button" variant="outline" size="sm" onClick={() => {
                       const zeitfenster = editingCustomer.zeitfenster || [];
                       setEditingCustomer({ ...editingCustomer, zeitfenster: [...zeitfenster, { wochentag: 1, von: '08:00', bis: '12:00' }] });

@@ -147,7 +147,7 @@ export function useCustomerFilters(customers: any[] | undefined) {
       let bValue: string | number = '';
 
       switch (key) {
-        case 'name': aValue = (a.name || '').toLowerCase(); bValue = (b.name || '').toLowerCase(); break;
+        case 'name': aValue = `${a.vorname || ''} ${a.nachname || ''}`.toLowerCase().trim(); bValue = `${b.vorname || ''} ${b.nachname || ''}`.toLowerCase().trim(); break;
         case 'status': aValue = a.aktiv ? 'aktiv' : 'inaktiv'; bValue = b.aktiv ? 'aktiv' : 'inaktiv'; break;
         case 'telefon': aValue = (a.telefonnr || '').toLowerCase(); bValue = (b.telefonnr || '').toLowerCase(); break;
         case 'email': aValue = (a.email || '').toLowerCase(); bValue = (b.email || '').toLowerCase(); break;

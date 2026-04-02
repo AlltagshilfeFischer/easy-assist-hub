@@ -460,6 +460,7 @@ export function ProScheduleCalendar({
                       isHighlighted={highlightedAppointmentId === appointment.id}
                       onClick={() => onEditAppointment(appointment)}
                       onCut={() => onCut(appointment)}
+                      onCopy={onCopy ? () => onCopy(appointment) : undefined}
                     />
                   ))}
                 </div>
@@ -569,6 +570,7 @@ export function ProScheduleCalendar({
                               isHighlighted={highlightedAppointmentId === appointment.id}
                               onClick={() => onEditAppointment(appointment)}
                               onCut={() => onCut(appointment)}
+                              onCopy={onCopy ? () => onCopy(appointment) : undefined}
                             />
                           ))}
                         </div>

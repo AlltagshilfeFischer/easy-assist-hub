@@ -8,16 +8,17 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Scissors, AlertCircle, MapPin, Tag } from "lucide-react";
+import { Scissors, Copy, AlertCircle, MapPin, Tag } from "lucide-react";
 import type { CalendarAppointment } from '@/types/domain';
 
 interface ProAppointmentCardProps {
-  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer' | 'notizen' | 'kategorie'>;
+  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer' | 'notizen' | 'kategorie' | 'status'>;
   isDragging?: boolean;
   isConflicting?: boolean;
   isHighlighted?: boolean;
   onClick?: () => void;
   onCut?: () => void;
+  onCopy?: () => void;
 }
 
 export function ProAppointmentCard({
@@ -26,7 +27,8 @@ export function ProAppointmentCard({
   isConflicting,
   isHighlighted,
   onClick,
-  onCut
+  onCut,
+  onCopy,
 }: ProAppointmentCardProps) {
   const {
     attributes,
@@ -42,12 +44,24 @@ export function ProAppointmentCard({
   const startTime = format(new Date(appointment.start_at), 'HH:mm');
   const endTime = format(new Date(appointment.end_at), 'HH:mm');
   const customerColor = appointment.customer?.farbe_kalender || '#10B981';
-  
-  // Determine border color based on status
+
   const getBorderColor = () => {
     if (isConflicting) return 'border-l-destructive';
-    return 'border-l-success';
+    switch (appointment.status) {
+      case 'unassigned':            return 'border-l-orange-400';
+      case 'scheduled':             return 'border-l-blue-400';
+      case 'in_progress':           return 'border-l-yellow-400';
+      case 'completed':             return 'border-l-green-500';
+      case 'cancelled':             return 'border-l-red-500';
+      case 'nicht_angetroffen':     return 'border-l-amber-500';
+      case 'abgesagt_rechtzeitig':  return 'border-l-slate-400';
+      case 'abgerechnet':           return 'border-l-emerald-500';
+      case 'bezahlt':               return 'border-l-teal-500';
+      default:                      return 'border-l-border';
+    }
   };
+
+  const isTerminated = ['cancelled', 'nicht_angetroffen', 'abgesagt_rechtzeitig'].includes(appointment.status ?? '');
 
   return (
     <ContextMenu>
@@ -82,7 +96,7 @@ export function ProAppointmentCard({
           <div className="p-2">
             {/* Time Range */}
             <div className="flex items-center justify-between gap-1 mb-0.5">
-              <span className="text-[11px] font-semibold text-foreground">
+              <span className={cn("text-[11px] font-semibold text-foreground", isTerminated && "line-through opacity-60")}>
                 {startTime} - {endTime}
               </span>
               {isConflicting && (
@@ -91,7 +105,7 @@ export function ProAppointmentCard({
             </div>
 
             {/* Customer Name or Intern label */}
-            <div className="font-medium text-xs text-foreground truncate">
+            <div className={cn("font-medium text-xs text-foreground truncate", isTerminated && "line-through opacity-60")}>
               {appointment.customer?.name || appointment.titel}
             </div>
 
@@ -126,6 +140,13 @@ export function ProAppointmentCard({
         }}>
           <Scissors className="mr-2 h-4 w-4" />
           Ausschneiden
+        </ContextMenuItem>
+        <ContextMenuItem onClick={(e) => {
+          e.stopPropagation();
+          onCopy?.();
+        }}>
+          <Copy className="mr-2 h-4 w-4" />
+          Kopieren
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

@@ -83,7 +83,7 @@ export function EmployeeChangeRequestDialog({
       unassigned: 'Unzugewiesen',
       scheduled: 'Geplant',
       in_progress: 'In Bearbeitung',
-      completed: 'Abgeschlossen',
+      completed: 'Durchgeführt',
       cancelled: 'Abgesagt'
     };
     return variants[status as keyof typeof variants] || 'Unbekannt';

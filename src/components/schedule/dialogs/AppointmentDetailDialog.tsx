@@ -44,7 +44,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   unassigned: { label: 'Offen', color: 'bg-orange-100 text-orange-800 border-orange-200' },
   scheduled: { label: 'Geplant', color: 'bg-blue-100 text-blue-800 border-blue-200' },
   in_progress: { label: 'In Bearbeitung', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  completed: { label: 'Abgeschlossen', color: 'bg-green-100 text-green-800 border-green-200' },
+  completed: { label: 'Durchgeführt', color: 'bg-green-100 text-green-800 border-green-200' },
   cancelled: { label: 'Abgesagt (kurzfr.)', color: 'bg-red-100 text-red-800 border-red-200' },
   nicht_angetroffen: { label: 'Nicht angetroffen', color: 'bg-amber-100 text-amber-800 border-amber-200' },
   abgesagt_rechtzeitig: { label: 'Rechtzeitig abgesagt', color: 'bg-slate-100 text-slate-700 border-slate-200' },
@@ -354,7 +354,7 @@ export function AppointmentDetailDialog({
                   <SelectItem value="unassigned">Offen</SelectItem>
                   <SelectItem value="scheduled">Geplant</SelectItem>
                   <SelectItem value="in_progress">In Bearbeitung</SelectItem>
-                  <SelectItem value="completed">Abgeschlossen</SelectItem>
+                  <SelectItem value="completed">Durchgeführt</SelectItem>
                   <SelectItem value="cancelled">Abgesagt (kurzfr.)</SelectItem>
                   <SelectItem value="nicht_angetroffen">Nicht angetroffen</SelectItem>
                   <SelectItem value="abgesagt_rechtzeitig">Rechtzeitig abgesagt</SelectItem>

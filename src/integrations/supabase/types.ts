@@ -490,6 +490,7 @@ export type Database = {
           adresse: string | null
           aktiv: boolean
           angehoerige_ansprechpartner: string | null
+          archiviert: boolean | null
           austritt: string | null
           begruendung: string | null
           budget_prioritaet: string[] | null
@@ -497,15 +498,19 @@ export type Database = {
           created_at: string | null
           eintritt: string | null
           email: string | null
+          entlastung_genehmigt: boolean | null
           farbe_kalender: string | null
           geburtsdatum: string | null
           geschlecht: string | null
           haushalt_id: string | null
           id: string
+          initial_budget_entlastung: number | null
+          initial_budget_verhinderung: number | null
           kasse_privat: string | null
           kategorie: string | null
           kontaktweg: string | null
           kopie_lw: string | null
+          kombileistung_genehmigt_am: string | null
           kunden_nummer: number
           mitarbeiter: string | null
           nachname: string | null
@@ -518,6 +523,7 @@ export type Database = {
           pflegesachleistung_beantragt: boolean | null
           pflegesachleistung_genehmigt: boolean | null
           plz: string | null
+          privatrechnung_erlaubt: boolean | null
           rechnungskopie: string[] | null
           rechnungskopie_adresse_name: string | null
           rechnungskopie_adresse_plz: string | null
@@ -540,6 +546,7 @@ export type Database = {
           verhinderungspflege_beantragt: boolean | null
           verhinderungspflege_budget: number | null
           verhinderungspflege_genehmigt: boolean | null
+          verhinderungspflege_genehmigt_am: string | null
           verhinderungspflege_status: string | null
           versichertennummer: string | null
           vorname: string | null
@@ -548,6 +555,7 @@ export type Database = {
           adresse?: string | null
           aktiv?: boolean
           angehoerige_ansprechpartner?: string | null
+          archiviert?: boolean | null
           austritt?: string | null
           begruendung?: string | null
           budget_prioritaet?: string[] | null
@@ -555,13 +563,17 @@ export type Database = {
           created_at?: string | null
           eintritt?: string | null
           email?: string | null
+          entlastung_genehmigt?: boolean | null
           farbe_kalender?: string | null
           geburtsdatum?: string | null
           geschlecht?: string | null
           haushalt_id?: string | null
           id?: string
+          initial_budget_entlastung?: number | null
+          initial_budget_verhinderung?: number | null
           kasse_privat?: string | null
           kategorie?: string | null
+          kombileistung_genehmigt_am?: string | null
           kontaktweg?: string | null
           kopie_lw?: string | null
           kunden_nummer?: number
@@ -576,6 +588,7 @@ export type Database = {
           pflegesachleistung_beantragt?: boolean | null
           pflegesachleistung_genehmigt?: boolean | null
           plz?: string | null
+          privatrechnung_erlaubt?: boolean | null
           rechnungskopie?: string[] | null
           rechnungskopie_adresse_name?: string | null
           rechnungskopie_adresse_plz?: string | null
@@ -598,6 +611,7 @@ export type Database = {
           verhinderungspflege_beantragt?: boolean | null
           verhinderungspflege_budget?: number | null
           verhinderungspflege_genehmigt?: boolean | null
+          verhinderungspflege_genehmigt_am?: string | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
           vorname?: string | null
@@ -606,6 +620,7 @@ export type Database = {
           adresse?: string | null
           aktiv?: boolean
           angehoerige_ansprechpartner?: string | null
+          archiviert?: boolean | null
           austritt?: string | null
           begruendung?: string | null
           budget_prioritaet?: string[] | null
@@ -613,13 +628,17 @@ export type Database = {
           created_at?: string | null
           eintritt?: string | null
           email?: string | null
+          entlastung_genehmigt?: boolean | null
           farbe_kalender?: string | null
           geburtsdatum?: string | null
           geschlecht?: string | null
           haushalt_id?: string | null
           id?: string
+          initial_budget_entlastung?: number | null
+          initial_budget_verhinderung?: number | null
           kasse_privat?: string | null
           kategorie?: string | null
+          kombileistung_genehmigt_am?: string | null
           kontaktweg?: string | null
           kopie_lw?: string | null
           kunden_nummer?: number
@@ -634,6 +653,7 @@ export type Database = {
           pflegesachleistung_beantragt?: boolean | null
           pflegesachleistung_genehmigt?: boolean | null
           plz?: string | null
+          privatrechnung_erlaubt?: boolean | null
           rechnungskopie?: string[] | null
           rechnungskopie_adresse_name?: string | null
           rechnungskopie_adresse_plz?: string | null
@@ -656,6 +676,7 @@ export type Database = {
           verhinderungspflege_beantragt?: boolean | null
           verhinderungspflege_budget?: number | null
           verhinderungspflege_genehmigt?: boolean | null
+          verhinderungspflege_genehmigt_am?: string | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
           vorname?: string | null

@@ -46,7 +46,7 @@ const STATUS_LABELS: Record<TerminStatus, string> = {
   unassigned: 'Nicht zugewiesen',
   scheduled: 'Geplant',
   in_progress: 'In Bearbeitung',
-  completed: 'Abgeschlossen',
+  completed: 'Durchgeführt',
   cancelled: 'Storniert',
   abgerechnet: 'Abgerechnet',
   bezahlt: 'Bezahlt',

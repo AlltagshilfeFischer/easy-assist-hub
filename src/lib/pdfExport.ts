@@ -13,6 +13,12 @@ export async function exportElementToPdf(
   const originalDisplay = element.style.display;
   element.style.display = 'block';
 
+  // Ensure absolutely-positioned children (e.g. footer) are contained within
+  // the print-area div and don't inflate the canvas beyond one A4 page.
+  const printArea = element.querySelector<HTMLElement>('.print-area');
+  const originalPrintAreaPosition = printArea ? printArea.style.position : '';
+  if (printArea) printArea.style.position = 'relative';
+
   const canvas = await html2canvas(element, {
     scale: 2,
     useCORS: true,
@@ -21,6 +27,7 @@ export async function exportElementToPdf(
   });
 
   element.style.display = originalDisplay;
+  if (printArea) printArea.style.position = originalPrintAreaPosition;
 
   const imgData = canvas.toDataURL('image/png');
   const pdf = new jsPDF('p', 'mm', 'a4');

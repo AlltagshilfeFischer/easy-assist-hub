@@ -30,6 +30,9 @@ interface LNRow {
   unterschrift_kunde_bild: string | null;
   unterschrift_kunde_zeitstempel: string | null;
   unterschrift_kunde_durch: string | null;
+  // Computed from termine at query time (always current, not stale DB value)
+  computedGeplant: number;
+  computedGeleistet: number;
 }
 
 interface Termin {
@@ -100,25 +103,48 @@ export function LeistungsnachweisSignature() {
       if (lnError) throw lnError;
       if (!allLN?.length) return [];
 
-      // 2. Get kunden_ids where this MA has termine, grouped by month
+      // 2. Get termine for this MA (with hours data for computation)
       const { data: myTermine, error: tError } = await supabase
         .from('termine')
-        .select('kunden_id, start_at')
+        .select('kunden_id, start_at, end_at, status, iststunden')
         .eq('mitarbeiter_id', mitarbeiterId)
         .not('kunden_id', 'is', null);
       if (tError) throw tError;
 
-      // Build set of "kundenId-monat-jahr" keys
+      // Build map of hours per "kundenId-monat-jahr" and set of matching keys
+      const now = new Date();
       const myKeys = new Set<string>();
+      const hoursMap = new Map<string, { geplant: number; geleistet: number }>();
+
       for (const t of myTermine ?? []) {
         const d = new Date(t.start_at);
-        myKeys.add(`${t.kunden_id}-${d.getMonth() + 1}-${d.getFullYear()}`);
+        const key = `${t.kunden_id}-${d.getMonth() + 1}-${d.getFullYear()}`;
+        myKeys.add(key);
+
+        if (['cancelled', 'abgesagt_rechtzeitig'].includes(t.status)) continue;
+        const start = new Date(t.start_at);
+        const end = new Date(t.end_at);
+        const duration = (end.getTime() - start.getTime()) / 3600000;
+        const cur = hoursMap.get(key) || { geplant: 0, geleistet: 0 };
+        cur.geplant += duration;
+        const effectiveStatus = (t.status === 'scheduled' && end < now) ? 'completed' : t.status;
+        if (['completed', 'nicht_angetroffen'].includes(effectiveStatus)) {
+          cur.geleistet += t.iststunden ? Number(t.iststunden) : duration;
+        }
+        hoursMap.set(key, cur);
       }
 
-      // 3. Filter LN to only those matching
-      return (allLN as LNRow[]).filter(ln =>
-        myKeys.has(`${ln.kunden_id}-${ln.monat}-${ln.jahr}`)
-      );
+      // 3. Filter LN to only those matching and attach computed hours
+      return (allLN as Omit<LNRow, 'computedGeplant' | 'computedGeleistet'>[])
+        .filter(ln => myKeys.has(`${ln.kunden_id}-${ln.monat}-${ln.jahr}`))
+        .map(ln => {
+          const h = hoursMap.get(`${ln.kunden_id}-${ln.monat}-${ln.jahr}`) || { geplant: 0, geleistet: 0 };
+          return {
+            ...ln,
+            computedGeplant: Math.round(h.geplant * 100) / 100,
+            computedGeleistet: Math.round(h.geleistet * 100) / 100,
+          } as LNRow;
+        });
     },
     enabled: !!mitarbeiterId
   });
@@ -318,7 +344,7 @@ export function LeistungsnachweisSignature() {
                   <div>
                     <p className="font-medium">{getKundeName(ln.kunden_id)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {monthNames[ln.monat - 1]} {ln.jahr} • {ln.geleistete_stunden}h geleistet
+                      {monthNames[ln.monat - 1]} {ln.jahr} • {ln.computedGeleistet}h geleistet ({ln.computedGeplant}h geplant)
                     </p>
                   </div>
                   <div className="flex gap-1.5">

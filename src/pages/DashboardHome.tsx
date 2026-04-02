@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import QuickActionChat from '@/components/dashboard/QuickActionChat';
+import { useSettings } from '@/hooks/useSettings';
 
 export default function DashboardHome() {
+  const { settings } = useSettings();
   const {
     data: customersCount,
     isLoading: isLoadingCustomers
@@ -163,7 +165,7 @@ export default function DashboardHome() {
         </Card>
       </div>
 
-      {/* Quick Action Chat */}
-      <QuickActionChat />
+      {/* Quick Action Chat — nur wenn KI-Modus aktiv */}
+      {settings.aiModeEnabled && <QuickActionChat />}
     </div>;
 }

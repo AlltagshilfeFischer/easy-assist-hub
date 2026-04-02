@@ -110,10 +110,28 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
 
       if (overlapping?.length) {
         const ids = overlapping.map((t) => t.id);
-        await supabase
+        const { error: unassignError } = await supabase
           .from('termine')
           .update({ mitarbeiter_id: null, status: 'unassigned' })
           .in('id', ids);
+        if (unassignError) throw unassignError;
+
+        // Historie: Für jeden freigegebenen Termin einen Eintrag schreiben
+        const typLabel = TYP_OPTIONS.find((o) => o.value === typ)?.label ?? typ;
+        const reason = `Automatisch freigegeben: Abwesenheit ${typLabel} ${von} – ${bis}`;
+        const { error: historyError } = await supabase.from('termin_aenderungen').insert(
+          ids.map((terminId) => ({
+            termin_id: terminId,
+            requested_by: user!.id,
+            status: 'approved' as const,
+            old_mitarbeiter_id: selectedMaId,
+            new_mitarbeiter_id: null,
+            reason,
+            approver_id: user!.id,
+            approved_at: new Date().toISOString(),
+          })),
+        );
+        if (historyError) throw historyError;
       }
     },
     onSuccess: () => {

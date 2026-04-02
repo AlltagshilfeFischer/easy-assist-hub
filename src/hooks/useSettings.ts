@@ -3,10 +3,12 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 interface AppSettings {
   sidebarAutoCollapseOnSchedule: boolean;
+  aiModeEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   sidebarAutoCollapseOnSchedule: true,
+  aiModeEnabled: false,
 };
 
 const SETTINGS_KEY = 'app-settings';

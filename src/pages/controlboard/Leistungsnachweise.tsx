@@ -462,6 +462,45 @@ export default function Leistungsnachweise() {
     return map;
   }, [kunden]);
 
+  // Compute live hours per customer for the table (needed for sort + stats)
+  const allTermineQuery = useQuery({
+    queryKey: ['termine-alle-ln', selectedMonth, selectedYear],
+    queryFn: async () => {
+      const von = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
+      const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+      const { data, error } = await supabase
+        .from('termine')
+        .select('id, kunden_id, iststunden, start_at, end_at, status')
+        .gte('start_at', von)
+        .lte('start_at', bis);
+      if (error) throw error;
+      return data as { id: string; kunden_id: string; iststunden: number | null; start_at: string; end_at: string; status: string }[];
+    },
+  });
+
+  const hoursByKunde = useMemo(() => {
+    const map = new Map<string, { geplant: number; geleistet: number }>();
+    if (!allTermineQuery.data) return map;
+    const byKunde = new Map<string, typeof allTermineQuery.data>();
+    for (const t of allTermineQuery.data) {
+      const arr = byKunde.get(t.kunden_id) || [];
+      arr.push(t);
+      byKunde.set(t.kunden_id, arr);
+    }
+    for (const [kundenId, kundeTermine] of byKunde) {
+      map.set(kundenId, calculateHoursFromTermine(kundeTermine as any));
+    }
+    return map;
+  }, [allTermineQuery.data]);
+
+  // Helper: get display hours for a LN row (frozen for signed/closed, live for open)
+  const getRowHours = (ln: LeistungsnachweisRow) => {
+    if (ln.status !== 'offen' && ln.frozen_geplante_stunden != null) {
+      return { geplant: ln.frozen_geplante_stunden, geleistet: ln.frozen_geleistete_stunden ?? 0 };
+    }
+    return hoursByKunde.get(ln.kunden_id) || { geplant: 0, geleistet: 0 };
+  };
+
   // Filter & Sort
   const filteredNachweise = useMemo(() => {
     if (!nachweise) return [];
@@ -482,15 +521,15 @@ export default function Leistungsnachweise() {
       let cmp = 0;
       switch (sortKey) {
         case 'name': cmp = getKundeName(a.kunden_id).localeCompare(getKundeName(b.kunden_id)); break;
-        case 'geplant': cmp = a.geplante_stunden - b.geplante_stunden; break;
-        case 'geleistet': cmp = a.geleistete_stunden - b.geleistete_stunden; break;
+        case 'geplant': cmp = getRowHours(a).geplant - getRowHours(b).geplant; break;
+        case 'geleistet': cmp = getRowHours(a).geleistet - getRowHours(b).geleistet; break;
         case 'status': cmp = a.status.localeCompare(b.status); break;
       }
       return sortAsc ? cmp : -cmp;
     });
 
     return result;
-  }, [nachweise, searchQuery, statusFilter, kundenFilter, sortKey, sortAsc, kunden]);
+  }, [nachweise, searchQuery, statusFilter, kundenFilter, sortKey, sortAsc, kunden, hoursByKunde]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -505,7 +544,7 @@ export default function Leistungsnachweise() {
     for (const n of nachweise) {
       const h = (n.status !== 'offen' && n.frozen_geplante_stunden != null)
         ? { geplant: n.frozen_geplante_stunden, geleistet: n.frozen_geleistete_stunden ?? 0 }
-        : { geplant: 0, geleistet: 0 };
+        : hoursByKunde.get(n.kunden_id) || { geplant: 0, geleistet: 0 };
       totalPlanned += h.geplant;
       totalDone += h.geleistet;
     }
@@ -516,7 +555,7 @@ export default function Leistungsnachweise() {
       totalPlanned,
       totalDone,
     };
-  }, [nachweise]);
+  }, [nachweise, hoursByKunde]);
 
   // Canvas drawing helpers
   const initCanvas = useCallback(() => {
@@ -598,6 +637,7 @@ export default function Leistungsnachweise() {
 
     if (Object.keys(updates).length > 0) {
       setSelectedLN(prev => prev ? { ...prev, ...updates } : null);
+      updateMutation.mutate(updates);
     }
   }, [showDetail, selectedLN?.id]);
 
@@ -626,45 +666,6 @@ export default function Leistungsnachweise() {
     }
     return liveHours;
   }, [selectedLN, liveHours]);
-
-  // Compute live hours per customer for the table
-  const allTermineQuery = useQuery({
-    queryKey: ['termine-alle-ln', selectedMonth, selectedYear],
-    queryFn: async () => {
-      const von = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
-      const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
-      const { data, error } = await supabase
-        .from('termine')
-        .select('id, kunden_id, iststunden, start_at, end_at, status')
-        .gte('start_at', von)
-        .lte('start_at', bis);
-      if (error) throw error;
-      return data as { id: string; kunden_id: string; iststunden: number | null; start_at: string; end_at: string; status: string }[];
-    },
-  });
-
-  const hoursByKunde = useMemo(() => {
-    const map = new Map<string, { geplant: number; geleistet: number }>();
-    if (!allTermineQuery.data) return map;
-    const byKunde = new Map<string, typeof allTermineQuery.data>();
-    for (const t of allTermineQuery.data) {
-      const arr = byKunde.get(t.kunden_id) || [];
-      arr.push(t);
-      byKunde.set(t.kunden_id, arr);
-    }
-    for (const [kundenId, kundeTermine] of byKunde) {
-      map.set(kundenId, calculateHoursFromTermine(kundeTermine as any));
-    }
-    return map;
-  }, [allTermineQuery.data]);
-
-  // Helper: get display hours for a LN row (frozen for signed/closed, live for open)
-  const getRowHours = (ln: LeistungsnachweisRow) => {
-    if (ln.status !== 'offen' && ln.frozen_geplante_stunden != null) {
-      return { geplant: ln.frozen_geplante_stunden, geleistet: ln.frozen_geleistete_stunden ?? 0 };
-    }
-    return hoursByKunde.get(ln.kunden_id) || { geplant: 0, geleistet: 0 };
-  };
 
   // Multi-select helpers
   const unterschriebeneIds = useMemo(() =>
@@ -708,14 +709,17 @@ export default function Leistungsnachweise() {
               if (!nachweise?.length) return;
               downloadCsv(
                 ['Kunde', 'Monat', 'Jahr', 'Geplant (h)', 'Geleistet (h)', 'Status'],
-                nachweise.map(ln => [
-                  getKundeName(ln.kunden_id),
-                  monthNames[ln.monat - 1],
-                  ln.jahr,
-                  ln.geplante_stunden,
-                  ln.geleistete_stunden,
-                  ln.status,
-                ]),
+                nachweise.map(ln => {
+                  const h = getRowHours(ln);
+                  return [
+                    getKundeName(ln.kunden_id),
+                    monthNames[ln.monat - 1],
+                    ln.jahr,
+                    h.geplant,
+                    h.geleistet,
+                    ln.status,
+                  ];
+                }),
                 `leistungsnachweise_${monthNames[selectedMonth - 1]}_${selectedYear}.csv`
               );
             }}

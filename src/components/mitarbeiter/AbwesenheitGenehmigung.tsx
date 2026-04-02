@@ -63,15 +63,41 @@ export function AbwesenheitGenehmigung() {
 
         if (overlapping?.length) {
           const ids = overlapping.map(t => t.id);
-          await supabase
+          const { error: unassignError } = await supabase
             .from('termine')
             .update({ mitarbeiter_id: null, status: 'unassigned' })
             .in('id', ids);
+          if (unassignError) throw unassignError;
+
+          // Historie: Für jeden freigegebenen Termin einen Eintrag schreiben
+          const ma = request.mitarbeiter as { vorname: string | null; nachname: string | null } | null;
+          const maName = ma ? `${ma.vorname ?? ''} ${ma.nachname ?? ''}`.trim() : 'Unbekannt';
+          const typLabel = (() => {
+            switch (request.typ) {
+              case 'urlaub': return 'Urlaub';
+              case 'krank': return 'Krankheit';
+              case 'fortbildung': return 'Fortbildung';
+              default: return request.typ ?? 'Abwesenheit';
+            }
+          })();
+          const reason = `Automatisch freigegeben: ${typLabel} ${maName} ${request.von} – ${request.bis}`;
+          const { error: historyError } = await supabase.from('termin_aenderungen').insert(
+            ids.map((terminId) => ({
+              termin_id: terminId,
+              requested_by: user!.id,
+              status: 'approved' as const,
+              old_mitarbeiter_id: request.mitarbeiter_id,
+              new_mitarbeiter_id: null,
+              reason,
+              approver_id: user!.id,
+              approved_at: new Date().toISOString(),
+            })),
+          );
+          if (historyError) throw historyError;
         }
       }
     },
-    onSuccess: (_, request) => {
-      const count = request.von && request.bis ? '' : '';
+    onSuccess: () => {
       toast.success('Abwesenheit genehmigt – betroffene Termine wurden freigegeben');
       queryClient.invalidateQueries({ queryKey: ['pending-absence-requests'] });
     },

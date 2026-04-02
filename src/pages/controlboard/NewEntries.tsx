@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { UserPlus, Building2, Save, Plus, Trash2, Clock, ArrowLeft } from 'lucide-react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator';
 import AIEmployeeSuggestions from '@/components/schedule/ai/AIEmployeeSuggestions';
+import { useSettings } from '@/hooks/useSettings';
 import { Checkbox } from '@/components/ui/checkbox';
 
 
@@ -44,6 +45,10 @@ export default function NewEntries() {
     mitarbeiter: ''
   });
 
+
+  const { settings } = useSettings();
+  const aiModeRef = useRef(settings.aiModeEnabled);
+  aiModeRef.current = settings.aiModeEnabled;
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -105,13 +110,15 @@ export default function NewEntries() {
       return data;
     },
     onSuccess: (data) => {
-      toast({
-        title: "Kunde erfolgreich angelegt",
-        description: "Weiter zur Zeitfenster-Konfiguration",
-      });
       queryClient.invalidateQueries({ queryKey: ['kunden'] });
-      setSavedCustomerId(data.id);
-      setStep('timewindows');
+      if (aiModeRef.current) {
+        toast({ title: "Kunde erfolgreich angelegt", description: "Weiter zur Zeitfenster-Konfiguration" });
+        setSavedCustomerId(data.id);
+        setStep('timewindows');
+      } else {
+        toast({ title: "Kunde erfolgreich angelegt" });
+        navigate('/dashboard/controlboard/master-data');
+      }
     },
     onError: (error: any) => {
       toast({
@@ -418,8 +425,9 @@ export default function NewEntries() {
                   <Input
                     id="telefonnr"
                     value={newCustomer.telefonnr}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, telefonnr: e.target.value })}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, telefonnr: e.target.value.replace(/[^\d+\-\/ ()]/g, '') })}
                     placeholder="0511 123456"
+                    inputMode="tel"
                   />
                 </div>
                 <div>
