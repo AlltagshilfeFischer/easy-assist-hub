@@ -70,7 +70,7 @@ serve(async (req) => {
     // ── End auth check ──
 
     const { messages } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const OPENAI_API_KEY = req.headers.get('x-openai-key') || Deno.env.get("OPENAI_API_KEY");
     
     if (!OPENAI_API_KEY) {
       throw new Error("AI service not configured");

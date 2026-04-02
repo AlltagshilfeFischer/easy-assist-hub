@@ -8,6 +8,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
+import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
+import { User } from 'lucide-react';
 
 import { Settings2, GripVertical, Eye, EyeOff, UserX, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -73,6 +77,8 @@ interface ProScheduleCalendarProps {
   hiddenEmployeeIds?: Set<string>;
   onToggleEmployee?: (id: string) => void;
   onReorderEmployees?: (orderedIds: string[]) => void;
+  verfuegbarkeiten?: Verfuegbarkeit[];
+  onAssignAppointment?: (appointmentId: string, employeeId: string) => void;
 }
 
 // Inline sortable item for the popover
@@ -279,6 +285,8 @@ export function ProScheduleCalendar({
   hiddenEmployeeIds = new Set(),
   onToggleEmployee,
   onReorderEmployees,
+  verfuegbarkeiten = [],
+  onAssignAppointment,
 }: ProScheduleCalendarProps) {
 
   const popoverSensors = useSensors(
@@ -452,15 +460,18 @@ export function ProScheduleCalendar({
               <UnassignedDropCell id={dropId}>
                 <div className="space-y-1.5">
                   {unassigned.map((appointment) => (
-                    <ProAppointmentCard
+                    <UnassignedAppointmentWithSuggestions
                       key={appointment.id}
                       appointment={appointment}
+                      allAppointments={appointments}
+                      employees={employees}
+                      verfuegbarkeiten={verfuegbarkeiten}
                       isDragging={activeAppointmentId === appointment.id}
-                      isConflicting={false}
                       isHighlighted={highlightedAppointmentId === appointment.id}
                       onClick={() => onEditAppointment(appointment)}
                       onCut={() => onCut(appointment)}
                       onCopy={onCopy ? () => onCopy(appointment) : undefined}
+                      onAssign={onAssignAppointment}
                     />
                   ))}
                 </div>
@@ -584,5 +595,96 @@ export function ProScheduleCalendar({
         })}
       </div>
     </div>
+  );
+}
+
+// ─── Unassigned card with hover suggestions ───────────────────────────────────
+
+interface UnassignedAppointmentWithSuggestionsProps {
+  appointment: CalendarAppointment;
+  allAppointments: CalendarAppointment[];
+  employees: Employee[];
+  verfuegbarkeiten: Verfuegbarkeit[];
+  isDragging: boolean;
+  isHighlighted: boolean;
+  onClick: () => void;
+  onCut: () => void;
+  onCopy?: () => void;
+  onAssign?: (appointmentId: string, employeeId: string) => void;
+}
+
+function UnassignedAppointmentWithSuggestions({
+  appointment,
+  allAppointments,
+  employees,
+  verfuegbarkeiten,
+  isDragging,
+  isHighlighted,
+  onClick,
+  onCut,
+  onCopy,
+  onAssign,
+}: UnassignedAppointmentWithSuggestionsProps) {
+  const suggestions = useMemo(
+    () =>
+      suggestEmployees({ appointment, allAppointments, employees, verfuegbarkeiten }).slice(0, 3),
+    [appointment, allAppointments, employees, verfuegbarkeiten],
+  );
+
+  return (
+    <HoverCard openDelay={300} closeDelay={150}>
+      <HoverCardTrigger asChild>
+        <div>
+          <ProAppointmentCard
+            appointment={appointment}
+            isDragging={isDragging}
+            isConflicting={false}
+            isHighlighted={isHighlighted}
+            onClick={onClick}
+            onCut={onCut}
+            onCopy={onCopy}
+          />
+        </div>
+      </HoverCardTrigger>
+      <HoverCardContent side="right" align="start" className="w-60 p-3">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Verfügbare Mitarbeiter
+        </p>
+        {suggestions.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-1">
+            Keine verfügbaren Mitarbeiter
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {suggestions.map(({ employee, score, reason }) => (
+              <div key={employee.id} className="flex items-center gap-2 rounded-md border bg-background p-1.5">
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: employee.farbe_kalender }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{employee.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{reason}</p>
+                </div>
+                <Badge variant="outline" className="text-[10px] px-1 h-4 flex-shrink-0 font-mono">
+                  {score}
+                </Badge>
+                {onAssign && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-6 w-6 p-0 flex-shrink-0"
+                    title={`${employee.name} zuweisen`}
+                    onClick={() => onAssign(appointment.id, employee.id)}
+                  >
+                    <User className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </HoverCardContent>
+    </HoverCard>
   );
 }

@@ -658,14 +658,16 @@ export default function Leistungsnachweise() {
     return calculateHoursFromTermine(termine);
   }, [termine]);
 
-  // Display hours: frozen for signed/closed, live for open
+  // Display hours: frozen for signed/closed; live from specific query if loaded;
+  // fall back to hoursByKunde (pre-loaded at page start) so dialog never shows 0 on open
   const displayHours = useMemo(() => {
     if (!selectedLN) return { geplant: 0, geleistet: 0 };
     if (selectedLN.status !== 'offen' && selectedLN.frozen_geplante_stunden != null) {
       return { geplant: selectedLN.frozen_geplante_stunden, geleistet: selectedLN.frozen_geleistete_stunden ?? 0 };
     }
-    return liveHours;
-  }, [selectedLN, liveHours]);
+    if (termine) return liveHours;
+    return hoursByKunde.get(selectedLN.kunden_id) || { geplant: 0, geleistet: 0 };
+  }, [selectedLN, liveHours, termine, hoursByKunde]);
 
   // Multi-select helpers
   const unterschriebeneIds = useMemo(() =>

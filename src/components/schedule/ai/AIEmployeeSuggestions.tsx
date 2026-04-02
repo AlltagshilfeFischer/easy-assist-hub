@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Sparkles, UserCheck, ArrowLeft } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { invokeAiFunction } from '@/lib/aiClient';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 
@@ -54,13 +54,11 @@ export default function AIEmployeeSuggestions({
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('suggest-employees', {
-        body: {
-          timeWindows,
-          plz: customerPlz,
-          preferences,
-          frequency
-        }
+      const { data, error } = await invokeAiFunction('suggest-employees', {
+        timeWindows,
+        plz: customerPlz,
+        preferences,
+        frequency,
       });
 
       if (error) throw error;

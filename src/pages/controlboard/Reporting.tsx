@@ -26,7 +26,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   CalendarIcon, Download, Clock, Users, TrendingDown, TrendingUp,
   CalendarDays, Loader2, X, Filter, ChevronDown,
-  Euro, UserCheck, UserX, Heart,
+  UserCheck, UserX, Heart,
 } from 'lucide-react';
 
 import {
@@ -35,7 +35,6 @@ import {
   useKundenList,
   useKundenStatistik,
   useMitarbeiterAuslastung,
-  useUmsatzReport,
   type ReportingTermin,
 } from '@/hooks/useReportingData';
 import type { TerminStatus } from '@/types/domain';
@@ -192,7 +191,6 @@ export default function Reporting() {
   const { data: reportData, isLoading: reportLoading, isError } = useReportingData(filters);
   const { data: auslastungData, isLoading: auslastungLoading } = useMitarbeiterAuslastung(filters);
   const { data: kundenStatistik, isLoading: kundenLoading2 } = useKundenStatistik();
-  const { data: umsatzData, isLoading: umsatzLoading } = useUmsatzReport(filters);
 
   // Chart data
   const chartData = useMemo(() => {
@@ -263,10 +261,9 @@ export default function Reporting() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="termine">Termine & Stunden</TabsTrigger>
           <TabsTrigger value="auslastung">Auslastung</TabsTrigger>
-          <TabsTrigger value="umsatz">Umsatz</TabsTrigger>
           <TabsTrigger value="kunden">Kunden-Statistik</TabsTrigger>
           <TabsTrigger value="regional">Regional</TabsTrigger>
         </TabsList>
@@ -433,109 +430,7 @@ export default function Reporting() {
           )}
         </TabsContent>
 
-        {/* ─── Tab 3: Umsatz ─────────────────────────────────────── */}
-        <TabsContent value="umsatz" className="space-y-6 mt-4">
-          {umsatzLoading && <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}
-          {umsatzData && !umsatzLoading && (
-            <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <SummaryCard title="Gesamt-Umsatz" value={`${umsatzData.gesamtUmsatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`} subtitle="im gewählten Zeitraum" icon={Euro} />
-                <SummaryCard title="Leistungsarten" value={umsatzData.nachTyp.length} subtitle="verschiedene Abrechnungstypen" icon={Heart} />
-                <SummaryCard
-                  title="Ø Umsatz / Monat"
-                  value={`${umsatzData.nachMonat.length > 0 ? (umsatzData.gesamtUmsatz / umsatzData.nachMonat.length).toLocaleString('de-DE', { minimumFractionDigits: 2 }) : '0,00'} €`}
-                  subtitle="Durchschnitt pro Monat"
-                  icon={CalendarDays}
-                />
-              </div>
-
-              {umsatzData.nachTyp.length > 0 && (
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <Card>
-                    <CardHeader><CardTitle>Umsatz nach Leistungsart</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={umsatzData.nachTyp}
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={100}
-                              dataKey="betrag"
-                              nameKey="typ"
-                              label={({ typ, betrag }) => `${betrag.toLocaleString('de-DE')} €`}
-                            >
-                              {umsatzData.nachTyp.map((_, i) => (
-                                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip formatter={(val: number) => `${val.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`} />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {umsatzData.nachMonat.length > 1 && (
-                    <Card>
-                      <CardHeader><CardTitle>Umsatz-Verlauf</CardTitle></CardHeader>
-                      <CardContent>
-                        <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={umsatzData.nachMonat} margin={{ top: 5, right: 20, left: 10, bottom: 30 }}>
-                              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                              <XAxis dataKey="monat" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                              <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                              <Tooltip formatter={(val: number) => `${val.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €`} />
-                              <Bar dataKey="betrag" name="Umsatz" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )}
-
-              <Card>
-                <CardHeader><CardTitle>Umsatz-Details nach Leistungsart</CardTitle></CardHeader>
-                <CardContent>
-                  {umsatzData.nachTyp.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">Keine Umsatzdaten im gewählten Zeitraum.</p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Leistungsart</TableHead>
-                          <TableHead className="text-right">Stunden</TableHead>
-                          <TableHead className="text-right">Betrag</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {umsatzData.nachTyp.map((t) => (
-                          <TableRow key={t.typ}>
-                            <TableCell className="font-medium">{t.typ}</TableCell>
-                            <TableCell className="text-right font-mono">{t.stunden}</TableCell>
-                            <TableCell className="text-right font-mono">{t.betrag.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="font-bold border-t-2">
-                          <TableCell>Gesamt</TableCell>
-                          <TableCell className="text-right font-mono">{umsatzData.nachTyp.reduce((s, t) => s + t.stunden, 0).toFixed(1)}</TableCell>
-                          <TableCell className="text-right font-mono">{umsatzData.gesamtUmsatz.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </TabsContent>
-
-        {/* ─── Tab 4: Kunden-Statistik ───────────────────────────── */}
+        {/* ─── Tab 3: Kunden-Statistik ───────────────────────────── */}
         <TabsContent value="kunden" className="space-y-6 mt-4">
           {kundenLoading2 && <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}
           {kundenStatistik && !kundenLoading2 && (

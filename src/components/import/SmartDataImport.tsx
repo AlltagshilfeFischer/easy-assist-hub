@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSettings } from '@/hooks/useSettings';
+import { invokeAiFunction } from '@/lib/aiClient';
 
 export interface ColumnConfig {
   key: string;
@@ -735,7 +736,7 @@ export function SmartDataImport<T extends DataRow>({
     if (!aiParseFunction || !aiText.trim()) return;
     setAiParsing(true);
     try {
-      const { data, error } = await supabase.functions.invoke(aiParseFunction, { body: { text: aiText } });
+      const { data, error } = await invokeAiFunction(aiParseFunction, { text: aiText });
       if (error) throw error;
 
       const parsed: Record<string, string>[] = aiParseResultKey

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Sparkles, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { invokeAiFunction } from '@/lib/aiClient';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,9 +46,7 @@ export default function AITimeWindowsCreator({ onConfirm, onCancel }: AITimeWind
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('parse-time-windows', {
-        body: { text: prompt }
-      });
+      const { data, error } = await invokeAiFunction('parse-time-windows', { text: prompt });
 
       if (error) throw error;
 

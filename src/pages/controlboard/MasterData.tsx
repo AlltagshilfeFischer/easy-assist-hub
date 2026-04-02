@@ -130,6 +130,8 @@ export default function MasterData() {
         <CardContent className="p-4 sm:p-6">
           <CustomerFilters
             customers={customers}
+            resetAllFilters={filters.resetAllFilters}
+            hasActiveFilters={filters.hasActiveFilters}
             searchQuery={filters.searchQuery} setSearchQuery={filters.setSearchQuery}
             customerStatusFilter={filters.customerStatusFilter} setCustomerStatusFilter={filters.setCustomerStatusFilter}
             customerKategorieFilter={filters.customerKategorieFilter} setCustomerKategorieFilter={filters.setCustomerKategorieFilter}

@@ -5,11 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
-import { CalendarClock, User, Clock, CheckCircle2, Users } from 'lucide-react';
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { CalendarClock, User, Clock, CheckCircle2 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
@@ -35,6 +36,7 @@ export function UnassignedAppointmentsPanel({
   const { isGeschaeftsfuehrer, isGlobalAdmin } = useUserRole();
   const canAssign = isGeschaeftsfuehrer || isGlobalAdmin;
 
+  // Sort unassigned appointments chronologically
   const sortedUnassigned = useMemo(
     () =>
       [...unassignedAppointments].sort(
@@ -76,9 +78,9 @@ export function UnassignedAppointmentsPanel({
             </p>
           </div>
         ) : (
-          <div className="px-2 py-1 space-y-1">
+          <Accordion type="multiple" className="px-2 py-1">
             {sortedUnassigned.map(appt => (
-              <AppointmentHoverItem
+              <AppointmentAccordionItem
                 key={appt.id}
                 appointment={appt}
                 allAppointments={allAppointments}
@@ -88,16 +90,16 @@ export function UnassignedAppointmentsPanel({
                 onAssign={onAssignAppointment}
               />
             ))}
-          </div>
+          </Accordion>
         )}
       </ScrollArea>
     </div>
   );
 }
 
-// ─── Sub-component: one hover item ────────────────────────────────────────────
+// ─── Sub-component: one accordion item ────────────────────────────────────────
 
-interface AppointmentHoverItemProps {
+interface AppointmentAccordionItemProps {
   appointment: CalendarAppointment;
   allAppointments: CalendarAppointment[];
   employees: Employee[];
@@ -106,14 +108,14 @@ interface AppointmentHoverItemProps {
   onAssign: (appointmentId: string, employeeId: string) => void;
 }
 
-function AppointmentHoverItem({
+function AppointmentAccordionItem({
   appointment,
   allAppointments,
   employees,
   verfuegbarkeiten,
   canAssign,
   onAssign,
-}: AppointmentHoverItemProps) {
+}: AppointmentAccordionItemProps) {
   const suggestions = useMemo(
     () =>
       suggestEmployees({
@@ -130,9 +132,9 @@ function AppointmentHoverItem({
   const endDate = new Date(appointment.end_at);
 
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
-      <HoverCardTrigger asChild>
-        <div className="flex items-start gap-2 rounded-md border bg-card px-3 py-2 cursor-default hover:bg-muted/50 transition-colors">
+    <AccordionItem value={appointment.id} className="border rounded-md mb-1.5 overflow-hidden">
+      <AccordionTrigger className="px-3 py-2 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
+        <div className="flex items-start gap-2 flex-1 min-w-0 text-left mr-2">
           <div className="flex flex-col min-w-0 flex-1">
             <span className="text-xs font-medium truncate">{customerName}</span>
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
@@ -146,27 +148,26 @@ function AppointmentHoverItem({
               </span>
             </div>
           </div>
-          <Users className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
         </div>
-      </HoverCardTrigger>
+      </AccordionTrigger>
 
-      <HoverCardContent side="left" align="start" className="w-64 p-3">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Verfügbare Mitarbeiter
-        </p>
+      <AccordionContent className="px-3 pb-3 pt-0">
         {suggestions.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-2">
+          <p className="text-xs text-muted-foreground py-2 text-center">
             Keine verfügbaren Mitarbeiter
           </p>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 mt-2">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              Vorschläge
+            </p>
             {suggestions.map(({ employee, score, reason }) => (
               <div
                 key={employee.id}
-                className="flex items-center gap-2 rounded-md border bg-background p-2"
+                className="flex items-center gap-2 rounded-md border bg-card p-2"
               >
                 <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: employee.farbe_kalender }}
                 />
                 <div className="flex-1 min-w-0">
@@ -175,7 +176,7 @@ function AppointmentHoverItem({
                 </div>
                 <Badge
                   variant="outline"
-                  className="text-[10px] px-1 h-4 flex-shrink-0 font-mono"
+                  className="text-[10px] px-1.5 h-4 flex-shrink-0 font-mono"
                 >
                   {score}
                 </Badge>
@@ -183,17 +184,18 @@ function AppointmentHoverItem({
                   <Button
                     size="sm"
                     variant="default"
-                    className="h-6 text-[10px] px-1.5 flex-shrink-0"
+                    className="h-6 text-[10px] px-2 flex-shrink-0"
                     onClick={() => onAssign(appointment.id, employee.id)}
                   >
-                    <User className="h-3 w-3" />
+                    <User className="h-3 w-3 mr-1" />
+                    Zuweisen
                   </Button>
                 )}
               </div>
             ))}
           </div>
         )}
-      </HoverCardContent>
-    </HoverCard>
+      </AccordionContent>
+    </AccordionItem>
   );
 }

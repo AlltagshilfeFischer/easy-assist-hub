@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { invokeAiFunction } from '@/lib/aiClient';
 import { AIAppointmentSuggestionsDialog } from './AIAppointmentSuggestionsDialog';
 import { parse, startOfWeek, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -104,14 +104,12 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
     try {
       const { customers: loadedCustomers, employees: loadedEmployees, verfuegbarkeiten, bestehendeTermine } = await loadContextData();
 
-      const { data, error } = await supabase.functions.invoke('parse-appointment-text', {
-        body: {
-          text: prompt,
-          customers: loadedCustomers,
-          employees: loadedEmployees,
-          verfuegbarkeiten,
-          bestehendeTermine,
-        }
+      const { data, error } = await invokeAiFunction('parse-appointment-text', {
+        text: prompt,
+        customers: loadedCustomers,
+        employees: loadedEmployees,
+        verfuegbarkeiten,
+        bestehendeTermine,
       });
 
       if (error) throw error;

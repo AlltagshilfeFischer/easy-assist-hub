@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { getAiFetchHeaders } from '@/lib/aiClient';
 import { toast } from 'sonner';
 
 type Message = {
@@ -38,10 +39,7 @@ export default function QuickActionChat() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dashboard-assistant`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
+          headers: getAiFetchHeaders(session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY),
           body: JSON.stringify({ messages: newMessages }),
         }
       );

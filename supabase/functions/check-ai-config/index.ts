@@ -10,7 +10,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  const apiKey = req.headers.get('x-openai-key') || Deno.env.get('OPENAI_API_KEY');
 
   if (!apiKey) {
     return new Response(

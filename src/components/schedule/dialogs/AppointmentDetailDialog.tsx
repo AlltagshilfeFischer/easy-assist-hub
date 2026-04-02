@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CreateRecurringAppointmentDialog } from './CreateRecurringAppointmentDialog';
 import { AppointmentAttachments } from '@/components/schedule/AppointmentAttachments';
+import { AppointmentHistorySection } from '@/components/schedule/AppointmentHistorySection';
 import { KundenDetailDialog } from '@/components/customers/KundenDetailDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { CustomerSearchCombobox } from '@/components/schedule/CustomerSearchCombobox';
@@ -419,6 +420,12 @@ export function AppointmentDetailDialog({
 
           {/* Anhänge */}
           <AppointmentAttachments terminId={editedAppointment.id} />
+
+          {/* Verlauf */}
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Verlauf</Label>
+            <AppointmentHistorySection terminId={editedAppointment.id} />
+          </div>
         </div>
 
         <Separator />

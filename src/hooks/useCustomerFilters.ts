@@ -165,10 +165,35 @@ export function useCustomerFilters(customers: any[] | undefined) {
     });
   }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter, dateFromFilter, dateToFilter, nameFilter, telefonFilter, emailFilter, pflegegradFilter, strasseFilter, plzFilter, stadtFilter]);
 
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setCustomerStatusFilter('all');
+    setCustomerKategorieFilter('all');
+    setDateFromFilter('');
+    setDateToFilter('');
+    setStadtteilFilter('all');
+    setEintrittsdatumFilter('all');
+    setNameFilter('');
+    setTelefonFilter('');
+    setEmailFilter('');
+    setPflegegradFilter('');
+    setStrasseFilter('');
+    setPlzFilter('');
+    setStadtFilter('');
+  };
+
+  const hasActiveFilters = !!(
+    searchQuery || customerStatusFilter !== 'all' || customerKategorieFilter !== 'all' ||
+    dateFromFilter || dateToFilter || stadtteilFilter !== 'all' || eintrittsdatumFilter !== 'all' ||
+    nameFilter || telefonFilter || emailFilter || pflegegradFilter || strasseFilter || plzFilter || stadtFilter
+  );
+
   return {
     sortedCustomers,
     customerSort,
     handleSort,
+    resetAllFilters,
+    hasActiveFilters,
     searchQuery, setSearchQuery,
     customerStatusFilter, setCustomerStatusFilter,
     customerKategorieFilter, setCustomerKategorieFilter,

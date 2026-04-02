@@ -8,10 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 interface CustomerFiltersProps {
   customers: any[] | undefined;
+  resetAllFilters: () => void;
+  hasActiveFilters: boolean;
   searchQuery: string;
   setSearchQuery: (v: string) => void;
   customerStatusFilter: 'all' | 'active' | 'inactive';
@@ -30,6 +32,8 @@ interface CustomerFiltersProps {
 
 export function CustomerFilters({
   customers,
+  resetAllFilters,
+  hasActiveFilters,
   searchQuery, setSearchQuery,
   customerStatusFilter, setCustomerStatusFilter,
   customerKategorieFilter, setCustomerKategorieFilter,
@@ -50,6 +54,11 @@ export function CustomerFilters({
             className="pl-10 text-sm"
           />
         </div>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={resetAllFilters} className="gap-1 text-muted-foreground">
+            <X className="h-4 w-4" />Filter zurücksetzen
+          </Button>
+        )}
         <Select value={customerStatusFilter} onValueChange={(value: any) => setCustomerStatusFilter(value)}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue />

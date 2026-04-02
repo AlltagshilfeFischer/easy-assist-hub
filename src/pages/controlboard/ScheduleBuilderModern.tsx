@@ -41,6 +41,7 @@ import { ConflictWarningDialog } from '@/components/schedule/dialogs/ConflictWar
 import { DraggableAppointment } from '@/components/schedule/DraggableAppointment';
 import { AIAppointmentCreator } from '@/components/schedule/ai/AIAppointmentCreator';
 import { useSettings } from '@/hooks/useSettings';
+import { useAuth } from '@/hooks/useAuth';
 import { ConflictsNavigationCard } from '@/components/schedule/panels/ConflictsNavigationCard';
 import { UnassignedAppointmentsPanel } from '@/components/schedule/panels/UnassignedAppointmentsPanel';
 import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
@@ -110,6 +111,26 @@ const ScheduleBuilderModern = () => {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Fire-and-forget: schreibt einen Eintrag in audit_log für Terminänderungen
+  const logTerminChange = (
+    terminId: string,
+    operation: string,
+    oldData?: Record<string, unknown>,
+    newData?: Record<string, unknown>,
+  ) => {
+    supabase.from('audit_log').insert({
+      table_name: 'termine',
+      row_id: terminId,
+      operation,
+      old_data: oldData ?? null,
+      new_data: newData ?? null,
+      actor_benutzer_id: user?.id ?? null,
+    }).then(({ error }) => {
+      if (error) console.warn('[audit_log] Termin-Änderung nicht geloggt:', error.message);
+    });
+  };
 
   const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
 
@@ -498,6 +519,19 @@ const ScheduleBuilderModern = () => {
         .eq('id', appointmentId);
 
       if (error) throw error;
+
+      // Terminhistorie loggen (fire-and-forget)
+      const emp = employees.find(e => e.id === employeeId);
+      const oldEmpName = employees.find(e => e.id === appointment.mitarbeiter_id)?.name ?? '—';
+      const wasRescheduled = !!targetDate && !isSameDay(new Date(appointment.start_at), targetDate);
+      logTerminChange(
+        appointmentId,
+        wasRescheduled
+          ? `Verschoben → ${emp?.name ?? employeeId} am ${format(targetDate!, 'dd.MM.yyyy')}`
+          : `Zugewiesen: ${oldEmpName} → ${emp?.name ?? employeeId}`,
+        { mitarbeiter_id: appointment.mitarbeiter_id, start_at: appointment.start_at },
+        { mitarbeiter_id: employeeId, start_at: updateData.start_at ?? appointment.start_at },
+      );
 
       const employee = employees.find(emp => emp.id === employeeId);
       const appointmentLabel = appointment?.customer?.name || appointment?.titel || 'Termin';
@@ -1315,6 +1349,10 @@ const ScheduleBuilderModern = () => {
                   onReorderEmployees={(orderedIds) => {
                     setEmployeeOrder(orderedIds);
                   }}
+                  verfuegbarkeiten={allVerfuegbarkeiten}
+                  onAssignAppointment={(appointmentId, employeeId) =>
+                    assignAppointment(appointmentId, employeeId)
+                  }
                 />
               )}
               {viewMode === 'month' && (
@@ -1422,6 +1460,39 @@ const ScheduleBuilderModern = () => {
                 .eq('id', appointment.id);
 
               if (error) throw error;
+
+              // Terminhistorie loggen (fire-and-forget)
+              const oldApp = appointments.find(a => a.id === appointment.id);
+              if (oldApp) {
+                const oldData: Record<string, unknown> = {};
+                const newData: Record<string, unknown> = {};
+                const STATUS_LABELS: Record<string, string> = {
+                  unassigned: 'Offen', scheduled: 'Geplant', in_progress: 'In Bearb.',
+                  completed: 'Abgeschlossen', cancelled: 'Abgesagt (kurzfr.)',
+                  nicht_angetroffen: 'Nicht angetroffen', abgesagt_rechtzeitig: 'Rechtz. abgesagt',
+                  abgerechnet: 'Abgerechnet', bezahlt: 'Bezahlt',
+                };
+                let operation = 'Aktualisiert';
+
+                if (oldApp.status !== appointment.status) {
+                  oldData.status = oldApp.status;
+                  newData.status = appointment.status;
+                  operation = `Status: ${STATUS_LABELS[oldApp.status ?? ''] ?? oldApp.status} → ${STATUS_LABELS[appointment.status] ?? appointment.status}`;
+                } else if (oldApp.mitarbeiter_id !== effectiveMitarbeiterId) {
+                  const oldEmp = employees.find(e => e.id === oldApp.mitarbeiter_id)?.name ?? '—';
+                  const newEmp = employees.find(e => e.id === effectiveMitarbeiterId)?.name ?? '—';
+                  oldData.mitarbeiter_id = oldApp.mitarbeiter_id;
+                  newData.mitarbeiter_id = effectiveMitarbeiterId;
+                  operation = `Mitarbeiter: ${oldEmp} → ${newEmp}`;
+                } else if (oldApp.start_at !== appointment.start_at) {
+                  oldData.start_at = oldApp.start_at;
+                  oldData.end_at = oldApp.end_at;
+                  newData.start_at = appointment.start_at;
+                  newData.end_at = appointment.end_at;
+                  operation = `Verschoben: ${format(new Date(oldApp.start_at), 'dd.MM. HH:mm', { locale: de })} → ${format(new Date(appointment.start_at), 'dd.MM. HH:mm', { locale: de })}`;
+                }
+                logTerminChange(appointment.id, operation, oldData, newData);
+              }
 
               // Optimistisch lokalen State updaten
               setAppointments(prev => prev.map(app =>
