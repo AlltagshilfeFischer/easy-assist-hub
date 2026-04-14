@@ -23,6 +23,8 @@ DROP POLICY IF EXISTS "Authenticated users can update their own benutzer" ON pub
 DROP POLICY IF EXISTS "Admins can update benutzer status" ON public.benutzer;
 DROP POLICY IF EXISTS "Allow public registration in benutzer" ON public.benutzer;
 DROP POLICY IF EXISTS "Authenticated employees can view benutzer" ON public.benutzer;
+DROP POLICY IF EXISTS "Service role can insert benutzer" ON public.benutzer;
+DROP POLICY IF EXISTS "Users can update own contact data only" ON public.benutzer;
 
 -- USER_ROLES POLICIES  
 DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
@@ -189,8 +191,14 @@ DROP FUNCTION IF EXISTS public.is_authenticated_employee(uuid) CASCADE;
 -- USER_ROLES ENUM ÄNDERN
 -- =====================================================
 
-ALTER TABLE public.user_roles 
+-- Extra safety: alle verbleibenden Policies auf user_roles löschen
+DROP POLICY IF EXISTS "user_roles_authenticated_all" ON public.user_roles;
+
+-- RLS temporär deaktivieren um ALTER COLUMN zu erlauben
+ALTER TABLE public.user_roles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles
   ALTER COLUMN role TYPE text;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
 UPDATE public.user_roles 
 SET role = CASE 
@@ -214,11 +222,13 @@ ALTER TABLE public.user_roles
 -- BENUTZER TABELLE ENUM ÄNDERN
 -- =====================================================
 
-ALTER TABLE public.benutzer 
+ALTER TABLE public.benutzer DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.benutzer
   ALTER COLUMN rolle TYPE text;
+ALTER TABLE public.benutzer ENABLE ROW LEVEL SECURITY;
 
-UPDATE public.benutzer 
-SET rolle = CASE 
+UPDATE public.benutzer
+SET rolle = CASE
   WHEN rolle = 'admin' THEN 'geschaeftsfuehrer'
   WHEN rolle = 'manager' THEN 'admin'
   WHEN rolle = 'mitarbeiter' THEN 'mitarbeiter'
@@ -227,10 +237,11 @@ END;
 
 DROP TYPE IF EXISTS public.user_rolle CASCADE;
 DO $$ BEGIN
-  CREATE TYPE public.user_rolle AS ENUM ('geschaeftsfuehrer', 'admin', 'mitarbeiter'); -- CREATE TYPE
-EXCEPTION WHEN duplicate_object THEN
-  NULL; -- bereits vorhanden, überspringen
+  CREATE TYPE public.user_rolle AS ENUM ('geschaeftsfuehrer', 'admin', 'mitarbeiter');
+EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
-ALTER TABLE public.benutzer 
+ALTER TABLE public.benutzer DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.benutzer
   ALTER COLUMN rolle TYPE public.user_rolle USING rolle::public.user_rolle;
+ALTER TABLE public.benutzer ENABLE ROW LEVEL SECURITY;

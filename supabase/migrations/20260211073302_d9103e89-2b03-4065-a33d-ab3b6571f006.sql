@@ -9,12 +9,14 @@ CREATE TABLE IF NOT EXISTS public.permissions (
 
 ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can read permissions" ON public.permissions;
 CREATE POLICY "Admins can read permissions"
   ON public.permissions FOR SELECT
   USING (public.is_admin_or_higher(auth.uid()));
 
--- Role-Permissions Zuordnung
-CREATE TABLE IF NOT EXISTS public.role_permissions (
+-- role_permissions neu aufbauen (DROP TYPE app_role CASCADE hat role-Spalte entfernt)
+DROP TABLE IF EXISTS public.role_permissions;
+CREATE TABLE public.role_permissions (
   role public.app_role NOT NULL,
   permission_id uuid NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE,
   PRIMARY KEY (role, permission_id)
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
 
 ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can read role_permissions" ON public.role_permissions;
 CREATE POLICY "Admins can read role_permissions"
   ON public.role_permissions FOR SELECT
   USING (public.is_admin_or_higher(auth.uid()));

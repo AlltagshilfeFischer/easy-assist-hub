@@ -4,8 +4,8 @@
 DROP TRIGGER IF EXISTS audit_haushalte ON public.haushalte;
 
 -- Drop FK columns from dependent tables
-ALTER TABLE public.termine DROP COLUMN IF EXISTS einsatzort_id;
-ALTER TABLE public.kunden DROP COLUMN IF EXISTS haushalt_id;
+ALTER TABLE public.termine DROP COLUMN IF EXISTS einsatzort_id CASCADE;
+ALTER TABLE public.kunden DROP COLUMN IF EXISTS haushalt_id CASCADE;
 
 -- Drop tables (einsatzorte first because it has FK → haushalte)
 DROP TABLE IF EXISTS public.einsatzorte CASCADE;
