@@ -281,7 +281,7 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
                 'Jetzt importieren'
               )}
             </Button>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

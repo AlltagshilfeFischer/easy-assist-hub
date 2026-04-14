@@ -10,13 +10,19 @@ DROP POLICY IF EXISTS "Admins can read avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Anyone can read avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Only GF can delete avatars" ON storage.objects;
 
--- BENUTZER POLICIES
+-- BENUTZER POLICIES (alle löschen inkl. älteren Versionen)
 DROP POLICY IF EXISTS "Allow registration insert" ON public.benutzer;
 DROP POLICY IF EXISTS "Admins can read all benutzer" ON public.benutzer;
 DROP POLICY IF EXISTS "Admins can update benutzer" ON public.benutzer;
 DROP POLICY IF EXISTS "Users can read own benutzer" ON public.benutzer;
 DROP POLICY IF EXISTS "Admins can insert benutzer" ON public.benutzer;
 DROP POLICY IF EXISTS "Only GF can delete benutzer" ON public.benutzer;
+DROP POLICY IF EXISTS "benutzer_authenticated_all" ON public.benutzer;
+DROP POLICY IF EXISTS "Authenticated users can read benutzer" ON public.benutzer;
+DROP POLICY IF EXISTS "Authenticated users can update their own benutzer" ON public.benutzer;
+DROP POLICY IF EXISTS "Admins can update benutzer status" ON public.benutzer;
+DROP POLICY IF EXISTS "Allow public registration in benutzer" ON public.benutzer;
+DROP POLICY IF EXISTS "Authenticated employees can view benutzer" ON public.benutzer;
 
 -- USER_ROLES POLICIES  
 DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
@@ -170,14 +176,14 @@ DROP POLICY IF EXISTS "Authenticated can read audit_log" ON public.audit_log;
 -- FUNKTIONEN LÖSCHEN
 -- =====================================================
 
-DROP FUNCTION IF EXISTS public.has_role(uuid, app_role);
-DROP FUNCTION IF EXISTS public.get_user_roles(uuid);
-DROP FUNCTION IF EXISTS public.is_admin(uuid);
-DROP FUNCTION IF EXISTS public.is_admin_secure(uuid);
-DROP FUNCTION IF EXISTS public.is_geschaeftsfuehrer(uuid);
-DROP FUNCTION IF EXISTS public.is_admin_or_higher(uuid);
-DROP FUNCTION IF EXISTS public.can_delete(uuid);
-DROP FUNCTION IF EXISTS public.is_authenticated_employee(uuid);
+DROP FUNCTION IF EXISTS public.has_role(uuid, app_role) CASCADE;
+DROP FUNCTION IF EXISTS public.get_user_roles(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin_secure(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_geschaeftsfuehrer(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin_or_higher(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.can_delete(uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.is_authenticated_employee(uuid) CASCADE;
 
 -- =====================================================
 -- USER_ROLES ENUM ÄNDERN
@@ -194,7 +200,7 @@ SET role = CASE
   ELSE role
 END;
 
-DROP TYPE IF EXISTS public.app_role;
+DROP TYPE IF EXISTS public.app_role CASCADE;
 DO $$ BEGIN
   CREATE TYPE public.app_role AS ENUM ('geschaeftsfuehrer', 'admin', 'mitarbeiter'); -- CREATE TYPE
 EXCEPTION WHEN duplicate_object THEN
@@ -219,7 +225,7 @@ SET rolle = CASE
   ELSE rolle
 END;
 
-DROP TYPE IF EXISTS public.user_rolle;
+DROP TYPE IF EXISTS public.user_rolle CASCADE;
 DO $$ BEGIN
   CREATE TYPE public.user_rolle AS ENUM ('geschaeftsfuehrer', 'admin', 'mitarbeiter'); -- CREATE TYPE
 EXCEPTION WHEN duplicate_object THEN
