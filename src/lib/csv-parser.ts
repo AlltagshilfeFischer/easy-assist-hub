@@ -32,87 +32,148 @@ export interface MappedCustomerRecord {
   _rowIndex: number;
 }
 
+// ---------------------------------------------------------------------------
+// CSV helpers
+// ---------------------------------------------------------------------------
+
 async function readFileWithEncoding(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  // UTF-16 LE (FF FE) oder UTF-16 BE (FE FF) BOM → direkt dekodieren
-  if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+  if (bytes[0] === 0xFF && bytes[1] === 0xFE)
     return new TextDecoder('utf-16le').decode(buffer).replace(/^\uFEFF/, '');
-  }
-  if (bytes[0] === 0xFE && bytes[1] === 0xFF) {
+  if (bytes[0] === 0xFE && bytes[1] === 0xFF)
     return new TextDecoder('utf-16be').decode(buffer).replace(/^\uFEFF/, '');
-  }
 
-  // UTF-8 dekodieren (inkl. BOM-Stripping)
   const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(buffer);
 
-  // Windows-1252 Mojibake erkennen: ä→Ã¤, ö→Ã¶, ü→Ã¼, ß→ÃŸ, Ä→Ã„, Ö→Ã–, Ü→Ãœ, usw.
-  if (/Ã[\x80-\xBF\xa4\xb6\xbc\x84\x96\x9c]/.test(text) ||
+  if (/Ã[\x80-\xBF]/.test(text) ||
       text.includes('ÃŸ') || text.includes('Ã„') || text.includes('Ã–') || text.includes('Ãœ')) {
     return new TextDecoder('windows-1252').decode(buffer);
   }
-
   return text;
 }
 
-function detectDelimiter(headerLine: string): string {
-  const tabCount = (headerLine.match(/\t/g) ?? []).length;
-  const semicolonCount = (headerLine.match(/;/g) ?? []).length;
-  const commaCount = (headerLine.match(/,/g) ?? []).length;
-  if (tabCount >= semicolonCount && tabCount >= commaCount) return '\t';
-  return semicolonCount >= commaCount ? ';' : ',';
+function detectDelimiter(line: string): string {
+  const tab  = (line.match(/\t/g)  ?? []).length;
+  const semi = (line.match(/;/g)   ?? []).length;
+  const com  = (line.match(/,/g)   ?? []).length;
+  if (tab >= semi && tab >= com) return '\t';
+  return semi >= com ? ';' : ',';
 }
 
 function parseCsvLine(line: string, delimiter: string): string[] {
   const fields: string[] = [];
   let current = '';
   let inQuotes = false;
-
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-
     if (inQuotes) {
       if (char === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        current += char;
-      }
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuotes = false;
+      } else { current += char; }
     } else {
-      if (char === '"') {
-        inQuotes = true;
-      } else if (char === delimiter) {
-        fields.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
+      if (char === '"') inQuotes = true;
+      else if (char === delimiter) { fields.push(current.trim()); current = ''; }
+      else current += char;
     }
   }
-
   fields.push(current.trim());
   return fields;
 }
 
-function isXlsxFile(file: File): boolean {
-  const name = file.name.toLowerCase();
-  return name.endsWith('.xlsx') || name.endsWith('.xls');
+// ---------------------------------------------------------------------------
+// XLSX parser (fflate + DOMParser — kein externes Paket)
+// ---------------------------------------------------------------------------
+
+function colLetterToIndex(col: string): number {
+  let n = 0;
+  for (let i = 0; i < col.length; i++) n = n * 26 + col.charCodeAt(i) - 64;
+  return n - 1;
 }
 
-function cellToString(val: unknown): string {
-  if (val == null) return '';
-  if (val instanceof Date) {
-    const d = val.getDate().toString().padStart(2, '0');
-    const m = (val.getMonth() + 1).toString().padStart(2, '0');
-    const y = val.getFullYear();
-    return `${d}.${m}.${y}`;
-  }
-  return String(val).trim();
+function xlDateToString(serial: number): string {
+  // Excel-Epoch: 1.1.1900 (mit fehlerhaftem Schaltjahr 1900 → Offset 25569 für Unix-Epoch)
+  const d = new Date((serial - 25569) * 86400 * 1000);
+  const dd = d.getUTCDate().toString().padStart(2, '0');
+  const mm = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+  return `${dd}.${mm}.${d.getUTCFullYear()}`;
+}
+
+const BUILTIN_DATE_FMTS = new Set([14,15,16,17,18,19,20,21,22,27,28,29,30,31,32,33,34,35,36,45,46,47,50,51,52,53,54,55,56,57,58]);
+
+function buildStyleIndex(stylesXml: string): number[] {
+  const doc = new DOMParser().parseFromString(stylesXml, 'text/xml');
+  // custom numFmt IDs that look like dates
+  const customDateFmts = new Set<number>();
+  doc.querySelectorAll('numFmt').forEach(el => {
+    const id  = parseInt(el.getAttribute('numFmtId') ?? '0', 10);
+    const fmt = el.getAttribute('formatCode') ?? '';
+    if (/[yYdD]/.test(fmt) && !/^[#0.,% ]+$/.test(fmt)) customDateFmts.add(id);
+  });
+  const xfs: number[] = [];
+  doc.querySelectorAll('cellXfs > xf').forEach(xf => {
+    xfs.push(parseInt(xf.getAttribute('numFmtId') ?? '0', 10));
+  });
+  return xfs.map(id => (BUILTIN_DATE_FMTS.has(id) || customDateFmts.has(id)) ? 1 : 0);
+}
+
+function parseSharedStrings(xml: string): string[] {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  return Array.from(doc.querySelectorAll('si')).map(si => {
+    // Rich-text: mehrere <t>-Tags zusammensetzen
+    const ts = si.querySelectorAll('t');
+    if (ts.length > 1) return Array.from(ts).map(t => t.textContent ?? '').join('');
+    return si.querySelector('t')?.textContent ?? '';
+  });
+}
+
+function parseSheetXml(
+  xml: string,
+  sharedStrings: string[],
+  isDateStyle: number[],
+): string[][] {
+  const doc   = new DOMParser().parseFromString(xml, 'text/xml');
+  const rows: string[][] = [];
+
+  doc.querySelectorAll('sheetData > row').forEach(rowEl => {
+    const cells = rowEl.querySelectorAll('c');
+    if (!cells.length) return;
+
+    // Größten Spalten-Index in dieser Zeile ermitteln
+    let maxIdx = 0;
+    cells.forEach(c => {
+      const ref = c.getAttribute('r') ?? '';
+      const col = ref.replace(/[0-9]/g, '');
+      if (col) maxIdx = Math.max(maxIdx, colLetterToIndex(col));
+    });
+
+    const row: string[] = new Array(maxIdx + 1).fill('');
+    cells.forEach(c => {
+      const ref  = c.getAttribute('r') ?? '';
+      const col  = ref.replace(/[0-9]/g, '');
+      if (!col) return;
+      const idx  = colLetterToIndex(col);
+      const type = c.getAttribute('t') ?? '';
+      const sIdx = parseInt(c.getAttribute('s') ?? '0', 10);
+      const vEl  = c.querySelector('v');
+      const tEl  = c.querySelector('is > t');
+
+      let val = '';
+      if (type === 's'         && vEl) val = sharedStrings[parseInt(vEl.textContent ?? '0', 10)] ?? '';
+      else if (type === 'inlineStr' && tEl) val = tEl.textContent ?? '';
+      else if (type === 'str'  && vEl) val = vEl.textContent ?? '';
+      else if (type === 'b'    && vEl) val = vEl.textContent === '1' ? 'Ja' : 'Nein';
+      else if (vEl) {
+        const num = parseFloat(vEl.textContent ?? '');
+        val = (!isNaN(num) && isDateStyle[sIdx]) ? xlDateToString(num) : (vEl.textContent ?? '');
+      }
+      row[idx] = val.trim();
+    });
+    rows.push(row);
+  });
+  return rows;
 }
 
 async function parseXlsxFile(file: File): Promise<CsvParseResult> {
@@ -120,106 +181,122 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
     toast.error('Altes Excel-Format (.xls) nicht unterstützt', {
       description: 'Bitte in Excel "Speichern unter → .xlsx" verwenden.',
     });
-    throw new Error('.xls Format wird nicht unterstützt — bitte als .xlsx exportieren');
+    throw new Error('.xls nicht unterstützt');
   }
 
-  let readXlsxFile: ((file: File) => Promise<(string | number | boolean | Date | null)[][]>) | null = null;
+  const { unzipSync, strFromU8 } = await import('fflate');
+  const buffer = await file.arrayBuffer();
+
+  let files: Record<string, Uint8Array>;
   try {
-    readXlsxFile = (await import('read-excel-file/browser')).default as typeof readXlsxFile;
+    files = unzipSync(new Uint8Array(buffer));
   } catch {
-    toast.error('XLSX-Bibliothek konnte nicht geladen werden');
-    throw new Error('read-excel-file/browser konnte nicht geladen werden');
-  }
-
-  let result: { sheet: string; data: (string | number | boolean | Date | null)[][] }[];
-  try {
-    result = await readXlsxFile!(file) as typeof result;
-  } catch (err) {
-    toast.error('XLSX-Datei konnte nicht gelesen werden', {
-      description: err instanceof Error ? err.message : 'Ungültiges Format',
+    toast.error('XLSX konnte nicht geöffnet werden', {
+      description: 'Datei ist beschädigt oder kein gültiges .xlsx-Format.',
     });
-    throw err;
+    throw new Error('XLSX unzip failed');
   }
 
-  const rawRows = result[0]?.data ?? [];
-  const nonEmptyRows = rawRows.filter(row => Array.isArray(row) && row.some(cell => cell != null && String(cell).trim().length > 0));
+  const getText = (path: string) => {
+    const u8 = files[path];
+    return u8 ? strFromU8(u8) : null;
+  };
+
+  const sharedStrings = getText('xl/sharedStrings.xml')
+    ? parseSharedStrings(getText('xl/sharedStrings.xml')!)
+    : [];
+
+  const isDateStyle = getText('xl/styles.xml')
+    ? buildStyleIndex(getText('xl/styles.xml')!)
+    : [];
+
+  // Erstes Sheet finden (normalerweise sheet1.xml — Pfad aus workbook.xml.rels lesen)
+  let sheetPath = 'xl/worksheets/sheet1.xml';
+  const relsXml = getText('xl/_rels/workbook.xml.rels');
+  if (relsXml) {
+    const doc  = new DOMParser().parseFromString(relsXml, 'text/xml');
+    const rel  = doc.querySelector('Relationship[Type*="worksheet"]');
+    const target = rel?.getAttribute('Target');
+    if (target) sheetPath = target.startsWith('xl/') ? target : `xl/${target}`;
+  }
+
+  const sheetXml = getText(sheetPath);
+  if (!sheetXml) {
+    toast.error('XLSX enthält kein lesbares Tabellenblatt');
+    throw new Error(`Sheet nicht gefunden: ${sheetPath}`);
+  }
+
+  const allRows = parseSheetXml(sheetXml, sharedStrings, isDateStyle);
+  const nonEmptyRows = allRows.filter(r => r.some(c => c.length > 0));
 
   if (nonEmptyRows.length < 2) {
     toast.error('XLSX enthält keine Datenzeilen');
-    throw new Error('XLSX enthält keine Datenzeilen');
+    throw new Error('Keine Daten gefunden');
   }
 
-  // Headerzeile ermitteln:
-  // Eine echte Headerzeile besteht NUR aus Strings (keine Zahlen, keine Datumsangaben).
-  // Datenzeilen enthalten typischerweise Zahlen (Pflegegrad) oder Datumswerte (Geburtsdatum).
-  // Falls alle Zeilen nur Strings enthalten (z.B. reine Textexporte), nehmen wir die erste Zeile.
-  const isLikelyHeaderRow = (row: (string | number | boolean | Date | null)[]) =>
-    row.every(cell => cell == null || typeof cell === 'string');
+  // Headerzeile: erste Zeile (Row 0 ist fast immer der Header)
+  // Falls Row 0 nur 1 Zelle hat (Titelzeile), nehmen wir Row 1
+  const headerRow = nonEmptyRows[0].filter(c => c.length > 0).length <= 1
+    ? nonEmptyRows[1]
+    : nonEmptyRows[0];
+  const dataStart = nonEmptyRows[0].filter(c => c.length > 0).length <= 1 ? 2 : 1;
 
-  const firstStringOnlyIdx = nonEmptyRows.slice(0, 10).findIndex(isLikelyHeaderRow);
-  const headerRowIdx = firstStringOnlyIdx >= 0 ? firstStringOnlyIdx : 0;
-
-  const headers = nonEmptyRows[headerRowIdx].map(h => cellToString(h));
-  const dataRows = nonEmptyRows.slice(headerRowIdx + 1).map(row =>
-    headers.map((_, i) => cellToString(row[i]))
+  const headers  = headerRow;
+  const dataRows = nonEmptyRows.slice(dataStart).map(row =>
+    headers.map((_, i) => row[i] ?? '')
   );
 
-  if (dataRows.length > 10000) {
-    toast.warning(`Große Datei: ${dataRows.length.toLocaleString('de')} Zeilen — Import kann etwas länger dauern`);
-  }
+  if (dataRows.length > 10000)
+    toast.warning(`Große Datei: ${dataRows.length.toLocaleString('de')} Zeilen`);
 
   return { headers, rows: dataRows, totalRows: dataRows.length };
 }
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export async function parseCsvFile(file: File): Promise<CsvParseResult> {
   if (file.size > MAX_FILE_SIZE_BYTES) {
     toast.error('Datei zu groß (max. 50 MB)');
-    throw new Error('Datei überschreitet die maximale Größe von 50 MB');
+    throw new Error('Datei zu groß');
   }
 
-  if (isXlsxFile(file)) {
-    return parseXlsxFile(file);
-  }
+  if (file.name.toLowerCase().match(/\.xlsx?$/)) return parseXlsxFile(file);
 
-  const text = await readFileWithEncoding(file);
-  const lines = text.split(/\r?\n/);
+  const text  = await readFileWithEncoding(file);
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
 
-  const nonEmptyLines = lines.filter(line => line.trim().length > 0);
-
-  if (nonEmptyLines.length < 2) {
+  if (lines.length < 2) {
     toast.error('CSV enthält keine Datenzeilen');
-    throw new Error('CSV enthält keine Datenzeilen');
+    throw new Error('CSV leer');
   }
 
-  // Delimiter anhand der Zeile mit den meisten Trennzeichen ermitteln (robust gegen Titelzeilen)
-  const candidateLines = nonEmptyLines.slice(0, Math.min(5, nonEmptyLines.length));
   const delimiter = detectDelimiter(
-    candidateLines.reduce((best, line) => {
-      const bestCount = (best.match(/[;,]/g) ?? []).length;
-      const lineCount = (line.match(/[;,]/g) ?? []).length;
-      return lineCount > bestCount ? line : best;
-    }, candidateLines[0])
+    lines.reduce((best, l) => {
+      const b = (best.match(/[\t;,]/g) ?? []).length;
+      const c = (l.match(/[\t;,]/g)   ?? []).length;
+      return c > b ? l : best;
+    }, lines[0])
   );
 
-  // Headerzeile: erste Zeile mit mindestens 2 Feldern (überspringt Titelzeilen ohne Delimiter)
-  const headerLineIdx = nonEmptyLines.findIndex(line => parseCsvLine(line, delimiter).filter(f => f.trim().length > 0).length >= 2);
-  const headerLine = nonEmptyLines[headerLineIdx >= 0 ? headerLineIdx : 0];
-  const headers = parseCsvLine(headerLine, delimiter);
+  // Headerzeile: erste Zeile mit ≥2 nicht-leeren Feldern
+  const hIdx = lines.findIndex(
+    l => parseCsvLine(l, delimiter).filter(f => f.trim().length > 0).length >= 2
+  );
+  const headerLine = lines[hIdx >= 0 ? hIdx : 0];
+  const headers    = parseCsvLine(headerLine, delimiter);
+  const dataLines  = lines.slice((hIdx >= 0 ? hIdx : 0) + 1);
 
-  const dataLines = nonEmptyLines.slice((headerLineIdx >= 0 ? headerLineIdx : 0) + 1);
+  if (dataLines.length > 10000)
+    toast.warning(`Große Datei: ${dataLines.length.toLocaleString('de')} Zeilen`);
 
-  if (dataLines.length > 10000) {
-    toast.warning(`Große Datei: ${dataLines.length.toLocaleString('de')} Zeilen — Import kann etwas länger dauern`);
-  }
-
-  const rows = dataLines.map(line => parseCsvLine(line, delimiter));
-
-  return {
-    headers,
-    rows,
-    totalRows: rows.length,
-  };
+  return { headers, rows: dataLines.map(l => parseCsvLine(l, delimiter)), totalRows: dataLines.length };
 }
+
+// ---------------------------------------------------------------------------
+// Column mapping
+// ---------------------------------------------------------------------------
 
 const ALLOWED_DB_FIELDS = new Set<keyof Omit<MappedCustomerRecord, '_rowIndex'>>([
   'vorname', 'nachname', 'telefonnr', 'email', 'strasse', 'plz', 'stadt',
@@ -233,21 +310,16 @@ export function applyColumnMapping(
   mapping: Record<string, string | null>
 ): MappedCustomerRecord[] {
   const { headers, rows } = parseResult;
-
   return rows.map((row, rowIndex) => {
     const record: MappedCustomerRecord = { _rowIndex: rowIndex };
-
     headers.forEach((header, colIndex) => {
       const dbField = mapping[header];
       if (!dbField) return;
-
       const value = row[colIndex]?.trim() ?? '';
       if (value === '') return;
-
       if (!ALLOWED_DB_FIELDS.has(dbField as keyof Omit<MappedCustomerRecord, '_rowIndex'>)) return;
       record[dbField as keyof Omit<MappedCustomerRecord, '_rowIndex'>] = value;
     });
-
     return record;
   });
 }
