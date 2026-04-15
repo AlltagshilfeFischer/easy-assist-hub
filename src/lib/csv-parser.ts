@@ -89,29 +89,30 @@ function isXlsxFile(file: File): boolean {
 }
 
 async function parseXlsxFile(file: File): Promise<CsvParseResult> {
-  const XLSX = await import('xlsx');
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: false, raw: false });
+  const readXlsxFile = (await import('read-excel-file/browser')).default;
+  const rawRows = await readXlsxFile(file);
 
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) {
-    toast.error('XLSX enthält keine Tabellenblätter');
-    throw new Error('XLSX enthält keine Tabellenblätter');
-  }
-
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' });
-
-  const nonEmptyRows = rawRows.filter(row => row.some(cell => String(cell).trim().length > 0));
+  const nonEmptyRows = rawRows.filter(row => row.some(cell => cell != null && String(cell).trim().length > 0));
 
   if (nonEmptyRows.length < 2) {
     toast.error('XLSX enthält keine Datenzeilen');
     throw new Error('XLSX enthält keine Datenzeilen');
   }
 
-  const headers = nonEmptyRows[0].map(h => String(h).trim());
+  const headers = nonEmptyRows[0].map(h => String(h ?? '').trim());
   const dataRows = nonEmptyRows.slice(1).map(row =>
-    headers.map((_, i) => String(row[i] ?? '').trim())
+    headers.map((_, i) => {
+      const val = row[i];
+      if (val == null) return '';
+      if (val instanceof Date) {
+        // Datum als TT.MM.JJJJ formatieren (passt zur CSV-Konvention)
+        const d = val.getDate().toString().padStart(2, '0');
+        const m = (val.getMonth() + 1).toString().padStart(2, '0');
+        const y = val.getFullYear();
+        return `${d}.${m}.${y}`;
+      }
+      return String(val).trim();
+    })
   );
 
   if (dataRows.length > 10000) {
