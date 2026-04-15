@@ -37,40 +37,100 @@ const DB_FIELD_OPTIONS = [
 ] as const;
 
 const FUZZY_MAP: Record<string, string> = {
+  // Name
   'vorname': 'vorname',
   'nachname': 'nachname',
+  'familienname': 'nachname',
   'name': 'nachname',
+  // Telefon
   'telefon': 'telefonnr',
+  'telefonnr': 'telefonnr',
+  'telefonnummer': 'telefonnr',
   'tel': 'telefonnr',
   'tel.': 'telefonnr',
+  'handy': 'telefonnr',
+  'mobil': 'telefonnr',
+  // E-Mail
   'email': 'email',
   'e-mail': 'email',
+  'e mail': 'email',
+  // Adresse
   'strasse': 'strasse',
   'straße': 'strasse',
+  'strasse/hausnummer': 'strasse',
   'adresse': 'adresse',
   'plz': 'plz',
   'postleitzahl': 'plz',
   'stadt': 'stadt',
   'ort': 'stadt',
+  'wohnort': 'stadt',
   'stadtteil': 'stadtteil',
+  'ortsteil': 'stadtteil',
+  'bezirk': 'stadtteil',
+  // Geburtsdatum
   'geburtsdatum': 'geburtsdatum',
   'geb.': 'geburtsdatum',
+  'geb. datum': 'geburtsdatum',
   'geburtstag': 'geburtsdatum',
-  'pfg': 'pflegegrad',
+  'geb': 'geburtsdatum',
+  // Pflegegrad
   'pflegegrad': 'pflegegrad',
+  'pfg': 'pflegegrad',
   'pg': 'pflegegrad',
+  'pflege grad': 'pflegegrad',
+  // Pflegekasse
   'pflegekasse': 'pflegekasse',
   'kasse': 'pflegekasse',
+  'krankenkasse': 'pflegekasse',
+  // Versichertennummer
   'versichertennummer': 'versichertennummer',
   'vers.nr.': 'versichertennummer',
+  'vers nr': 'versichertennummer',
+  'versicherungsnummer': 'versichertennummer',
   'versichertennnummer': 'versichertennummer',
+  'versicherten nr': 'versichertennummer',
+  // Kategorie / Status
   'kategorie': 'kategorie',
+  'status': 'kategorie',
+  'kundentyp': 'kategorie',
+  'typ': 'kategorie',
+  // Stunden
   'stunden': 'stunden_kontingent_monat',
+  'stunden/monat': 'stunden_kontingent_monat',
+  'std/monat': 'stunden_kontingent_monat',
+  'stunden kontingent': 'stunden_kontingent_monat',
+  'stundenkontingent': 'stunden_kontingent_monat',
+  // Eintritt / Austritt
   'eintritt': 'eintritt',
+  'eintrittsdatum': 'eintritt',
+  'beginn': 'eintritt',
+  'vertragsbeginn': 'eintritt',
   'austritt': 'austritt',
+  'austrittsdatum': 'austritt',
+  'vertragsende': 'austritt',
+  // Kasse/Privat
+  'kasse/privat': 'kassen_privat',
+  'kassen/privat': 'kassen_privat',
+  'kasse privat': 'kassen_privat',
+  'finanzierung': 'kassen_privat',
+  'abrechnungsart': 'kassen_privat',
+  // Sonstiges / Bemerkungen
   'sonstiges': 'sonstiges',
   'bemerkung': 'sonstiges',
+  'bemerkungen': 'sonstiges',
+  'notiz': 'sonstiges',
+  'notizen': 'sonstiges',
+  'begründung': 'sonstiges',
+  'anmerkung': 'sonstiges',
+  'anmerkungen': 'sonstiges',
+  'kommentar': 'sonstiges',
+  // Angehörige/Ansprechpartner (verschiedene Schreibweisen)
+  'angehörige/ansprechpartner': 'angehoerige_ansprechpartner',
   'angehöriger/ansprechpartner': 'angehoerige_ansprechpartner',
+  'angehörige': 'angehoerige_ansprechpartner',
+  'ansprechpartner': 'angehoerige_ansprechpartner',
+  'kontaktperson': 'angehoerige_ansprechpartner',
+  'notfallkontakt': 'angehoerige_ansprechpartner',
 };
 
 interface CsvImportStepMappingProps {

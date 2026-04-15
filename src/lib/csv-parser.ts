@@ -57,8 +57,10 @@ async function readFileWithEncoding(file: File): Promise<string> {
 }
 
 function detectDelimiter(headerLine: string): string {
-  const commaCount = (headerLine.match(/,/g) ?? []).length;
+  const tabCount = (headerLine.match(/\t/g) ?? []).length;
   const semicolonCount = (headerLine.match(/;/g) ?? []).length;
+  const commaCount = (headerLine.match(/,/g) ?? []).length;
+  if (tabCount >= semicolonCount && tabCount >= commaCount) return '\t';
   return semicolonCount >= commaCount ? ';' : ',';
 }
 
@@ -199,7 +201,7 @@ export async function parseCsvFile(file: File): Promise<CsvParseResult> {
   );
 
   // Headerzeile: erste Zeile mit mindestens 2 Feldern (überspringt Titelzeilen ohne Delimiter)
-  const headerLineIdx = nonEmptyLines.findIndex(line => parseCsvLine(line, delimiter).length >= 2);
+  const headerLineIdx = nonEmptyLines.findIndex(line => parseCsvLine(line, delimiter).filter(f => f.trim().length > 0).length >= 2);
   const headerLine = nonEmptyLines[headerLineIdx >= 0 ? headerLineIdx : 0];
   const headers = parseCsvLine(headerLine, delimiter);
 
