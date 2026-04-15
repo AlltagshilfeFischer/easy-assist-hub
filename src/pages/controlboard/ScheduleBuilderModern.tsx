@@ -123,8 +123,8 @@ const ScheduleBuilderModern = () => {
       table_name: 'termine',
       row_id: terminId,
       operation,
-      old_data: oldData ?? null,
-      new_data: newData ?? null,
+      old_data: (oldData ?? null) as any,
+      new_data: (newData ?? null) as any,
       actor_benutzer_id: user?.id ?? null,
     }]).then(({ error }) => {
       if (error) console.warn('[audit_log] Termin-Änderung nicht geloggt:', error.message);

@@ -75,7 +75,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         stadt: values.stadt || null,
         zustaendigkeitsbereich: values.zustaendigkeitsbereich || null,
         farbe_kalender: values.farbe_kalender,
-        standort: values.standort || 'Hannover',
+        standort: (values.standort || 'Hannover') as 'Hannover',
         ist_aktiv: true,
         // Reiter 1
         email: values.email || null,
