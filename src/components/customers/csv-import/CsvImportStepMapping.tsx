@@ -89,11 +89,11 @@ const FUZZY_MAP: Record<string, string> = {
   'versicherungsnummer': 'versichertennummer',
   'versichertennnummer': 'versichertennummer',
   'versicherten nr': 'versichertennummer',
-  // Kategorie / Status
+  // Kategorie — nur wenn Spalte eindeutig Kundentyp enthält
   'kategorie': 'kategorie',
-  'status': 'kategorie',
   'kundentyp': 'kategorie',
-  'typ': 'kategorie',
+  'kundenkategorie': 'kategorie',
+  // 'status' bewusst NICHT gemappt — zu vieldeutig (oft Freitext-Notizen)
   // Stunden
   'stunden': 'stunden_kontingent_monat',
   'stunden/monat': 'stunden_kontingent_monat',
@@ -114,7 +114,7 @@ const FUZZY_MAP: Record<string, string> = {
   'kasse privat': 'kassen_privat',
   'finanzierung': 'kassen_privat',
   'abrechnungsart': 'kassen_privat',
-  // Sonstiges / Bemerkungen
+  // Sonstiges / Bemerkungen / Freitext
   'sonstiges': 'sonstiges',
   'bemerkung': 'sonstiges',
   'bemerkungen': 'sonstiges',
@@ -124,6 +124,10 @@ const FUZZY_MAP: Record<string, string> = {
   'anmerkung': 'sonstiges',
   'anmerkungen': 'sonstiges',
   'kommentar': 'sonstiges',
+  'kommentare': 'sonstiges',
+  'status': 'sonstiges',        // Status oft Freitext → sonstiges ist besser als kategorie
+  'kontaktiert': 'sonstiges',
+  'kontaktstatus': 'sonstiges',
   // Angehörige/Ansprechpartner (verschiedene Schreibweisen)
   'angehörige/ansprechpartner': 'angehoerige_ansprechpartner',
   'angehöriger/ansprechpartner': 'angehoerige_ansprechpartner',
