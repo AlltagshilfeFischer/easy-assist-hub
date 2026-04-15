@@ -129,9 +129,9 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
     throw new Error('read-excel-file/browser konnte nicht geladen werden');
   }
 
-  let rawRows: (string | number | boolean | Date | null)[][];
+  let result: { sheet: string; data: (string | number | boolean | Date | null)[][] }[];
   try {
-    rawRows = await readXlsxFile!(file);
+    result = await readXlsxFile!(file) as typeof result;
   } catch (err) {
     toast.error('XLSX-Datei konnte nicht gelesen werden', {
       description: err instanceof Error ? err.message : 'Ungültiges Format',
@@ -139,7 +139,8 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
     throw err;
   }
 
-  const nonEmptyRows = rawRows.filter(row => row.some(cell => cell != null && String(cell).trim().length > 0));
+  const rawRows = result[0]?.data ?? [];
+  const nonEmptyRows = rawRows.filter(row => Array.isArray(row) && row.some(cell => cell != null && String(cell).trim().length > 0));
 
   if (nonEmptyRows.length < 2) {
     toast.error('XLSX enthält keine Datenzeilen');
