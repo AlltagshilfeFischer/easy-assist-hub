@@ -93,7 +93,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
         plz: values.plz || null,
         stadt: values.stadt || null,
         farbe_kalender: values.farbe_kalender,
-        standort: values.standort || 'Hannover',
+        standort: (values.standort || 'Hannover') as 'Hannover',
         zustaendigkeitsbereich: values.zustaendigkeitsbereich || null,
         soll_wochenstunden: values.soll_wochenstunden ?? null,
         max_termine_pro_tag: values.max_termine_pro_tag ?? null,

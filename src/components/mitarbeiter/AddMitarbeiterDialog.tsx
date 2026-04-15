@@ -66,7 +66,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
   const onSubmit = async (values: MitarbeiterFormValues) => {
     setSaving(true);
     try {
-      const { error } = await supabase.from('mitarbeiter').insert({
+      const { error } = await supabase.from('mitarbeiter').insert([{
         vorname: values.vorname,
         nachname: values.nachname,
         telefon: values.telefon || null,

@@ -24,7 +24,7 @@ interface EditingCell {
   field: string;
 }
 
-const EDITABLE_FIELDS: Array<{ key: keyof MappedCustomerRecord; label: string }> = [
+const EDITABLE_FIELDS: Array<{ key: keyof Omit<MappedCustomerRecord, '_rowIndex'>; label: string }> = [
   { key: 'vorname', label: 'Vorname' },
   { key: 'nachname', label: 'Nachname' },
   { key: 'geburtsdatum', label: 'Geburtsdatum' },

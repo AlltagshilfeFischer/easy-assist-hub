@@ -119,14 +119,14 @@ const ScheduleBuilderModern = () => {
     oldData?: Record<string, unknown>,
     newData?: Record<string, unknown>,
   ) => {
-    supabase.from('audit_log').insert({
+    supabase.from('audit_log').insert([{
       table_name: 'termine',
       row_id: terminId,
       operation,
       old_data: oldData ?? null,
       new_data: newData ?? null,
       actor_benutzer_id: user?.id ?? null,
-    }).then(({ error }) => {
+    }]).then(({ error }) => {
       if (error) console.warn('[audit_log] Termin-Änderung nicht geloggt:', error.message);
     });
   };

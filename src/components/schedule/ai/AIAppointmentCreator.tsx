@@ -9,6 +9,7 @@ import { invokeAiFunction } from '@/lib/aiClient';
 import { AIAppointmentSuggestionsDialog } from './AIAppointmentSuggestionsDialog';
 import { parse, startOfWeek, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AIAppointmentCreatorProps {
   onAppointmentCreated: () => void;
