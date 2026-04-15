@@ -149,14 +149,15 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
     throw new Error('XLSX enthält keine Datenzeilen');
   }
 
-  // Headerzeile ermitteln: Die Zeile unter den ersten 10 mit den meisten befüllten Spalten.
-  // Das überspringt Titelzeilen wie "Kundenliste Export 2024" die oft über dem echten Header sitzen.
-  const countNonEmpty = (row: (string | number | boolean | Date | null)[]) =>
-    row.filter(c => c != null && String(c).trim().length > 0).length;
+  // Headerzeile ermitteln:
+  // Eine echte Headerzeile besteht NUR aus Strings (keine Zahlen, keine Datumsangaben).
+  // Datenzeilen enthalten typischerweise Zahlen (Pflegegrad) oder Datumswerte (Geburtsdatum).
+  // Falls alle Zeilen nur Strings enthalten (z.B. reine Textexporte), nehmen wir die erste Zeile.
+  const isLikelyHeaderRow = (row: (string | number | boolean | Date | null)[]) =>
+    row.every(cell => cell == null || typeof cell === 'string');
 
-  const candidateRows = nonEmptyRows.slice(0, Math.min(10, nonEmptyRows.length - 1));
-  const maxCols = Math.max(...candidateRows.map(countNonEmpty));
-  const headerRowIdx = candidateRows.findIndex(row => countNonEmpty(row) === maxCols);
+  const firstStringOnlyIdx = nonEmptyRows.slice(0, 10).findIndex(isLikelyHeaderRow);
+  const headerRowIdx = firstStringOnlyIdx >= 0 ? firstStringOnlyIdx : 0;
 
   const headers = nonEmptyRows[headerRowIdx].map(h => cellToString(h));
   const dataRows = nonEmptyRows.slice(headerRowIdx + 1).map(row =>

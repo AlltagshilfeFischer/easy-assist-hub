@@ -149,10 +149,13 @@ export function CsvImportStepMapping({ onComplete }: CsvImportStepMappingProps) 
 
   const hasMandatoryField = Object.values(mapping).includes('vorname') || Object.values(mapping).includes('nachname');
 
-  // Nur Spalten mit nicht-leerem Header anzeigen (Excel hat oft leere Hilfsspalten)
+  // Alle Spalten anzeigen — leere Header als "(Spalte N)" labeln damit keine Spalte verloren geht
   const visibleHeaders = parseResult?.headers
-    .map((header, index) => ({ header, index }))
-    .filter(({ header }) => header.trim().length > 0) ?? [];
+    .map((header, index) => ({
+      header,
+      displayName: header.trim().length > 0 ? header : `(Spalte ${index + 1})`,
+      index,
+    })) ?? [];
 
   const normalizeHeader = (h: string) =>
     h.toLowerCase()
@@ -270,9 +273,9 @@ export function CsvImportStepMapping({ onComplete }: CsvImportStepMappingProps) 
                 </tr>
               </thead>
               <tbody>
-                {visibleHeaders.map(({ header, index }) => (
+                {visibleHeaders.map(({ header, displayName, index }) => (
                   <tr key={index} className="border-b last:border-0">
-                    <td className="px-4 py-2 font-mono text-xs">{header}</td>
+                    <td className="px-4 py-2 font-mono text-xs">{displayName}</td>
                     <td className="px-4 py-2 text-muted-foreground truncate max-w-[200px]">
                       {getExampleValue(index) || '—'}
                     </td>
