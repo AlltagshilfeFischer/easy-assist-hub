@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -83,10 +84,55 @@ function parseCsvLine(line: string, delimiter: string): string[] {
   return fields;
 }
 
+function isXlsxFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith('.xlsx') || name.endsWith('.xls');
+}
+
+async function parseXlsxFile(file: File): Promise<CsvParseResult> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: false, raw: false });
+
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    toast.error('XLSX enthält keine Tabellenblätter');
+    throw new Error('XLSX enthält keine Tabellenblätter');
+  }
+
+  const sheet = workbook.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' });
+
+  const nonEmptyRows = rawRows.filter(row => row.some(cell => String(cell).trim().length > 0));
+
+  if (nonEmptyRows.length < 2) {
+    toast.error('XLSX enthält keine Datenzeilen');
+    throw new Error('XLSX enthält keine Datenzeilen');
+  }
+
+  const headers = nonEmptyRows[0].map(h => String(h).trim());
+  const dataRows = nonEmptyRows.slice(1).map(row =>
+    headers.map((_, i) => String(row[i] ?? '').trim())
+  );
+
+  if (dataRows.length > 10000) {
+    toast.warning(`Große Datei: ${dataRows.length.toLocaleString('de')} Zeilen — Import kann etwas länger dauern`);
+  }
+
+  return {
+    headers,
+    rows: dataRows,
+    totalRows: dataRows.length,
+  };
+}
+
 export async function parseCsvFile(file: File): Promise<CsvParseResult> {
   if (file.size > MAX_FILE_SIZE_BYTES) {
     toast.error('Datei zu groß (max. 50 MB)');
     throw new Error('Datei überschreitet die maximale Größe von 50 MB');
+  }
+
+  if (isXlsxFile(file)) {
+    return parseXlsxFile(file);
   }
 
   const text = await readFileWithEncoding(file);
