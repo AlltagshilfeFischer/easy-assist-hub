@@ -85,10 +85,21 @@ export function CsvImportStepMapping({ onComplete }: CsvImportStepMappingProps) 
 
   const hasMandatoryField = Object.values(mapping).includes('vorname') || Object.values(mapping).includes('nachname');
 
+  // Nur Spalten mit nicht-leerem Header anzeigen (Excel hat oft leere Hilfsspalten)
+  const visibleHeaders = parseResult?.headers
+    .map((header, index) => ({ header, index }))
+    .filter(({ header }) => header.trim().length > 0) ?? [];
+
+  const normalizeHeader = (h: string) =>
+    h.toLowerCase()
+      .replace(/\u00A0/g, ' ')   // non-breaking space → space
+      .replace(/\s+/g, ' ')       // mehrfache Leerzeichen → eins
+      .trim();
+
   const applyFallbackMapping = (headers: string[]): Record<string, string | null> => {
     const fallback: Record<string, string | null> = {};
     for (const header of headers) {
-      fallback[header] = FUZZY_MAP[header.toLowerCase()] ?? null;
+      fallback[header] = FUZZY_MAP[normalizeHeader(header)] ?? null;
     }
     return fallback;
   };
@@ -195,8 +206,8 @@ export function CsvImportStepMapping({ onComplete }: CsvImportStepMappingProps) 
                 </tr>
               </thead>
               <tbody>
-                {parseResult.headers.map((header, index) => (
-                  <tr key={header} className="border-b last:border-0">
+                {visibleHeaders.map(({ header, index }) => (
+                  <tr key={index} className="border-b last:border-0">
                     <td className="px-4 py-2 font-mono text-xs">{header}</td>
                     <td className="px-4 py-2 text-muted-foreground truncate max-w-[200px]">
                       {getExampleValue(index) || '—'}
