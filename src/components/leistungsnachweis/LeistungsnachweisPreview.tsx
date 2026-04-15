@@ -98,7 +98,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
     : 'Deckeln §45b _____ EUR Rest privat';
 
   return (
-    <div className="print-area bg-white text-black" style={{ width: '210mm', minHeight: '297mm', padding: '12mm 15mm', fontFamily: 'Arial, sans-serif', fontSize: '10px', lineHeight: '1.4', margin: '0 auto' }}>
+    <div className="print-area bg-white text-black" style={{ width: '210mm', padding: '12mm 15mm', fontFamily: 'Arial, sans-serif', fontSize: '10px', lineHeight: '1.4', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6mm' }}>
         <h1 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>Leistungsnachweis Alltagshilfe Fischer</h1>
@@ -251,7 +251,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
       </div>
 
       {/* Fusszeile */}
-      <div style={{ borderTop: '1px solid #999', paddingTop: '2mm', fontSize: '7px', display: 'flex', justifyContent: 'space-between', color: '#666', position: 'absolute', bottom: '10mm', left: '15mm', right: '15mm' }}>
+      <div style={{ borderTop: '1px solid #999', paddingTop: '2mm', marginTop: '6mm', fontSize: '7px', display: 'flex', justifyContent: 'space-between', color: '#666' }}>
         <span>Alltagshilfe Fischer · Hannover</span>
         <span>IK-Nr.: wird ergänzt</span>
         <span>Bankverbindung: wird ergänzt</span>

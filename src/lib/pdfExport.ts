@@ -37,18 +37,21 @@ export async function exportElementToPdf(
   const imgWidth = pdfWidth;
   const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-  // If content fits on one page
-  if (imgHeight <= pdfHeight) {
+  // Tolerance: Pixel-Rounding durch html2canvas kann imgHeight minimal über pdfHeight pushen.
+  // Bis zu 8mm Überhang = immer eine Seite (wird von jsPDF geclippt, kein sichtbarer Verlust).
+  const SINGLE_PAGE_TOLERANCE_MM = 8;
+
+  if (imgHeight <= pdfHeight + SINGLE_PAGE_TOLERANCE_MM) {
     pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
   } else {
-    // Multi-page
+    // Echtes Multi-Page (Inhalt > 1 A4-Seite)
     let heightLeft = imgHeight;
     let position = 0;
 
     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
     heightLeft -= pdfHeight;
 
-    while (heightLeft > 0) {
+    while (heightLeft > SINGLE_PAGE_TOLERANCE_MM) {
       position = -(imgHeight - heightLeft);
       pdf.addPage();
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);

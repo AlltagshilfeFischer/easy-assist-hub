@@ -423,7 +423,6 @@ export function AppointmentDetailDialog({
 
           {/* Verlauf */}
           <div>
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Verlauf</Label>
             <AppointmentHistorySection terminId={editedAppointment.id} />
           </div>
         </div>
