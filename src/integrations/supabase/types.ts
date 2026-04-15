@@ -226,6 +226,89 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_transactions: {
+        Row: {
+          allocation_type: string
+          billed: boolean
+          budget_id: string | null
+          client_id: string
+          created_at: string | null
+          external_ref: string | null
+          hourly_rate: number
+          hours: number
+          id: string
+          service_date: string
+          service_type: Database["public"]["Enums"]["service_type"]
+          source: Database["public"]["Enums"]["transaction_source"]
+          total_amount: number
+          travel_flat_total: number
+          visits: number
+        }
+        Insert: {
+          allocation_type?: string
+          billed?: boolean
+          budget_id?: string | null
+          client_id: string
+          created_at?: string | null
+          external_ref?: string | null
+          hourly_rate?: number
+          hours: number
+          id?: string
+          service_date: string
+          service_type?: Database["public"]["Enums"]["service_type"]
+          source: Database["public"]["Enums"]["transaction_source"]
+          total_amount?: number
+          travel_flat_total?: number
+          visits?: number
+        }
+        Update: {
+          allocation_type?: string
+          billed?: boolean
+          budget_id?: string | null
+          client_id?: string
+          created_at?: string | null
+          external_ref?: string | null
+          hourly_rate?: number
+          hours?: number
+          id?: string
+          service_date?: string
+          service_type?: Database["public"]["Enums"]["service_type"]
+          source?: Database["public"]["Enums"]["transaction_source"]
+          total_amount?: number
+          travel_flat_total?: number
+          visits?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      care_levels: {
+        Row: {
+          created_at: string | null
+          kombi_max_40_prozent_monat: number
+          pflegegrad: number
+          sachleistung_monat: number
+        }
+        Insert: {
+          created_at?: string | null
+          kombi_max_40_prozent_monat?: number
+          pflegegrad: number
+          sachleistung_monat?: number
+        }
+        Update: {
+          created_at?: string | null
+          kombi_max_40_prozent_monat?: number
+          pflegegrad?: number
+          sachleistung_monat?: number
+        }
+        Relationships: []
+      }
       development_todos: {
         Row: {
           bereich: string
@@ -508,9 +591,9 @@ export type Database = {
           initial_budget_verhinderung: number | null
           kasse_privat: string | null
           kategorie: string | null
+          kombileistung_genehmigt_am: string | null
           kontaktweg: string | null
           kopie_lw: string | null
-          kombileistung_genehmigt_am: string | null
           kunden_nummer: number
           mitarbeiter: string | null
           nachname: string | null
@@ -1152,50 +1235,6 @@ export type Database = {
           },
         ]
       }
-      mitarbeiter_nebenbeschaeftigung: {
-        Row: {
-          id: string
-          mitarbeiter_id: string
-          arbeitgeber: string
-          art_beschaeftigung: string | null
-          arbeitszeit_stunden_woche: number | null
-          gehalt_monatlich: number | null
-          sv_pflicht: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          mitarbeiter_id: string
-          arbeitgeber: string
-          art_beschaeftigung?: string | null
-          arbeitszeit_stunden_woche?: number | null
-          gehalt_monatlich?: number | null
-          sv_pflicht?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          mitarbeiter_id?: string
-          arbeitgeber?: string
-          art_beschaeftigung?: string | null
-          arbeitszeit_stunden_woche?: number | null
-          gehalt_monatlich?: number | null
-          sv_pflicht?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mitarbeiter_nebenbeschaeftigung_mitarbeiter_id_fkey"
-            columns: ["mitarbeiter_id"]
-            isOneToOne: false
-            referencedRelation: "mitarbeiter"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mitarbeiter_abwesenheiten: {
         Row: {
           approved_at: string | null
@@ -1259,6 +1298,50 @@ export type Database = {
             columns: ["requested_by"]
             isOneToOne: false
             referencedRelation: "benutzer"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mitarbeiter_nebenbeschaeftigung: {
+        Row: {
+          arbeitgeber: string
+          arbeitszeit_stunden_woche: number | null
+          art_beschaeftigung: string | null
+          created_at: string | null
+          gehalt_monatlich: number | null
+          id: string
+          mitarbeiter_id: string
+          sv_pflicht: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          arbeitgeber: string
+          arbeitszeit_stunden_woche?: number | null
+          art_beschaeftigung?: string | null
+          created_at?: string | null
+          gehalt_monatlich?: number | null
+          id?: string
+          mitarbeiter_id: string
+          sv_pflicht?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          arbeitgeber?: string
+          arbeitszeit_stunden_woche?: number | null
+          art_beschaeftigung?: string | null
+          created_at?: string | null
+          gehalt_monatlich?: number | null
+          id?: string
+          mitarbeiter_id?: string
+          sv_pflicht?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mitarbeiter_nebenbeschaeftigung_mitarbeiter_id_fkey"
+            columns: ["mitarbeiter_id"]
+            isOneToOne: false
+            referencedRelation: "mitarbeiter"
             referencedColumns: ["id"]
           },
         ]
@@ -1674,6 +1757,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tariffs: {
+        Row: {
+          active: boolean
+          created_at: string | null
+          hourly_rate: number
+          id: string
+          service_type: Database["public"]["Enums"]["service_type"]
+          travel_flat_per_visit: number
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string | null
+          hourly_rate: number
+          id: string
+          service_type: Database["public"]["Enums"]["service_type"]
+          travel_flat_per_visit?: number
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string | null
+          hourly_rate?: number
+          id?: string
+          service_type?: Database["public"]["Enums"]["service_type"]
+          travel_flat_per_visit?: number
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       termin_aenderungen: {
         Row: {
@@ -2094,6 +2207,7 @@ export type Database = {
         | "bezahlt"
         | "storniert"
       recurrence_interval: "none" | "weekly" | "biweekly" | "monthly"
+      service_type: "ENTLASTUNG" | "KOMBI" | "VERHINDERUNG"
       standort: "Hannover"
       termin_status:
         | "unassigned"
@@ -2105,6 +2219,7 @@ export type Database = {
         | "bezahlt"
         | "nicht_angetroffen"
         | "abgesagt_rechtzeitig"
+      transaction_source: "APLANO_IMPORT" | "MANUAL"
       user_rolle:
         | "geschaeftsfuehrer"
         | "admin"
@@ -2277,6 +2392,7 @@ export const Constants = {
         "storniert",
       ],
       recurrence_interval: ["none", "weekly", "biweekly", "monthly"],
+      service_type: ["ENTLASTUNG", "KOMBI", "VERHINDERUNG"],
       standort: ["Hannover"],
       termin_status: [
         "unassigned",
@@ -2289,6 +2405,7 @@ export const Constants = {
         "nicht_angetroffen",
         "abgesagt_rechtzeitig",
       ],
+      transaction_source: ["APLANO_IMPORT", "MANUAL"],
       user_rolle: [
         "geschaeftsfuehrer",
         "admin",
