@@ -100,7 +100,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         krankenkasse: values.krankenkasse || null,
         // Reiter 3
         weitere_beschaeftigung: values.weitere_beschaeftigung,
-      });
+      }]);
 
       if (error) throw error;
 
