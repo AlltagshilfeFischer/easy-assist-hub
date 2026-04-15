@@ -1,5 +1,4 @@
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -90,6 +89,7 @@ function isXlsxFile(file: File): boolean {
 }
 
 async function parseXlsxFile(file: File): Promise<CsvParseResult> {
+  const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: false, raw: false });
 
