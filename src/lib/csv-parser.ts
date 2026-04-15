@@ -147,8 +147,17 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
     throw new Error('XLSX enthält keine Datenzeilen');
   }
 
-  const headers = nonEmptyRows[0].map(h => cellToString(h));
-  const dataRows = nonEmptyRows.slice(1).map(row =>
+  // Headerzeile ermitteln: Die Zeile unter den ersten 10 mit den meisten befüllten Spalten.
+  // Das überspringt Titelzeilen wie "Kundenliste Export 2024" die oft über dem echten Header sitzen.
+  const countNonEmpty = (row: (string | number | boolean | Date | null)[]) =>
+    row.filter(c => c != null && String(c).trim().length > 0).length;
+
+  const candidateRows = nonEmptyRows.slice(0, Math.min(10, nonEmptyRows.length - 1));
+  const maxCols = Math.max(...candidateRows.map(countNonEmpty));
+  const headerRowIdx = candidateRows.findIndex(row => countNonEmpty(row) === maxCols);
+
+  const headers = nonEmptyRows[headerRowIdx].map(h => cellToString(h));
+  const dataRows = nonEmptyRows.slice(headerRowIdx + 1).map(row =>
     headers.map((_, i) => cellToString(row[i]))
   );
 
@@ -179,11 +188,22 @@ export async function parseCsvFile(file: File): Promise<CsvParseResult> {
     throw new Error('CSV enthält keine Datenzeilen');
   }
 
-  const headerLine = nonEmptyLines[0];
-  const delimiter = detectDelimiter(headerLine);
+  // Delimiter anhand der Zeile mit den meisten Trennzeichen ermitteln (robust gegen Titelzeilen)
+  const candidateLines = nonEmptyLines.slice(0, Math.min(5, nonEmptyLines.length));
+  const delimiter = detectDelimiter(
+    candidateLines.reduce((best, line) => {
+      const bestCount = (best.match(/[;,]/g) ?? []).length;
+      const lineCount = (line.match(/[;,]/g) ?? []).length;
+      return lineCount > bestCount ? line : best;
+    }, candidateLines[0])
+  );
+
+  // Headerzeile: erste Zeile mit mindestens 2 Feldern (überspringt Titelzeilen ohne Delimiter)
+  const headerLineIdx = nonEmptyLines.findIndex(line => parseCsvLine(line, delimiter).length >= 2);
+  const headerLine = nonEmptyLines[headerLineIdx >= 0 ? headerLineIdx : 0];
   const headers = parseCsvLine(headerLine, delimiter);
 
-  const dataLines = nonEmptyLines.slice(1);
+  const dataLines = nonEmptyLines.slice((headerLineIdx >= 0 ? headerLineIdx : 0) + 1);
 
   if (dataLines.length > 10000) {
     toast.warning(`Große Datei: ${dataLines.length.toLocaleString('de')} Zeilen — Import kann etwas länger dauern`);
