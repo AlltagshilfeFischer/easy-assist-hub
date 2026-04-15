@@ -33,13 +33,27 @@ export interface MappedCustomerRecord {
 }
 
 async function readFileWithEncoding(file: File): Promise<string> {
-  const utf8Text = await file.text();
-  if (utf8Text.includes('Ã¤') || utf8Text.includes('Ã¶') || utf8Text.includes('Ã¼')) {
-    const buffer = await file.arrayBuffer();
-    const decoder = new TextDecoder('windows-1252');
-    return decoder.decode(buffer);
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  // UTF-16 LE (FF FE) oder UTF-16 BE (FE FF) BOM → direkt dekodieren
+  if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+    return new TextDecoder('utf-16le').decode(buffer).replace(/^\uFEFF/, '');
   }
-  return utf8Text;
+  if (bytes[0] === 0xFE && bytes[1] === 0xFF) {
+    return new TextDecoder('utf-16be').decode(buffer).replace(/^\uFEFF/, '');
+  }
+
+  // UTF-8 dekodieren (inkl. BOM-Stripping)
+  const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(buffer);
+
+  // Windows-1252 Mojibake erkennen: ä→Ã¤, ö→Ã¶, ü→Ã¼, ß→ÃŸ, Ä→Ã„, Ö→Ã–, Ü→Ãœ, usw.
+  if (/Ã[\x80-\xBF\xa4\xb6\xbc\x84\x96\x9c]/.test(text) ||
+      text.includes('ÃŸ') || text.includes('Ã„') || text.includes('Ã–') || text.includes('Ãœ')) {
+    return new TextDecoder('windows-1252').decode(buffer);
+  }
+
+  return text;
 }
 
 function detectDelimiter(headerLine: string): string {
@@ -88,9 +102,42 @@ function isXlsxFile(file: File): boolean {
   return name.endsWith('.xlsx') || name.endsWith('.xls');
 }
 
+function cellToString(val: unknown): string {
+  if (val == null) return '';
+  if (val instanceof Date) {
+    const d = val.getDate().toString().padStart(2, '0');
+    const m = (val.getMonth() + 1).toString().padStart(2, '0');
+    const y = val.getFullYear();
+    return `${d}.${m}.${y}`;
+  }
+  return String(val).trim();
+}
+
 async function parseXlsxFile(file: File): Promise<CsvParseResult> {
-  const readXlsxFile = (await import('read-excel-file/browser')).default;
-  const rawRows = await readXlsxFile(file);
+  if (file.name.toLowerCase().endsWith('.xls')) {
+    toast.error('Altes Excel-Format (.xls) nicht unterstützt', {
+      description: 'Bitte in Excel "Speichern unter → .xlsx" verwenden.',
+    });
+    throw new Error('.xls Format wird nicht unterstützt — bitte als .xlsx exportieren');
+  }
+
+  let readXlsxFile: ((file: File) => Promise<(string | number | boolean | Date | null)[][]>) | null = null;
+  try {
+    readXlsxFile = (await import('read-excel-file/browser')).default as typeof readXlsxFile;
+  } catch {
+    toast.error('XLSX-Bibliothek konnte nicht geladen werden');
+    throw new Error('read-excel-file/browser konnte nicht geladen werden');
+  }
+
+  let rawRows: (string | number | boolean | Date | null)[][];
+  try {
+    rawRows = await readXlsxFile!(file);
+  } catch (err) {
+    toast.error('XLSX-Datei konnte nicht gelesen werden', {
+      description: err instanceof Error ? err.message : 'Ungültiges Format',
+    });
+    throw err;
+  }
 
   const nonEmptyRows = rawRows.filter(row => row.some(cell => cell != null && String(cell).trim().length > 0));
 
@@ -99,31 +146,16 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
     throw new Error('XLSX enthält keine Datenzeilen');
   }
 
-  const headers = nonEmptyRows[0].map(h => String(h ?? '').trim());
+  const headers = nonEmptyRows[0].map(h => cellToString(h));
   const dataRows = nonEmptyRows.slice(1).map(row =>
-    headers.map((_, i) => {
-      const val = row[i];
-      if (val == null) return '';
-      if (val instanceof Date) {
-        // Datum als TT.MM.JJJJ formatieren (passt zur CSV-Konvention)
-        const d = val.getDate().toString().padStart(2, '0');
-        const m = (val.getMonth() + 1).toString().padStart(2, '0');
-        const y = val.getFullYear();
-        return `${d}.${m}.${y}`;
-      }
-      return String(val).trim();
-    })
+    headers.map((_, i) => cellToString(row[i]))
   );
 
   if (dataRows.length > 10000) {
     toast.warning(`Große Datei: ${dataRows.length.toLocaleString('de')} Zeilen — Import kann etwas länger dauern`);
   }
 
-  return {
-    headers,
-    rows: dataRows,
-    totalRows: dataRows.length,
-  };
+  return { headers, rows: dataRows, totalRows: dataRows.length };
 }
 
 export async function parseCsvFile(file: File): Promise<CsvParseResult> {
