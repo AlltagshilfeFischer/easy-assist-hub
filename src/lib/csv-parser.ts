@@ -107,25 +107,29 @@ function buildStyleIndex(stylesXml: string): number[] {
   const doc = new DOMParser().parseFromString(stylesXml, 'text/xml');
   // custom numFmt IDs that look like dates
   const customDateFmts = new Set<number>();
-  doc.querySelectorAll('numFmt').forEach(el => {
+  Array.from(doc.getElementsByTagName('numFmt')).forEach(el => {
     const id  = parseInt(el.getAttribute('numFmtId') ?? '0', 10);
     const fmt = el.getAttribute('formatCode') ?? '';
     if (/[yYdD]/.test(fmt) && !/^[#0.,% ]+$/.test(fmt)) customDateFmts.add(id);
   });
   const xfs: number[] = [];
-  doc.querySelectorAll('cellXfs > xf').forEach(xf => {
-    xfs.push(parseInt(xf.getAttribute('numFmtId') ?? '0', 10));
-  });
+  const cellXfsEl = doc.getElementsByTagName('cellXfs')[0];
+  if (cellXfsEl) {
+    Array.from(cellXfsEl.getElementsByTagName('xf')).forEach(xf => {
+      xfs.push(parseInt(xf.getAttribute('numFmtId') ?? '0', 10));
+    });
+  }
   return xfs.map(id => (BUILTIN_DATE_FMTS.has(id) || customDateFmts.has(id)) ? 1 : 0);
 }
 
 function parseSharedStrings(xml: string): string[] {
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  return Array.from(doc.querySelectorAll('si')).map(si => {
+  const sis = Array.from(doc.getElementsByTagName('si'));
+  return sis.map(si => {
     // Rich-text: mehrere <t>-Tags zusammensetzen
-    const ts = si.querySelectorAll('t');
+    const ts = si.getElementsByTagName('t');
     if (ts.length > 1) return Array.from(ts).map(t => t.textContent ?? '').join('');
-    return si.querySelector('t')?.textContent ?? '';
+    return ts[0]?.textContent ?? '';
   });
 }
 
@@ -137,28 +141,28 @@ function parseSheetXml(
   const doc   = new DOMParser().parseFromString(xml, 'text/xml');
   const rows: string[][] = [];
 
-  doc.querySelectorAll('sheetData > row').forEach(rowEl => {
-    const cells = rowEl.querySelectorAll('c');
+  Array.from(doc.getElementsByTagName('row')).forEach(rowEl => {
+    const cells = rowEl.getElementsByTagName('c');
     if (!cells.length) return;
 
     // Größten Spalten-Index in dieser Zeile ermitteln
     let maxIdx = 0;
-    cells.forEach(c => {
+    Array.from(cells).forEach(c => {
       const ref = c.getAttribute('r') ?? '';
       const col = ref.replace(/[0-9]/g, '');
       if (col) maxIdx = Math.max(maxIdx, colLetterToIndex(col));
     });
 
     const row: string[] = new Array(maxIdx + 1).fill('');
-    cells.forEach(c => {
+    Array.from(cells).forEach(c => {
       const ref  = c.getAttribute('r') ?? '';
       const col  = ref.replace(/[0-9]/g, '');
       if (!col) return;
       const idx  = colLetterToIndex(col);
       const type = c.getAttribute('t') ?? '';
       const sIdx = parseInt(c.getAttribute('s') ?? '0', 10);
-      const vEl  = c.querySelector('v');
-      const tEl  = c.querySelector('is > t');
+      const vEl  = c.getElementsByTagName('v')[0];
+      const tEl  = c.getElementsByTagName('is')[0]?.getElementsByTagName('t')[0];
 
       let val = '';
       if (type === 's'         && vEl) val = sharedStrings[parseInt(vEl.textContent ?? '0', 10)] ?? '';
@@ -248,6 +252,14 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
 
   if (dataRows.length > 10000)
     toast.warning(`Große Datei: ${dataRows.length.toLocaleString('de')} Zeilen`);
+
+  console.error('[XLSX Debug]', {
+    sharedStringsCount: sharedStrings.length,
+    allRowsCount: allRows.length,
+    nonEmptyRowsCount: nonEmptyRows.length,
+    headers: headers,
+    firstDataRow: dataRows[0],
+  });
 
   return { headers, rows: dataRows, totalRows: dataRows.length };
 }
