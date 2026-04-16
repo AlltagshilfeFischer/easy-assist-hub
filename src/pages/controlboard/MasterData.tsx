@@ -183,6 +183,7 @@ export default function MasterData() {
               telefonFilter={filters.telefonFilter} setTelefonFilter={filters.setTelefonFilter}
               emailFilter={filters.emailFilter} setEmailFilter={filters.setEmailFilter}
               pflegegradFilter={filters.pflegegradFilter} setPflegegradFilter={filters.setPflegegradFilter}
+              pflegekasseFilter={filters.pflegekasseFilter} setPflegekasseFilter={filters.setPflegekasseFilter}
               strasseFilter={filters.strasseFilter} setStrasseFilter={filters.setStrasseFilter}
               plzFilter={filters.plzFilter} setPlzFilter={filters.setPlzFilter}
               stadtFilter={filters.stadtFilter} setStadtFilter={filters.setStadtFilter}

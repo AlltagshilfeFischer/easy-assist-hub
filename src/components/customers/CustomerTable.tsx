@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Edit, Phone, Mail, ArrowUpDown, ChevronUp, ChevronDown, Power, Trash2, Eye } from 'lucide-react';
+import { Edit, ArrowUpDown, ChevronUp, ChevronDown, Power, Trash2, Eye } from 'lucide-react';
 import type { SortKey, SortDirection } from '@/hooks/useCustomerFilters';
 
 interface CustomerTableProps {
@@ -29,6 +29,7 @@ interface CustomerTableProps {
   telefonFilter: string; setTelefonFilter: (v: string) => void;
   emailFilter: string; setEmailFilter: (v: string) => void;
   pflegegradFilter: string; setPflegegradFilter: (v: string) => void;
+  pflegekasseFilter: string; setPflegekasseFilter: (v: string) => void;
   strasseFilter: string; setStrasseFilter: (v: string) => void;
   plzFilter: string; setPlzFilter: (v: string) => void;
   stadtFilter: string; setStadtFilter: (v: string) => void;
@@ -46,18 +47,28 @@ function SortButton({ sortKey, currentSort, onClick, children }: {
       <div className="flex items-center gap-1">
         {children}
         {isActive ? (
-          currentSort.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+          currentSort.direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
         ) : (
-          <ArrowUpDown className="h-4 w-4 opacity-50" />
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
         )}
       </div>
     </Button>
   );
 }
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString('de-DE');
+const formatDate = (val: string | null | undefined): string => {
+  if (!val) return '-';
+  // bereits im Format TT.MM.JJJJ (aus Excel-Import)?
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(val)) return val;
+  // ISO-Datum oder YYYY-MM
+  const d = new Date(val.length === 7 ? val + '-01' : val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const buildAddress = (c: any): string => {
+  const parts = [c.strasse || c.adresse, c.plz, c.stadt, c.stadtteil].filter(Boolean);
+  return parts.join(', ') || '-';
 };
 
 export function CustomerTable({
@@ -73,41 +84,46 @@ export function CustomerTable({
   convertPending,
   nameFilter, setNameFilter,
   telefonFilter, setTelefonFilter,
-  emailFilter, setEmailFilter,
   pflegegradFilter, setPflegegradFilter,
-  strasseFilter, setStrasseFilter,
-  plzFilter, setPlzFilter,
-  stadtFilter, setStadtFilter,
+  pflegekasseFilter, setPflegekasseFilter,
+  // kept in props but not used in filter-row (used by hook)
+  emailFilter: _emailFilter, setEmailFilter: _setEmailFilter,
+  strasseFilter: _strasseFilter, setStrasseFilter: _setStrasseFilter,
+  plzFilter: _plzFilter, setPlzFilter: _setPlzFilter,
+  stadtFilter: _stadtFilter, setStadtFilter: _setStadtFilter,
 }: CustomerTableProps) {
   return (
     <div className="rounded-md border overflow-x-auto">
-      <Table className="min-w-[900px]">
+      <Table className="min-w-[1400px] text-sm">
         <TableHeader>
           <TableRow>
-            <TableHead><SortButton sortKey="name" currentSort={customerSort} onClick={onSort}>Name</SortButton></TableHead>
-            <TableHead><SortButton sortKey="status" currentSort={customerSort} onClick={onSort}>Status</SortButton></TableHead>
-            <TableHead>Kategorie</TableHead>
-            <TableHead><SortButton sortKey="telefon" currentSort={customerSort} onClick={onSort}>Telefon</SortButton></TableHead>
-            <TableHead><SortButton sortKey="email" currentSort={customerSort} onClick={onSort}>E-Mail</SortButton></TableHead>
-            <TableHead><SortButton sortKey="pflegegrad" currentSort={customerSort} onClick={onSort}>Pflegegrad</SortButton></TableHead>
-            <TableHead>PLZ</TableHead>
-            <TableHead>Stadt</TableHead>
-            <TableHead><SortButton sortKey="strasse" currentSort={customerSort} onClick={onSort}>Straße</SortButton></TableHead>
-            <TableHead><SortButton sortKey="geburtsdatum" currentSort={customerSort} onClick={onSort}>Geburtsdatum</SortButton></TableHead>
-            <TableHead><SortButton sortKey="created_at" currentSort={customerSort} onClick={onSort}>Hinzugefügt</SortButton></TableHead>
-            <TableHead>Aktionen</TableHead>
+            <TableHead className="w-[110px]"><SortButton sortKey="nachname" currentSort={customerSort} onClick={onSort}>Nachname</SortButton></TableHead>
+            <TableHead className="w-[100px]"><SortButton sortKey="vorname" currentSort={customerSort} onClick={onSort}>Vorname</SortButton></TableHead>
+            <TableHead className="w-[60px]"><SortButton sortKey="pflegegrad" currentSort={customerSort} onClick={onSort}>PG</SortButton></TableHead>
+            <TableHead><SortButton sortKey="strasse" currentSort={customerSort} onClick={onSort}>Adresse</SortButton></TableHead>
+            <TableHead className="w-[120px]"><SortButton sortKey="telefon" currentSort={customerSort} onClick={onSort}>Telefon</SortButton></TableHead>
+            <TableHead className="w-[100px]"><SortButton sortKey="geburtsdatum" currentSort={customerSort} onClick={onSort}>Geburtsdatum</SortButton></TableHead>
+            <TableHead>Pflegekasse</TableHead>
+            <TableHead>Vers.Nr.</TableHead>
+            <TableHead className="w-[80px]">Kasse/Privat</TableHead>
+            <TableHead className="w-[70px]">Std/Mon</TableHead>
+            <TableHead className="w-[90px]"><SortButton sortKey="eintritt" currentSort={customerSort} onClick={onSort}>Eintritt</SortButton></TableHead>
+            <TableHead className="w-[90px]">Austritt</TableHead>
+            <TableHead className="w-[70px]">Status</TableHead>
+            <TableHead className="w-[120px]">Aktionen</TableHead>
           </TableRow>
-          {/* Column filter row */}
+          {/* Spaltenfilter-Zeile */}
           <TableRow>
-            <TableHead><Input placeholder="Name filtern..." value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} className="h-8 text-xs" /></TableHead>
+            <TableHead colSpan={2}><Input placeholder="Name filtern..." value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} className="h-7 text-xs" /></TableHead>
+            <TableHead><Input placeholder="PG..." value={pflegegradFilter} onChange={(e) => setPflegegradFilter(e.target.value)} className="h-7 text-xs w-12" /></TableHead>
+            <TableHead></TableHead>
+            <TableHead><Input placeholder="Telefon..." value={telefonFilter} onChange={(e) => setTelefonFilter(e.target.value)} className="h-7 text-xs" /></TableHead>
+            <TableHead></TableHead>
+            <TableHead><Input placeholder="Kasse..." value={pflegekasseFilter} onChange={(e) => setPflegekasseFilter(e.target.value)} className="h-7 text-xs" /></TableHead>
             <TableHead></TableHead>
             <TableHead></TableHead>
-            <TableHead><Input placeholder="Telefon filtern..." value={telefonFilter} onChange={(e) => setTelefonFilter(e.target.value)} className="h-8 text-xs" /></TableHead>
-            <TableHead><Input placeholder="E-Mail filtern..." value={emailFilter} onChange={(e) => setEmailFilter(e.target.value)} className="h-8 text-xs" /></TableHead>
-            <TableHead><Input placeholder="Pflegegrad..." value={pflegegradFilter} onChange={(e) => setPflegegradFilter(e.target.value)} className="h-8 text-xs w-20" /></TableHead>
-            <TableHead><Input placeholder="PLZ..." value={plzFilter} onChange={(e) => setPlzFilter(e.target.value)} className="h-8 text-xs w-24" /></TableHead>
-            <TableHead><Input placeholder="Stadt..." value={stadtFilter} onChange={(e) => setStadtFilter(e.target.value)} className="h-8 text-xs" /></TableHead>
-            <TableHead><Input placeholder="Straße..." value={strasseFilter} onChange={(e) => setStrasseFilter(e.target.value)} className="h-8 text-xs" /></TableHead>
+            <TableHead></TableHead>
+            <TableHead></TableHead>
             <TableHead></TableHead>
             <TableHead></TableHead>
             <TableHead></TableHead>
@@ -116,48 +132,62 @@ export function CustomerTable({
         <TableBody>
           {customers.length === 0 && (
             <TableRow>
-              <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                 Keine Kunden gefunden
               </TableCell>
             </TableRow>
           )}
           {customers.map((customer: any) => (
             <TableRow key={customer.id}>
-              <TableCell className="font-medium">{customer.vorname} {customer.nachname}</TableCell>
-              <TableCell>
-                <Badge variant={customer.aktiv ? 'default' : 'secondary'}>{customer.aktiv ? 'Aktiv' : 'Inaktiv'}</Badge>
+              <TableCell className="font-medium">{customer.nachname || '-'}</TableCell>
+              <TableCell>{customer.vorname || '-'}</TableCell>
+              <TableCell>{customer.pflegegrad ?? '-'}</TableCell>
+              <TableCell className="max-w-[200px] truncate" title={buildAddress(customer)}>
+                {buildAddress(customer)}
               </TableCell>
-              <TableCell>
-                <Badge variant={customer.kategorie === 'Interessent' ? 'outline' : 'default'}>{customer.kategorie || 'Kunde'}</Badge>
-              </TableCell>
-              <TableCell>
-                {customer.telefonnr ? (
-                  <div className="flex items-center gap-1"><Phone className="h-3 w-3" />{customer.telefonnr}</div>
-                ) : '-'}
-              </TableCell>
-              <TableCell>
-                {customer.email ? (
-                  <div className="flex items-center gap-1"><Mail className="h-3 w-3" />{customer.email}</div>
-                ) : '-'}
-              </TableCell>
-              <TableCell>{customer.pflegegrad || '-'}</TableCell>
-              <TableCell>{customer.plz || '-'}</TableCell>
-              <TableCell>{customer.stadt || '-'}</TableCell>
-              <TableCell>{customer.strasse || '-'}</TableCell>
+              <TableCell>{customer.telefonnr || '-'}</TableCell>
               <TableCell>{formatDate(customer.geburtsdatum)}</TableCell>
+              <TableCell className="max-w-[140px] truncate" title={customer.pflegekasse || ''}>
+                {customer.pflegekasse || '-'}
+              </TableCell>
+              <TableCell className="max-w-[120px] truncate" title={customer.versichertennummer || ''}>
+                {customer.versichertennummer || '-'}
+              </TableCell>
+              <TableCell>{customer.kassen_privat || '-'}</TableCell>
+              <TableCell>{customer.stunden_kontingent_monat || '-'}</TableCell>
+              <TableCell>{formatDate(customer.eintritt)}</TableCell>
+              <TableCell>{formatDate(customer.austritt)}</TableCell>
               <TableCell>
-                {customer.created_at
-                  ? new Date(customer.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                  : '-'}
+                <Badge variant={customer.aktiv ? 'default' : 'secondary'} className="text-xs">
+                  {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
+                </Badge>
               </TableCell>
               <TableCell>
-                <div className="flex gap-2">
-                  {onViewDetail && <Button variant="outline" size="sm" onClick={() => onViewDetail(customer.id)} title="Details anzeigen"><Eye className="h-3 w-3" /></Button>}
-                  <Button variant="outline" size="sm" onClick={() => onEdit(customer)} title="Bearbeiten"><Edit className="h-3 w-3" /></Button>
-                  <Button variant={customer.aktiv ? 'outline' : 'default'} size="sm" onClick={() => onToggleStatus({ kundenId: customer.id, currentStatus: customer.aktiv })} disabled={togglePending} title={customer.aktiv ? 'Deaktivieren' : 'Aktivieren'}><Power className="h-3 w-3" /></Button>
-                  <Button variant="destructive" size="sm" onClick={() => onDelete(customer.id)} title="Löschen"><Trash2 className="h-3 w-3" /></Button>
+                <div className="flex gap-1">
+                  {onViewDetail && (
+                    <Button variant="outline" size="sm" onClick={() => onViewDetail(customer.id)} title="Details">
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => onEdit(customer)} title="Bearbeiten">
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant={customer.aktiv ? 'outline' : 'default'}
+                    size="sm"
+                    onClick={() => onToggleStatus({ kundenId: customer.id, currentStatus: customer.aktiv })}
+                    disabled={togglePending}
+                    title={customer.aktiv ? 'Deaktivieren' : 'Aktivieren'}
+                  >
+                    <Power className="h-3 w-3" />
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => onDelete(customer.id)} title="Löschen">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                   {customer.kategorie === 'Interessent' && (
-                    <Button variant="default" size="sm" onClick={() => onConvert(customer.id)} disabled={convertPending}>Zu Kunde</Button>
+                    <Button variant="default" size="sm" onClick={() => onConvert(customer.id)} disabled={convertPending} className="text-xs px-2">
+                      Kunde
+                    </Button>
                   )}
                 </div>
               </TableCell>

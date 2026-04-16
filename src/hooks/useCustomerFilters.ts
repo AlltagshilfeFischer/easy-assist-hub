@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 
-export type SortKey = 'name' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
+export type SortKey = 'name' | 'nachname' | 'vorname' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
 export type SortDirection = 'asc' | 'desc';
 
 export interface CustomerFilterState {
@@ -15,6 +15,7 @@ export interface CustomerFilterState {
   telefonFilter: string;
   emailFilter: string;
   pflegegradFilter: string;
+  pflegekasseFilter: string;
   strasseFilter: string;
   plzFilter: string;
   stadtFilter: string;
@@ -33,6 +34,7 @@ export function useCustomerFilters(customers: any[] | undefined) {
   const [telefonFilter, setTelefonFilter] = useState('');
   const [emailFilter, setEmailFilter] = useState('');
   const [pflegegradFilter, setPflegegradFilter] = useState('');
+  const [pflegekasseFilter, setPflegekasseFilter] = useState('');
   const [strasseFilter, setStrasseFilter] = useState('');
   const [plzFilter, setPlzFilter] = useState('');
   const [stadtFilter, setStadtFilter] = useState('');
@@ -81,6 +83,10 @@ export function useCustomerFilters(customers: any[] | undefined) {
     }
     if (pflegegradFilter.trim()) {
       filtered = filtered.filter((c: any) => c.pflegegrad?.toString().includes(pflegegradFilter));
+    }
+    if (pflegekasseFilter.trim()) {
+      const q = pflegekasseFilter.toLowerCase();
+      filtered = filtered.filter((c: any) => c.pflegekasse?.toLowerCase().includes(q));
     }
     if (strasseFilter.trim()) {
       const q = strasseFilter.toLowerCase();
@@ -148,6 +154,8 @@ export function useCustomerFilters(customers: any[] | undefined) {
 
       switch (key) {
         case 'name': aValue = `${a.vorname || ''} ${a.nachname || ''}`.toLowerCase().trim(); bValue = `${b.vorname || ''} ${b.nachname || ''}`.toLowerCase().trim(); break;
+        case 'nachname': aValue = (a.nachname || '').toLowerCase(); bValue = (b.nachname || '').toLowerCase(); break;
+        case 'vorname': aValue = (a.vorname || '').toLowerCase(); bValue = (b.vorname || '').toLowerCase(); break;
         case 'status': aValue = a.aktiv ? 'aktiv' : 'inaktiv'; bValue = b.aktiv ? 'aktiv' : 'inaktiv'; break;
         case 'telefon': aValue = (a.telefonnr || '').toLowerCase(); bValue = (b.telefonnr || '').toLowerCase(); break;
         case 'email': aValue = (a.email || '').toLowerCase(); bValue = (b.email || '').toLowerCase(); break;
@@ -177,6 +185,7 @@ export function useCustomerFilters(customers: any[] | undefined) {
     setTelefonFilter('');
     setEmailFilter('');
     setPflegegradFilter('');
+    setPflegekasseFilter('');
     setStrasseFilter('');
     setPlzFilter('');
     setStadtFilter('');
@@ -185,7 +194,7 @@ export function useCustomerFilters(customers: any[] | undefined) {
   const hasActiveFilters = !!(
     searchQuery || customerStatusFilter !== 'all' || customerKategorieFilter !== 'all' ||
     dateFromFilter || dateToFilter || stadtteilFilter !== 'all' || eintrittsdatumFilter !== 'all' ||
-    nameFilter || telefonFilter || emailFilter || pflegegradFilter || strasseFilter || plzFilter || stadtFilter
+    nameFilter || telefonFilter || emailFilter || pflegegradFilter || pflegekasseFilter || strasseFilter || plzFilter || stadtFilter
   );
 
   return {
@@ -205,6 +214,7 @@ export function useCustomerFilters(customers: any[] | undefined) {
     telefonFilter, setTelefonFilter,
     emailFilter, setEmailFilter,
     pflegegradFilter, setPflegegradFilter,
+    pflegekasseFilter, setPflegekasseFilter,
     strasseFilter, setStrasseFilter,
     plzFilter, setPlzFilter,
     stadtFilter, setStadtFilter,
