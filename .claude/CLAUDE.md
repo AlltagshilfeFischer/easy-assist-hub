@@ -1,7 +1,7 @@
 # Easy Assist Hub
 
 **Alltagshilfe Fischer GbR** — Care-Management fuer ambulante Alltagshilfe.
-Standort: Hannover. Deadline: 31.03.2026.
+Standort: Hannover. Migration von Lovable abgeschlossen (Apr 2026).
 Sprache UI: Deutsch | Code: Englisch
 
 ## Tech Stack
@@ -13,13 +13,15 @@ Sprache UI: Deutsch | Code: Englisch
 | Routing | React Router v6 (client-side, **kein Next.js**) |
 | State | TanStack React Query v5 + Context API |
 | Forms | React Hook Form + Zod |
-| Backend | Supabase (PostgreSQL, Auth, Edge Functions) über Lovable|
+| Backend | Supabase (PostgreSQL, Auth, Edge Functions) — extern gehostet |
+| Hosting | Vercel (GitHub: AlltagshilfeFischer/easy-assist-hub) |
 | DnD | @dnd-kit |
 | Dates | date-fns v4 (de locale) |
 | Charts | recharts |
 
 **Path Alias:** `@` → `src/`
-**Env:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
+**Env (Vercel + lokal):** `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
+**Supabase Secrets (Edge Functions):** `OPENAI_API_KEY`, `RESEND_API_KEY`, `MASTER_ADMIN_PASSWORD`, `SITE_URL`
 
 > **WICHTIG:** Dies ist eine **Vite SPA** — kein Next.js, kein App Router.
 > `"use client"`, `"use server"`, Server Components, `getServerSideProps` — alles irrelevant und verboten.
