@@ -219,7 +219,8 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
   const relsXml = getText('xl/_rels/workbook.xml.rels');
   if (relsXml) {
     const doc  = new DOMParser().parseFromString(relsXml, 'text/xml');
-    const rel  = doc.querySelector('Relationship[Type*="worksheet"]');
+    const rels = Array.from(doc.getElementsByTagName('Relationship'));
+    const rel  = rels.find(r => (r.getAttribute('Type') ?? '').includes('worksheet'));
     const target = rel?.getAttribute('Target');
     if (target) sheetPath = target.startsWith('xl/') ? target : `xl/${target}`;
   }
@@ -252,14 +253,6 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
 
   if (dataRows.length > 10000)
     toast.warning(`Große Datei: ${dataRows.length.toLocaleString('de')} Zeilen`);
-
-  console.error('[XLSX Debug]', {
-    sharedStringsCount: sharedStrings.length,
-    allRowsCount: allRows.length,
-    nonEmptyRowsCount: nonEmptyRows.length,
-    headers: headers,
-    firstDataRow: dataRows[0],
-  });
 
   return { headers, rows: dataRows, totalRows: dataRows.length };
 }
