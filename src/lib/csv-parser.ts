@@ -216,30 +216,45 @@ async function parseXlsxFile(file: File): Promise<CsvParseResult> {
     ? buildStyleIndex(getText('xl/styles.xml')!)
     : [];
 
-  // Erstes Sheet finden (normalerweise sheet1.xml — Pfad aus workbook.xml.rels lesen)
-  let sheetPath = 'xl/worksheets/sheet1.xml';
+  // Alle Sheet-Pfade aus workbook.xml.rels lesen (Reihenfolge = Tab-Reihenfolge)
+  const sheetPaths: string[] = [];
   const relsXml = getText('xl/_rels/workbook.xml.rels');
   if (relsXml) {
     const doc  = new DOMParser().parseFromString(relsXml, 'text/xml');
     const rels = Array.from(doc.getElementsByTagName('Relationship'));
-    const rel  = rels.find(r => (r.getAttribute('Type') ?? '').includes('worksheet'));
-    const target = rel?.getAttribute('Target');
-    if (target) sheetPath = target.startsWith('xl/') ? target : `xl/${target}`;
+    rels
+      .filter(r => (r.getAttribute('Type') ?? '').includes('worksheet'))
+      .forEach(r => {
+        const target = r.getAttribute('Target');
+        if (target) sheetPaths.push(target.startsWith('xl/') ? target : `xl/${target}`);
+      });
   }
+  if (sheetPaths.length === 0) sheetPaths.push('xl/worksheets/sheet1.xml');
 
-  const sheetXml = getText(sheetPath);
-  if (!sheetXml) {
-    toast.error('XLSX enthält kein lesbares Tabellenblatt');
-    throw new Error(`Sheet nicht gefunden: ${sheetPath}`);
+  // Erstes Sheet mit ≥2 nicht-leeren Zeilen verwenden
+  let nonEmptyRows: string[][] = [];
+  let usedSheet = sheetPaths[0];
+  for (const path of sheetPaths) {
+    const xml = getText(path);
+    if (!xml) continue;
+    const rows = parseSheetXml(xml, sharedStrings, isDateStyle)
+      .filter(r => r.some(c => c.length > 0));
+    if (rows.length >= 2) {
+      nonEmptyRows = rows;
+      usedSheet = path;
+      break;
+    }
   }
-
-  const allRows = parseSheetXml(sheetXml, sharedStrings, isDateStyle);
-  const nonEmptyRows = allRows.filter(r => r.some(c => c.length > 0));
 
   if (nonEmptyRows.length < 2) {
-    toast.error('XLSX enthält keine Datenzeilen');
+    toast.error('XLSX enthält keine Datenzeilen', {
+      description: `${sheetPaths.length} Sheet(s) geprüft — alle leer.`,
+    });
     throw new Error('Keine Daten gefunden');
   }
+
+  // Logging nur in dev
+  if (import.meta.env.DEV) console.info('[XLSX]', usedSheet, `${nonEmptyRows.length} Zeilen`);
 
   // Headerzeile: erste Zeile (Row 0 ist fast immer der Header)
   // Falls Row 0 nur 1 Zelle hat (Titelzeile), nehmen wir Row 1
