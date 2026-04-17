@@ -16,12 +16,11 @@ export interface ValidatedRow {
 function validateRecord(record: MappedCustomerRecord): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  const hasVorname  = record.vorname?.trim().length  > 0;
-  const hasNachname = record.nachname?.trim().length > 0;
-  const hasVollname = record.vollname?.trim().length > 0;
-
-  if (!hasVorname && !hasNachname && !hasVollname) {
-    errors.push({ field: 'vorname', message: 'Vorname, Nachname oder kombinierter Name ist erforderlich' });
+  if (!record.vorname?.trim()) {
+    errors.push({ field: 'vorname', message: 'Vorname ist erforderlich' });
+  }
+  if (!record.nachname?.trim()) {
+    errors.push({ field: 'nachname', message: 'Nachname ist erforderlich' });
   }
 
   if (record.email) {

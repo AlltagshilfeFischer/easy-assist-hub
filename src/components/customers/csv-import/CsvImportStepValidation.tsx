@@ -27,7 +27,6 @@ interface EditingCell {
 type RecordField = keyof Omit<MappedCustomerRecord, '_rowIndex'>;
 
 const FIELD_LABELS: Record<RecordField, string> = {
-  vollname: 'Name (kombiniert)',
   nachname: 'Nachname',
   vorname: 'Vorname',
   telefonnr: 'Telefon',
@@ -52,7 +51,7 @@ const FIELD_LABELS: Record<RecordField, string> = {
 
 // Preferred column order
 const FIELD_ORDER: RecordField[] = [
-  'vollname', 'nachname', 'vorname', 'pflegegrad', 'adresse', 'strasse', 'plz', 'stadt',
+  'nachname', 'vorname', 'pflegegrad', 'adresse', 'strasse', 'plz', 'stadt',
   'stadtteil', 'telefonnr', 'email', 'geburtsdatum', 'pflegekasse',
   'versichertennummer', 'kassen_privat', 'stunden_kontingent_monat',
   'eintritt', 'austritt', 'kategorie', 'angehoerige_ansprechpartner', 'sonstiges',

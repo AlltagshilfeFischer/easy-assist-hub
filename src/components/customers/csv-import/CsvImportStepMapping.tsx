@@ -16,7 +16,6 @@ import { invokeAiFunction } from '@/lib/aiClient';
 const DB_FIELD_OPTIONS = [
   { value: 'vorname', label: 'Vorname *' },
   { value: 'nachname', label: 'Nachname *' },
-  { value: 'vollname', label: 'Vollständiger Name (Nachname Vorname) *' },
   { value: 'telefonnr', label: 'Telefon' },
   { value: 'email', label: 'E-Mail' },
   { value: 'strasse', label: 'Straße' },
@@ -42,12 +41,7 @@ const FUZZY_MAP: Record<string, string> = {
   'vorname': 'vorname',
   'nachname': 'nachname',
   'familienname': 'nachname',
-  // "Name" = kombinierter Nachname+Vorname → vollname (wird beim Import aufgeteilt)
-  'name': 'vollname',
-  'kunde': 'vollname',
-  'kunden': 'vollname',
-  'kundename': 'vollname',
-  'kundenname': 'vollname',
+  'name': 'nachname',
   // Telefon
   'telefon': 'telefonnr',
   'telefonnr': 'telefonnr',
@@ -154,8 +148,7 @@ export function CsvImportStepMapping({ onComplete }: CsvImportStepMappingProps) 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const hasMandatoryField = Object.values(mapping).includes('vorname')
-    || Object.values(mapping).includes('nachname')
-    || Object.values(mapping).includes('vollname');
+    && Object.values(mapping).includes('nachname');
 
   // Alle Spalten anzeigen — leere Header als "(Spalte N)" labeln damit keine Spalte verloren geht
   const visibleHeaders = parseResult?.headers
@@ -312,7 +305,7 @@ export function CsvImportStepMapping({ onComplete }: CsvImportStepMappingProps) 
           </div>
 
           <p className="text-xs text-muted-foreground">
-            * Pflichtfelder: Vorname oder Nachname müssen gemappt sein
+            * Pflichtfelder: Vorname UND Nachname müssen gemappt sein
           </p>
 
           <div className="flex justify-end">

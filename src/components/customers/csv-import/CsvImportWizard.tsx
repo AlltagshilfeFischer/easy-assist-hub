@@ -35,14 +35,8 @@ function recordToSupabaseInsert(r: MappedCustomerRecord) {
     if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
     return null;
   };
-  // vollname aufteilen: erstes Wort = Nachname, Rest = Vorname (Format "Nachname Vorname")
-  let vorname  = r.vorname?.trim()  || null;
-  let nachname = r.nachname?.trim() || null;
-  if (r.vollname?.trim()) {
-    const parts = r.vollname.trim().split(/\s+/);
-    if (!nachname) nachname = parts[0] ?? null;
-    if (!vorname)  vorname  = parts.slice(1).join(' ') || null;
-  }
+  const vorname  = r.vorname?.trim()  || null;
+  const nachname = r.nachname?.trim() || null;
   return {
     vorname,
     nachname,
