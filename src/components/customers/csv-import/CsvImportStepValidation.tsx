@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -24,16 +24,37 @@ interface EditingCell {
   field: string;
 }
 
-const EDITABLE_FIELDS: Array<{ key: keyof Omit<MappedCustomerRecord, '_rowIndex'>; label: string }> = [
-  { key: 'nachname', label: 'Nachname' },
-  { key: 'vorname', label: 'Vorname' },
-  { key: 'pflegegrad', label: 'PG' },
-  { key: 'adresse', label: 'Adresse' },
-  { key: 'strasse', label: 'Straße' },
-  { key: 'telefonnr', label: 'Telefon' },
-  { key: 'geburtsdatum', label: 'Geburtsdatum' },
-  { key: 'pflegekasse', label: 'Pflegekasse' },
-  { key: 'eintritt', label: 'Eintritt' },
+type RecordField = keyof Omit<MappedCustomerRecord, '_rowIndex'>;
+
+const FIELD_LABELS: Record<RecordField, string> = {
+  nachname: 'Nachname',
+  vorname: 'Vorname',
+  telefonnr: 'Telefon',
+  email: 'E-Mail',
+  strasse: 'Straße',
+  plz: 'PLZ',
+  stadt: 'Stadt',
+  stadtteil: 'Stadtteil',
+  adresse: 'Adresse',
+  geburtsdatum: 'Geburtsdatum',
+  pflegegrad: 'Pflegegrad',
+  pflegekasse: 'Pflegekasse',
+  versichertennummer: 'Vers.Nr.',
+  kategorie: 'Kategorie',
+  stunden_kontingent_monat: 'Std/Mon',
+  sonstiges: 'Sonstiges',
+  angehoerige_ansprechpartner: 'Angehörige',
+  eintritt: 'Eintritt',
+  austritt: 'Austritt',
+  kassen_privat: 'Kasse/Privat',
+};
+
+// Preferred column order
+const FIELD_ORDER: RecordField[] = [
+  'nachname', 'vorname', 'pflegegrad', 'adresse', 'strasse', 'plz', 'stadt',
+  'stadtteil', 'telefonnr', 'email', 'geburtsdatum', 'pflegekasse',
+  'versichertennummer', 'kassen_privat', 'stunden_kontingent_monat',
+  'eintritt', 'austritt', 'kategorie', 'angehoerige_ansprechpartner', 'sonstiges',
 ];
 
 export function CsvImportStepValidation({
@@ -47,6 +68,26 @@ export function CsvImportStepValidation({
 
   const validCount = validatedRows.filter(r => r.isValid).length;
   const errorCount = validatedRows.length - validCount;
+
+  // Zeige alle Spalten, die in mindestens einer Zeile einen Wert haben
+  const activeFields = useMemo<RecordField[]>(() => {
+    return FIELD_ORDER.filter(field =>
+      validatedRows.some(row => {
+        const val = row.editedValues[field] ?? row.record[field];
+        return val != null && String(val).trim() !== '';
+      })
+    );
+  }, [validatedRows]);
+
+  const getCellValue = (row: ValidatedRow, field: RecordField): string => {
+    const edited = row.editedValues[field];
+    if (edited !== undefined) return String(edited);
+    const original = row.record[field];
+    return original != null ? String(original) : '';
+  };
+
+  const getFieldErrors = (row: ValidatedRow, field: string) =>
+    row.errors.filter(e => e.field === field);
 
   const startEdit = (rowIndex: number, field: string, currentValue: string) => {
     setEditingCell({ rowIndex, field });
@@ -63,17 +104,6 @@ export function CsvImportStepValidation({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') commitEdit();
     if (e.key === 'Escape') setEditingCell(null);
-  };
-
-  const getCellValue = (row: ValidatedRow, field: keyof Omit<MappedCustomerRecord, '_rowIndex'>): string => {
-    const edited = row.editedValues[field];
-    if (edited !== undefined) return String(edited);
-    const original = row.record[field];
-    return original != null ? String(original) : '';
-  };
-
-  const getFieldErrors = (row: ValidatedRow, field: string) => {
-    return row.errors.filter(e => e.field === field);
   };
 
   if (validatedRows.length === 0) {
@@ -98,6 +128,9 @@ export function CsvImportStepValidation({
               <span className="text-red-600">{errorCount} mit Fehlern</span>
             </>
           )}
+          <span className="text-muted-foreground font-normal ml-2">
+            ({activeFields.length} Spalten erkannt)
+          </span>
         </p>
         {errorCount > 0 && (
           <div className="flex items-center gap-2">
@@ -113,7 +146,6 @@ export function CsvImportStepValidation({
         )}
       </div>
 
-      {/* All valid banner */}
       {errorCount === 0 && (
         <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-4 py-3">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -121,17 +153,19 @@ export function CsvImportStepValidation({
         </div>
       )}
 
-      {/* Table */}
+      {/* Table — alle erkannten Spalten */}
       <div className="rounded-md border overflow-auto max-h-[400px]">
         <TooltipProvider>
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm z-10">
               <tr className="border-b">
-                <th className="text-left px-3 py-2 font-medium w-10">#</th>
-                {EDITABLE_FIELDS.map(f => (
-                  <th key={f.key} className="text-left px-3 py-2 font-medium">{f.label}</th>
+                <th className="text-left px-3 py-2 font-medium w-10 shrink-0">#</th>
+                {activeFields.map(f => (
+                  <th key={f} className="text-left px-3 py-2 font-medium whitespace-nowrap">
+                    {FIELD_LABELS[f]}
+                  </th>
                 ))}
-                <th className="text-left px-3 py-2 font-medium">Fehler</th>
+                <th className="text-left px-3 py-2 font-medium shrink-0">Fehler</th>
               </tr>
             </thead>
             <tbody>
@@ -150,14 +184,14 @@ export function CsvImportStepValidation({
                     }`}
                   >
                     <td className="px-3 py-2 text-muted-foreground text-xs">{rowIndex + 1}</td>
-                    {EDITABLE_FIELDS.map(({ key }) => {
-                      const cellValue = getCellValue(row, key);
-                      const fieldErrors = getFieldErrors(row, key);
+                    {activeFields.map(field => {
+                      const cellValue = getCellValue(row, field);
+                      const fieldErrors = getFieldErrors(row, field);
                       const hasError = fieldErrors.length > 0;
 
                       return (
-                        <td key={key} className="px-3 py-2">
-                          {isEditing(key) ? (
+                        <td key={field} className="px-3 py-2 max-w-[160px]">
+                          {isEditing(field) ? (
                             <Input
                               autoFocus
                               value={editValue}
@@ -168,21 +202,21 @@ export function CsvImportStepValidation({
                             />
                           ) : (
                             <span
-                              className={`cursor-pointer rounded px-1 py-0.5 ${
+                              className={`cursor-pointer rounded px-1 py-0.5 block truncate ${
                                 hasError
                                   ? 'text-red-700 bg-red-100 hover:bg-red-200'
                                   : 'hover:bg-muted'
                               }`}
-                              onClick={() => startEdit(rowIndex, key, cellValue)}
-                              title={hasError ? fieldErrors[0].message : 'Klicken zum Bearbeiten'}
+                              onClick={() => startEdit(rowIndex, field, cellValue)}
+                              title={hasError ? fieldErrors[0].message : cellValue || 'Klicken zum Bearbeiten'}
                             >
-                              {cellValue || <span className="text-muted-foreground italic">leer</span>}
+                              {cellValue || <span className="text-muted-foreground italic">—</span>}
                             </span>
                           )}
                         </td>
                       );
                     })}
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 shrink-0">
                       {row.errors.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {row.errors.slice(0, 3).map((err, i) => (
