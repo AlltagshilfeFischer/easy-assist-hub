@@ -154,7 +154,7 @@ export function CsvImportStepValidation({
       )}
 
       {/* Table — alle erkannten Spalten */}
-      <div className="rounded-md border overflow-auto max-h-[400px]">
+      <div className="rounded-md border overflow-auto">
         <TooltipProvider>
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm z-10">

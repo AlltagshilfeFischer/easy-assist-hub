@@ -187,9 +187,14 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
       handleClose(false);
     } catch (err) {
       console.error('[CsvImport] Import-Fehler:', err);
-      toast.error('Import fehlgeschlagen', {
-        description: err instanceof Error ? err.message : 'Unbekannter Fehler',
-      });
+      const msg = err instanceof Error
+        ? err.message
+        : typeof err === 'object' && err !== null
+          ? (err as Record<string, unknown>).message as string
+            ?? (err as Record<string, unknown>).details as string
+            ?? JSON.stringify(err)
+          : String(err);
+      toast.error('Import fehlgeschlagen', { description: msg });
     } finally {
       setIsImporting(false);
     }
@@ -197,41 +202,44 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Kunden aus CSV importieren</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-[95vw] w-[95vw] max-h-[95vh] h-[95vh] flex flex-col overflow-hidden p-0">
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="px-6 pt-6 pb-2 shrink-0">
+            <DialogHeader>
+              <DialogTitle>Kunden aus CSV importieren</DialogTitle>
+            </DialogHeader>
+          </div>
 
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 pb-2">
-          {STEP_LABELS.map((label, index) => {
-            const step = (index + 1) as 1 | 2 | 3;
-            const isActive = currentStep === step;
-            const isDone = currentStep > step;
-            return (
-              <div key={step} className="flex items-center gap-2">
-                {index > 0 && (
-                  <div className={`h-px w-8 ${isDone ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
-                )}
-                <div
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : isDone
-                      ? 'bg-primary/20 text-primary'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  <span>{step}</span>
-                  <span className="hidden sm:inline">{label.replace(/^\d\. /, '')}</span>
+          {/* Step indicator */}
+          <div className="flex items-center justify-center gap-2 py-2 shrink-0">
+            {STEP_LABELS.map((label, index) => {
+              const step = (index + 1) as 1 | 2 | 3;
+              const isActive = currentStep === step;
+              const isDone = currentStep > step;
+              return (
+                <div key={step} className="flex items-center gap-2">
+                  {index > 0 && (
+                    <div className={`h-px w-8 ${isDone ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                  )}
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : isDone
+                        ? 'bg-primary/20 text-primary'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    <span>{step}</span>
+                    <span>{label.replace(/^\d\. /, '')}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
 
-        {/* Step content */}
-        <div className="min-h-[300px]">
+          {/* Step content — scrollbar hier */}
+          <div className="flex-1 overflow-auto px-6 py-2">
           {currentStep === 1 && (
             <CsvImportStepMapping onComplete={handleMappingComplete} />
           )}
@@ -252,46 +260,47 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
               onSetAllAction={setAllAction}
             />
           )}
-        </div>
+          </div>
 
-        {/* Navigation footer */}
-        <div className="flex items-center justify-between border-t pt-4 mt-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (currentStep === 1) {
-                handleClose(false);
-              } else {
-                setCurrentStep((prev) => (prev - 1) as 1 | 2 | 3);
-              }
-            }}
-            disabled={isImporting}
-          >
-            {currentStep === 1 ? 'Abbrechen' : 'Zurück'}
-          </Button>
-
-          {currentStep === 2 ? (
+          {/* Navigation footer */}
+          <div className="flex items-center justify-between border-t px-6 py-4 shrink-0">
             <Button
+              variant="outline"
               onClick={() => {
-                if (!canProceedToStep3()) return;
-                setCurrentStep(3);
+                if (currentStep === 1) {
+                  handleClose(false);
+                } else {
+                  setCurrentStep((prev) => (prev - 1) as 1 | 2 | 3);
+                }
               }}
-              disabled={!canProceedToStep3()}
+              disabled={isImporting}
             >
-              Weiter zu Duplikaten
+              {currentStep === 1 ? 'Abbrechen' : 'Zurück'}
             </Button>
-          ) : currentStep === 3 ? (
-            <Button onClick={handleImport} disabled={isImporting}>
-              {isImporting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Importiere...
-                </>
-              ) : (
-                'Jetzt importieren'
-              )}
-            </Button>
-          ) : null}
+
+            {currentStep === 2 ? (
+              <Button
+                onClick={() => {
+                  if (!canProceedToStep3()) return;
+                  setCurrentStep(3);
+                }}
+                disabled={!canProceedToStep3()}
+              >
+                Weiter zu Duplikaten
+              </Button>
+            ) : currentStep === 3 ? (
+              <Button onClick={handleImport} disabled={isImporting}>
+                {isImporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Importiere...
+                  </>
+                ) : (
+                  'Jetzt importieren'
+                )}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
