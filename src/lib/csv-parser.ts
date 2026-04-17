@@ -11,6 +11,8 @@ export interface CsvParseResult {
 export interface MappedCustomerRecord {
   vorname?: string;
   nachname?: string;
+  /** Kombinierter Name im Format "Nachname Vorname" — wird beim Import aufgeteilt */
+  vollname?: string;
   telefonnr?: string;
   email?: string;
   strasse?: string;
@@ -304,7 +306,7 @@ export async function parseCsvFile(file: File): Promise<CsvParseResult> {
 // ---------------------------------------------------------------------------
 
 const ALLOWED_DB_FIELDS = new Set<keyof Omit<MappedCustomerRecord, '_rowIndex'>>([
-  'vorname', 'nachname', 'telefonnr', 'email', 'strasse', 'plz', 'stadt',
+  'vorname', 'nachname', 'vollname', 'telefonnr', 'email', 'strasse', 'plz', 'stadt',
   'stadtteil', 'adresse', 'geburtsdatum', 'pflegegrad', 'pflegekasse',
   'versichertennummer', 'kategorie', 'stunden_kontingent_monat', 'sonstiges',
   'angehoerige_ansprechpartner', 'eintritt', 'austritt', 'kassen_privat',

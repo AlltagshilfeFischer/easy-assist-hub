@@ -16,6 +16,7 @@ import { invokeAiFunction } from '@/lib/aiClient';
 const DB_FIELD_OPTIONS = [
   { value: 'vorname', label: 'Vorname *' },
   { value: 'nachname', label: 'Nachname *' },
+  { value: 'vollname', label: 'Vollständiger Name (Nachname Vorname) *' },
   { value: 'telefonnr', label: 'Telefon' },
   { value: 'email', label: 'E-Mail' },
   { value: 'strasse', label: 'Straße' },
@@ -41,7 +42,12 @@ const FUZZY_MAP: Record<string, string> = {
   'vorname': 'vorname',
   'nachname': 'nachname',
   'familienname': 'nachname',
-  'name': 'nachname',
+  // "Name" = kombinierter Nachname+Vorname → vollname (wird beim Import aufgeteilt)
+  'name': 'vollname',
+  'kunde': 'vollname',
+  'kunden': 'vollname',
+  'kundename': 'vollname',
+  'kundenname': 'vollname',
   // Telefon
   'telefon': 'telefonnr',
   'telefonnr': 'telefonnr',
@@ -147,7 +153,9 @@ export function CsvImportStepMapping({ onComplete }: CsvImportStepMappingProps) 
   const [mapping, setMapping] = useState<Record<string, string | null>>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const hasMandatoryField = Object.values(mapping).includes('vorname') || Object.values(mapping).includes('nachname');
+  const hasMandatoryField = Object.values(mapping).includes('vorname')
+    || Object.values(mapping).includes('nachname')
+    || Object.values(mapping).includes('vollname');
 
   // Alle Spalten anzeigen — leere Header als "(Spalte N)" labeln damit keine Spalte verloren geht
   const visibleHeaders = parseResult?.headers
