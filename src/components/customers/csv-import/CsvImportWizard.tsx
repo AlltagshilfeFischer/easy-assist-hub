@@ -40,7 +40,6 @@ function recordToSupabaseInsert(r: MappedCustomerRecord) {
   return {
     vorname,
     nachname,
-    name: [vorname, nachname].filter(Boolean).join(' ') || null,
     telefonnr: r.telefonnr?.trim() || null,
     email: r.email?.trim() || null,
     strasse: r.strasse?.trim() || null,
