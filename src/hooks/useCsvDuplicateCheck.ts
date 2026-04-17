@@ -77,8 +77,14 @@ export function useCsvDuplicateCheck(validRows: ValidatedRow[]) {
     for (const validatedRow of validRows) {
       const { record } = validatedRow;
       const rowIndex = record._rowIndex;
-      const vorname = record.vorname ?? '';
-      const nachname = record.nachname ?? '';
+      // vollname aufteilen falls vorname/nachname leer
+      let vorname  = record.vorname  ?? '';
+      let nachname = record.nachname ?? '';
+      if (!vorname && !nachname && record.vollname?.trim()) {
+        const parts = record.vollname.trim().split(/\s+/);
+        nachname = parts[0] ?? '';
+        vorname  = parts.slice(1).join(' ');
+      }
 
       let found: ExistingCustomer | undefined;
 
