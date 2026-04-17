@@ -25,11 +25,15 @@ interface EditingCell {
 }
 
 const EDITABLE_FIELDS: Array<{ key: keyof Omit<MappedCustomerRecord, '_rowIndex'>; label: string }> = [
-  { key: 'vorname', label: 'Vorname' },
   { key: 'nachname', label: 'Nachname' },
-  { key: 'geburtsdatum', label: 'Geburtsdatum' },
-  { key: 'telefonnr', label: 'Telefon' },
+  { key: 'vorname', label: 'Vorname' },
+  { key: 'pflegegrad', label: 'PG' },
+  { key: 'adresse', label: 'Adresse' },
   { key: 'strasse', label: 'Straße' },
+  { key: 'telefonnr', label: 'Telefon' },
+  { key: 'geburtsdatum', label: 'Geburtsdatum' },
+  { key: 'pflegekasse', label: 'Pflegekasse' },
+  { key: 'eintritt', label: 'Eintritt' },
 ];
 
 export function CsvImportStepValidation({

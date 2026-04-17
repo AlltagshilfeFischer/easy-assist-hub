@@ -25,15 +25,22 @@ interface CsvImportWizardProps {
 }
 
 function recordToSupabaseInsert(r: MappedCustomerRecord) {
-  const parseGermanDate = (s?: string): string | null => {
+  // DD.MM.YYYY → YYYY-MM-DD (ISO); YYYY-MM-DD durchreichen; sonst null
+  const toIsoDate = (s?: string): string | null => {
     if (!s) return null;
-    const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (!m) return null;
-    return `${m[3]}-${m[2]}-${m[1]}`;
+    const de = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (de) return `${de[3]}-${de[2]}-${de[1]}`;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // YYYY-MM (Monatsformat)
+    if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+    return null;
   };
+  const vorname  = r.vorname?.trim()  || null;
+  const nachname = r.nachname?.trim() || null;
   return {
-    vorname: r.vorname?.trim() || null,
-    nachname: r.nachname?.trim() || null,
+    vorname,
+    nachname,
+    name: [vorname, nachname].filter(Boolean).join(' ') || null,
     telefonnr: r.telefonnr?.trim() || null,
     email: r.email?.trim() || null,
     strasse: r.strasse?.trim() || null,
@@ -41,8 +48,8 @@ function recordToSupabaseInsert(r: MappedCustomerRecord) {
     stadt: r.stadt?.trim() || null,
     stadtteil: r.stadtteil?.trim() || null,
     adresse: r.adresse?.trim() || null,
-    geburtsdatum: parseGermanDate(r.geburtsdatum),
-    pflegegrad: r.pflegegrad ? parseInt(r.pflegegrad, 10) : null,
+    geburtsdatum: toIsoDate(r.geburtsdatum),
+    pflegegrad: r.pflegegrad != null && r.pflegegrad !== '' ? parseInt(r.pflegegrad, 10) : null,
     pflegekasse: r.pflegekasse?.trim() || null,
     versichertennummer: r.versichertennummer?.trim() || null,
     kategorie: r.kategorie || 'Kunde',
@@ -52,6 +59,9 @@ function recordToSupabaseInsert(r: MappedCustomerRecord) {
       : null,
     sonstiges: r.sonstiges?.trim() || null,
     angehoerige_ansprechpartner: r.angehoerige_ansprechpartner?.trim() || null,
+    eintritt: toIsoDate(r.eintritt),
+    austritt: toIsoDate(r.austritt),
+    kasse_privat: r.kassen_privat?.trim() || null,
     farbe_kalender: '#10B981',
   };
 }
