@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getYear, getMonth } from 'date-fns';
-import { Search, AlertTriangle, ChevronRight, Loader2, Download } from 'lucide-react';
+import { Search, AlertTriangle, ChevronRight, Loader2, Download, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadCsv } from '@/lib/csvExport';
 import * as Progress from '@radix-ui/react-progress';
@@ -93,8 +93,15 @@ export default function BudgetTracker() {
   const { data: careLevels = [], isLoading: careLevelsLoading } = useCareLevels();
   const { data: allYearData = [], isLoading: txLoading } = useBudgetTransactionsByYear(currentYear);
 
-  const budgetDataReady = tariffs.length > 0 && careLevels.length > 0;
   const isLoading = customersLoading || tariffsLoading || careLevelsLoading || txLoading;
+
+  // Tarife + Pflegegradtabelle sind für kassenfinanzierte Kunden notwendig.
+  // Wenn sie fehlen, zeigen wir trotzdem alle Kunden an — kassenbasierte Budget-Zellen
+  // werden mit einer Konfigurationswarnung ersetzt statt mit stillen Strichen.
+  const tariffsReady = !tariffsLoading && tariffs.length > 0;
+  const careLevelsReady = !careLevelsLoading && careLevels.length > 0;
+  const budgetDataReady = tariffsReady && careLevelsReady;
+  const configMissing = !isLoading && !budgetDataReady && customers.length > 0;
 
   const trackerRows = useMemo(() => {
     // Alle aktiven Kunden anzeigen – auch ohne Pflegegrad
@@ -126,21 +133,23 @@ export default function BudgetTracker() {
         };
       }
 
-      const billedTx = clientTx.filter((tx) => tx.billed);
-      const consumedYear = aggregateConsumed(billedTx, tariffs, true);
+      // Fix C: Alle Transaktionen zählen für die Übersicht (nicht nur billed=true).
+      // Die Detail-Ansicht zeigt ebenfalls alle — das Abschließen eines Monats ändert
+      // nur billed=true, aber der Verbrauch war bereits vorher sichtbar.
+      const consumedYear = aggregateConsumed(clientTx, tariffs, false);
 
       const privatConsumed = clientTx
         .filter((tx) => tx.service_type === 'PRIVAT')
         .reduce((sum, tx) => sum + tx.total_amount, 0);
 
-      const currentMonthBilledTx = billedTx.filter((tx) => {
+      const currentMonthTx = clientTx.filter((tx) => {
         const d = new Date(tx.service_date);
         return getMonth(d) + 1 === currentMonth;
       });
       const consumedKombiMonth = aggregateConsumed(
-        currentMonthBilledTx.filter((tx) => tx.service_type === 'KOMBI'),
+        currentMonthTx.filter((tx) => tx.service_type === 'KOMBI'),
         tariffs,
-        true,
+        false,
       ).KOMBI;
 
       const availability = buildAvailability(
@@ -233,6 +242,24 @@ export default function BudgetTracker() {
         </div>
       </div>
 
+      {/* Fix A — Konfigurationswarnung wenn Tarife / Pflegegradtabelle fehlen */}
+      {configMissing && (
+        <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Konfiguration unvollständig</p>
+            <p className="text-orange-700 mt-0.5">
+              {!tariffsReady && !careLevelsReady
+                ? 'Tarife und Pflegegradtabelle sind nicht konfiguriert.'
+                : !tariffsReady
+                ? 'Keine aktiven Tarife hinterlegt.'
+                : 'Pflegegradtabelle (Kombi-Limits) nicht konfiguriert.'}
+              {' '}Budget-Berechnungen für kassenfinanzierte Kunden sind nicht möglich. Bitte prüfen Sie die Systemkonfiguration.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Filter */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative">
@@ -303,6 +330,45 @@ export default function BudgetTracker() {
                         : 'Keine aktiven Kunden vorhanden'}
                     </TableCell>
                   </TableRow>
+                ) : allYearData.length === 0 && !isLoading ? (
+                  // Fix D — Kein Daten-Leer-State wenn Kunden vorhanden aber keine Transaktionen
+                  <>
+                    <TableRow>
+                      <TableCell colSpan={8}>
+                        <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground text-sm">
+                          <Info className="h-4 w-4 shrink-0" />
+                          Noch keine Abrechnungsdaten für {currentYear}. Transaktionen werden nach dem Import hier angezeigt.
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {filteredRows.map((row) => (
+                      <TableRow
+                        key={row.kundenId}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() =>
+                          navigate(`/dashboard/controlboard/budgettracker/${row.kundenId}`)
+                        }
+                      >
+                        <TableCell className="font-medium">{row.name || '(Kein Name)'}</TableCell>
+                        <TableCell>
+                          {row.pflegegrad > 0 ? (
+                            <Badge variant="outline">PG {row.pflegegrad}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell colSpan={4}>
+                          <span className="text-muted-foreground text-sm">Keine Transaktionen</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge status={row.status} />
+                        </TableCell>
+                        <TableCell>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </>
                 ) : (
                   filteredRows.map((row) => (
                     <TableRow
