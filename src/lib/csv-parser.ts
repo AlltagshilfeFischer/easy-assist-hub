@@ -317,6 +317,13 @@ const ALLOWED_DB_FIELDS = new Set<keyof Omit<MappedCustomerRecord, '_rowIndex'>>
   'mitarbeiter_name', 'verhinderungspflege', 'kopie_lw', 'aktiv_status', 'tage',
 ]);
 
+// Werte die als "leer" behandelt werden sollen (Excel-Platzhalter)
+const EMPTY_PLACEHOLDERS = new Set(['—', '–', '-', '---', 'n/a', 'n.a.', 'keine', 'k.a.', 'k.a', '/']);
+
+function isEmptyValue(v: string): boolean {
+  return v === '' || EMPTY_PLACEHOLDERS.has(v.toLowerCase());
+}
+
 export function applyColumnMapping(
   parseResult: CsvParseResult,
   mapping: Record<string, string | null>
@@ -328,7 +335,7 @@ export function applyColumnMapping(
       const dbField = mapping[header];
       if (!dbField) return;
       const value = row[colIndex]?.trim() ?? '';
-      if (value === '') return;
+      if (isEmptyValue(value)) return;
       if (!ALLOWED_DB_FIELDS.has(dbField as keyof Omit<MappedCustomerRecord, '_rowIndex'>)) return;
       record[dbField as keyof Omit<MappedCustomerRecord, '_rowIndex'>] = value;
     });

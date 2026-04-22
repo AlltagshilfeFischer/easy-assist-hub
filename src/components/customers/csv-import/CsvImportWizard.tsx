@@ -55,16 +55,33 @@ function recordToSupabaseInsert(
   // Stunden: deutsches Komma → Punkt
   const stundenRaw = r.stunden_kontingent_monat?.replace(',', '.');
 
+  // Adresse (kombiniert) splitten: "Musterstraße 5, 30159 Hannover"
+  let strasse = r.strasse?.trim() || null;
+  let plz = r.plz?.trim() || null;
+  let stadt = r.stadt?.trim() || null;
+  const combined = r.adresse?.trim();
+  if (combined) {
+    const m = combined.match(/^(.+?),\s*(\d{5})\s+(.+)$/);
+    if (m) {
+      strasse = strasse ?? m[1].trim();
+      plz     = plz     ?? m[2];
+      stadt   = stadt   ?? m[3].trim();
+    } else {
+      // Kein PLZ-Muster gefunden → alles als Straße speichern
+      strasse = strasse ?? combined;
+    }
+  }
+
   return {
     vorname: r.vorname?.trim() || null,
     nachname: r.nachname?.trim() || null,
     mitarbeiter: mitarbeiterId,
     pflegegrad: r.pflegegrad != null && r.pflegegrad !== '' ? parseInt(r.pflegegrad, 10) : null,
-    strasse: r.strasse?.trim() || null,
-    plz: r.plz?.trim() || null,
-    stadt: r.stadt?.trim() || null,
+    strasse,
+    plz,
+    stadt,
     stadtteil: r.stadtteil?.trim() || null,
-    adresse: r.adresse?.trim() || null,
+    adresse: combined ?? null,
     geburtsdatum: toIsoDate(r.geburtsdatum),
     pflegekasse: r.pflegekasse?.trim() || null,
     versichertennummer: r.versichertennummer?.trim() || null,
