@@ -43,8 +43,6 @@ export function ProAppointmentCard({
 
   const startTime = format(new Date(appointment.start_at), 'HH:mm');
   const endTime = format(new Date(appointment.end_at), 'HH:mm');
-  const customerColor = appointment.customer?.farbe_kalender || '#10B981';
-
   const getBorderColor = () => {
     if (isConflicting) return 'border-l-destructive';
     switch (appointment.status) {
@@ -126,11 +124,6 @@ export function ProAppointmentCard({
             )}
           </div>
           
-          {/* Color indicator bar at bottom */}
-          <div 
-            className="h-1 w-full" 
-            style={{ backgroundColor: customerColor }}
-          />
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
