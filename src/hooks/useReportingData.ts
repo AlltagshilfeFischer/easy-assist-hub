@@ -101,8 +101,8 @@ export function useReportingData(filters: ReportingFilters) {
         .from('termine')
         .select(`
           id, titel, start_at, end_at, status, iststunden, kunden_id, mitarbeiter_id,
-          customer:kunden(id, name, vorname, nachname, stadtteil),
-          employee:mitarbeiter(id, vorname, nachname, farbe_kalender)
+          customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, stadtteil),
+          employee:mitarbeiter!termine_mitarbeiter_id_fkey(id, vorname, nachname, farbe_kalender)
         `)
         .gte('start_at', dateFrom.toISOString())
         .lte('start_at', dateTo.toISOString())

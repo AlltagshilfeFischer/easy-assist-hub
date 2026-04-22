@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
     }
 
     // Generate password reset link and send via Resend
-    const siteUrl = Deno.env.get('SITE_URL') || `https://easy-assist-hub.de`;
+    const siteUrl = Deno.env.get('SITE_URL') || `https://portal.alltagshilfe-fischer.de`;
     
     const { data: linkData, error: genLinkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',

@@ -30,11 +30,11 @@ export function useAppointments(options?: UseAppointmentsOptions) {
         .select(`
           id, titel, kunden_id, mitarbeiter_id, start_at, end_at, status,
           vorlage_id, ist_ausnahme, ausnahme_grund, notizen, iststunden,
-          customer:kunden(id, name, vorname, nachname, farbe_kalender, email, telefonnr,
+          customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, farbe_kalender, email, telefonnr,
             geburtsdatum, pflegegrad, adresse, strasse, plz, stadt, stadtteil, aktiv, pflegekasse,
             versichertennummer, stunden_kontingent_monat, mitarbeiter,
             angehoerige_ansprechpartner),
-          employee:mitarbeiter(id, vorname, nachname, farbe_kalender, telefon, ist_aktiv,
+          employee:mitarbeiter!termine_mitarbeiter_id_fkey(id, vorname, nachname, farbe_kalender, telefon, ist_aktiv,
             max_termine_pro_tag)
         `)
         .order('start_at', { ascending: true });

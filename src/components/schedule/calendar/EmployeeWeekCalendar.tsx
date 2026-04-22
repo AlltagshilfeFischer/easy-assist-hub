@@ -1,5 +1,5 @@
 import React from 'react';
-import { format, isSameDay, isWeekend as checkWeekend } from 'date-fns';
+import { format, isSameDay, isWeekend as checkWeekend, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { DraggableAppointment } from '../DraggableAppointment';
@@ -10,6 +10,7 @@ interface EmployeeWeekCalendarProps {
   appointments: CalendarAppointment[];
   weekDates: Date[];
   onEditAppointment: (appointment: CalendarAppointment) => void;
+  onCorrectAppointment?: (appointment: CalendarAppointment) => void;
   onSlotClick: (date: Date) => void;
   employeeName: string;
   employeeColor: string;
@@ -19,10 +20,22 @@ export function EmployeeWeekCalendar({
   appointments,
   weekDates,
   onEditAppointment,
+  onCorrectAppointment,
   onSlotClick,
   employeeName,
   employeeColor
 }: EmployeeWeekCalendarProps) {
+  const todayStart = startOfDay(new Date());
+
+  /** Vergangene completed-Termine öffnen den Korrektur-Dialog, alle anderen den normalen Dialog. */
+  const handleAppointmentClick = (appointment: CalendarAppointment) => {
+    const isPast = new Date(appointment.end_at) < todayStart;
+    if (isPast && appointment.status === 'completed' && onCorrectAppointment) {
+      onCorrectAppointment(appointment);
+    } else {
+      onEditAppointment(appointment);
+    }
+  };
   const weekdays = weekDates.slice(0, 5); // Mo-Fr
   const weekendDays = weekDates.slice(5); // Sa-So
 
@@ -123,7 +136,7 @@ export function EmployeeWeekCalendar({
                       appointment={appointment}
                       isDragging={false}
                       isConflicting={false}
-                      onClick={() => onEditAppointment(appointment)}
+                      onClick={() => handleAppointmentClick(appointment)}
                       onCut={() => {}}
                     />
                   ))}
@@ -157,7 +170,7 @@ export function EmployeeWeekCalendar({
                       appointment={appointment}
                       isDragging={false}
                       isConflicting={false}
-                      onClick={() => onEditAppointment(appointment)}
+                      onClick={() => handleAppointmentClick(appointment)}
                       onCut={() => {}}
                     />
                   ))}

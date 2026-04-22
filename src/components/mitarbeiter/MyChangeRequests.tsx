@@ -49,7 +49,7 @@ export function MyChangeRequests() {
           new_end_at,
           termin:termine(
             titel,
-            customer:kunden(name)
+            customer:kunden!termine_kunden_id_fkey(name)
           )
         `)
         .eq('requested_by', mitarbeiterId)

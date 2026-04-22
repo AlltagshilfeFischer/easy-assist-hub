@@ -15,6 +15,7 @@ import { Benachrichtigungen } from '@/components/mitarbeiter/Benachrichtigungen'
 import { EmployeeWeekCalendar } from '@/components/schedule/calendar/EmployeeWeekCalendar';
 import { EmployeeChangeRequestDialog } from '@/components/schedule/dialogs/EmployeeChangeRequestDialog';
 import { KundenInfoDialog } from '@/components/mitarbeiter/KundenInfoDialog';
+import { TerminKorrekturDialog } from '@/components/mitarbeiter/TerminKorrekturDialog';
 import { getWeekDates, getWeekNumber, formatDE } from '@/utils/date';
 import type { Appointment, EmployeeSummary } from '@/types/domain';
 
@@ -27,6 +28,8 @@ export default function MitarbeiterDashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [showChangeRequestDialog, setShowChangeRequestDialog] = useState(false);
   const [showKundenInfoDialog, setShowKundenInfoDialog] = useState(false);
+  const [showKorrekturDialog, setShowKorrekturDialog] = useState(false);
+  const [korrekturAppointment, setKorrekturAppointment] = useState<Appointment | null>(null);
 
   const loadData = async () => {
     if (!mitarbeiterId) return;
@@ -45,7 +48,7 @@ export default function MitarbeiterDashboard() {
         .from('termine')
         .select(`
           id, titel, start_at, end_at, status, mitarbeiter_id, kunden_id,
-          customer:kunden(id, name, vorname, nachname, farbe_kalender, strasse, plz, stadt, stadtteil, telefonnr, pflegegrad, pflegekasse, versichertennummer, sonstiges)
+          customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, farbe_kalender, strasse, plz, stadt, stadtteil, telefonnr, pflegegrad, pflegekasse, versichertennummer, sonstiges)
         `)
         .eq('mitarbeiter_id', mitarbeiterId)
         .order('start_at', { ascending: true });
@@ -98,8 +101,13 @@ export default function MitarbeiterDashboard() {
     setShowChangeRequestDialog(true);
   };
 
-  const handleSlotClick = (date: Date) => {
-    console.log('Slot clicked:', date);
+  const handleCorrectAppointment = (appointment: Appointment) => {
+    setKorrekturAppointment(appointment);
+    setShowKorrekturDialog(true);
+  };
+
+  const handleSlotClick = (_date: Date) => {
+    // Slot-Klick im MA-Bereich: keine Aktion
   };
 
   const isGF = isGeschaeftsfuehrer;
@@ -169,6 +177,7 @@ export default function MitarbeiterDashboard() {
               appointments={appointments}
               weekDates={weekDates}
               onEditAppointment={handleEditAppointment}
+              onCorrectAppointment={handleCorrectAppointment}
               onSlotClick={handleSlotClick}
               employeeName={`${employee.vorname} ${employee.nachname}`}
               employeeColor={employee.farbe_kalender}
@@ -195,6 +204,17 @@ export default function MitarbeiterDashboard() {
         }}
         appointment={selectedAppointment}
         onChangeRequest={handleOpenChangeRequest}
+      />
+
+      {/* Korrektur-Dialog für vergangene Termine aus dem Kalender */}
+      <TerminKorrekturDialog
+        isOpen={showKorrekturDialog}
+        onClose={() => {
+          setShowKorrekturDialog(false);
+          setKorrekturAppointment(null);
+        }}
+        appointment={korrekturAppointment}
+        onUpdate={loadData}
       />
 
       {/* Change Request Dialog */}

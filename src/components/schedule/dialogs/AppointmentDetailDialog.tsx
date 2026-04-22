@@ -418,6 +418,16 @@ export function AppointmentDetailDialog({
             />
           </div>
 
+          {/* MA-Kommentar (read-only, nur sichtbar wenn vorhanden) */}
+          {editedAppointment.ma_kommentar && (
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kommentar Mitarbeiter</Label>
+              <p className="mt-1.5 text-sm p-2.5 rounded-md bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200 whitespace-pre-wrap">
+                {editedAppointment.ma_kommentar}
+              </p>
+            </div>
+          )}
+
           {/* Anhänge */}
           <AppointmentAttachments terminId={editedAppointment.id} />
 

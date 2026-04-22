@@ -162,7 +162,7 @@ const ScheduleBuilderModern = () => {
           .select('user_id, role'),
       ]);
       
-      if (employeesResult.error) { console.error('[loadData] mitarbeiter error:', JSON.stringify(employeesResult.error)); throw employeesResult.error; }
+      if (employeesResult.error) throw employeesResult.error;
 
       // Build roles map
       const rolesMap: Record<string, string> = {};
@@ -196,7 +196,7 @@ const ScheduleBuilderModern = () => {
         .eq('aktiv', true)
         .order('name');
       
-      if (customersError) { console.error('[loadData] kunden error:', JSON.stringify(customersError)); throw customersError; }
+      if (customersError) throw customersError;
 
       // Load a rolling 6-month window (2 months back, 4 months forward) to avoid
       // loading the entire appointment history into memory
@@ -211,14 +211,14 @@ const ScheduleBuilderModern = () => {
         .from('termine')
         .select(`
           *,
-          customer:kunden(*),
-          employee:mitarbeiter(*)
+          customer:kunden!termine_kunden_id_fkey(*),
+          employee:mitarbeiter!termine_mitarbeiter_id_fkey(*)
         `)
         .gte('start_at', rangeStart.toISOString())
         .lte('start_at', rangeEnd.toISOString())
         .order('start_at');
       
-      if (appointmentsError) { console.error('[loadData] termine error:', JSON.stringify(appointmentsError)); throw appointmentsError; }
+      if (appointmentsError) throw appointmentsError;
 
       const transformedAppointments: LocalAppointment[] = appointmentsData?.map((app: any) => {
         const empData = app.employee;
@@ -838,7 +838,7 @@ const ScheduleBuilderModern = () => {
           notizen: payload.notizen ?? null,
           kategorie: payload.kategorie ?? null,
         }])
-        .select(`*, customer:kunden(*), employee:mitarbeiter(*)`)
+        .select(`*, customer:kunden!termine_kunden_id_fkey(*), employee:mitarbeiter!termine_mitarbeiter_id_fkey(*)`)
         .single();
 
       if (error) throw error;

@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     );
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://easy-assist-hub.de';
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://portal.alltagshilfe-fischer.de';
 
     if (!RESEND_API_KEY) {
       // Fallback to Supabase built-in email

@@ -143,6 +143,7 @@ export interface CalendarAppointment {
   vorlage_id?: string | null;
   ist_ausnahme?: boolean | null;
   ausnahme_grund?: string | null;
+  ma_kommentar?: string | null;
 }
 
 /** Full appointment with all fields */
