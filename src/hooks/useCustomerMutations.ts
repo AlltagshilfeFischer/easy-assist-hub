@@ -81,6 +81,9 @@ export function useCustomerMutations() {
 
   const deleteCustomerMutation = useMutation({
     mutationFn: async (kundenId: string) => {
+      // rechnungspositionen zuerst – hat RESTRICT auf kunden_id UND termin_id
+      const { error: rPosError } = await supabase.from('rechnungspositionen').delete().eq('kunden_id', kundenId);
+      if (rPosError) throw rPosError;
       const { error: dokumenteError } = await supabase.from('dokumente').delete().eq('kunden_id', kundenId);
       if (dokumenteError) throw dokumenteError;
       const { error: termineError } = await supabase.from('termine').delete().eq('kunden_id', kundenId);
@@ -94,13 +97,17 @@ export function useCustomerMutations() {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Kunde wurde erfolgreich gelöscht');
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error('[deleteCustomer]', error);
       toast.error('Kunde konnte nicht gelöscht werden');
     },
   });
 
   const bulkDeleteCustomersMutation = useMutation({
     mutationFn: async (kundenIds: string[]) => {
+      // rechnungspositionen zuerst – hat RESTRICT auf kunden_id UND termin_id
+      const { error: rPosError } = await supabase.from('rechnungspositionen').delete().in('kunden_id', kundenIds);
+      if (rPosError) throw rPosError;
       const { error: dokumenteError } = await supabase.from('dokumente').delete().in('kunden_id', kundenIds);
       if (dokumenteError) throw dokumenteError;
       const { error: termineError } = await supabase.from('termine').delete().in('kunden_id', kundenIds);
@@ -114,7 +121,8 @@ export function useCustomerMutations() {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success(`${ids.length} Kunden wurden erfolgreich gelöscht`);
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error('[bulkDeleteCustomers]', error);
       toast.error('Kunden konnten nicht gelöscht werden');
     },
   });
