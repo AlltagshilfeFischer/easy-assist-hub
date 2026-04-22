@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -24,6 +25,10 @@ interface CustomerTableProps {
   onViewDetail?: (customerId: string) => void;
   togglePending: boolean;
   convertPending: boolean;
+  // Selection
+  selectedIds: Set<string>;
+  onToggleSelection: (id: string) => void;
+  onToggleAll: () => void;
   // Column filters
   nameFilter: string; setNameFilter: (v: string) => void;
   telefonFilter: string; setTelefonFilter: (v: string) => void;
@@ -58,9 +63,7 @@ function SortButton({ sortKey, currentSort, onClick, children }: {
 
 const formatDate = (val: string | null | undefined): string => {
   if (!val) return '-';
-  // bereits im Format TT.MM.JJJJ (aus Excel-Import)?
   if (/^\d{2}\.\d{2}\.\d{4}$/.test(val)) return val;
-  // ISO-Datum oder YYYY-MM
   const d = new Date(val.length === 7 ? val + '-01' : val);
   if (isNaN(d.getTime())) return val;
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -82,46 +85,55 @@ export function CustomerTable({
   onViewDetail,
   togglePending,
   convertPending,
+  selectedIds,
+  onToggleSelection,
+  onToggleAll,
   nameFilter, setNameFilter,
   telefonFilter, setTelefonFilter,
   pflegegradFilter, setPflegegradFilter,
   pflegekasseFilter, setPflegekasseFilter,
-  // kept in props but not used in filter-row (used by hook)
   emailFilter: _emailFilter, setEmailFilter: _setEmailFilter,
   strasseFilter: _strasseFilter, setStrasseFilter: _setStrasseFilter,
   plzFilter: _plzFilter, setPlzFilter: _setPlzFilter,
   stadtFilter: _stadtFilter, setStadtFilter: _setStadtFilter,
 }: CustomerTableProps) {
+  const allSelected = customers.length > 0 && customers.every((c: any) => selectedIds.has(c.id));
+  const someSelected = !allSelected && customers.some((c: any) => selectedIds.has(c.id));
+
   return (
     <div className="rounded-md border overflow-x-auto">
-      <Table className="min-w-[1400px] text-sm">
+      <Table className="min-w-[880px] text-xs [&_th]:px-1.5 [&_th]:py-1.5 [&_td]:px-1.5 [&_td]:py-1">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[110px]"><SortButton sortKey="nachname" currentSort={customerSort} onClick={onSort}>Nachname</SortButton></TableHead>
-            <TableHead className="w-[100px]"><SortButton sortKey="vorname" currentSort={customerSort} onClick={onSort}>Vorname</SortButton></TableHead>
-            <TableHead className="w-[60px]"><SortButton sortKey="pflegegrad" currentSort={customerSort} onClick={onSort}>PG</SortButton></TableHead>
-            <TableHead><SortButton sortKey="strasse" currentSort={customerSort} onClick={onSort}>Adresse</SortButton></TableHead>
-            <TableHead className="w-[120px]"><SortButton sortKey="telefon" currentSort={customerSort} onClick={onSort}>Telefon</SortButton></TableHead>
-            <TableHead className="w-[100px]"><SortButton sortKey="geburtsdatum" currentSort={customerSort} onClick={onSort}>Geburtsdatum</SortButton></TableHead>
-            <TableHead>Pflegekasse</TableHead>
-            <TableHead>Vers.Nr.</TableHead>
-            <TableHead className="w-[80px]">Kasse/Privat</TableHead>
-            <TableHead className="w-[70px]">Std/Mon</TableHead>
-            <TableHead className="w-[90px]"><SortButton sortKey="eintritt" currentSort={customerSort} onClick={onSort}>Eintritt</SortButton></TableHead>
-            <TableHead className="w-[90px]">Austritt</TableHead>
-            <TableHead className="w-[70px]">Status</TableHead>
-            <TableHead className="w-[120px]">Aktionen</TableHead>
+            <TableHead className="w-[28px]">
+              <Checkbox
+                checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                onCheckedChange={onToggleAll}
+                aria-label="Alle auswählen"
+              />
+            </TableHead>
+            <TableHead className="w-[85px]"><SortButton sortKey="nachname" currentSort={customerSort} onClick={onSort}>Nachname</SortButton></TableHead>
+            <TableHead className="w-[70px]"><SortButton sortKey="vorname" currentSort={customerSort} onClick={onSort}>Vorname</SortButton></TableHead>
+            <TableHead className="w-[36px]"><SortButton sortKey="pflegegrad" currentSort={customerSort} onClick={onSort}>PG</SortButton></TableHead>
+            <TableHead className="w-[130px]"><SortButton sortKey="strasse" currentSort={customerSort} onClick={onSort}>Adresse</SortButton></TableHead>
+            <TableHead className="w-[95px]"><SortButton sortKey="telefon" currentSort={customerSort} onClick={onSort}>Telefon</SortButton></TableHead>
+            <TableHead className="w-[70px]"><SortButton sortKey="geburtsdatum" currentSort={customerSort} onClick={onSort}>Geb.</SortButton></TableHead>
+            <TableHead className="w-[130px]">Pflegekasse / Vers.Nr.</TableHead>
+            <TableHead className="w-[45px]">K/P</TableHead>
+            <TableHead className="w-[45px]">h/Mon</TableHead>
+            <TableHead className="w-[130px]"><SortButton sortKey="eintritt" currentSort={customerSort} onClick={onSort}>Ein- / Austritt</SortButton></TableHead>
+            <TableHead className="w-[55px]">Status</TableHead>
+            <TableHead className="w-[100px]">Aktionen</TableHead>
           </TableRow>
           {/* Spaltenfilter-Zeile */}
           <TableRow>
-            <TableHead colSpan={2}><Input placeholder="Name filtern..." value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} className="h-7 text-xs" /></TableHead>
-            <TableHead><Input placeholder="PG..." value={pflegegradFilter} onChange={(e) => setPflegegradFilter(e.target.value)} className="h-7 text-xs w-12" /></TableHead>
             <TableHead></TableHead>
-            <TableHead><Input placeholder="Telefon..." value={telefonFilter} onChange={(e) => setTelefonFilter(e.target.value)} className="h-7 text-xs" /></TableHead>
+            <TableHead colSpan={2}><Input placeholder="Name..." value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} className="h-6 text-xs" /></TableHead>
+            <TableHead><Input placeholder="PG" value={pflegegradFilter} onChange={(e) => setPflegegradFilter(e.target.value)} className="h-6 text-xs w-9" /></TableHead>
             <TableHead></TableHead>
-            <TableHead><Input placeholder="Kasse..." value={pflegekasseFilter} onChange={(e) => setPflegekasseFilter(e.target.value)} className="h-7 text-xs" /></TableHead>
+            <TableHead><Input placeholder="Telefon..." value={telefonFilter} onChange={(e) => setTelefonFilter(e.target.value)} className="h-6 text-xs" /></TableHead>
             <TableHead></TableHead>
-            <TableHead></TableHead>
+            <TableHead><Input placeholder="Kasse..." value={pflegekasseFilter} onChange={(e) => setPflegekasseFilter(e.target.value)} className="h-6 text-xs" /></TableHead>
             <TableHead></TableHead>
             <TableHead></TableHead>
             <TableHead></TableHead>
@@ -132,60 +144,75 @@ export function CustomerTable({
         <TableBody>
           {customers.length === 0 && (
             <TableRow>
-              <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                 Keine Kunden gefunden
               </TableCell>
             </TableRow>
           )}
           {customers.map((customer: any) => (
-            <TableRow key={customer.id}>
+            <TableRow key={customer.id} data-state={selectedIds.has(customer.id) ? 'selected' : undefined}>
+              <TableCell>
+                <Checkbox
+                  checked={selectedIds.has(customer.id)}
+                  onCheckedChange={() => onToggleSelection(customer.id)}
+                  aria-label={`${customer.vorname} ${customer.nachname} auswählen`}
+                />
+              </TableCell>
               <TableCell className="font-medium">{customer.nachname || '-'}</TableCell>
               <TableCell>{customer.vorname || '-'}</TableCell>
               <TableCell>{customer.pflegegrad ?? '-'}</TableCell>
-              <TableCell className="max-w-[200px] truncate" title={buildAddress(customer)}>
+              <TableCell className="max-w-[130px] truncate" title={buildAddress(customer)}>
                 {buildAddress(customer)}
               </TableCell>
               <TableCell>{customer.telefonnr || '-'}</TableCell>
               <TableCell>{formatDate(customer.geburtsdatum)}</TableCell>
-              <TableCell className="max-w-[140px] truncate" title={customer.pflegekasse || ''}>
-                {customer.pflegekasse || '-'}
-              </TableCell>
-              <TableCell className="max-w-[120px] truncate" title={customer.versichertennummer || ''}>
-                {customer.versichertennummer || '-'}
+              <TableCell
+                className="max-w-[130px]"
+                title={[customer.pflegekasse, customer.versichertennummer].filter(Boolean).join(' · ')}
+              >
+                <div className="truncate">{customer.pflegekasse || '-'}</div>
+                {customer.versichertennummer && (
+                  <div className="truncate text-muted-foreground">{customer.versichertennummer}</div>
+                )}
               </TableCell>
               <TableCell>{customer.kassen_privat || '-'}</TableCell>
               <TableCell>{customer.stunden_kontingent_monat || '-'}</TableCell>
-              <TableCell>{formatDate(customer.eintritt)}</TableCell>
-              <TableCell>{formatDate(customer.austritt)}</TableCell>
               <TableCell>
-                <Badge variant={customer.aktiv ? 'default' : 'secondary'} className="text-xs">
+                <div>{formatDate(customer.eintritt)}</div>
+                {customer.austritt && (
+                  <div className="text-muted-foreground">{formatDate(customer.austritt)}</div>
+                )}
+              </TableCell>
+              <TableCell>
+                <Badge variant={customer.aktiv ? 'default' : 'secondary'} className="text-xs px-1 py-0">
                   {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
                 </Badge>
               </TableCell>
               <TableCell>
-                <div className="flex gap-1">
+                <div className="flex gap-0.5">
                   {onViewDetail && (
-                    <Button variant="outline" size="sm" onClick={() => onViewDetail(customer.id)} title="Details">
+                    <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => onViewDetail(customer.id)} title="Details">
                       <Eye className="h-3 w-3" />
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => onEdit(customer)} title="Bearbeiten">
+                  <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => onEdit(customer)} title="Bearbeiten">
                     <Edit className="h-3 w-3" />
                   </Button>
                   <Button
                     variant={customer.aktiv ? 'outline' : 'default'}
                     size="sm"
+                    className="h-6 w-6 p-0"
                     onClick={() => onToggleStatus({ kundenId: customer.id, currentStatus: customer.aktiv })}
                     disabled={togglePending}
                     title={customer.aktiv ? 'Deaktivieren' : 'Aktivieren'}
                   >
                     <Power className="h-3 w-3" />
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => onDelete(customer.id)} title="Löschen">
+                  <Button variant="destructive" size="sm" className="h-6 w-6 p-0" onClick={() => onDelete(customer.id)} title="Löschen">
                     <Trash2 className="h-3 w-3" />
                   </Button>
                   {customer.kategorie === 'Interessent' && (
-                    <Button variant="default" size="sm" onClick={() => onConvert(customer.id)} disabled={convertPending} className="text-xs px-2">
+                    <Button variant="default" size="sm" onClick={() => onConvert(customer.id)} disabled={convertPending} className="text-xs h-6 px-1.5">
                       Kunde
                     </Button>
                   )}

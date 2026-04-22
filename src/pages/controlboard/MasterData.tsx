@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Building, FileSpreadsheet, FileText, Plus, Upload } from 'lucide-react';
+import { Building, FileSpreadsheet, FileText, Plus, Trash2, Upload } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -49,6 +49,8 @@ export default function MasterData() {
   const [showSmartImport, setShowSmartImport] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [detailKundenId, setDetailKundenId] = useState<string | null>(null);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: customers, isLoading: customersLoading } = useQuery({
@@ -73,7 +75,44 @@ export default function MasterData() {
   });
 
   const filters = useCustomerFilters(customers);
-  const { updateCustomerMutation, convertToCustomerMutation, toggleCustomerStatusMutation, deleteCustomerMutation } = useCustomerMutations();
+  const { updateCustomerMutation, convertToCustomerMutation, toggleCustomerStatusMutation, deleteCustomerMutation, bulkDeleteCustomersMutation } = useCustomerMutations();
+
+  const handleToggleSelection = (id: string) => {
+    setSelectedCustomerIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleAll = () => {
+    const visibleIds = filters.sortedCustomers.map((c: any) => c.id);
+    const allSelected = visibleIds.every((id: string) => selectedCustomerIds.has(id));
+    if (allSelected) {
+      setSelectedCustomerIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach((id: string) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedCustomerIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach((id: string) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedCustomerIds);
+    bulkDeleteCustomersMutation.mutate(ids, {
+      onSuccess: () => {
+        setSelectedCustomerIds(new Set());
+        setShowBulkDeleteDialog(false);
+      },
+    });
+  };
 
   const handleEditCustomer = async (customer: any) => {
     const { data: zeitfensterData } = await supabase
@@ -161,9 +200,20 @@ export default function MasterData() {
             dateToFilter={filters.dateToFilter} setDateToFilter={filters.setDateToFilter}
           />
 
-          <p className="text-sm text-muted-foreground mb-3">
-            {filters.sortedCustomers.length} von {customers?.length ?? 0} Kunden angezeigt
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-muted-foreground">
+              {filters.sortedCustomers.length} von {customers?.length ?? 0} Kunden angezeigt
+              {selectedCustomerIds.size > 0 && (
+                <span className="ml-2 font-medium text-foreground">· {selectedCustomerIds.size} ausgewählt</span>
+              )}
+            </p>
+            {selectedCustomerIds.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={() => setShowBulkDeleteDialog(true)} className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                {selectedCustomerIds.size} Kunden löschen
+              </Button>
+            )}
+          </div>
 
           {customersLoading ? (
             <div className="text-center py-4">Lade Kundendaten...</div>
@@ -179,6 +229,9 @@ export default function MasterData() {
               onViewDetail={(id) => setDetailKundenId(id)}
               togglePending={toggleCustomerStatusMutation.isPending}
               convertPending={convertToCustomerMutation.isPending}
+              selectedIds={selectedCustomerIds}
+              onToggleSelection={handleToggleSelection}
+              onToggleAll={handleToggleAll}
               nameFilter={filters.nameFilter} setNameFilter={filters.setNameFilter}
               telefonFilter={filters.telefonFilter} setTelefonFilter={filters.setTelefonFilter}
               emailFilter={filters.emailFilter} setEmailFilter={filters.setEmailFilter}
@@ -212,6 +265,28 @@ export default function MasterData() {
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (deleteCustomerId) { deleteCustomerMutation.mutate(deleteCustomerId); setDeleteCustomerId(null); } }}>
               Endgültig löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk-Delete Confirmation */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{selectedCustomerIds.size} Kunden löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle zugehörigen Termine und Dokumente der ausgewählten {selectedCustomerIds.size} Kunden werden ebenfalls gelöscht.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteCustomersMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleteCustomersMutation.isPending ? 'Wird gelöscht...' : `${selectedCustomerIds.size} Kunden endgültig löschen`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

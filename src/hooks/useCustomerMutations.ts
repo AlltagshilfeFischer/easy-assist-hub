@@ -99,10 +99,31 @@ export function useCustomerMutations() {
     },
   });
 
+  const bulkDeleteCustomersMutation = useMutation({
+    mutationFn: async (kundenIds: string[]) => {
+      const { error: dokumenteError } = await supabase.from('dokumente').delete().in('kunden_id', kundenIds);
+      if (dokumenteError) throw dokumenteError;
+      const { error: termineError } = await supabase.from('termine').delete().in('kunden_id', kundenIds);
+      if (termineError) throw termineError;
+      const { error: zeitfensterError } = await supabase.from('kunden_zeitfenster').delete().in('kunden_id', kundenIds);
+      if (zeitfensterError) throw zeitfensterError;
+      const { error } = await supabase.from('kunden').delete().in('id', kundenIds);
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast.success(`${ids.length} Kunden wurden erfolgreich gelöscht`);
+    },
+    onError: () => {
+      toast.error('Kunden konnten nicht gelöscht werden');
+    },
+  });
+
   return {
     updateCustomerMutation,
     convertToCustomerMutation,
     toggleCustomerStatusMutation,
     deleteCustomerMutation,
+    bulkDeleteCustomersMutation,
   };
 }
