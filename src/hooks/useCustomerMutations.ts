@@ -123,7 +123,9 @@ export function useCustomerMutations() {
     },
     onError: (error: Error) => {
       console.error('[bulkDeleteCustomers]', error);
-      toast.error('Kunden konnten nicht gelöscht werden');
+      toast.error('Kunden konnten nicht gelöscht werden', {
+        description: error.message,
+      });
     },
   });
 
