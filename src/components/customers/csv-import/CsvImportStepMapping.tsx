@@ -16,24 +16,29 @@ import { invokeAiFunction } from '@/lib/aiClient';
 const DB_FIELD_OPTIONS = [
   { value: 'vorname', label: 'Vorname *' },
   { value: 'nachname', label: 'Nachname *' },
-  { value: 'telefonnr', label: 'Telefon' },
-  { value: 'email', label: 'E-Mail' },
+  { value: 'mitarbeiter_name', label: 'Mitarbeiter (Name)' },
+  { value: 'pflegegrad', label: 'Pflegegrad (0-5)' },
+  { value: 'adresse', label: 'Adresse (kombiniert)' },
   { value: 'strasse', label: 'Straße' },
   { value: 'plz', label: 'PLZ' },
   { value: 'stadt', label: 'Stadt' },
   { value: 'stadtteil', label: 'Stadtteil' },
-  { value: 'adresse', label: 'Adresse (kombiniert)' },
   { value: 'geburtsdatum', label: 'Geburtsdatum (TT.MM.JJJJ)' },
-  { value: 'pflegegrad', label: 'Pflegegrad (0-5)' },
   { value: 'pflegekasse', label: 'Pflegekasse' },
   { value: 'versichertennummer', label: 'Versichertennummer' },
-  { value: 'kategorie', label: 'Kategorie (Kunde/Interessent)' },
+  { value: 'verhinderungspflege', label: 'Verhinderungspflege (Ja/Nein/Beantragt)' },
+  { value: 'telefonnr', label: 'Telefon' },
+  { value: 'kassen_privat', label: 'Kasse/Privat' },
+  { value: 'kopie_lw', label: 'Kopie LW (Ja/Nein)' },
+  { value: 'aktiv_status', label: 'Status (Aktiv/Inaktiv)' },
   { value: 'stunden_kontingent_monat', label: 'Stunden/Monat' },
+  { value: 'tage', label: 'Tage' },
   { value: 'sonstiges', label: 'Sonstiges' },
   { value: 'angehoerige_ansprechpartner', label: 'Angehörige/Ansprechpartner' },
   { value: 'eintritt', label: 'Eintrittsdatum' },
   { value: 'austritt', label: 'Austrittsdatum' },
-  { value: 'kassen_privat', label: 'Kasse/Privat' },
+  { value: 'email', label: 'E-Mail' },
+  { value: 'kategorie', label: 'Kategorie (Kunde/Interessent)' },
 ] as const;
 
 const FUZZY_MAP: Record<string, string> = {
@@ -93,7 +98,24 @@ const FUZZY_MAP: Record<string, string> = {
   'kategorie': 'kategorie',
   'kundentyp': 'kategorie',
   'kundenkategorie': 'kategorie',
-  // 'status' bewusst NICHT gemappt — zu vieldeutig (oft Freitext-Notizen)
+  // Status → aktiv/inaktiv
+  'status': 'aktiv_status',
+  'aktiv': 'aktiv_status',
+  'aktivstatus': 'aktiv_status',
+  // Mitarbeiter
+  'mitarbeiter': 'mitarbeiter_name',
+  'betreuer': 'mitarbeiter_name',
+  'zuständiger mitarbeiter': 'mitarbeiter_name',
+  'betreuende person': 'mitarbeiter_name',
+  // Verhinderungspflege
+  'verhinderungspflege': 'verhinderungspflege',
+  'vp': 'verhinderungspflege',
+  // Kopie LW
+  'kopie lw': 'kopie_lw',
+  'kopie leistungsnachweis': 'kopie_lw',
+  'ln kopie': 'kopie_lw',
+  // Tage
+  'tage': 'tage',
   // Stunden
   'stunden': 'stunden_kontingent_monat',
   'stunden/monat': 'stunden_kontingent_monat',
@@ -125,7 +147,6 @@ const FUZZY_MAP: Record<string, string> = {
   'anmerkungen': 'sonstiges',
   'kommentar': 'sonstiges',
   'kommentare': 'sonstiges',
-  'status': 'sonstiges',        // Status oft Freitext → sonstiges ist besser als kategorie
   'kontaktiert': 'sonstiges',
   'kontaktstatus': 'sonstiges',
   // Angehörige/Ansprechpartner (verschiedene Schreibweisen)

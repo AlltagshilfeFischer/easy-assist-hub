@@ -15,6 +15,7 @@ import type { CsvParseResult, MappedCustomerRecord } from '@/lib/csv-parser';
 import { useCsvImportValidation } from '@/hooks/useCsvImportValidation';
 import { useCsvDuplicateCheck } from '@/hooks/useCsvDuplicateCheck';
 import type { DuplicateAction } from '@/hooks/useCsvDuplicateCheck';
+import { useEmployees } from '@/hooks/useEmployees';
 import { CsvImportStepMapping } from './CsvImportStepMapping';
 import { CsvImportStepValidation } from './CsvImportStepValidation';
 import { CsvImportStepDuplicates } from './CsvImportStepDuplicates';
@@ -24,43 +25,63 @@ interface CsvImportWizardProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function recordToSupabaseInsert(r: MappedCustomerRecord) {
+function recordToSupabaseInsert(
+  r: MappedCustomerRecord,
+  employeeNameMap?: Map<string, string>,
+) {
   // DD.MM.YYYY → YYYY-MM-DD (ISO); YYYY-MM-DD durchreichen; sonst null
   const toIsoDate = (s?: string): string | null => {
     if (!s) return null;
     const de = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
     if (de) return `${de[3]}-${de[2]}-${de[1]}`;
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    // YYYY-MM (Monatsformat)
     if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
     return null;
   };
-  const vorname  = r.vorname?.trim()  || null;
-  const nachname = r.nachname?.trim() || null;
+
+  // Mitarbeiter: Name → ID auflösen
+  const maKey = r.mitarbeiter_name?.trim().toLowerCase();
+  const mitarbeiterId = maKey && employeeNameMap ? (employeeNameMap.get(maKey) ?? null) : null;
+
+  // Verhinderungspflege: Ja / Nein / Beantragt
+  const verhNorm = r.verhinderungspflege?.trim().toLowerCase();
+  const verhAktiv = verhNorm === 'ja' ? true : null;
+  const verhBeantragt = verhNorm === 'beantragt' ? true : null;
+
+  // Status: Aktiv (default) / Inaktiv — überschreibt kategorie-basierte Logik
+  const statusNorm = r.aktiv_status?.trim().toLowerCase();
+  const aktiv = statusNorm ? statusNorm !== 'inaktiv' : (!r.kategorie || r.kategorie === 'Kunde');
+
+  // Stunden: deutsches Komma → Punkt
+  const stundenRaw = r.stunden_kontingent_monat?.replace(',', '.');
+
   return {
-    vorname,
-    nachname,
-    telefonnr: r.telefonnr?.trim() || null,
-    email: r.email?.trim() || null,
+    vorname: r.vorname?.trim() || null,
+    nachname: r.nachname?.trim() || null,
+    mitarbeiter: mitarbeiterId,
+    pflegegrad: r.pflegegrad != null && r.pflegegrad !== '' ? parseInt(r.pflegegrad, 10) : null,
     strasse: r.strasse?.trim() || null,
     plz: r.plz?.trim() || null,
     stadt: r.stadt?.trim() || null,
     stadtteil: r.stadtteil?.trim() || null,
     adresse: r.adresse?.trim() || null,
     geburtsdatum: toIsoDate(r.geburtsdatum),
-    pflegegrad: r.pflegegrad != null && r.pflegegrad !== '' ? parseInt(r.pflegegrad, 10) : null,
     pflegekasse: r.pflegekasse?.trim() || null,
     versichertennummer: r.versichertennummer?.trim() || null,
-    kategorie: r.kategorie || 'Kunde',
-    aktiv: !r.kategorie || r.kategorie === 'Kunde',
-    stunden_kontingent_monat: r.stunden_kontingent_monat
-      ? parseFloat(r.stunden_kontingent_monat)
-      : null,
+    verhinderungspflege_aktiv: verhAktiv,
+    verhinderungspflege_beantragt: verhBeantragt,
+    telefonnr: r.telefonnr?.trim() || null,
+    kasse_privat: r.kassen_privat?.trim() || null,
+    kopie_lw: r.kopie_lw?.trim() || null,
+    aktiv,
+    stunden_kontingent_monat: stundenRaw ? parseFloat(stundenRaw) || null : null,
+    tage: r.tage?.trim() || null,
     sonstiges: r.sonstiges?.trim() || null,
     angehoerige_ansprechpartner: r.angehoerige_ansprechpartner?.trim() || null,
     eintritt: toIsoDate(r.eintritt),
     austritt: toIsoDate(r.austritt),
-    kasse_privat: r.kassen_privat?.trim() || null,
+    kategorie: r.kategorie || 'Kunde',
+    email: r.email?.trim() || null,
     farbe_kalender: '#10B981',
   };
 }
@@ -69,6 +90,15 @@ const STEP_LABELS = ['1. Spalten zuordnen', '2. Daten prüfen', '3. Duplikate'] 
 
 export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
   const queryClient = useQueryClient();
+  const { data: employees = [] } = useEmployees({ includeInactive: true });
+
+  const employeeNameMap = useMemo(
+    () =>
+      new Map<string, string>(
+        employees.map((e) => [`${e.vorname} ${e.nachname}`.toLowerCase().trim(), e.id]),
+      ),
+    [employees],
+  );
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [csvParseResult, setCsvParseResult] = useState<CsvParseResult | null>(null);
@@ -152,14 +182,14 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
       }
 
       if (rowsToImport.length > 0) {
-        const inserts = rowsToImport.map(r => recordToSupabaseInsert(r));
+        const inserts = rowsToImport.map(r => recordToSupabaseInsert(r, employeeNameMap));
         const { error } = await supabase.from('kunden').insert(inserts);
         if (error) throw error;
       }
 
       const updateErrors: string[] = [];
       for (const { id, record } of rowsToUpdate) {
-        const updates = recordToSupabaseInsert(record);
+        const updates = recordToSupabaseInsert(record, employeeNameMap);
         const { error } = await supabase.from('kunden').update(updates).eq('id', id);
         if (error) {
           const name = `${record.vorname ?? ''} ${record.nachname ?? ''}`.trim();

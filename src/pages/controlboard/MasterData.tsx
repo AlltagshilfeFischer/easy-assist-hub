@@ -1,12 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Building, FileSpreadsheet, FileText, Plus, Trash2, Upload } from 'lucide-react';
+import { Building, FileSpreadsheet, FileText, Plus, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -23,6 +17,7 @@ import {
 import CreateCustomerWizard from '@/components/customers/CreateCustomerWizard';
 import { KundenSmartImport } from '@/components/import/KundenSmartImport';
 import { CsvImportWizard } from '@/components/customers/csv-import/CsvImportWizard';
+import { CustomerImportExport } from '@/components/customers/CustomerImportExport';
 import { CustomerFilters } from '@/components/customers/CustomerFilters';
 import { CustomerTable } from '@/components/customers/CustomerTable';
 import { CustomerEditDialog } from '@/components/customers/CustomerEditDialog';
@@ -156,21 +151,16 @@ export default function MasterData() {
           <p className="text-sm sm:text-base text-muted-foreground">Verwalten Sie Kundendaten und Neukundenkontakte</p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" />Importieren
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowSmartImport(true)}>
-                <FileText className="h-4 w-4 mr-2" />Freitext / KI-Import
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowCsvImport(true)}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />CSV-Datei importieren
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button variant="outline" className="gap-2" onClick={() => setShowSmartImport(true)}>
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">KI-Import</span>
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setShowCsvImport(true)}>
+            <FileSpreadsheet className="h-4 w-4" />
+            <span className="hidden sm:inline">CSV / Excel importieren</span>
+            <span className="sm:hidden">Import</span>
+          </Button>
+          <CustomerImportExport customers={customers ?? []} />
           <Button onClick={() => setIsCreatingCustomer(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Neuen Kunden anlegen</span>

@@ -29,6 +29,12 @@ export interface MappedCustomerRecord {
   eintritt?: string;
   austritt?: string;
   kassen_privat?: string;
+  // Neue Felder (Template-Erweiterung)
+  mitarbeiter_name?: string;
+  verhinderungspflege?: string;
+  kopie_lw?: string;
+  aktiv_status?: string;
+  tage?: string;
   _rowIndex: number;
 }
 
@@ -308,6 +314,7 @@ const ALLOWED_DB_FIELDS = new Set<keyof Omit<MappedCustomerRecord, '_rowIndex'>>
   'stadtteil', 'adresse', 'geburtsdatum', 'pflegegrad', 'pflegekasse',
   'versichertennummer', 'kategorie', 'stunden_kontingent_monat', 'sonstiges',
   'angehoerige_ansprechpartner', 'eintritt', 'austritt', 'kassen_privat',
+  'mitarbeiter_name', 'verhinderungspflege', 'kopie_lw', 'aktiv_status', 'tage',
 ]);
 
 export function applyColumnMapping(

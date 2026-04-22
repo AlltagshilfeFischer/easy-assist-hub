@@ -1,4 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import { generateUUID } from '@/lib/uuid';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,53 +11,188 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Download, Upload, AlertCircle, Check, Plus, Trash2, X, Sparkles, Loader2, Edit2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import {
+  Download,
+  Upload,
+  AlertCircle,
+  Check,
+  Plus,
+  Trash2,
+  X,
+  FileDown,
+  Loader2,
+  Users,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useEmployees } from '@/hooks/useEmployees';
 
-interface TimeWindow {
-  wochentag: number;
-  von: string;
-  bis: string;
+// ─── Template-Spalten (Reihenfolge = Vorlage) ─────────────────────────────────
+
+interface ColumnDef {
+  key: keyof CustomerRow;
+  label: string;
+  required?: boolean;
+  width: number;
+  hint?: string;
+  validate?: (v: string) => string | null;
 }
 
-interface CustomerTimeWindows {
-  customerId: string;
-  customerName: string;
-  originalText: string;
-  windows: TimeWindow[];
-  loading?: boolean;
-  error?: string;
-}
+const COLUMNS: ColumnDef[] = [
+  { key: 'vorname', label: 'Vorname', required: true, width: 110 },
+  { key: 'nachname', label: 'Nachname', required: true, width: 120 },
+  { key: 'mitarbeiter_name', label: 'Mitarbeiter', width: 130 },
+  {
+    key: 'pflegegrad',
+    label: 'Pflegegrad',
+    width: 90,
+    hint: '0–5',
+    validate: (v) =>
+      v && (isNaN(Number(v)) || Number(v) < 0 || Number(v) > 5)
+        ? 'Pflegegrad 0–5'
+        : null,
+  },
+  { key: 'strasse', label: 'Straße', width: 150 },
+  {
+    key: 'plz',
+    label: 'PLZ',
+    width: 75,
+    validate: (v) => (v && !/^\d{5}$/.test(v) ? 'PLZ: 5 Ziffern' : null),
+  },
+  { key: 'stadt', label: 'Stadt', width: 110 },
+  { key: 'stadtteil', label: 'Stadtteil', width: 100 },
+  {
+    key: 'geburtsdatum',
+    label: 'Geburtsdatum',
+    width: 120,
+    hint: 'TT.MM.JJJJ',
+    validate: (v) =>
+      v && !/^(\d{2})\.(\d{2})\.(\d{4})$/.test(v) ? 'Datum: TT.MM.JJJJ' : null,
+  },
+  { key: 'pflegekasse', label: 'Pflegekasse', width: 130 },
+  { key: 'versichertennummer', label: 'Versichertennr.', width: 130 },
+  {
+    key: 'verhinderungspflege',
+    label: 'Verhinderungspflege',
+    width: 155,
+    hint: 'Ja/Nein/Beantragt',
+    validate: (v) =>
+      v && !['ja', 'nein', 'beantragt'].includes(v.toLowerCase())
+        ? 'Ja / Nein / Beantragt'
+        : null,
+  },
+  { key: 'telefonnr', label: 'Telefon', width: 130 },
+  {
+    key: 'kasse_privat',
+    label: 'Kasse/Privat',
+    width: 110,
+    hint: 'Kasse/Privat/Beides',
+    validate: (v) =>
+      v && !['kasse', 'privat', 'beides'].includes(v.toLowerCase())
+        ? 'Kasse / Privat / Beides'
+        : null,
+  },
+  {
+    key: 'kopie_lw',
+    label: 'Kopie LW',
+    width: 85,
+    hint: 'Ja/Nein',
+    validate: (v) =>
+      v && !['ja', 'nein'].includes(v.toLowerCase()) ? 'Ja / Nein' : null,
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    width: 90,
+    hint: 'Aktiv/Inaktiv',
+    validate: (v) =>
+      v && !['aktiv', 'inaktiv'].includes(v.toLowerCase()) ? 'Aktiv / Inaktiv' : null,
+  },
+  {
+    key: 'stunden',
+    label: 'Stunden',
+    width: 85,
+    hint: 'z.B. 8,5',
+    validate: (v) => {
+      if (!v) return null;
+      const n = parseFloat(v.replace(',', '.'));
+      return isNaN(n) ? 'Zahl, z.B. 8,5' : null;
+    },
+  },
+  { key: 'tage', label: 'Tage', width: 110, hint: 'z.B. Mo, Mi, Fr' },
+  { key: 'sonstiges', label: 'Sonstiges', width: 150 },
+  {
+    key: 'angehoerige',
+    label: 'Angehörige/Ansprechpartner',
+    width: 220,
+    hint: 'Name|Beziehung|Tel; ...',
+  },
+];
+
+// Map from template header labels → column keys (für CSV/XLSX-Import)
+const HEADER_MAP: Record<string, keyof CustomerRow> = {
+  'Vorname': 'vorname',
+  'Nachname': 'nachname',
+  'Mitarbeiter': 'mitarbeiter_name',
+  'Pflegegrad': 'pflegegrad',
+  'Straße': 'strasse',
+  'Strasse': 'strasse',
+  'PLZ': 'plz',
+  'Stadt': 'stadt',
+  'Stadtteil': 'stadtteil',
+  'Geburtsdatum': 'geburtsdatum',
+  'Pflegekasse': 'pflegekasse',
+  'Versichertennummer': 'versichertennummer',
+  'Versichertennr.': 'versichertennummer',
+  'Verhinderungspflege': 'verhinderungspflege',
+  'Telefon': 'telefonnr',
+  'Teiefon': 'telefonnr',
+  'Kasse/Privat': 'kasse_privat',
+  'Kopie LW': 'kopie_lw',
+  'Status': 'status',
+  'Stunden': 'stunden',
+  'Tage': 'tage',
+  'Sonstiges': 'sonstiges',
+  'Angehörige/Ansprechpartner': 'angehoerige',
+  'Angehoerige/Ansprechpartner': 'angehoerige',
+};
+
+// ─── Typen ─────────────────────────────────────────────────────────────────────
 
 interface CustomerRow {
   id: string;
   vorname: string;
   nachname: string;
-  telefonnr: string;
-  email: string;
+  mitarbeiter_name: string;
+  pflegegrad: string;
   strasse: string;
   plz: string;
   stadt: string;
   stadtteil: string;
   geburtsdatum: string;
-  pflegegrad: string;
-  kategorie: string;
   pflegekasse: string;
   versichertennummer: string;
-  zeitfenster_text: string;
+  verhinderungspflege: string;
+  telefonnr: string;
+  kasse_privat: string;
+  kopie_lw: string;
+  status: string;
+  stunden: string;
+  tage: string;
+  sonstiges: string;
+  angehoerige: string;
   errors: string[];
-}
-
-const WEEKDAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-
-interface CustomerImportExportProps {
-  customers: any[];
+  warnings: string[];
 }
 
 interface CellPosition {
@@ -63,43 +200,64 @@ interface CellPosition {
   col: number;
 }
 
-const COLUMNS = [
-  { key: 'vorname', label: 'Vorname', required: true, width: 120 },
-  { key: 'nachname', label: 'Nachname', required: true, width: 120 },
-  { key: 'telefonnr', label: 'Telefon', required: false, width: 130 },
-  { key: 'email', label: 'E-Mail', required: false, width: 180 },
-  { key: 'strasse', label: 'Straße', required: false, width: 150 },
-  { key: 'plz', label: 'PLZ', required: false, width: 80 },
-  { key: 'stadt', label: 'Stadt', required: false, width: 120 },
-  { key: 'stadtteil', label: 'Stadtteil', required: false, width: 100 },
-  { key: 'geburtsdatum', label: 'Geburtsdatum', required: false, width: 120, hint: 'TT.MM.JJJJ' },
-  { key: 'pflegegrad', label: 'Pflegegrad', required: false, width: 90, hint: '0-5' },
-  { key: 'kategorie', label: 'Kategorie', required: false, width: 110, hint: 'Kunde/Interessent' },
-  { key: 'pflegekasse', label: 'Pflegekasse', required: false, width: 120 },
-  { key: 'versichertennummer', label: 'Versichertennr.', required: false, width: 130 },
-  { key: 'zeitfenster_text', label: 'Zeitfenster (KI)', required: false, width: 200, hint: 'z.B. Mo-Fr 8-12', isAI: true },
-];
+interface CustomerImportExportProps {
+  customers: any[];
+}
+
+// ─── Hilfsfunktionen ───────────────────────────────────────────────────────────
 
 const createEmptyRow = (): CustomerRow => ({
   id: generateUUID(),
   vorname: '',
   nachname: '',
-  telefonnr: '',
-  email: '',
+  mitarbeiter_name: '',
+  pflegegrad: '',
   strasse: '',
   plz: '',
   stadt: '',
   stadtteil: '',
   geburtsdatum: '',
-  pflegegrad: '',
-  kategorie: '',
   pflegekasse: '',
   versichertennummer: '',
-  zeitfenster_text: '',
+  verhinderungspflege: '',
+  telefonnr: '',
+  kasse_privat: '',
+  kopie_lw: '',
+  status: '',
+  stunden: '',
+  tage: '',
+  sonstiges: '',
+  angehoerige: '',
   errors: [],
+  warnings: [],
 });
 
-const createInitialRows = (count: number) => Array.from({ length: count }, createEmptyRow);
+const createInitialRows = (count: number): CustomerRow[] =>
+  Array.from({ length: count }, createEmptyRow);
+
+const parseGermanDate = (dateStr: string): string | null => {
+  if (!dateStr) return null;
+  const m = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+};
+
+const formatDateToGerman = (isoDate: string | null): string => {
+  if (!isoDate) return '';
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return '';
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+};
+
+const escapeCSV = (v: string | number | boolean | null | undefined): string => {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+};
+
+// ─── Haupt-Komponente ──────────────────────────────────────────────────────────
 
 export function CustomerImportExport({ customers }: CustomerImportExportProps) {
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -110,20 +268,37 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
   const [selectionEnd, setSelectionEnd] = useState<CellPosition | null>(null);
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
   const [editValue, setEditValue] = useState('');
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  // csvName (lowercase) → employee ID oder '' (= nicht zuordnen)
+  const [mitarbeiterMappings, setMitarbeiterMappings] = useState<Record<string, string>>({});
   const tableRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  // State for AI time window processing
-  const [showTimeWindowDialog, setShowTimeWindowDialog] = useState(false);
-  const [timeWindowSuggestions, setTimeWindowSuggestions] = useState<CustomerTimeWindows[]>([]);
-  const [processingTimeWindows, setProcessingTimeWindows] = useState(false);
-  const [editingTimeWindow, setEditingTimeWindow] = useState<{customerIndex: number; windowIndex: number} | null>(null);
-  const [editTimeWindowForm, setEditTimeWindowForm] = useState<TimeWindow | null>(null);
-  const [insertedCustomerIds, setInsertedCustomerIds] = useState<Map<string, string>>(new Map());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
-  // Focus input when editing
+  const { data: employees = [] } = useEmployees({ includeInactive: true });
+
+  // Mitarbeiter-Name → ID Map (Vorname + Nachname)
+  const employeeNameMap = useMemo(
+    () =>
+      new Map<string, string>(
+        employees.map((e) => [`${e.vorname} ${e.nachname}`.toLowerCase().trim(), e.id]),
+      ),
+    [employees],
+  );
+
+  // Eindeutige Mitarbeiter-Namen, die noch weder automatisch noch manuell aufgelöst wurden
+  const unmatchedMitarbeiterNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const row of rows) {
+      const raw = row.mitarbeiter_name.trim();
+      if (!raw) continue;
+      const key = raw.toLowerCase();
+      if (!employeeNameMap.has(key) && !mitarbeiterMappings[key]) names.add(raw);
+    }
+    return Array.from(names).sort();
+  }, [rows, employeeNameMap, mitarbeiterMappings]);
+
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
@@ -131,32 +306,46 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
     }
   }, [editingCell]);
 
-  const validateRow = (row: CustomerRow): string[] => {
+  // ─── Validierung ──────────────────────────────────────────────────────────────
+
+  const validateRow = (row: CustomerRow): { errors: string[]; warnings: string[] } => {
     const errors: string[] = [];
-    if (!row.vorname.trim()) errors.push('Vorname erforderlich');
-    if (!row.nachname.trim()) errors.push('Nachname erforderlich');
-    if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) errors.push('Ungültige E-Mail');
-    if (row.pflegegrad && (isNaN(Number(row.pflegegrad)) || Number(row.pflegegrad) < 0 || Number(row.pflegegrad) > 5)) errors.push('Pflegegrad 0-5');
-    if (row.plz && !/^\d{5}$/.test(row.plz)) errors.push('PLZ 5 Ziffern');
-    if (row.geburtsdatum) {
-      const match = row.geburtsdatum.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-      if (!match) errors.push('Datum: TT.MM.JJJJ');
+    const warnings: string[] = [];
+
+    if (!row.vorname.trim()) errors.push('Vorname fehlt');
+    if (!row.nachname.trim()) errors.push('Nachname fehlt');
+
+    for (const col of COLUMNS) {
+      if (!col.validate) continue;
+      const val = (row as Record<string, string>)[col.key as string] as string;
+      const msg = col.validate(val);
+      if (msg) errors.push(msg);
     }
-    return errors;
-  };
 
-  const updateCell = (rowIndex: number, colKey: string, value: string) => {
-    setRows(prev => prev.map((row, i) => {
-      if (i === rowIndex) {
-        const updated = { ...row, [colKey]: value };
-        updated.errors = validateRow(updated);
-        return updated;
+    if (row.mitarbeiter_name.trim()) {
+      const key = row.mitarbeiter_name.toLowerCase().trim();
+      if (!employeeNameMap.has(key)) {
+        warnings.push(`Mitarbeiter "${row.mitarbeiter_name}" nicht gefunden`);
       }
-      return row;
-    }));
+    }
+
+    return { errors, warnings };
   };
 
-  const getSelection = (): { minRow: number; maxRow: number; minCol: number; maxCol: number } | null => {
+  const updateCell = (rowIndex: number, colKey: keyof CustomerRow, value: string) => {
+    setRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== rowIndex) return row;
+        const updated = { ...row, [colKey]: value };
+        const { errors, warnings } = validateRow(updated);
+        return { ...updated, errors, warnings };
+      }),
+    );
+  };
+
+  // ─── Selektion ─────────────────────────────────────────────────────────────────
+
+  const getSelection = () => {
     if (!selectionStart || !selectionEnd) return null;
     return {
       minRow: Math.min(selectionStart.row, selectionEnd.row),
@@ -166,22 +355,17 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
     };
   };
 
-  const isCellSelected = (row: number, col: number): boolean => {
+  const isCellSelected = (row: number, col: number) => {
     const sel = getSelection();
-    if (!sel) return false;
-    return row >= sel.minRow && row <= sel.maxRow && col >= sel.minCol && col <= sel.maxCol;
+    return sel ? row >= sel.minRow && row <= sel.maxRow && col >= sel.minCol && col <= sel.maxCol : false;
   };
 
-  const isCellActive = (row: number, col: number): boolean => {
-    return activeCell?.row === row && activeCell?.col === col;
-  };
+  // ─── Keyboard / Maus ──────────────────────────────────────────────────────────
 
   const handleCellClick = (row: number, col: number, e: React.MouseEvent) => {
     if (e.shiftKey && activeCell) {
-      // Extend selection
       setSelectionEnd({ row, col });
     } else {
-      // Single select
       setActiveCell({ row, col });
       setSelectionStart({ row, col });
       setSelectionEnd({ row, col });
@@ -191,7 +375,7 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
 
   const handleCellDoubleClick = (row: number, col: number) => {
     setEditingCell({ row, col });
-    setEditValue((rows[row] as any)[COLUMNS[col].key] || '');
+    setEditValue((rows[row] as Record<string, string>)[COLUMNS[col].key as string] || '');
   };
 
   const commitEdit = () => {
@@ -201,518 +385,579 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
     }
   };
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!activeCell) return;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!activeCell) return;
 
-    // Handle editing mode
-    if (editingCell) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        commitEdit();
-        // Move down
-        if (activeCell.row < rows.length - 1) {
-          const newPos = { row: activeCell.row + 1, col: activeCell.col };
-          setActiveCell(newPos);
-          setSelectionStart(newPos);
-          setSelectionEnd(newPos);
+      if (editingCell) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitEdit();
+          if (activeCell.row < rows.length - 1) {
+            const p = { row: activeCell.row + 1, col: activeCell.col };
+            setActiveCell(p);
+            setSelectionStart(p);
+            setSelectionEnd(p);
+          }
+        } else if (e.key === 'Escape') {
+          setEditingCell(null);
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          commitEdit();
+          const nc = e.shiftKey ? activeCell.col - 1 : activeCell.col + 1;
+          if (nc >= 0 && nc < COLUMNS.length) {
+            const p = { row: activeCell.row, col: nc };
+            setActiveCell(p);
+            setSelectionStart(p);
+            setSelectionEnd(p);
+          }
         }
-      } else if (e.key === 'Escape') {
-        setEditingCell(null);
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        commitEdit();
-        const newCol = e.shiftKey ? activeCell.col - 1 : activeCell.col + 1;
-        if (newCol >= 0 && newCol < COLUMNS.length) {
-          const newPos = { row: activeCell.row, col: newCol };
-          setActiveCell(newPos);
-          setSelectionStart(newPos);
-          setSelectionEnd(newPos);
-        }
+        return;
       }
+
+      let nr = activeCell.row;
+      let nc = activeCell.col;
+
+      switch (e.key) {
+        case 'ArrowUp': e.preventDefault(); nr = Math.max(0, nr - 1); break;
+        case 'ArrowDown': e.preventDefault(); nr = Math.min(rows.length - 1, nr + 1); break;
+        case 'ArrowLeft': e.preventDefault(); nc = Math.max(0, nc - 1); break;
+        case 'ArrowRight': e.preventDefault(); nc = Math.min(COLUMNS.length - 1, nc + 1); break;
+        case 'Tab':
+          e.preventDefault();
+          nc = e.shiftKey ? nc - 1 : nc + 1;
+          if (nc < 0) { nc = COLUMNS.length - 1; nr = Math.max(0, nr - 1); }
+          else if (nc >= COLUMNS.length) { nc = 0; nr = Math.min(rows.length - 1, nr + 1); }
+          break;
+        case 'Enter':
+          e.preventDefault();
+          handleCellDoubleClick(activeCell.row, activeCell.col);
+          return;
+        case 'Delete':
+        case 'Backspace': {
+          e.preventDefault();
+          const sel = getSelection();
+          if (sel) {
+            setRows((prev) =>
+              prev.map((row, ri) => {
+                if (ri < sel.minRow || ri > sel.maxRow) return row;
+                const updated = { ...row };
+                for (let ci = sel.minCol; ci <= sel.maxCol; ci++) {
+                  (updated as Record<string, string>)[COLUMNS[ci].key as string] = '';
+                }
+                const { errors, warnings } = validateRow(updated);
+                return { ...updated, errors, warnings };
+              }),
+            );
+          }
+          return;
+        }
+        case 'F2':
+          e.preventDefault();
+          handleCellDoubleClick(activeCell.row, activeCell.col);
+          return;
+        default:
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+            setEditingCell(activeCell);
+            setEditValue(e.key);
+            return;
+          }
+      }
+
+      const p = { row: nr, col: nc };
+      if (e.shiftKey && e.key.startsWith('Arrow')) {
+        setSelectionEnd(p);
+      } else {
+        setSelectionStart(p);
+        setSelectionEnd(p);
+      }
+      setActiveCell(p);
+    },
+    [activeCell, editingCell, rows, editValue],
+  );
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const text = e.clipboardData.getData('text');
+      if (!text) return;
+      e.preventDefault();
+
+      const lines = text.split('\n').filter((l) => l.trim());
+      const startRow = activeCell?.row ?? 0;
+      const startCol = activeCell?.col ?? 0;
+
+      setRows((prev) => {
+        const next = [...prev];
+        while (next.length < startRow + lines.length) next.push(createEmptyRow());
+
+        lines.forEach((line, li) => {
+          const cells = line.split('\t');
+          const ri = startRow + li;
+          cells.forEach((val, ci) => {
+            const colIdx = startCol + ci;
+            if (colIdx < COLUMNS.length) {
+              (next[ri] as Record<string, string>)[COLUMNS[colIdx].key as string] = val.trim();
+            }
+          });
+          const { errors, warnings } = validateRow(next[ri]);
+          next[ri] = { ...next[ri], errors, warnings };
+        });
+
+        return next;
+      });
+
+      toast.success(`${lines.length} Zeile(n) eingefügt`);
+    },
+    [activeCell],
+  );
+
+  // ─── Datei-Upload (CSV + XLSX) ─────────────────────────────────────────────────
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+
+    if (ext === 'csv') {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        encoding: 'UTF-8',
+        complete: (result) => populateFromParsed(result.data as Record<string, string>[]),
+        error: (err) => toast.error(`CSV-Fehler: ${err.message}`),
+      });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const wb = XLSX.read(ev.target?.result, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const data = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+          populateFromParsed(data);
+        } catch (err: unknown) {
+          toast.error(`Excel-Fehler: ${(err as Error).message}`);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      toast.error('Nur CSV oder XLSX/XLS erlaubt');
+    }
+  };
+
+  const populateFromParsed = (data: Record<string, string>[]) => {
+    if (!data.length) {
+      toast.error('Datei ist leer oder hat kein erkennbares Format');
       return;
     }
 
-    // Navigation in non-editing mode
-    let newRow = activeCell.row;
-    let newCol = activeCell.col;
-
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        newRow = Math.max(0, activeCell.row - 1);
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        newRow = Math.min(rows.length - 1, activeCell.row + 1);
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        newCol = Math.max(0, activeCell.col - 1);
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        newCol = Math.min(COLUMNS.length - 1, activeCell.col + 1);
-        break;
-      case 'Tab':
-        e.preventDefault();
-        newCol = e.shiftKey ? activeCell.col - 1 : activeCell.col + 1;
-        if (newCol < 0) {
-          newCol = COLUMNS.length - 1;
-          newRow = Math.max(0, activeCell.row - 1);
-        } else if (newCol >= COLUMNS.length) {
-          newCol = 0;
-          newRow = Math.min(rows.length - 1, activeCell.row + 1);
+    const mapped: CustomerRow[] = data.map((rawRow) => {
+      const row = createEmptyRow();
+      for (const [header, value] of Object.entries(rawRow)) {
+        const trimmedHeader = header.trim();
+        const key = HEADER_MAP[trimmedHeader];
+        if (key) {
+          (row as Record<string, string>)[key as string] = String(value ?? '').trim();
         }
-        break;
-      case 'Enter':
-        e.preventDefault();
-        handleCellDoubleClick(activeCell.row, activeCell.col);
-        return;
-      case 'Delete':
-      case 'Backspace':
-        e.preventDefault();
-        // Clear selected cells
-        const sel = getSelection();
-        if (sel) {
-          setRows(prev => prev.map((row, ri) => {
-            if (ri >= sel.minRow && ri <= sel.maxRow) {
-              const updated = { ...row };
-              for (let ci = sel.minCol; ci <= sel.maxCol; ci++) {
-                (updated as any)[COLUMNS[ci].key] = '';
-              }
-              updated.errors = validateRow(updated);
-              return updated;
-            }
-            return row;
-          }));
-        }
-        return;
-      case 'F2':
-        e.preventDefault();
-        handleCellDoubleClick(activeCell.row, activeCell.col);
-        return;
-      default:
-        // Start typing to edit
-        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-          setEditingCell(activeCell);
-          setEditValue(e.key);
-          return;
-        }
-    }
-
-    const newPos = { row: newRow, col: newCol };
-    if (e.shiftKey && (e.key.startsWith('Arrow'))) {
-      setSelectionEnd(newPos);
-    } else {
-      setSelectionStart(newPos);
-      setSelectionEnd(newPos);
-    }
-    setActiveCell(newPos);
-  }, [activeCell, editingCell, rows, editValue]);
-
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const clipboardData = e.clipboardData.getData('text');
-    if (!clipboardData) return;
-    e.preventDefault();
-
-    const lines = clipboardData.split('\n').filter(line => line.trim());
-    if (lines.length === 0) return;
-
-    const startRow = activeCell?.row ?? 0;
-    const startCol = activeCell?.col ?? 0;
-
-    setRows(prev => {
-      const newRows = [...prev];
-      
-      // Ensure we have enough rows
-      while (newRows.length < startRow + lines.length) {
-        newRows.push(createEmptyRow());
       }
-
-      lines.forEach((line, lineIndex) => {
-        const cells = line.split('\t');
-        const rowIndex = startRow + lineIndex;
-        
-        cells.forEach((cellValue, cellIndex) => {
-          const colIndex = startCol + cellIndex;
-          if (colIndex < COLUMNS.length && rowIndex < newRows.length) {
-            (newRows[rowIndex] as any)[COLUMNS[colIndex].key] = cellValue.trim();
-          }
-        });
-        
-        newRows[rowIndex].errors = validateRow(newRows[rowIndex]);
-      });
-
-      return newRows;
+      const { errors, warnings } = validateRow(row);
+      return { ...row, errors, warnings };
     });
 
-    toast({
-      title: 'Daten eingefügt',
-      description: `${lines.length} Zeile(n) eingefügt`,
-    });
-  }, [activeCell, toast]);
-
-  const addRows = (count: number) => {
-    setRows(prev => [...prev, ...createInitialRows(count)]);
+    // Auffüllen auf mindestens 20 Zeilen
+    while (mapped.length < 20) mapped.push(createEmptyRow());
+    setRows(mapped);
+    setMitarbeiterMappings({});
+    setActiveCell(null);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+    toast.success(`${data.length} Zeile(n) aus Datei geladen`);
   };
 
-  const removeRow = (index: number) => {
-    setRows(prev => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((_, i) => i !== index);
-    });
+  // ─── Template-Download ────────────────────────────────────────────────────────
+
+  const handleTemplateDownload = () => {
+    const headers = COLUMNS.map((c) => c.label);
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+
+    // Spaltenbreiten setzen
+    ws['!cols'] = COLUMNS.map((c) => ({ wch: Math.round(c.width / 7) }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Kunden-Vorlage');
+    XLSX.writeFile(wb, 'kunden_vorlage.xlsx');
   };
+
+  // ─── Zeilen-Verwaltung ────────────────────────────────────────────────────────
+
+  const addRows = (count: number) =>
+    setRows((prev) => [...prev, ...createInitialRows(count)]);
+
+  const removeRow = (index: number) =>
+    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
 
   const clearAll = () => {
     setRows(createInitialRows(20));
+    setMitarbeiterMappings({});
     setActiveCell(null);
     setSelectionStart(null);
     setSelectionEnd(null);
     setEditingCell(null);
+    setImportErrors([]);
   };
 
-  const validRowCount = rows.filter(row => 
-    row.vorname.trim() && row.nachname.trim() && row.errors.length === 0
+  // ─── Import ───────────────────────────────────────────────────────────────────
+
+  const validRowCount = rows.filter(
+    (r) => r.vorname.trim() && r.nachname.trim() && r.errors.length === 0,
   ).length;
 
-  const errorRowCount = rows.filter(row => 
-    (row.vorname.trim() || row.nachname.trim()) && row.errors.length > 0
+  const errorRowCount = rows.filter(
+    (r) => (r.vorname.trim() || r.nachname.trim()) && r.errors.length > 0,
   ).length;
-
-  const hasValidRows = validRowCount > 0;
-
-  const parseGermanDate = (dateStr: string): string | null => {
-    if (!dateStr) return null;
-    const match = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (!match) return null;
-    const [, day, month, year] = match;
-    return `${year}-${month}-${day}`;
-  };
 
   const handleImport = async () => {
-    const validRows = rows.filter(row => 
-      row.vorname.trim() && row.nachname.trim() && row.errors.length === 0
-    );
+    setImportErrors([]);
 
-    if (validRows.length === 0) {
-      toast({ title: 'Keine gültigen Daten', variant: 'destructive' });
+    const filledRows = rows.filter((r) => r.vorname.trim() || r.nachname.trim());
+
+    // Validierungsfehler → Abbruch
+    const errorLines: string[] = [];
+    filledRows.forEach((row, idx) => {
+      if (row.errors.length > 0) {
+        errorLines.push(`Zeile ${idx + 1} (${row.vorname} ${row.nachname}): ${row.errors.join(', ')}`);
+      }
+    });
+
+    if (errorLines.length > 0) {
+      setImportErrors(errorLines);
+      return;
+    }
+
+    const validRows = filledRows.filter((r) => r.errors.length === 0);
+    if (!validRows.length) {
+      toast.error('Keine gültigen Daten vorhanden');
       return;
     }
 
     setIsImporting(true);
 
     try {
-      const customersToInsert = validRows.map(row => ({
-        vorname: row.vorname.trim(),
-        nachname: row.nachname.trim(),
-        telefonnr: row.telefonnr.trim() || null,
-        email: row.email.trim() || null,
-        strasse: row.strasse.trim() || null,
-        plz: row.plz.trim() || null,
-        stadt: row.stadt.trim() || null,
-        stadtteil: row.stadtteil.trim() || null,
-        geburtsdatum: parseGermanDate(row.geburtsdatum),
-        pflegegrad: row.pflegegrad ? parseInt(row.pflegegrad, 10) : null,
-        kategorie: row.kategorie || 'Kunde',
-        pflegekasse: row.pflegekasse.trim() || null,
-        versichertennummer: row.versichertennummer.trim() || null,
-        aktiv: true,
-        eintritt: new Date().toISOString().slice(0, 10),
-      }));
-
-      const { data: insertedData, error } = await supabase
+      // Vorhandene Kunden laden für Duplikat-Check
+      const { data: existingCustomers, error: fetchErr } = await supabase
         .from('kunden')
-        .insert(customersToInsert)
-        .select('id, vorname, nachname');
-      
-      if (error) throw error;
+        .select('vorname, nachname, geburtsdatum');
+      if (fetchErr) throw fetchErr;
 
-      // Map row IDs to inserted customer IDs
-      const customerIdMap = new Map<string, string>();
-      validRows.forEach((row, idx) => {
-        if (insertedData && insertedData[idx]) {
-          customerIdMap.set(row.id, insertedData[idx].id);
+      const existingSet = new Set(
+        (existingCustomers ?? []).map((c) =>
+          `${c.vorname?.toLowerCase()}|${c.nachname?.toLowerCase()}|${c.geburtsdatum ?? ''}`,
+        ),
+      );
+
+      const skipped: string[] = [];
+      const toInsert: Parameters<ReturnType<typeof supabase.from>['insert']>[0][] = [];
+
+      for (const row of validRows) {
+        const geb = parseGermanDate(row.geburtsdatum);
+        const dupKey = `${row.vorname.toLowerCase()}|${row.nachname.toLowerCase()}|${geb ?? ''}`;
+
+        if (existingSet.has(dupKey)) {
+          skipped.push(`${row.vorname} ${row.nachname} (Duplikat übersprungen)`);
+          continue;
         }
-      });
-      setInsertedCustomerIds(customerIdMap);
 
-      // Check if any rows have time window text
-      const rowsWithTimeWindows = validRows.filter(row => row.zeitfenster_text.trim());
-      
-      if (rowsWithTimeWindows.length > 0) {
-        toast({
-          title: 'Kunden importiert',
-          description: `${customersToInsert.length} Kunde(n) importiert. Verarbeite Zeitfenster...`,
+        // Mitarbeiter-ID auflösen: erst manuelle Zuordnung, dann exakter Name-Match
+        const maKey = row.mitarbeiter_name.toLowerCase().trim();
+        const mitarbeiterId = maKey
+          ? (mitarbeiterMappings[maKey] || employeeNameMap.get(maKey) || null)
+          : null;
+
+        // Verhinderungspflege mappen
+        const verhNorm = row.verhinderungspflege.toLowerCase().trim();
+        const verhAktiv = verhNorm === 'ja';
+        const verhBeantragt = verhNorm === 'beantragt';
+
+        // Stunden parsen
+        const stundenRaw = row.stunden.replace(',', '.');
+        const stunden = stundenRaw ? parseFloat(stundenRaw) : null;
+
+        toInsert.push({
+          vorname: row.vorname.trim(),
+          nachname: row.nachname.trim(),
+          mitarbeiter: mitarbeiterId,
+          pflegegrad: row.pflegegrad ? parseInt(row.pflegegrad, 10) : null,
+          strasse: row.strasse.trim() || null,
+          plz: row.plz.trim() || null,
+          stadt: row.stadt.trim() || null,
+          stadtteil: row.stadtteil.trim() || null,
+          geburtsdatum: geb,
+          pflegekasse: row.pflegekasse.trim() || null,
+          versichertennummer: row.versichertennummer.trim() || null,
+          verhinderungspflege_aktiv: verhAktiv || null,
+          verhinderungspflege_beantragt: verhBeantragt || null,
+          telefonnr: row.telefonnr.trim() || null,
+          kasse_privat: row.kasse_privat.trim() || null,
+          kopie_lw: row.kopie_lw.trim() || null,
+          aktiv: row.status.toLowerCase().trim() !== 'inaktiv',
+          stunden_kontingent_monat: stunden && !isNaN(stunden) ? stunden : null,
+          tage: row.tage.trim() || null,
+          sonstiges: row.sonstiges.trim() || null,
+          angehoerige_ansprechpartner: row.angehoerige.trim() || null,
+          kategorie: 'Kunde',
         });
-        
-        // Start AI time window processing
-        await processTimeWindows(rowsWithTimeWindows, customerIdMap, insertedData || []);
-      } else {
-        toast({
-          title: 'Import erfolgreich',
-          description: `${customersToInsert.length} Kunde(n) importiert.`,
-        });
-        queryClient.invalidateQueries({ queryKey: ['customers'] });
-        setShowImportDialog(false);
-        setRows(createInitialRows(20));
       }
-    } catch (error: any) {
-      toast({
-        title: 'Import fehlgeschlagen',
-        description: error.message,
-        variant: 'destructive',
-      });
+
+      if (!toInsert.length && skipped.length > 0) {
+        toast.warning(`Alle ${skipped.length} Kunden bereits vorhanden — Import übersprungen`);
+        return;
+      }
+
+      const { error: insertErr } = await supabase.from('kunden').insert(toInsert);
+      if (insertErr) throw insertErr;
+
+      const msgs: string[] = [`${toInsert.length} Kunde(n) importiert`];
+      if (skipped.length) msgs.push(`${skipped.length} Duplikat(e) übersprungen`);
+
+      // Mitarbeiter-Warnungen: Namen die weder per Map noch per manueller Zuordnung aufgelöst wurden
+      const maWarnings = validRows
+        .filter((r) => {
+          const k = r.mitarbeiter_name.toLowerCase().trim();
+          return k && !employeeNameMap.has(k) && !mitarbeiterMappings[k];
+        })
+        .map((r) => `Mitarbeiter "${r.mitarbeiter_name}" nicht zugeordnet — Feld bleibt leer`);
+
+      if (maWarnings.length) {
+        setImportErrors(maWarnings);
+        toast.warning(msgs.join(' · ') + ` — ${maWarnings.length} Mitarbeiter-Warnung(en)`);
+      } else {
+        toast.success(msgs.join(' · '));
+        setShowImportDialog(false);
+        clearAll();
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    } catch (err: unknown) {
+      toast.error(`Import fehlgeschlagen: ${(err as Error).message}`);
     } finally {
       setIsImporting(false);
     }
   };
 
-  const processTimeWindows = async (
-    rowsWithTimeWindows: CustomerRow[], 
-    customerIdMap: Map<string, string>,
-    insertedData: { id: string; vorname: string; nachname: string }[]
-  ) => {
-    setProcessingTimeWindows(true);
-    setShowTimeWindowDialog(true);
-    
-    // Initialize suggestions with loading state
-    const initialSuggestions: CustomerTimeWindows[] = rowsWithTimeWindows.map(row => {
-      const customerId = customerIdMap.get(row.id) || '';
-      return {
-        customerId,
-        customerName: `${row.vorname} ${row.nachname}`,
-        originalText: row.zeitfenster_text,
-        windows: [],
-        loading: true,
-      };
-    });
-    setTimeWindowSuggestions(initialSuggestions);
+  // ─── Export (CSV + XLSX) ──────────────────────────────────────────────────────
 
-    // Process each row sequentially to avoid overwhelming the API
-    for (let i = 0; i < rowsWithTimeWindows.length; i++) {
-      const row = rowsWithTimeWindows[i];
-      try {
-        const { data, error } = await supabase.functions.invoke('parse-time-windows', {
-          body: { text: row.zeitfenster_text }
-        });
-
-        if (error) throw error;
-
-        setTimeWindowSuggestions(prev => prev.map((s, idx) => {
-          if (idx === i) {
-            return {
-              ...s,
-              windows: data?.windows || [],
-              loading: false,
-              error: (!data?.windows || data.windows.length === 0) ? 'Keine Zeitfenster erkannt' : undefined,
-            };
-          }
-          return s;
-        }));
-      } catch (error: any) {
-        console.error('Error parsing time windows:', error);
-        setTimeWindowSuggestions(prev => prev.map((s, idx) => {
-          if (idx === i) {
-            return {
-              ...s,
-              loading: false,
-              error: error.message?.includes('Rate limit') 
-                ? 'Rate Limit erreicht' 
-                : error.message?.includes('credits')
-                ? 'Keine Credits'
-                : 'Fehler bei KI-Verarbeitung',
-            };
-          }
-          return s;
-        }));
-      }
-      
-      // Small delay between requests
-      if (i < rowsWithTimeWindows.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-    }
-    
-    setProcessingTimeWindows(false);
-  };
-
-  const startEditTimeWindow = (customerIndex: number, windowIndex: number) => {
-    setEditingTimeWindow({ customerIndex, windowIndex });
-    setEditTimeWindowForm({ ...timeWindowSuggestions[customerIndex].windows[windowIndex] });
-  };
-
-  const cancelEditTimeWindow = () => {
-    setEditingTimeWindow(null);
-    setEditTimeWindowForm(null);
-  };
-
-  const saveEditTimeWindow = () => {
-    if (editingTimeWindow && editTimeWindowForm) {
-      setTimeWindowSuggestions(prev => prev.map((s, cIdx) => {
-        if (cIdx === editingTimeWindow.customerIndex) {
-          const updatedWindows = [...s.windows];
-          updatedWindows[editingTimeWindow.windowIndex] = editTimeWindowForm;
-          return { ...s, windows: updatedWindows };
-        }
-        return s;
-      }));
-      setEditingTimeWindow(null);
-      setEditTimeWindowForm(null);
-    }
-  };
-
-  const removeTimeWindow = (customerIndex: number, windowIndex: number) => {
-    setTimeWindowSuggestions(prev => prev.map((s, cIdx) => {
-      if (cIdx === customerIndex) {
-        return { ...s, windows: s.windows.filter((_, wIdx) => wIdx !== windowIndex) };
-      }
-      return s;
-    }));
-  };
-
-  const confirmAllTimeWindows = async () => {
-    setProcessingTimeWindows(true);
-    
-    try {
-      // Insert all time windows for all customers
-      for (const suggestion of timeWindowSuggestions) {
-        if (suggestion.windows.length > 0 && suggestion.customerId) {
-          const timeWindowsToInsert = suggestion.windows.map(w => ({
-            kunden_id: suggestion.customerId,
-            wochentag: w.wochentag,
-            von: w.von,
-            bis: w.bis,
-          }));
-          
-          const { error } = await supabase.from('kunden_zeitfenster').insert(timeWindowsToInsert);
-          if (error) {
-            console.error('Error inserting time windows:', error);
-          }
-        }
-      }
-      
-      toast({
-        title: 'Zeitfenster gespeichert',
-        description: `Zeitfenster für ${timeWindowSuggestions.filter(s => s.windows.length > 0).length} Kunde(n) gespeichert.`,
-      });
-      
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      setShowTimeWindowDialog(false);
-      setShowImportDialog(false);
-      setRows(createInitialRows(20));
-      setTimeWindowSuggestions([]);
-    } catch (error: any) {
-      toast({
-        title: 'Fehler beim Speichern',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setProcessingTimeWindows(false);
-    }
-  };
-
-  const skipTimeWindows = () => {
-    queryClient.invalidateQueries({ queryKey: ['customers'] });
-    setShowTimeWindowDialog(false);
-    setShowImportDialog(false);
-    setRows(createInitialRows(20));
-    setTimeWindowSuggestions([]);
-    toast({
-      title: 'Import abgeschlossen',
-      description: 'Kunden importiert ohne Zeitfenster.',
-    });
-  };
-
-  const escapeCSVField = (value: string | number | null | undefined): string => {
-    if (value === null || value === undefined) return '';
-    const str = String(value);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
-  const handleExport = () => {
-    if (!customers || customers.length === 0) {
-      toast({ title: 'Keine Daten', variant: 'destructive' });
+  const handleExport = (format: 'csv' | 'xlsx') => {
+    if (!customers?.length) {
+      toast.error('Keine Daten zum Exportieren');
       return;
     }
 
-    const headers = COLUMNS.map(col => escapeCSVField(col.label)).join(',');
-    const dataRows = customers.map((customer: any) => {
-      return COLUMNS.map(col => {
-        const value = customer[col.key];
-        if (col.key === 'geburtsdatum' && value) {
-          const date = new Date(value);
-          return escapeCSVField(`${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`);
-        }
-        return escapeCSVField(value);
-      }).join(',');
-    }).join('\n');
+    // Mitarbeiter-ID → Name Map für Export
+    const idToName = new Map<string, string>(
+      employees.map((e) => [e.id, `${e.vorname} ${e.nachname}`]),
+    );
 
-    const csvContent = `${headers}\n${dataRows}`;
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `kunden_export_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    const headers = ['Kundennr', ...COLUMNS.map((c) => c.label)];
 
-    toast({ title: 'Export erfolgreich', description: `${customers.length} Kunde(n) exportiert.` });
+    const dataRows = customers.map((c) => [
+      c.kunden_nummer ?? '',
+      c.vorname ?? '',
+      c.nachname ?? '',
+      c.mitarbeiter ? (idToName.get(c.mitarbeiter) ?? '') : '',
+      c.pflegegrad ?? '',
+      c.strasse ?? '',
+      c.plz ?? '',
+      c.stadt ?? '',
+      c.stadtteil ?? '',
+      formatDateToGerman(c.geburtsdatum),
+      c.pflegekasse ?? '',
+      c.versichertennummer ?? '',
+      c.verhinderungspflege_aktiv === true
+        ? 'Ja'
+        : c.verhinderungspflege_beantragt === true
+          ? 'Beantragt'
+          : c.verhinderungspflege_aktiv === false
+            ? 'Nein'
+            : '',
+      c.telefonnr ?? '',
+      c.kasse_privat ?? '',
+      c.kopie_lw ?? '',
+      c.aktiv === false ? 'Inaktiv' : 'Aktiv',
+      c.stunden_kontingent_monat != null
+        ? String(c.stunden_kontingent_monat).replace('.', ',')
+        : '',
+      c.tage ?? '',
+      c.sonstiges ?? '',
+      c.angehoerige_ansprechpartner ?? '',
+    ]);
+
+    if (format === 'csv') {
+      const csv = [headers, ...dataRows].map((row) => row.map(escapeCSV).join(',')).join('\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `kunden_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+      ws['!cols'] = headers.map((_, i) =>
+        i === 0 ? { wch: 10 } : { wch: Math.round(COLUMNS[i - 1].width / 7) },
+      );
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Kunden');
+      XLSX.writeFile(wb, `kunden_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    }
+
+    toast.success(`${customers.length} Kunde(n) exportiert`);
   };
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <>
-      <div className="flex gap-2">
+      {/* Buttons in der Toolbar */}
+      <div className="flex gap-2 flex-wrap">
         <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)}>
           <Upload className="h-4 w-4 mr-2" />
           Import
         </Button>
-        <Button variant="outline" size="sm" onClick={handleExport}>
+        <Button variant="outline" size="sm" onClick={() => handleExport('xlsx')}>
           <Download className="h-4 w-4 mr-2" />
-          Export
+          Export Excel
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
         </Button>
       </div>
 
+      {/* Import-Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="max-w-[95vw] w-full max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle>Kunden importieren</DialogTitle>
             <DialogDescription>
-              Klicken Sie in eine Zelle und tippen Sie oder fügen Sie Daten aus Excel ein (Strg+V). 
-              Navigation: Pfeiltasten, Tab, Enter. Shift+Klick für Mehrfachauswahl.
+              Datei hochladen (CSV / XLSX) oder Daten direkt einfügen (Strg+V aus Excel).
+              Navigation: Pfeiltasten, Tab, Enter. Doppelklick zum Bearbeiten.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center gap-4 flex-wrap text-sm px-6 py-2 border-b bg-muted/30">
-            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 flex-wrap text-sm px-6 py-2 border-b bg-muted/30">
+            {/* Datei-Upload */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-3 w-3 mr-1" />
+              Datei laden
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleTemplateDownload}>
+              <FileDown className="h-3 w-3 mr-1" />
+              Vorlage
+            </Button>
+
+            <div className="h-4 border-l" />
+
+            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
               * Pflichtfeld
             </Badge>
             {validRowCount > 0 && (
-              <div className="flex items-center gap-1 text-green-600">
-                <Check className="h-4 w-4" />
+              <span className="flex items-center gap-1 text-green-600 text-xs">
+                <Check className="h-3 w-3" />
                 {validRowCount} gültig
-              </div>
+              </span>
             )}
             {errorRowCount > 0 && (
-              <div className="flex items-center gap-1 text-red-600">
-                <AlertCircle className="h-4 w-4" />
+              <span className="flex items-center gap-1 text-red-600 text-xs">
+                <AlertCircle className="h-3 w-3" />
                 {errorRowCount} fehlerhaft
-              </div>
+              </span>
             )}
+
             <div className="flex-1" />
             <Button variant="ghost" size="sm" onClick={() => addRows(10)}>
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="h-3 w-3 mr-1" />
               10 Zeilen
             </Button>
             <Button variant="ghost" size="sm" onClick={clearAll}>
-              <X className="h-4 w-4 mr-1" />
+              <X className="h-3 w-3 mr-1" />
               Leeren
             </Button>
           </div>
 
-          <div 
+          {/* Fehler-Bereich */}
+          {importErrors.length > 0 && (
+            <div className="mx-6 my-2 p-3 rounded-md bg-red-50 border border-red-200">
+              <p className="text-xs font-medium text-red-700 mb-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {importErrors.some((e) => e.includes('nicht zugeordnet'))
+                  ? 'Warnungen (Import trotzdem möglich):'
+                  : 'Import abgebrochen — bitte Fehler beheben:'}
+              </p>
+              <ul className="text-xs text-red-600 space-y-0.5 max-h-24 overflow-y-auto">
+                {importErrors.map((e, i) => (
+                  <li key={i}>• {e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Mitarbeiter-Zuordnung */}
+          {unmatchedMitarbeiterNames.length > 0 && (
+            <div className="mx-6 my-2 p-3 rounded-md bg-blue-50 border border-blue-200">
+              <p className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
+                <Users className="h-3 w-3" />
+                Mitarbeiter zuordnen ({unmatchedMitarbeiterNames.length} nicht erkannt)
+              </p>
+              <div className="space-y-2">
+                {unmatchedMitarbeiterNames.map((name) => (
+                  <div key={name} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-40 truncate shrink-0" title={name}>
+                      {name}
+                    </span>
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Select
+                      value={mitarbeiterMappings[name.toLowerCase()] ?? ''}
+                      onValueChange={(val) =>
+                        setMitarbeiterMappings((prev) => ({
+                          ...prev,
+                          [name.toLowerCase()]: val === '__none__' ? '' : val,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs flex-1">
+                        <SelectValue placeholder="Mitarbeiter auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">
+                          <span className="text-muted-foreground">— Nicht zuordnen</span>
+                        </SelectItem>
+                        {employees.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.vorname} {e.nachname}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tabelle */}
+          <div
             ref={tableRef}
             className="flex-1 overflow-auto select-none"
             tabIndex={0}
@@ -722,29 +967,32 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
             <table className="w-full text-sm border-collapse" style={{ minWidth: 'max-content' }}>
               <thead className="sticky top-0 z-20 bg-muted">
                 <tr>
-                  <th className="p-0 w-10 border-r border-b bg-muted text-center text-xs text-muted-foreground">#</th>
-                  {COLUMNS.map((col, colIndex) => (
-                    <th 
-                      key={col.key} 
-                      className={`p-2 text-left font-medium text-xs border-r border-b whitespace-nowrap ${(col as any).isAI ? 'bg-purple-100' : 'bg-muted'}`}
+                  <th className="p-0 w-8 border-r border-b bg-muted text-center text-xs text-muted-foreground">#</th>
+                  {COLUMNS.map((col) => (
+                    <th
+                      key={col.key}
+                      className="p-2 text-left font-medium text-xs border-r border-b whitespace-nowrap bg-muted"
                       style={{ minWidth: col.width }}
                     >
-                      <div className="flex items-center gap-1">
-                        {(col as any).isAI && <Sparkles className="h-3 w-3 text-purple-500" />}
-                        {col.label}
-                        {col.required && <span className="text-red-500">*</span>}
-                      </div>
+                      {col.label}
+                      {col.required && <span className="text-red-500 ml-0.5">*</span>}
+                      {col.hint && (
+                        <span className="block text-[10px] font-normal text-muted-foreground">
+                          {col.hint}
+                        </span>
+                      )}
                     </th>
                   ))}
-                  <th className="p-2 w-16 border-b bg-muted text-xs">Status</th>
+                  <th className="p-2 w-14 border-b bg-muted text-xs text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, rowIndex) => {
                   const hasContent = row.vorname.trim() || row.nachname.trim();
                   const hasErrors = row.errors.length > 0;
+                  const hasWarnings = row.warnings.length > 0;
                   const isValid = hasContent && !hasErrors;
-                  
+
                   return (
                     <tr key={row.id} className="group">
                       <td className="p-0 text-center text-xs text-muted-foreground border-r border-b bg-muted/50 relative">
@@ -752,28 +1000,29 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 hidden group-hover:flex absolute inset-0 m-auto text-muted-foreground hover:text-destructive"
+                          className="h-6 w-6 hidden group-hover:flex absolute inset-0 m-auto hover:text-destructive"
                           onClick={() => removeRow(rowIndex)}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </td>
                       {COLUMNS.map((col, colIndex) => {
-                        const isActive = isCellActive(rowIndex, colIndex);
+                        const isActive =
+                          activeCell?.row === rowIndex && activeCell?.col === colIndex;
                         const isSelected = isCellSelected(rowIndex, colIndex);
-                        const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
-                        const cellValue = (row as any)[col.key] || '';
-                        const isAICol = (col as any).isAI;
-                        
+                        const isEditing =
+                          editingCell?.row === rowIndex && editingCell?.col === colIndex;
+                        const cellValue =
+                          (row as Record<string, string>)[col.key as string] || '';
+
                         return (
                           <td
                             key={col.key}
-                            className={`p-0 border-r border-b relative cursor-cell
-                              ${isSelected && !isActive ? 'bg-primary/10' : ''}
-                              ${isActive ? 'ring-2 ring-primary ring-inset z-10' : ''}
-                              ${isAICol ? 'bg-purple-50/50' : ''}
-                              ${hasErrors && hasContent && col.required && !cellValue ? 'bg-red-50' : ''}
-                            `}
+                            className={[
+                              'p-0 border-r border-b relative cursor-cell',
+                              isSelected && !isActive ? 'bg-primary/10' : '',
+                              isActive ? 'ring-2 ring-primary ring-inset z-10' : '',
+                            ].join(' ')}
                             style={{ minWidth: col.width }}
                             onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
                             onDoubleClick={() => handleCellDoubleClick(rowIndex, colIndex)}
@@ -791,22 +1040,33 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
                             ) : (
                               <div className="px-2 py-1 text-sm truncate min-h-[28px] flex items-center">
                                 {cellValue}
-                                {isAICol && cellValue && (
-                                  <Sparkles className="h-3 w-3 text-purple-400 ml-1 flex-shrink-0" />
-                                )}
                               </div>
                             )}
                           </td>
                         );
                       })}
+                      {/* Status-Spalte */}
                       <td className="p-1 border-b text-center">
                         {hasContent && (
                           isValid ? (
-                            <Check className="h-4 w-4 text-green-600 mx-auto" />
+                            hasWarnings ? (
+                              <div className="group/warn relative inline-flex">
+                                <AlertCircle className="h-4 w-4 text-amber-500 cursor-help" />
+                                <div className="absolute right-0 top-6 z-30 hidden group-hover/warn:block bg-popover border rounded-md p-2 shadow-lg min-w-[180px] text-left">
+                                  <ul className="text-xs text-amber-600 space-y-0.5">
+                                    {row.warnings.map((w, i) => (
+                                      <li key={i}>⚠ {w}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            ) : (
+                              <Check className="h-4 w-4 text-green-600 mx-auto" />
+                            )
                           ) : (
                             <div className="group/err relative inline-flex">
                               <AlertCircle className="h-4 w-4 text-red-500 cursor-help" />
-                              <div className="absolute right-0 top-6 z-30 hidden group-hover/err:block bg-popover border rounded-md p-2 shadow-lg min-w-[150px] text-left">
+                              <div className="absolute right-0 top-6 z-30 hidden group-hover/err:block bg-popover border rounded-md p-2 shadow-lg min-w-[180px] text-left">
                                 <ul className="text-xs text-red-600 space-y-0.5">
                                   {row.errors.map((err, i) => (
                                     <li key={i}>• {err}</li>
@@ -826,161 +1086,22 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
 
           <DialogFooter className="px-6 py-4 border-t bg-muted/30">
             <div className="flex-1 text-xs text-muted-foreground">
-              Pfeiltasten: Navigation • Enter/F2: Bearbeiten • Tab: Nächste Zelle • Del: Löschen • Shift+Klick: Auswahl
+              Pfeiltasten: Navigation · Enter/F2: Bearbeiten · Tab: Nächste Zelle · Del: Löschen · Shift+Klick: Auswahl
             </div>
             <Button variant="outline" onClick={() => setShowImportDialog(false)}>
               Abbrechen
             </Button>
-            <Button onClick={handleImport} disabled={!hasValidRows || isImporting}>
-              {isImporting ? 'Importiere...' : `${validRowCount} Kunde(n) importieren`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Time Window Suggestions Dialog */}
-      <Dialog open={showTimeWindowDialog} onOpenChange={setShowTimeWindowDialog}>
-        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-500" />
-              KI-Zeitfenster Vorschläge
-            </DialogTitle>
-            <DialogDescription>
-              Überprüfen und bestätigen Sie die erkannten Zeitfenster für jeden Kunden
-            </DialogDescription>
-          </DialogHeader>
-
-          <ScrollArea className="flex-1 pr-4">
-            <div className="space-y-4">
-              {timeWindowSuggestions.map((suggestion, customerIndex) => (
-                <div 
-                  key={suggestion.customerId || customerIndex} 
-                  className="border rounded-lg p-4 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">{suggestion.customerName}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Eingabe: "{suggestion.originalText}"
-                      </p>
-                    </div>
-                    {suggestion.loading && (
-                      <div className="flex items-center gap-2 text-purple-600">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Verarbeite...</span>
-                      </div>
-                    )}
-                    {suggestion.error && (
-                      <Badge variant="destructive">{suggestion.error}</Badge>
-                    )}
-                  </div>
-
-                  {suggestion.windows.length > 0 && (
-                    <div className="space-y-2">
-                      {suggestion.windows.map((window, windowIndex) => {
-                        const isEditingThis = editingTimeWindow?.customerIndex === customerIndex && editingTimeWindow?.windowIndex === windowIndex;
-                        
-                        return (
-                          <div key={windowIndex} className="border rounded-md p-3 bg-muted/30">
-                            {isEditingThis && editTimeWindowForm ? (
-                              <div className="space-y-3">
-                                <div>
-                                  <Label className="text-xs">Wochentag</Label>
-                                  <select
-                                    className="w-full h-9 rounded-md border bg-background px-3 text-sm"
-                                    value={editTimeWindowForm.wochentag}
-                                    onChange={(e) => setEditTimeWindowForm(prev => prev ? { ...prev, wochentag: parseInt(e.target.value) } : null)}
-                                  >
-                                    {WEEKDAY_NAMES.map((name, idx) => (
-                                      <option key={idx} value={idx}>{name}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <Label className="text-xs">Von</Label>
-                                    <Input
-                                      type="time"
-                                      value={editTimeWindowForm.von}
-                                      onChange={(e) => setEditTimeWindowForm(prev => prev ? { ...prev, von: e.target.value } : null)}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">Bis</Label>
-                                    <Input
-                                      type="time"
-                                      value={editTimeWindowForm.bis}
-                                      onChange={(e) => setEditTimeWindowForm(prev => prev ? { ...prev, bis: e.target.value } : null)}
-                                    />
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button size="sm" onClick={saveEditTimeWindow}>
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Speichern
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={cancelEditTimeWindow}>
-                                    <X className="h-4 w-4 mr-1" />
-                                    Abbrechen
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    {WEEKDAY_NAMES[window.wochentag]}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {window.von} - {window.bis} Uhr
-                                  </p>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEditTimeWindow(customerIndex, windowIndex)}>
-                                    <Edit2 className="h-4 w-4" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-destructive" onClick={() => removeTimeWindow(customerIndex, windowIndex)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {!suggestion.loading && suggestion.windows.length === 0 && !suggestion.error && (
-                    <p className="text-sm text-muted-foreground italic">Keine Zeitfenster erkannt</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-
-          <DialogFooter className="pt-4 border-t">
-            <div className="flex-1 text-xs text-muted-foreground">
-              {processingTimeWindows 
-                ? 'Zeitfenster werden verarbeitet...' 
-                : `${timeWindowSuggestions.filter(s => s.windows.length > 0).length} Kunde(n) mit Zeitfenstern`
-              }
-            </div>
-            <Button variant="outline" onClick={skipTimeWindows} disabled={processingTimeWindows}>
-              Überspringen
-            </Button>
-            <Button 
-              onClick={confirmAllTimeWindows} 
-              disabled={processingTimeWindows || timeWindowSuggestions.every(s => s.windows.length === 0)}
+            <Button
+              onClick={handleImport}
+              disabled={validRowCount === 0 || isImporting}
             >
-              {processingTimeWindows ? (
+              {isImporting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Verarbeite...
+                  Importiere...
                 </>
               ) : (
-                'Zeitfenster speichern'
+                `${validRowCount} Kunde(n) importieren`
               )}
             </Button>
           </DialogFooter>
