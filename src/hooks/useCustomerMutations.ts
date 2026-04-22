@@ -105,17 +105,25 @@ export function useCustomerMutations() {
 
   const bulkDeleteCustomersMutation = useMutation({
     mutationFn: async (kundenIds: string[]) => {
-      // rechnungspositionen zuerst – hat RESTRICT auf kunden_id UND termin_id
-      const { error: rPosError } = await supabase.from('rechnungspositionen').delete().in('kunden_id', kundenIds);
-      if (rPosError) throw rPosError;
-      const { error: dokumenteError } = await supabase.from('dokumente').delete().in('kunden_id', kundenIds);
-      if (dokumenteError) throw dokumenteError;
-      const { error: termineError } = await supabase.from('termine').delete().in('kunden_id', kundenIds);
-      if (termineError) throw termineError;
-      const { error: zeitfensterError } = await supabase.from('kunden_zeitfenster').delete().in('kunden_id', kundenIds);
-      if (zeitfensterError) throw zeitfensterError;
-      const { error } = await supabase.from('kunden').delete().in('id', kundenIds);
-      if (error) throw error;
+      const BATCH = 50;
+      const chunks: string[][] = [];
+      for (let i = 0; i < kundenIds.length; i += BATCH) {
+        chunks.push(kundenIds.slice(i, i + BATCH));
+      }
+
+      for (const chunk of chunks) {
+        // rechnungspositionen zuerst – hat RESTRICT auf kunden_id UND termin_id
+        const { error: rPosError } = await supabase.from('rechnungspositionen').delete().in('kunden_id', chunk);
+        if (rPosError) throw rPosError;
+        const { error: dokumenteError } = await supabase.from('dokumente').delete().in('kunden_id', chunk);
+        if (dokumenteError) throw dokumenteError;
+        const { error: termineError } = await supabase.from('termine').delete().in('kunden_id', chunk);
+        if (termineError) throw termineError;
+        const { error: zeitfensterError } = await supabase.from('kunden_zeitfenster').delete().in('kunden_id', chunk);
+        if (zeitfensterError) throw zeitfensterError;
+        const { error } = await supabase.from('kunden').delete().in('id', chunk);
+        if (error) throw error;
+      }
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -123,9 +131,7 @@ export function useCustomerMutations() {
     },
     onError: (error: Error) => {
       console.error('[bulkDeleteCustomers]', error);
-      toast.error('Kunden konnten nicht gelöscht werden', {
-        description: error.message,
-      });
+      toast.error('Kunden konnten nicht gelöscht werden', { description: error.message });
     },
   });
 
