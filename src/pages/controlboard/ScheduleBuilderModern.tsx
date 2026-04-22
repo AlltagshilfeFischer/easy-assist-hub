@@ -470,45 +470,53 @@ const ScheduleBuilderModern = () => {
     return { overlaps, pauseViolations };
   };
 
+  // Wenn ein Termin in die Vergangenheit verschoben wird und ein MA zugewiesen ist → completed
+  const resolveStatus = (endAt: Date, employeeId: string | null): 'completed' | 'scheduled' | 'unassigned' => {
+    if (!employeeId) return 'unassigned';
+    return endAt < new Date() ? 'completed' : 'scheduled';
+  };
+
   const assignAppointment = async (appointmentId: string, employeeId: string, targetDate?: Date, makeException: boolean = false) => {
     try {
       const appointment = appointments.find(app => app.id === appointmentId);
       if (!appointment) return;
 
-      let updateData: any = { 
-        mitarbeiter_id: employeeId, 
-        status: 'scheduled' 
+      // Mark as exception if requested (for recurring appointments)
+      const originalStart = new Date(appointment.start_at);
+      let newEnd = new Date(appointment.end_at);
+      let newStart = originalStart;
+
+      if (targetDate) {
+        const durationMs = newEnd.getTime() - originalStart.getTime();
+        newStart = new Date(targetDate);
+        newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), originalStart.getSeconds(), originalStart.getMilliseconds());
+        newEnd = new Date(newStart.getTime() + durationMs);
+      }
+
+      const computedStatus = resolveStatus(newEnd, employeeId);
+
+      let updateData: any = {
+        mitarbeiter_id: employeeId,
+        status: computedStatus,
       };
 
-      // Mark as exception if requested (for recurring appointments)
       if (makeException) {
         updateData.ist_ausnahme = true;
         updateData.ausnahme_grund = 'Verschoben per Drag & Drop';
       }
 
-      // If target date is provided, adjust start_at and end_at to the new date while keeping the time
       if (targetDate) {
-        const originalStart = new Date(appointment.start_at);
-        const durationMs = new Date(appointment.end_at).getTime() - originalStart.getTime();
-        
-        // Create new dates with target date but original times
-        const newStart = new Date(targetDate);
-        newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), originalStart.getSeconds(), originalStart.getMilliseconds());
-        
-        const newEnd = new Date(newStart.getTime() + durationMs);
-        
         updateData.start_at = newStart.toISOString();
         updateData.end_at = newEnd.toISOString();
-        
-        // Update local state immediately
+
         setAppointments(prev => prev.map(app =>
-          app.id === appointmentId 
-            ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString() } 
+          app.id === appointmentId
+            ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: computedStatus }
             : app
         ));
       } else {
         setAppointments(prev => prev.map(app =>
-          app.id === appointmentId ? { ...app, mitarbeiter_id: employeeId } : app
+          app.id === appointmentId ? { ...app, mitarbeiter_id: employeeId, status: computedStatus } : app
         ));
       }
 
@@ -1073,6 +1081,7 @@ const ScheduleBuilderModern = () => {
 
       if (copyMode) {
         // COPY: Insert new appointment (Einzeltermin, no vorlage_id)
+        const copyStatus = resolveStatus(newEnd, employeeId ?? null);
         const { data: newAppointment, error } = await supabase
           .from('termine')
           .insert({
@@ -1081,7 +1090,7 @@ const ScheduleBuilderModern = () => {
             mitarbeiter_id: employeeId,
             start_at: newStart.toISOString(),
             end_at: newEnd.toISOString(),
-            status: employeeId ? 'scheduled' : 'unassigned',
+            status: copyStatus,
             vorlage_id: null,
             ist_ausnahme: false,
             notizen: cutAppointment.notizen ?? null,
@@ -1111,13 +1120,14 @@ const ScheduleBuilderModern = () => {
         // Keep clipboard for multiple pastes in copy mode
       } else {
         // CUT: Move existing appointment
+        const cutStatus = resolveStatus(newEnd, employeeId ?? null);
         const { error } = await supabase
           .from('termine')
           .update({
             mitarbeiter_id: employeeId,
             start_at: newStart.toISOString(),
             end_at: newEnd.toISOString(),
-            status: employeeId ? 'scheduled' : 'unassigned'
+            status: cutStatus,
           })
           .eq('id', cutAppointment.id);
 
@@ -1132,7 +1142,7 @@ const ScheduleBuilderModern = () => {
 
         setAppointments(prev => prev.map(app =>
           app.id === cutAppointment.id
-            ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: employeeId ? 'scheduled' as const : 'unassigned' as const }
+            ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: cutStatus }
             : app
         ));
         setCutAppointment(null);
