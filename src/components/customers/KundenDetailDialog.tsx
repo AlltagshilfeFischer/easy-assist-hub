@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { MapPin, Phone, Mail, User, Shield, Clock, AlertTriangle, Heart, CreditCard, FileText, Users } from 'lucide-react';
+import { EntityDokumente } from '@/components/dokumente/entity-dokumente';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NotfallKontakt {
@@ -373,6 +374,16 @@ export function KundenDetailDialog({ isOpen, onClose, kundenId }: KundenDetailDi
                 </AccordionContent>
               </AccordionItem>
             )}
+
+            {/* Dokumente */}
+            <AccordionItem value="dokumente">
+              <AccordionTrigger className="text-sm font-semibold">
+                <span className="flex items-center gap-2"><FileText className="h-4 w-4" /> Dokumente</span>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2">
+                <EntityDokumente kategorie="kunde" entityId={kunde.id} />
+              </AccordionContent>
+            </AccordionItem>
           </Accordion>
         ) : (
           <div className="py-8 text-center text-muted-foreground">Kunde nicht gefunden</div>

@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, FileText, Briefcase, AlertTriangle } from 'lucide-react';
+import { Loader2, User, FileText, Briefcase, AlertTriangle, FolderOpen } from 'lucide-react';
+import { EntityDokumente } from '@/components/dokumente/entity-dokumente';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
@@ -175,7 +176,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
 
         <form onSubmit={form.handleSubmit(handleSave)}>
           <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="personal" className="gap-1.5">
                 <User className="h-3.5 w-3.5" />
                 Persönliche Daten
@@ -187,6 +188,10 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
               <TabsTrigger value="side" className="gap-1.5">
                 <Briefcase className="h-3.5 w-3.5" />
                 Nebenbeschäftigung
+              </TabsTrigger>
+              <TabsTrigger value="dokumente" className="gap-1.5">
+                <FolderOpen className="h-3.5 w-3.5" />
+                Dokumente
               </TabsTrigger>
             </TabsList>
 
@@ -213,6 +218,10 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
 
             <TabsContent value="side" className="mt-4">
               <SideEmploymentTab form={form} mitarbeiterId={mitarbeiter.id} />
+            </TabsContent>
+
+            <TabsContent value="dokumente" className="mt-4">
+              <EntityDokumente kategorie="mitarbeiter" entityId={mitarbeiter.id} />
             </TabsContent>
           </Tabs>
 
