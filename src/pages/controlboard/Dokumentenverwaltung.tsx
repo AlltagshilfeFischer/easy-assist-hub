@@ -366,6 +366,21 @@ export default function Dokumentenverwaltung() {
     setUploadMitarbeiterId('');
   };
 
+  const handleOpenUploadDialog = () => {
+    setUploadKategorie(activeTab);
+    if (activeTab === 'kunde' && selectedEntityId) {
+      setUploadKundenId(selectedEntityId);
+      setUploadMitarbeiterId('');
+    } else if (activeTab === 'mitarbeiter' && selectedEntityId) {
+      setUploadMitarbeiterId(selectedEntityId);
+      setUploadKundenId('');
+    } else {
+      setUploadKundenId('');
+      setUploadMitarbeiterId('');
+    }
+    setUploadDialogOpen(true);
+  };
+
   const handleDownload = async (dokument: Dokument) => {
     try {
       const { data, error } = await supabase.storage
@@ -601,13 +616,11 @@ export default function Dokumentenverwaltung() {
           setUploadDialogOpen(open);
           if (!open) resetUploadForm();
         }}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="sm:size-default gap-2 self-start sm:self-auto">
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Dokumente hochladen</span>
-              <span className="sm:hidden">Hochladen</span>
-            </Button>
-          </DialogTrigger>
+          <Button size="sm" className="sm:size-default gap-2 self-start sm:self-auto" onClick={handleOpenUploadDialog}>
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline">Dokumente hochladen</span>
+            <span className="sm:hidden">Hochladen</span>
+          </Button>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle>Dokumente hochladen</DialogTitle>
