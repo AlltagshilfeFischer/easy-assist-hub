@@ -141,6 +141,10 @@ const COLUMNS: ColumnDef[] = [
   },
 ];
 
+// Spalten die in der Tabelle ausgeblendet werden (seltene Fehler, viel Breite)
+const HIDDEN_IN_REVIEW = new Set<string>(['tage', 'sonstiges', 'angehoerige']);
+const REVIEW_COLUMNS = COLUMNS.filter((c) => !HIDDEN_IN_REVIEW.has(c.key as string));
+
 // Map from template header labels → column keys (für CSV/XLSX-Import)
 const HEADER_MAP: Record<string, keyof CustomerRow> = {
   'Vorname': 'vorname',
@@ -378,12 +382,12 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
 
   const handleCellDoubleClick = (row: number, col: number) => {
     setEditingCell({ row, col });
-    setEditValue((rows[row] as Record<string, string>)[COLUMNS[col].key as string] || '');
+    setEditValue((rows[row] as Record<string, string>)[REVIEW_COLUMNS[col].key as string] || '');
   };
 
   const commitEdit = () => {
     if (editingCell) {
-      updateCell(editingCell.row, COLUMNS[editingCell.col].key, editValue);
+      updateCell(editingCell.row, REVIEW_COLUMNS[editingCell.col].key, editValue);
       setEditingCell(null);
     }
   };
@@ -408,7 +412,7 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
           e.preventDefault();
           commitEdit();
           const nc = e.shiftKey ? activeCell.col - 1 : activeCell.col + 1;
-          if (nc >= 0 && nc < COLUMNS.length) {
+          if (nc >= 0 && nc < REVIEW_COLUMNS.length) {
             const p = { row: activeCell.row, col: nc };
             setActiveCell(p);
             setSelectionStart(p);
@@ -425,12 +429,12 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
         case 'ArrowUp': e.preventDefault(); nr = Math.max(0, nr - 1); break;
         case 'ArrowDown': e.preventDefault(); nr = Math.min(rows.length - 1, nr + 1); break;
         case 'ArrowLeft': e.preventDefault(); nc = Math.max(0, nc - 1); break;
-        case 'ArrowRight': e.preventDefault(); nc = Math.min(COLUMNS.length - 1, nc + 1); break;
+        case 'ArrowRight': e.preventDefault(); nc = Math.min(REVIEW_COLUMNS.length - 1, nc + 1); break;
         case 'Tab':
           e.preventDefault();
           nc = e.shiftKey ? nc - 1 : nc + 1;
-          if (nc < 0) { nc = COLUMNS.length - 1; nr = Math.max(0, nr - 1); }
-          else if (nc >= COLUMNS.length) { nc = 0; nr = Math.min(rows.length - 1, nr + 1); }
+          if (nc < 0) { nc = REVIEW_COLUMNS.length - 1; nr = Math.max(0, nr - 1); }
+          else if (nc >= REVIEW_COLUMNS.length) { nc = 0; nr = Math.min(rows.length - 1, nr + 1); }
           break;
         case 'Enter':
           e.preventDefault();
@@ -446,7 +450,7 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
                 if (ri < sel.minRow || ri > sel.maxRow) return row;
                 const updated = { ...row };
                 for (let ci = sel.minCol; ci <= sel.maxCol; ci++) {
-                  (updated as Record<string, string>)[COLUMNS[ci].key as string] = '';
+                  (updated as Record<string, string>)[REVIEW_COLUMNS[ci].key as string] = '';
                 }
                 const { errors, warnings } = validateRow(updated);
                 return { ...updated, errors, warnings };
@@ -498,8 +502,8 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
           const ri = startRow + li;
           cells.forEach((val, ci) => {
             const colIdx = startCol + ci;
-            if (colIdx < COLUMNS.length) {
-              (next[ri] as Record<string, string>)[COLUMNS[colIdx].key as string] = val.trim();
+            if (colIdx < REVIEW_COLUMNS.length) {
+              (next[ri] as Record<string, string>)[REVIEW_COLUMNS[colIdx].key as string] = val.trim();
             }
           });
           const { errors, warnings } = validateRow(next[ri]);
@@ -1028,7 +1032,7 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
               <thead className="sticky top-0 z-20 bg-muted">
                 <tr>
                   <th className="p-0 w-8 border-r border-b bg-muted text-center text-xs text-muted-foreground">#</th>
-                  {COLUMNS.map((col) => (
+                  {REVIEW_COLUMNS.map((col) => (
                     <th
                       key={col.key}
                       className="p-2 text-left font-medium text-xs border-r border-b whitespace-nowrap bg-muted"
@@ -1053,6 +1057,9 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
                   const hasWarnings = row.warnings.length > 0;
                   const isValid = hasContent && !hasErrors;
 
+                  // Valide Zeilen aus der Tabelle ausblenden — sie sind im grünen Block
+                  if (isValid) return null;
+
                   return (
                     <tr key={row.id} className="group">
                       <td className="p-0 text-center text-xs text-muted-foreground border-r border-b bg-muted/50 relative">
@@ -1066,7 +1073,7 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </td>
-                      {COLUMNS.map((col, colIndex) => {
+                      {REVIEW_COLUMNS.map((col, colIndex) => {
                         const isActive =
                           activeCell?.row === rowIndex && activeCell?.col === colIndex;
                         const isSelected = isCellSelected(rowIndex, colIndex);
