@@ -31,7 +31,9 @@ import {
   FileDown,
   Loader2,
   Users,
+  ChevronDown,
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -269,6 +271,7 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
   const [editValue, setEditValue] = useState('');
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [showValidRows, setShowValidRows] = useState(false);
   // csvName (lowercase) → employee ID oder '' (= nicht zuordnen)
   const [mitarbeiterMappings, setMitarbeiterMappings] = useState<Record<string, string>>({});
   const tableRef = useRef<HTMLDivElement>(null);
@@ -953,6 +956,63 @@ export function CustomerImportExport({ customers }: CustomerImportExportProps) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Zeilen-Übersicht */}
+          {(errorRowCount > 0 || validRowCount > 0) && (
+            <div className="mx-6 mb-2 space-y-2">
+              {errorRowCount > 0 && (
+                <div className="rounded-md border border-red-200 bg-red-50 overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                    <span className="text-sm font-semibold text-red-700">
+                      {errorRowCount} Zeile{errorRowCount !== 1 ? 'n' : ''} mit Fehlern — bitte korrigieren
+                    </span>
+                  </div>
+                  <div className="border-t border-red-200 divide-y divide-red-100 max-h-40 overflow-y-auto">
+                    {rows
+                      .filter((r) => (r.vorname.trim() || r.nachname.trim()) && r.errors.length > 0)
+                      .map((row) => (
+                        <div key={row.id} className="px-3 py-1.5 flex items-baseline gap-2 text-xs">
+                          <span className="font-medium text-red-700 shrink-0">
+                            {row.vorname} {row.nachname}
+                          </span>
+                          <span className="text-red-500">{row.errors.join(' · ')}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {validRowCount > 0 && (
+                <Collapsible open={showValidRows} onOpenChange={setShowValidRows}>
+                  <CollapsibleTrigger className="w-full text-left">
+                    <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 flex items-center justify-between hover:bg-green-100 transition-colors">
+                      <span className="text-sm font-medium text-green-700 flex items-center gap-2">
+                        <Check className="h-4 w-4" />
+                        {validRowCount} Zeile{validRowCount !== 1 ? 'n' : ''} bereit zum Import
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-green-600 transition-transform ${showValidRows ? 'rotate-180' : ''}`} />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="border border-green-200 border-t-0 rounded-b-md divide-y divide-green-100 max-h-40 overflow-y-auto">
+                      {rows
+                        .filter((r) => (r.vorname.trim() || r.nachname.trim()) && r.errors.length === 0)
+                        .map((row) => (
+                          <div key={row.id} className="px-3 py-1.5 flex items-center gap-2 text-xs text-green-700">
+                            <Check className="h-3 w-3 text-green-500 shrink-0" />
+                            <span>{row.vorname} {row.nachname}</span>
+                            {row.warnings.length > 0 && (
+                              <span className="text-yellow-600 ml-1">({row.warnings.join(', ')})</span>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
             </div>
           )}
 
