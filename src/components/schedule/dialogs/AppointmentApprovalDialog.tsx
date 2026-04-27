@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import { Check, X } from 'lucide-react';
+import { Check, X, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -94,8 +94,8 @@ export function AppointmentApprovalDialog({
       if (error) throw error;
 
       toast({
-        title: 'Erfolg',
-        description: 'Terminänderung wurde genehmigt.',
+        title: 'Bestätigt',
+        description: 'Die Terminverschiebung wurde bestätigt.',
       });
 
       onApprovalAction();
@@ -131,8 +131,8 @@ export function AppointmentApprovalDialog({
       if (error) throw error;
 
       toast({
-        title: 'Erfolg',
-        description: 'Terminänderung wurde abgelehnt.',
+        title: 'Zurückgesetzt',
+        description: 'Termin wurde auf die ursprünglichen Zeiten zurückgesetzt.',
       });
 
       onApprovalAction();
@@ -153,9 +153,9 @@ export function AppointmentApprovalDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Terminänderungen genehmigen</DialogTitle>
+          <DialogTitle>Ausstehende Terminverschiebungen</DialogTitle>
           <DialogDescription id="approval-desc">
-            Prüfen Sie die angefragten Änderungen und genehmigen oder lehnen Sie diese ab.
+            Mitarbeiter haben diese Termine bereits verschoben. Bestätigen Sie die Änderung oder machen Sie sie rückgängig.
           </DialogDescription>
         </DialogHeader>
 
@@ -211,7 +211,7 @@ export function AppointmentApprovalDialog({
                 )}
 
                 {change.status === 'pending' && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button
                       size="sm"
                       variant="default"
@@ -220,7 +220,7 @@ export function AppointmentApprovalDialog({
                       className="flex items-center gap-1"
                     >
                       <Check className="h-4 w-4" />
-                      Genehmigen
+                      Bestätigen
                     </Button>
                     <Button
                       size="sm"
@@ -229,8 +229,8 @@ export function AppointmentApprovalDialog({
                       disabled={loading}
                       className="flex items-center gap-1"
                     >
-                      <X className="h-4 w-4" />
-                      Ablehnen
+                      <RotateCcw className="h-4 w-4" />
+                      Rückgängig machen
                     </Button>
                   </div>
                 )}
@@ -240,22 +240,30 @@ export function AppointmentApprovalDialog({
         </div>
 
         {selectedChange && (
-          <div className="border-t pt-4">
-            <h4 className="font-medium mb-2">Ablehnungsgrund:</h4>
-            <Textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Bitte geben Sie einen Grund für die Ablehnung an..."
-              className="mb-3"
-            />
+          <div className="border-t pt-4 space-y-3">
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Der Termin wird auf die ursprünglichen Zeiten zurückgesetzt und der Mitarbeiter wird informiert.
+            </div>
+            <div>
+              <h4 className="font-medium mb-2 text-sm">Begründung für die Ablehnung:</h4>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Warum wird die Verschiebung rückgängig gemacht?"
+                className="mb-3"
+                rows={3}
+              />
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
                 variant="destructive"
                 onClick={() => handleReject(selectedChange.id)}
                 disabled={loading}
+                className="flex items-center gap-1"
               >
-                Ablehnen bestätigen
+                <RotateCcw className="h-4 w-4" />
+                Termin zurücksetzen
               </Button>
               <Button
                 size="sm"

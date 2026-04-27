@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { MapPin, Phone, Shield, Clock, AlertTriangle, FileEdit, User, Heart } from 'lucide-react';
+import { MapPin, Phone, Shield, Clock, AlertTriangle, MoveRight, User, Heart } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,9 +30,10 @@ interface KundenInfoDialogProps {
   onClose: () => void;
   appointment: Appointment | null;
   onChangeRequest: () => void;
+  isGeschaeftsfuehrer?: boolean;
 }
 
-export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest }: KundenInfoDialogProps) {
+export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest, isGeschaeftsfuehrer = false }: KundenInfoDialogProps) {
   const [notfallkontakte, setNotfallkontakte] = useState<NotfallKontakt[]>([]);
   const [zeitfenster, setZeitfenster] = useState<Zeitfenster[]>([]);
   const [loading, setLoading] = useState(false);
@@ -214,9 +215,12 @@ export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest
         {/* Actions */}
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Schließen</Button>
-          <Button size="sm" onClick={onChangeRequest} className="gap-1.5">
-            <FileEdit className="h-4 w-4" /> Änderungsantrag stellen
-          </Button>
+          {appointment.status !== 'completed' && appointment.status !== 'abgerechnet' && appointment.status !== 'bezahlt' && (
+            <Button size="sm" onClick={onChangeRequest} className="gap-1.5">
+              <MoveRight className="h-4 w-4" />
+              {isGeschaeftsfuehrer ? 'Termin verschieben' : 'Termin verschieben'}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

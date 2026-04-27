@@ -13,7 +13,7 @@ import { AbwesenheitGenehmigung } from '@/components/mitarbeiter/AbwesenheitGene
 import { MeineDokumente } from '@/components/mitarbeiter/MeineDokumente';
 import { Benachrichtigungen } from '@/components/mitarbeiter/Benachrichtigungen';
 import { EmployeeWeekCalendar } from '@/components/schedule/calendar/EmployeeWeekCalendar';
-import { EmployeeChangeRequestDialog } from '@/components/schedule/dialogs/EmployeeChangeRequestDialog';
+import { TerminVerschiebenDialog } from '@/components/mitarbeiter/TerminVerschiebenDialog';
 import { KundenInfoDialog } from '@/components/mitarbeiter/KundenInfoDialog';
 import { TerminKorrekturDialog } from '@/components/mitarbeiter/TerminKorrekturDialog';
 import { getWeekDates, getWeekNumber, formatDE } from '@/utils/date';
@@ -99,6 +99,10 @@ export default function MitarbeiterDashboard() {
   const handleOpenChangeRequest = () => {
     setShowKundenInfoDialog(false);
     setShowChangeRequestDialog(true);
+  };
+
+  const handleTerminVerschoben = () => {
+    loadData();
   };
 
   const handleCorrectAppointment = (appointment: Appointment) => {
@@ -204,6 +208,7 @@ export default function MitarbeiterDashboard() {
         }}
         appointment={selectedAppointment}
         onChangeRequest={handleOpenChangeRequest}
+        isGeschaeftsfuehrer={isGF}
       />
 
       {/* Korrektur-Dialog für vergangene Termine aus dem Kalender */}
@@ -217,18 +222,17 @@ export default function MitarbeiterDashboard() {
         onUpdate={loadData}
       />
 
-      {/* Change Request Dialog */}
-      {mitarbeiterId && (
-        <EmployeeChangeRequestDialog
-          isOpen={showChangeRequestDialog}
-          onClose={() => {
-            setShowChangeRequestDialog(false);
-            setSelectedAppointment(null);
-          }}
-          appointment={selectedAppointment}
-          mitarbeiterId={mitarbeiterId}
-        />
-      )}
+      {/* Termin verschieben Dialog */}
+      <TerminVerschiebenDialog
+        isOpen={showChangeRequestDialog}
+        onClose={() => {
+          setShowChangeRequestDialog(false);
+          setSelectedAppointment(null);
+        }}
+        appointment={selectedAppointment as any}
+        isGeschaeftsfuehrer={isGF}
+        onSuccess={handleTerminVerschoben}
+      />
     </div>
   );
 }
