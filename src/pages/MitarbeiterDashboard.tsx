@@ -26,6 +26,7 @@ export default function MitarbeiterDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [verschiebenAppointment, setVerschiebenAppointment] = useState<Appointment | null>(null);
   const [showChangeRequestDialog, setShowChangeRequestDialog] = useState(false);
   const [showKundenInfoDialog, setShowKundenInfoDialog] = useState(false);
   const [showKorrekturDialog, setShowKorrekturDialog] = useState(false);
@@ -97,6 +98,9 @@ export default function MitarbeiterDashboard() {
   };
 
   const handleOpenChangeRequest = () => {
+    // selectedAppointment wird durch KundenInfoDialog's onClose auf null gesetzt
+    // wenn das Dialog schließt → vorher sichern
+    setVerschiebenAppointment(selectedAppointment);
     setShowKundenInfoDialog(false);
     setShowChangeRequestDialog(true);
   };
@@ -227,9 +231,9 @@ export default function MitarbeiterDashboard() {
         isOpen={showChangeRequestDialog}
         onClose={() => {
           setShowChangeRequestDialog(false);
-          setSelectedAppointment(null);
+          setVerschiebenAppointment(null);
         }}
-        appointment={selectedAppointment as any}
+        appointment={verschiebenAppointment}
         isGeschaeftsfuehrer={isGF}
         onSuccess={handleTerminVerschoben}
       />
