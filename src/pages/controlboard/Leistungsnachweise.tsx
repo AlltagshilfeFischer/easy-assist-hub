@@ -225,11 +225,12 @@ export default function Leistungsnachweise() {
   }, [termine]);
 
   // Auto-create missing Leistungsnachweise for all active customers
-  const autoGenerateNachweise = async () => {
-    if (!kunden || kunden.length === 0) return;
+  // Auto-create LNs only for customers who have appointments in this month.
+  // Uses already-loaded allTermineQuery to avoid an extra fetch.
+  const autoGenerateNachweise = async (kundenMitTerminen: string[]) => {
+    if (kundenMitTerminen.length === 0) return;
 
-    // Fetch which customers already have a LN for this month — avoid relying on
-    // the unique constraint (it may be missing if the DB was initialized from base_schema).
+    // Load which customers already have a LN — no unique constraint dependency.
     const { data: existing } = await supabase
       .from('leistungsnachweise')
       .select('kunden_id')
@@ -237,10 +238,10 @@ export default function Leistungsnachweise() {
       .eq('jahr', selectedYear);
 
     const existingIds = new Set((existing ?? []).map(ln => ln.kunden_id));
-    const missingRows = kunden
-      .filter(k => !existingIds.has(k.id))
-      .map(k => ({
-        kunden_id: k.id,
+    const missingRows = kundenMitTerminen
+      .filter(id => !existingIds.has(id))
+      .map(id => ({
+        kunden_id: id,
         monat: selectedMonth,
         jahr: selectedYear,
         geplante_stunden: 0,
@@ -248,29 +249,27 @@ export default function Leistungsnachweise() {
         status: 'offen' as const,
       }));
 
-    if (missingRows.length === 0) {
-      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
-      return;
-    }
-
-    const { error } = await supabase.from('leistungsnachweise').insert(missingRows);
-    if (error) {
-      console.error('Leistungsnachweise konnten nicht erstellt werden:', error.message);
+    if (missingRows.length > 0) {
+      const { error } = await supabase.from('leistungsnachweise').insert(missingRows);
+      if (error) console.error('Leistungsnachweise konnten nicht erstellt werden:', error.message);
     }
 
     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
   };
 
-  // Trigger auto-generation when kunden and nachweise are loaded.
-  // Key includes kunden.length so a newly created customer triggers re-generation.
+  // Trigger auto-generation once termine + nachweise are both loaded.
+  // Key is derived from the set of customers with appointments so new
+  // appointments or new customers automatically trigger a re-run.
   const [autoGenDone, setAutoGenDone] = useState<string | null>(null);
   useEffect(() => {
-    const key = `${selectedMonth}-${selectedYear}-${kunden?.length ?? 0}`;
-    if (kunden && nachweise !== undefined && autoGenDone !== key) {
+    if (allTermineQuery.data === undefined || nachweise === undefined) return;
+    const kundenMitTerminen = [...new Set(allTermineQuery.data.map(t => t.kunden_id))];
+    const key = `${selectedMonth}-${selectedYear}-${kundenMitTerminen.sort().join(',')}`;
+    if (autoGenDone !== key) {
       setAutoGenDone(key);
-      autoGenerateNachweise();
+      autoGenerateNachweise(kundenMitTerminen);
     }
-  }, [kunden, nachweise, selectedMonth, selectedYear]);
+  }, [allTermineQuery.data, nachweise, selectedMonth, selectedYear]);
 
   // Update mutation
   const updateMutation = useMutation({
