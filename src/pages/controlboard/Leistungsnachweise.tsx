@@ -209,6 +209,22 @@ export default function Leistungsnachweise() {
     enabled: !!selectedLN
   });
 
+  // Compute live hours per customer for the table (needed for sort + stats)
+  const allTermineQuery = useQuery({
+    queryKey: ['termine-alle-ln', selectedMonth, selectedYear],
+    queryFn: async () => {
+      const von = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
+      const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
+      const { data, error } = await supabase
+        .from('termine')
+        .select('id, kunden_id, iststunden, start_at, end_at, status, mitarbeiter_id')
+        .gte('start_at', von)
+        .lte('start_at', bis);
+      if (error) throw error;
+      return data as { id: string; kunden_id: string; iststunden: number | null; start_at: string; end_at: string; status: string; mitarbeiter_id: string | null }[];
+    },
+  });
+
   // Filter: only show planned + past termine, no cancelled/abgesagt
   // Auto-complete: Vergangene scheduled-Termine als completed behandeln
   const filteredTermine = useMemo(() => {
@@ -224,9 +240,7 @@ export default function Leistungsnachweise() {
       });
   }, [termine]);
 
-  // Auto-create missing Leistungsnachweise for all active customers
   // Auto-create LNs only for customers who have appointments in this month.
-  // Uses already-loaded allTermineQuery to avoid an extra fetch.
   const autoGenerateNachweise = async (kundenMitTerminen: string[]) => {
     if (kundenMitTerminen.length === 0) return;
 
@@ -491,22 +505,6 @@ export default function Leistungsnachweise() {
     kunden?.forEach(k => map.set(k.id, k));
     return map;
   }, [kunden]);
-
-  // Compute live hours per customer for the table (needed for sort + stats)
-  const allTermineQuery = useQuery({
-    queryKey: ['termine-alle-ln', selectedMonth, selectedYear],
-    queryFn: async () => {
-      const von = new Date(selectedYear, selectedMonth - 1, 1).toISOString();
-      const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
-      const { data, error } = await supabase
-        .from('termine')
-        .select('id, kunden_id, iststunden, start_at, end_at, status, mitarbeiter_id')
-        .gte('start_at', von)
-        .lte('start_at', bis);
-      if (error) throw error;
-      return data as { id: string; kunden_id: string; iststunden: number | null; start_at: string; end_at: string; status: string; mitarbeiter_id: string | null }[];
-    },
-  });
 
   const hoursByKunde = useMemo(() => {
     const map = new Map<string, { geplant: number; geleistet: number }>();
