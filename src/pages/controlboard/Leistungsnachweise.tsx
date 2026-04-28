@@ -534,6 +534,13 @@ export default function Leistungsnachweise() {
     if (!nachweise) return [];
     let result = [...nachweise];
 
+    // Only show LNs where the customer has appointments this month,
+    // or the LN is already signed/closed (preserve historical records).
+    if (allTermineQuery.data) {
+      const kundenMitTerminen = new Set(allTermineQuery.data.map(t => t.kunden_id));
+      result = result.filter(ln => ln.status !== 'offen' || kundenMitTerminen.has(ln.kunden_id));
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(ln => getKundeName(ln.kunden_id).toLowerCase().includes(q));
