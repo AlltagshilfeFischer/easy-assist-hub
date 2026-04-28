@@ -226,22 +226,36 @@ export default function Leistungsnachweise() {
 
   // Auto-create missing Leistungsnachweise for all active customers
   const autoGenerateNachweise = async () => {
-    if (!kunden) return;
+    if (!kunden || kunden.length === 0) return;
 
-    // Batch upsert: create LNs for all active customers (ignoreDuplicates = true: existing LNs are NOT overwritten)
-    const rows = kunden.map(kunde => ({
-      kunden_id: kunde.id,
-      monat: selectedMonth,
-      jahr: selectedYear,
-      geplante_stunden: 0,
-      geleistete_stunden: 0,
-      status: 'offen' as const,
-    }));
+    // Fetch which customers already have a LN for this month — avoid relying on
+    // the unique constraint (it may be missing if the DB was initialized from base_schema).
+    const { data: existing } = await supabase
+      .from('leistungsnachweise')
+      .select('kunden_id')
+      .eq('monat', selectedMonth)
+      .eq('jahr', selectedYear);
 
-    if (rows.length > 0) {
-      await supabase
-        .from('leistungsnachweise')
-        .upsert(rows, { onConflict: 'kunden_id,monat,jahr', ignoreDuplicates: true });
+    const existingIds = new Set((existing ?? []).map(ln => ln.kunden_id));
+    const missingRows = kunden
+      .filter(k => !existingIds.has(k.id))
+      .map(k => ({
+        kunden_id: k.id,
+        monat: selectedMonth,
+        jahr: selectedYear,
+        geplante_stunden: 0,
+        geleistete_stunden: 0,
+        status: 'offen' as const,
+      }));
+
+    if (missingRows.length === 0) {
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
+      return;
+    }
+
+    const { error } = await supabase.from('leistungsnachweise').insert(missingRows);
+    if (error) {
+      console.error('Leistungsnachweise konnten nicht erstellt werden:', error.message);
     }
 
     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
