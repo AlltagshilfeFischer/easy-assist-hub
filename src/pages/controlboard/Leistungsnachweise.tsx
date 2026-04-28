@@ -106,6 +106,8 @@ export default function Leistungsnachweise() {
   const [statusFilter, setStatusFilter] = useState<string>('alle');
   const [kundenFilter, setKundenFilter] = useState<string>('alle');
   const [kundenFilterOpen, setKundenFilterOpen] = useState(false);
+  const [mitarbeiterFilter, setMitarbeiterFilter] = useState<string>('alle');
+  const [mitarbeiterFilterOpen, setMitarbeiterFilterOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortAsc, setSortAsc] = useState(true);
   const [showDetail, setShowDetail] = useState(false);
@@ -173,6 +175,20 @@ export default function Leistungsnachweise() {
     }
   });
 
+  // Fetch active employees for filter
+  const { data: mitarbeiter } = useQuery({
+    queryKey: ['mitarbeiter-aktiv-ln'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mitarbeiter')
+        .select('id, vorname, nachname')
+        .eq('aktiv', true)
+        .order('nachname');
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Fetch termine for selected LN
   const { data: termine } = useQuery({
     queryKey: ['termine-ln', selectedLN?.kunden_id, selectedMonth, selectedYear],
@@ -231,10 +247,11 @@ export default function Leistungsnachweise() {
     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
   };
 
-  // Trigger auto-generation when kunden and nachweise are loaded
+  // Trigger auto-generation when kunden and nachweise are loaded.
+  // Key includes kunden.length so a newly created customer triggers re-generation.
   const [autoGenDone, setAutoGenDone] = useState<string | null>(null);
   useEffect(() => {
-    const key = `${selectedMonth}-${selectedYear}`;
+    const key = `${selectedMonth}-${selectedYear}-${kunden?.length ?? 0}`;
     if (kunden && nachweise !== undefined && autoGenDone !== key) {
       setAutoGenDone(key);
       autoGenerateNachweise();
@@ -470,11 +487,11 @@ export default function Leistungsnachweise() {
       const bis = new Date(selectedYear, selectedMonth, 0, 23, 59, 59).toISOString();
       const { data, error } = await supabase
         .from('termine')
-        .select('id, kunden_id, iststunden, start_at, end_at, status')
+        .select('id, kunden_id, iststunden, start_at, end_at, status, mitarbeiter_id')
         .gte('start_at', von)
         .lte('start_at', bis);
       if (error) throw error;
-      return data as { id: string; kunden_id: string; iststunden: number | null; start_at: string; end_at: string; status: string }[];
+      return data as { id: string; kunden_id: string; iststunden: number | null; start_at: string; end_at: string; status: string; mitarbeiter_id: string | null }[];
     },
   });
 
@@ -516,6 +533,11 @@ export default function Leistungsnachweise() {
     if (statusFilter !== 'alle') {
       result = result.filter(ln => ln.status === statusFilter);
     }
+    if (mitarbeiterFilter !== 'alle' && allTermineQuery.data) {
+      result = result.filter(ln =>
+        allTermineQuery.data.some(t => t.kunden_id === ln.kunden_id && t.mitarbeiter_id === mitarbeiterFilter)
+      );
+    }
 
     result.sort((a, b) => {
       let cmp = 0;
@@ -529,7 +551,7 @@ export default function Leistungsnachweise() {
     });
 
     return result;
-  }, [nachweise, searchQuery, statusFilter, kundenFilter, sortKey, sortAsc, kunden, hoursByKunde]);
+  }, [nachweise, searchQuery, statusFilter, kundenFilter, mitarbeiterFilter, sortKey, sortAsc, kunden, hoursByKunde, allTermineQuery.data]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -848,6 +870,52 @@ export default function Leistungsnachweise() {
                 </Command>
               </PopoverContent>
             </Popover>
+            <Popover open={mitarbeiterFilterOpen} onOpenChange={setMitarbeiterFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 w-[180px] justify-between font-normal">
+                  <span className="truncate">
+                    {mitarbeiterFilter === 'alle'
+                      ? 'Alle Mitarbeiter'
+                      : (() => {
+                          const ma = mitarbeiter?.find(m => m.id === mitarbeiterFilter);
+                          return ma ? `${ma.vorname || ''} ${ma.nachname || ''}`.trim() : 'Mitarbeiter';
+                        })()
+                    }
+                  </span>
+                  <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[220px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Mitarbeiter suchen..." />
+                  <CommandList>
+                    <CommandEmpty>Kein Mitarbeiter gefunden.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="alle"
+                        onSelect={() => { setMitarbeiterFilter('alle'); setMitarbeiterFilterOpen(false); }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${mitarbeiterFilter === 'alle' ? 'opacity-100' : 'opacity-0'}`} />
+                        Alle Mitarbeiter
+                      </CommandItem>
+                      {(mitarbeiter || []).map(ma => {
+                        const name = `${ma.vorname || ''} ${ma.nachname || ''}`.trim() || 'Unbekannt';
+                        return (
+                          <CommandItem
+                            key={ma.id}
+                            value={name}
+                            onSelect={() => { setMitarbeiterFilter(ma.id); setMitarbeiterFilterOpen(false); }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${mitarbeiterFilter === ma.id ? 'opacity-100' : 'opacity-0'}`} />
+                            {name}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {filteredNachweise.length} Ergebnisse
             </span>
@@ -866,7 +934,7 @@ export default function Leistungsnachweise() {
                 </div>
                 <p className="font-medium text-foreground">Keine Nachweise gefunden</p>
                 <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                  {nachweise?.length ? 'Passe deine Filter an.' : 'Für diesen Monat gibt es noch keine Termine.'}
+                  {nachweise?.length ? 'Passe deine Filter an.' : 'Für diesen Monat wurden noch keine Leistungsnachweise generiert.'}
                 </p>
               </div>
             ) : (
