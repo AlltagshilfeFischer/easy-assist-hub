@@ -54,7 +54,14 @@ export function AppointmentApprovalBar() {
     try {
       const { data, error } = await supabase
         .from('termin_aenderungen')
-        .select('*')
+        .select(`
+          *,
+          requester:benutzer!termin_aenderungen_requested_by_fkey(vorname, nachname),
+          old_customer:kunden!termin_aenderungen_old_kunden_id_fkey(vorname, nachname),
+          new_customer:kunden!termin_aenderungen_new_kunden_id_fkey(vorname, nachname),
+          old_employee:mitarbeiter!termin_aenderungen_old_mitarbeiter_id_fkey(vorname, nachname),
+          new_employee:mitarbeiter!termin_aenderungen_new_mitarbeiter_id_fkey(vorname, nachname)
+        `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
