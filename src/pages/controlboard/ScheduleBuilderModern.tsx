@@ -548,6 +548,7 @@ const ScheduleBuilderModern = () => {
         description: `${appointmentLabel} → ${employee?.name}${targetDate ? ` am ${format(targetDate, 'dd.MM.yyyy')}` : ''}`
       });
       queryClient.invalidateQueries({ queryKey: ['unassigned-count'] });
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
     } catch (error: any) {
       console.error('Error assigning appointment:', error);
       const errorMsg = error?.message?.includes('network')
@@ -877,6 +878,8 @@ const ScheduleBuilderModern = () => {
         setAppointments(prev => [...prev, newApp]);
       }
 
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+
       toast({
         title: 'Erfolg',
         description: 'Termin wurde erstellt.'
@@ -992,6 +995,7 @@ const ScheduleBuilderModern = () => {
       // Jump calendar to the first generated week so the user sees the result
       setCurrentWeek(new Date(fromDate));
 
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
       await loadData();
       setShowCreateRecurring(false);
     } catch (error: any) {
@@ -1039,6 +1043,7 @@ const ScheduleBuilderModern = () => {
       setAppointments(prev => prev.filter(app => app.id !== appointmentId));
 
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
 
       toast({
         title: 'Erfolg',
@@ -1131,6 +1136,7 @@ const ScheduleBuilderModern = () => {
           } as unknown as LocalAppointment;
           setAppointments(prev => [...prev, mapped]);
         }
+        queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
         // Keep clipboard for multiple pastes in copy mode
       } else {
         // CUT: Move existing appointment
@@ -1159,6 +1165,7 @@ const ScheduleBuilderModern = () => {
             ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: cutStatus }
             : app
         ));
+        queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
         setCutAppointment(null);
         setCopyMode(false);
       }
@@ -1512,6 +1519,8 @@ const ScheduleBuilderModern = () => {
                   : app
               ));
 
+              queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+
               toast({
                 title: 'Erfolg',
                 description: appointment.ist_ausnahme
@@ -1702,6 +1711,7 @@ const ScheduleBuilderModern = () => {
                       description: `Vorlage und ${allTermine.length} Termine wurden aktualisiert.`,
                     });
 
+                    queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
                     await loadData();
                   } catch (err: any) {
                     console.error('Fehler beim Verschieben der Serie:', err);

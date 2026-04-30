@@ -521,11 +521,8 @@ export default function Leistungsnachweise() {
     return map;
   }, [allTermineQuery.data]);
 
-  // Helper: get display hours for a LN row (frozen for signed/closed, live for open)
+  // Helper: get display hours for a LN row — always live from termine
   const getRowHours = (ln: LeistungsnachweisRow) => {
-    if (ln.status !== 'offen' && ln.frozen_geplante_stunden != null) {
-      return { geplant: ln.frozen_geplante_stunden, geleistet: ln.frozen_geleistete_stunden ?? 0 };
-    }
     return hoursByKunde.get(ln.kunden_id) || { geplant: 0, geleistet: 0 };
   };
 
@@ -576,15 +573,13 @@ export default function Leistungsnachweise() {
     else { setSortKey(key); setSortAsc(true); }
   };
 
-  // Stats (uses live hours for open LNs, frozen for signed/closed)
+  // Stats — always uses live hours from termine
   const stats = useMemo(() => {
     if (!nachweise) return { total: 0, signed: 0, abgeschlossen: 0, totalPlanned: 0, totalDone: 0 };
     let totalPlanned = 0;
     let totalDone = 0;
     for (const n of nachweise) {
-      const h = (n.status !== 'offen' && n.frozen_geplante_stunden != null)
-        ? { geplant: n.frozen_geplante_stunden, geleistet: n.frozen_geleistete_stunden ?? 0 }
-        : hoursByKunde.get(n.kunden_id) || { geplant: 0, geleistet: 0 };
+      const h = hoursByKunde.get(n.kunden_id) || { geplant: 0, geleistet: 0 };
       totalPlanned += h.geplant;
       totalDone += h.geleistet;
     }
@@ -658,7 +653,7 @@ export default function Leistungsnachweise() {
 
   // Initialize canvas when detail dialog opens for signing
   useEffect(() => {
-    if (showDetail && selectedLN?.status === 'offen' && !selectedLN?.unterschrift_kunde_zeitstempel) {
+    if (showDetail && !selectedLN?.unterschrift_kunde_zeitstempel && selectedLN?.status !== 'abgeschlossen') {
       setTimeout(initCanvas, 100);
     }
   }, [showDetail, selectedLN?.status, selectedLN?.unterschrift_kunde_zeitstempel, initCanvas]);
@@ -694,7 +689,8 @@ export default function Leistungsnachweise() {
     return `/dashboard/controlboard/schedule-builder?week=${format(weekStart, 'yyyy-MM-dd')}`;
   };
 
-  const canSign = selectedLN?.status === 'offen' && !selectedLN?.unterschrift_kunde_zeitstempel;
+  // Can sign when no signature exists yet and the LN is not abgeschlossen
+  const canSign = !selectedLN?.unterschrift_kunde_zeitstempel && selectedLN?.status !== 'abgeschlossen';
 
   // Live hours for the selected LN
   const liveHours = useMemo(() => {
@@ -702,13 +698,10 @@ export default function Leistungsnachweise() {
     return calculateHoursFromTermine(termine);
   }, [termine]);
 
-  // Display hours: frozen for signed/closed; live from specific query if loaded;
-  // fall back to hoursByKunde (pre-loaded at page start) so dialog never shows 0 on open
+  // Display hours: always live — fall back to hoursByKunde until the specific
+  // per-LN termine query has loaded so the dialog never shows 0 on open
   const displayHours = useMemo(() => {
     if (!selectedLN) return { geplant: 0, geleistet: 0 };
-    if (selectedLN.status !== 'offen' && selectedLN.frozen_geplante_stunden != null) {
-      return { geplant: selectedLN.frozen_geplante_stunden, geleistet: selectedLN.frozen_geleistete_stunden ?? 0 };
-    }
     if (termine) return liveHours;
     return hoursByKunde.get(selectedLN.kunden_id) || { geplant: 0, geleistet: 0 };
   }, [selectedLN, liveHours, termine, hoursByKunde]);
@@ -1080,7 +1073,7 @@ export default function Leistungsnachweise() {
               <ScrollArea className="flex-1 -mx-6 px-6">
                 <div className="space-y-4 py-3">
                   {/* Hours Summary – compact inline */}
-                  <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-4 text-sm flex-wrap">
                     <div className="flex items-center gap-1.5">
                       <span className="text-muted-foreground">Geplant:</span>
                       <span className="font-bold text-foreground">{(Number(displayHours.geplant) || 0).toFixed(1)} h</span>
@@ -1089,6 +1082,16 @@ export default function Leistungsnachweise() {
                       <span className="text-muted-foreground">Geleistet:</span>
                       <span className="font-bold text-primary">{(Number(displayHours.geleistet) || 0).toFixed(1)} h</span>
                     </div>
+                    {selectedLN.unterschrift_kunde_zeitstempel && (
+                      <div className="flex items-center gap-1.5 ml-auto text-xs text-success bg-success/10 border border-success/20 rounded-md px-2 py-1">
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                        <span>
+                          Unterschrieben am{' '}
+                          {format(new Date(selectedLN.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr
+                          {selectedLN.unterschrift_kunde_durch ? ` von ${selectedLN.unterschrift_kunde_durch}` : ''}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Termine – wider table layout */}
@@ -1128,7 +1131,8 @@ export default function Leistungsnachweise() {
                               // iststunden=0 gilt als "nicht gesetzt" → Zeitdifferenz verwenden
                               const hours = (t.iststunden != null && t.iststunden > 0) ? t.iststunden : timeDiff;
                               const sts = terminStatusLabel[t.status] || { label: t.status, color: 'text-muted-foreground bg-muted' };
-                              const canEdit = selectedLN?.status === 'offen';
+                              // Allow editing times/hours regardless of signature status — LN is dynamic
+                              const canEdit = selectedLN?.status !== 'abgeschlossen';
                               return (
                                 <TableRow key={t.id} className="hover:bg-muted/20">
                                   <TableCell className="text-sm font-medium">
@@ -1152,6 +1156,7 @@ export default function Leistungsnachweise() {
                                             newStart.setHours(h, m, 0, 0);
                                             await supabase.from('termine').update({ start_at: newStart.toISOString() }).eq('id', t.id);
                                             queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
+                                            queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
                                           }}
                                         />
                                         <span className="text-muted-foreground">–</span>
@@ -1170,6 +1175,7 @@ export default function Leistungsnachweise() {
                                             newEnd.setHours(h, m, 0, 0);
                                             await supabase.from('termine').update({ end_at: newEnd.toISOString() }).eq('id', t.id);
                                             queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
+                                            queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
                                           }}
                                         />
                                       </div>
@@ -1198,6 +1204,7 @@ export default function Leistungsnachweise() {
                                           if (isNaN(val)) return;
                                           await supabase.from('termine').update({ iststunden: val }).eq('id', t.id);
                                           queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
+                                          queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
                                         }}
                                       />
                                     ) : (

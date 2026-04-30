@@ -216,6 +216,7 @@ export function AppointmentDetailDialog({
         if (termineError) throw termineError;
 
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
         toast({ title: 'Terminserie gelöscht' });
       }
       setShowDeleteSeriesDialog(false);
