@@ -5,7 +5,7 @@ import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, a
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, X, AlertCircle, Users, Filter } from 'lucide-react';
+import { Plus, X, AlertCircle, Users, Filter, Scissors } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -269,7 +269,7 @@ const ScheduleBuilderModern = () => {
       const now = new Date();
       const autoCompletedIds: string[] = [];
       const finalAppointments = transformedAppointments.map(app => {
-        if (app.status === 'scheduled' && new Date(app.end_at) < now) {
+        if (['scheduled', 'in_progress'].includes(app.status) && new Date(app.end_at) < now) {
           autoCompletedIds.push(app.id);
           return { ...app, status: 'completed' as const };
         }
@@ -288,7 +288,7 @@ const ScheduleBuilderModern = () => {
             updated_at: autoNow,
           })
           .in('id', autoCompletedIds)
-          .eq('status', 'scheduled')
+          .in('status', ['scheduled', 'in_progress'])
           .then(({ error }) => {
             if (error) console.error('Auto-complete update error:', error);
           });
@@ -1143,6 +1143,7 @@ const ScheduleBuilderModern = () => {
       } else {
         // CUT: Move existing appointment
         const cutStatus = resolveStatus(newEnd, employeeId ?? null);
+        const isSeriesInstance = cutAppointment.vorlage_id && !cutAppointment.ist_ausnahme;
         const { error } = await supabase
           .from('termine')
           .update({
@@ -1150,6 +1151,8 @@ const ScheduleBuilderModern = () => {
             start_at: newStart.toISOString(),
             end_at: newEnd.toISOString(),
             status: cutStatus,
+            // Goldene Regel: Regeltermin-Instanz wird zur Ausnahme, damit Regenerierung sie nicht überschreibt
+            ...(isSeriesInstance && { ist_ausnahme: true, ausnahme_grund: 'Manuell verschoben' }),
           })
           .eq('id', cutAppointment.id);
 
@@ -1164,7 +1167,14 @@ const ScheduleBuilderModern = () => {
 
         setAppointments(prev => prev.map(app =>
           app.id === cutAppointment.id
-            ? { ...app, mitarbeiter_id: employeeId, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: cutStatus }
+            ? {
+                ...app,
+                mitarbeiter_id: employeeId,
+                start_at: newStart.toISOString(),
+                end_at: newEnd.toISOString(),
+                status: cutStatus,
+                ...(isSeriesInstance && { ist_ausnahme: true, ausnahme_grund: 'Manuell verschoben' }),
+              }
             : app
         ));
         queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
@@ -1269,7 +1279,7 @@ const ScheduleBuilderModern = () => {
         <div className="flex items-center justify-between gap-2 flex-shrink-0 flex-wrap">
           <div className="flex items-center gap-2">
             <ConflictsNavigationCard
-              appointments={appointments}
+              appointments={displayedAppointments}
               onNavigateToConflict={(appointmentId) => {
                 const appointment = appointments.find(a => a.id === appointmentId);
                 if (appointment) {
@@ -1412,9 +1422,7 @@ const ScheduleBuilderModern = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-amber-100 dark:bg-amber-900/50 p-2 rounded-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M scissors" />
-                    </svg>
+                    <Scissors className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div>
                     <div className="font-medium text-sm">{copyMode ? 'Kopiert:' : 'Ausgeschnitten:'}</div>

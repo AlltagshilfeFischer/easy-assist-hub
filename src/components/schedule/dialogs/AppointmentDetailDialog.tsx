@@ -233,7 +233,8 @@ export function AppointmentDetailDialog({
     try {
       let cancelStatus: string = 'cancelled';
       if (cancelAbsageDatum && editedAppointment.start_at) {
-        const diffDays = (new Date(editedAppointment.start_at).getTime() - new Date(cancelAbsageDatum).getTime()) / (1000 * 60 * 60 * 24);
+        // T12:00:00 vermeidet UTC-Mitternacht → Berlin-Lokalzeit-Fehler bei Grenzfällen
+        const diffDays = (new Date(editedAppointment.start_at).getTime() - new Date(cancelAbsageDatum + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24);
         if (diffDays >= 2) cancelStatus = 'abgesagt_rechtzeitig';
       }
       await onUpdate({ ...editedAppointment, status: cancelStatus, absage_datum: cancelAbsageDatum || null, absage_kanal: cancelAbsageKanal || null, ausnahme_grund: cancelGrund || null } as any);
@@ -258,10 +259,22 @@ export function AppointmentDetailDialog({
 
   const handleTimelyCancel = async () => {
     if (!editedAppointment) return;
+    // Prüfen ob Termin tatsächlich >= 2 Tage in der Zukunft liegt
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const diffDays = (new Date(editedAppointment.start_at).getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays < 2) {
+      toast({
+        title: 'Nicht möglich',
+        description: 'Der Termin liegt weniger als 2 Tage entfernt — bitte als "Kurzfristig abgesagt" markieren.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setLoading(true);
     try {
       await onUpdate({ ...editedAppointment, status: 'abgesagt_rechtzeitig' as any });
-      toast({ title: 'Rechtzeitig abgesagt' }); onClose();
+      toast({ title: 'Rechtzeitig abgesagt (nicht abrechenbar)' }); onClose();
     } catch { toast({ title: 'Fehler', variant: 'destructive' }); }
     finally { setLoading(false); }
   };
@@ -382,11 +395,15 @@ export function AppointmentDetailDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</Label>
-              <Select value={editedAppointment.status} onValueChange={(v: any) => {
-                const updates: any = { status: v };
-                if (v === 'unassigned') updates.mitarbeiter_id = null;
-                updateField(updates);
-              }}>
+              <Select
+                value={editedAppointment.status}
+                disabled={['abgerechnet', 'bezahlt'].includes(editedAppointment.status)}
+                onValueChange={(v: any) => {
+                  const updates: any = { status: v };
+                  if (v === 'unassigned') updates.mitarbeiter_id = null;
+                  updateField(updates);
+                }}
+              >
                 <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Offen</SelectItem>
@@ -398,6 +415,9 @@ export function AppointmentDetailDialog({
                   <SelectItem value="abgesagt_rechtzeitig">Rechtzeitig abgesagt</SelectItem>
                 </SelectContent>
               </Select>
+              {['abgerechnet', 'bezahlt'].includes(editedAppointment.status) && (
+                <p className="text-xs text-muted-foreground mt-1">Status gesperrt — Termin ist bereits abgerechnet.</p>
+              )}
             </div>
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Label</Label>

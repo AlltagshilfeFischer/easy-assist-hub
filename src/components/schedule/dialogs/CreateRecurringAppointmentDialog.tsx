@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Clock, Repeat } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -84,10 +84,8 @@ export function CreateRecurringAppointmentDialog({
       if (gueltigBis) {
         endDate = gueltigBis;
       } else {
-        const tenYearsLater = new Date(gueltigVon);
-        tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-        const maxDate = new Date('2036-12-31');
-        endDate = tenYearsLater > maxDate ? maxDate : tenYearsLater;
+        // Business-Regel: Maximal 12 Monate Vorlauf
+        endDate = addMonths(gueltigVon, 12);
       }
 
       const customerName = customers.find(c => c.id === kundenId)?.name || 'Unbekannt';
