@@ -27,12 +27,16 @@ import { StepDokumente } from '@/components/customers/wizard/StepDokumente';
 import { PflegekasseCombobox } from '@/components/customers/PflegekasseCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { customerBaseSchema } from '@/lib/validations/customer-schema';
-import type { Customer, Employee, CustomerTimeWindow } from '@/types/domain';
+import type { Customer, Employee, CustomerTimeWindow, Notfallkontakt } from '@/types/domain';
 import type { Database } from '@/integrations/supabase/types';
 
 type DokumentRow = Database['public']['Tables']['dokumente']['Row'];
 
-type EditingCustomer = Customer & { zeitfenster?: CustomerTimeWindow[]; begruendung?: string | null };
+type EditingCustomer = Customer & {
+  zeitfenster?: CustomerTimeWindow[];
+  notfallkontakte?: Notfallkontakt[];
+  begruendung?: string | null;
+};
 
 interface CustomerEditDialogProps {
   open: boolean;
@@ -40,7 +44,7 @@ interface CustomerEditDialogProps {
   editingCustomer: EditingCustomer;
   setEditingCustomer: (c: EditingCustomer) => void;
   employees: Employee[] | undefined;
-  onSave: (e: React.FormEvent, overrides?: Partial<Customer>) => void;
+  onSave: (e: React.FormEvent, overrides?: Partial<EditingCustomer>) => void;
 }
 
 const getWeekdayName = (day: number): string => {
@@ -131,7 +135,10 @@ export function CustomerEditDialog({
       return;
     }
     setValidationErrors({});
-    onSave(e, { budget_prioritaet: budgetOrder });
+    onSave(e, {
+      budget_prioritaet: budgetOrder,
+      notfallkontakte: editingCustomer.notfallkontakte ?? [],
+    });
   };
 
   return (
@@ -383,6 +390,81 @@ export function CustomerEditDialog({
                     onCancel={() => setShowAITimeWindows(false)}
                   />
                 )}
+              </div>
+
+              {/* Notfallkontakte */}
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-lg font-semibold">Notfallkontakte</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingCustomer({
+                      ...editingCustomer,
+                      notfallkontakte: [...(editingCustomer.notfallkontakte || []), { name: '', bezug: null, telefon: '' }],
+                    })}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />Kontakt hinzufügen
+                  </Button>
+                </div>
+
+                {(editingCustomer.notfallkontakte || []).length === 0 && (
+                  <p className="text-sm text-muted-foreground py-2">Keine Notfallkontakte hinterlegt.</p>
+                )}
+
+                {(editingCustomer.notfallkontakte || []).map((kontakt: Notfallkontakt, index: number) => (
+                  <div key={index} className="grid grid-cols-[1fr,1fr,1fr,auto] gap-2 items-end p-3 border rounded-lg">
+                    <div>
+                      <Label className="text-xs">Name</Label>
+                      <Input
+                        value={kontakt.name}
+                        onChange={(e) => {
+                          const updated = [...(editingCustomer.notfallkontakte || [])];
+                          updated[index] = { ...updated[index], name: e.target.value };
+                          setEditingCustomer({ ...editingCustomer, notfallkontakte: updated });
+                        }}
+                        placeholder="Name"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Bezug</Label>
+                      <Input
+                        value={kontakt.bezug ?? ''}
+                        onChange={(e) => {
+                          const updated = [...(editingCustomer.notfallkontakte || [])];
+                          updated[index] = { ...updated[index], bezug: e.target.value || null };
+                          setEditingCustomer({ ...editingCustomer, notfallkontakte: updated });
+                        }}
+                        placeholder="z.B. Sohn, Nachbar"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Telefon</Label>
+                      <Input
+                        value={kontakt.telefon}
+                        onChange={(e) => {
+                          const updated = [...(editingCustomer.notfallkontakte || [])];
+                          updated[index] = { ...updated[index], telefon: e.target.value.replace(/[^\d+\-\/ ()]/g, '') };
+                          setEditingCustomer({ ...editingCustomer, notfallkontakte: updated });
+                        }}
+                        placeholder="0511 123456"
+                        inputMode="tel"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingCustomer({
+                        ...editingCustomer,
+                        notfallkontakte: (editingCustomer.notfallkontakte || []).filter((_: Notfallkontakt, i: number) => i !== index),
+                      })}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             </TabsContent>
 

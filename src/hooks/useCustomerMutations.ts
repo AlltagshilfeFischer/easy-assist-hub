@@ -2,13 +2,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
-import type { CustomerTimeWindow } from '@/types/domain';
+import type { CustomerTimeWindow, Notfallkontakt } from '@/types/domain';
 
 type KundenUpdate = Database['public']['Tables']['kunden']['Update'];
 
 interface UpdateCustomerPayload extends KundenUpdate {
   id: string;
   zeitfenster?: CustomerTimeWindow[];
+  notfallkontakte?: Notfallkontakt[];
   hauptbetreuer?: string;
 }
 
@@ -17,7 +18,7 @@ export function useCustomerMutations() {
 
   const updateCustomerMutation = useMutation({
     mutationFn: async (customerData: UpdateCustomerPayload) => {
-      const { zeitfenster, hauptbetreuer, ...kundenData } = customerData;
+      const { zeitfenster, notfallkontakte, hauptbetreuer, ...kundenData } = customerData;
 
       const { error: kundenError } = await supabase
         .from('kunden')
@@ -38,6 +39,27 @@ export function useCustomerMutations() {
             .from('kunden_zeitfenster')
             .insert(windowsToInsert);
           if (zeitfensterError) throw zeitfensterError;
+        }
+      }
+
+      if (notfallkontakte && Array.isArray(notfallkontakte)) {
+        const { error: deleteError } = await supabase
+          .from('notfallkontakte')
+          .delete()
+          .eq('kunden_id', kundenData.id);
+        if (deleteError) throw deleteError;
+
+        const valid = notfallkontakte.filter((k) => k.name.trim() && k.telefon.trim());
+        if (valid.length > 0) {
+          const { error: insertError } = await supabase.from('notfallkontakte').insert(
+            valid.map((k) => ({
+              kunden_id: kundenData.id,
+              name: k.name.trim(),
+              bezug: k.bezug?.trim() || null,
+              telefon: k.telefon.trim(),
+            }))
+          );
+          if (insertError) throw insertError;
         }
       }
     },

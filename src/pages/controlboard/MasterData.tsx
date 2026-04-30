@@ -24,6 +24,13 @@ import { CustomerEditDialog } from '@/components/customers/CustomerEditDialog';
 import { KundenDetailDialog } from '@/components/customers/KundenDetailDialog';
 import { useCustomerFilters } from '@/hooks/useCustomerFilters';
 import { useCustomerMutations } from '@/hooks/useCustomerMutations';
+import type { Customer, CustomerTimeWindow, Notfallkontakt } from '@/types/domain';
+
+type EditingCustomer = Customer & {
+  zeitfenster: CustomerTimeWindow[];
+  notfallkontakte: Notfallkontakt[];
+  begruendung?: string | null;
+};
 
 const getCurrentMonth = () => {
   const now = new Date();
@@ -37,7 +44,7 @@ const monthToDate = (monthString: string | null) => {
 };
 
 export default function MasterData() {
-  const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [editingCustomer, setEditingCustomer] = useState<EditingCustomer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
@@ -54,7 +61,8 @@ export default function MasterData() {
       const { data, error } = await supabase
         .from('kunden')
         .select(`*, hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname)`)
-        .order('name');
+        .order('nachname', { nullsFirst: false })
+        .order('vorname', { nullsFirst: false });
       if (error) throw error;
       return data;
     },
@@ -109,22 +117,22 @@ export default function MasterData() {
     });
   };
 
-  const handleEditCustomer = async (customer: any) => {
-    const { data: zeitfensterData } = await supabase
-      .from('kunden_zeitfenster')
-      .select('*')
-      .eq('kunden_id', customer.id)
-      .order('wochentag');
+  const handleEditCustomer = async (customer: Customer) => {
+    const [{ data: zeitfensterData }, { data: notfallkontakteData }] = await Promise.all([
+      supabase.from('kunden_zeitfenster').select('*').eq('kunden_id', customer.id).order('wochentag'),
+      supabase.from('notfallkontakte').select('*').eq('kunden_id', customer.id).order('created_at'),
+    ]);
 
     setEditingCustomer({
       ...customer,
       eintritt: customer.eintritt || getCurrentMonth(),
       zeitfenster: zeitfensterData || [],
+      notfallkontakte: notfallkontakteData || [],
     });
     setIsDialogOpen(true);
   };
 
-  const handleSaveCustomer = (e: React.FormEvent, overrides?: Partial<any>) => {
+  const handleSaveCustomer = (e: React.FormEvent, overrides?: Partial<EditingCustomer>) => {
     e.preventDefault();
     if (editingCustomer) {
       const merged = overrides ? { ...editingCustomer, ...overrides } : editingCustomer;

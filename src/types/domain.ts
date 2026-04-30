@@ -158,6 +158,15 @@ export interface Appointment extends CalendarAppointment {
   absage_kanal?: AbsageKanal | null;
 }
 
+// ─── Notfall Contact ────────────────────────────────────────
+export interface Notfallkontakt {
+  id?: string;
+  kunden_id?: string;
+  name: string;
+  bezug: string | null;
+  telefon: string;
+}
+
 // ─── Time Windows ───────────────────────────────────────────
 export interface CustomerTimeWindow {
   id?: string;
