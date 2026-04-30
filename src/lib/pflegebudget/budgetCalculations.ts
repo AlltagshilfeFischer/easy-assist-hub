@@ -367,6 +367,29 @@ export function getBillingStatus(
   return 'OK';
 }
 
+// ─── Manuelle Guthaben ───────────────────────────────────────
+
+/**
+ * Summiert alle noch nicht abgelaufenen manuellen Guthaben-Einträge.
+ * Abgelaufen = verfaellt_am liegt vor heute (UTC).
+ */
+export function getTotalManuelleGuthaben(
+  eintraege: { betrag: number; verfaellt_am: string }[],
+): { total: number; aktiv: number } {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  let total = 0;
+  let aktiv = 0;
+
+  for (const e of eintraege) {
+    total += e.betrag;
+    if (e.verfaellt_am >= today) {
+      aktiv += e.betrag;
+    }
+  }
+
+  return { total, aktiv };
+}
+
 // ─── Verfallswarnung ─────────────────────────────────────────
 
 export function hasExpiryWarning(

@@ -288,6 +288,47 @@ export type Database = {
           },
         ]
       }
+      budget_manuelle_eintraege: {
+        Row: {
+          id: string
+          kunden_id: string
+          bezeichnung: string
+          betrag: number
+          verfaellt_am: string
+          notizen: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kunden_id: string
+          bezeichnung: string
+          betrag: number
+          verfaellt_am: string
+          notizen?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kunden_id?: string
+          bezeichnung?: string
+          betrag?: number
+          verfaellt_am?: string
+          notizen?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_manuelle_eintraege_kunden_id_fkey"
+            columns: ["kunden_id"]
+            isOneToOne: false
+            referencedRelation: "kunden"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       care_levels: {
         Row: {
           created_at: string | null

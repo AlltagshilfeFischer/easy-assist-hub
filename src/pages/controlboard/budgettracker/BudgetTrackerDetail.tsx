@@ -1,19 +1,35 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getYear, getMonth, format, parseISO } from 'date-fns';
+import { getYear, getMonth, format, parseISO, parseISO as parseDateISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 import { useCustomers } from '@/hooks/useCustomers';
 import { useBudgetTransactionsByClientYear, useUpdateTransactionAllocation } from '@/hooks/useBudgetTransactions';
 import { useTariffs } from '@/hooks/useTariffs';
 import { useCareLevels } from '@/hooks/useCareLevels';
+import {
+  useBudgetManuelleEintraege,
+  useCreateBudgetManuellerEintrag,
+  useUpdateBudgetManuellerEintrag,
+  useDeleteBudgetManuellerEintrag,
+} from '@/hooks/useBudgetManuelleEintraege';
 import {
   formatCurrency,
   isPrivateInsured,
@@ -21,8 +37,9 @@ import {
   buildAvailability,
   calculateTransactionAmount,
   hasExpiryWarning,
+  getTotalManuelleGuthaben,
 } from '@/lib/pflegebudget/budgetCalculations';
-import type { BudgetTransaction, ServiceType } from '@/types/domain';
+import type { BudgetTransaction, ServiceType, BudgetManuellerEintrag } from '@/types/domain';
 
 // ─── Konstanten ──────────────────────────────────────────────
 
@@ -207,6 +224,258 @@ function MonthRow({
           </TableCell>
         </TableRow>
       ))}
+    </>
+  );
+}
+
+// ─── Manuelle Guthaben Dialog ────────────────────────────────
+
+interface ManuellerEintragFormState {
+  bezeichnung: string;
+  betrag: string;
+  verfaellt_am: string;
+  notizen: string;
+}
+
+const EMPTY_FORM: ManuellerEintragFormState = {
+  bezeichnung: '',
+  betrag: '',
+  verfaellt_am: '',
+  notizen: '',
+};
+
+function ManuelleGuthabenDialog({
+  open,
+  onOpenChange,
+  eintrag,
+  kundenId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  eintrag: BudgetManuellerEintrag | null;
+  kundenId: string;
+}) {
+  const [form, setForm] = useState<ManuellerEintragFormState>(EMPTY_FORM);
+  const create = useCreateBudgetManuellerEintrag(kundenId);
+  const update = useUpdateBudgetManuellerEintrag(kundenId);
+
+  // Sync form state when dialog opens
+  React.useEffect(() => {
+    if (open) {
+      if (eintrag) {
+        setForm({
+          bezeichnung: eintrag.bezeichnung,
+          betrag: String(eintrag.betrag),
+          verfaellt_am: eintrag.verfaellt_am,
+          notizen: eintrag.notizen ?? '',
+        });
+      } else {
+        setForm(EMPTY_FORM);
+      }
+    }
+  }, [open, eintrag]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const betrag = parseFloat(form.betrag.replace(',', '.'));
+    if (!form.bezeichnung || isNaN(betrag) || betrag <= 0 || !form.verfaellt_am) return;
+
+    const payload = {
+      bezeichnung: form.bezeichnung.trim(),
+      betrag,
+      verfaellt_am: form.verfaellt_am,
+      notizen: form.notizen.trim() || null,
+    };
+
+    if (eintrag) {
+      update.mutate({ id: eintrag.id, ...payload }, { onSuccess: () => onOpenChange(false) });
+    } else {
+      create.mutate(payload, { onSuccess: () => onOpenChange(false) });
+    }
+  };
+
+  const isPending = create.isPending || update.isPending;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{eintrag ? 'Eintrag bearbeiten' : 'Manuelles Guthaben hinzufügen'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="bezeichnung">Bezeichnung</Label>
+            <Input
+              id="bezeichnung"
+              placeholder="z.B. Sonderzahlung Kasse"
+              value={form.bezeichnung}
+              onChange={(e) => setForm((f) => ({ ...f, bezeichnung: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="betrag">Betrag (€)</Label>
+            <Input
+              id="betrag"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0,00"
+              value={form.betrag}
+              onChange={(e) => setForm((f) => ({ ...f, betrag: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="verfaellt_am">Verfällt am</Label>
+            <Input
+              id="verfaellt_am"
+              type="date"
+              value={form.verfaellt_am}
+              onChange={(e) => setForm((f) => ({ ...f, verfaellt_am: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="notizen">Notizen (optional)</Label>
+            <Textarea
+              id="notizen"
+              placeholder="Interne Notizen..."
+              value={form.notizen}
+              onChange={(e) => setForm((f) => ({ ...f, notizen: e.target.value }))}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Abbrechen
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? 'Speichern...' : 'Speichern'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Manuelle Guthaben Sektion ───────────────────────────────
+
+function ManuelleGuthabenSektion({ kundenId }: { kundenId: string }) {
+  const { data: eintraege = [], isLoading } = useBudgetManuelleEintraege(kundenId);
+  const deleteEintrag = useDeleteBudgetManuellerEintrag(kundenId);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedEintrag, setSelectedEintrag] = useState<BudgetManuellerEintrag | null>(null);
+
+  const { aktiv } = getTotalManuelleGuthaben(eintraege);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const handleAdd = () => {
+    setSelectedEintrag(null);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (eintrag: BudgetManuellerEintrag) => {
+    setSelectedEintrag(eintrag);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('Eintrag wirklich löschen?')) {
+      deleteEintrag.mutate(id);
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle className="text-base">Manuelle Guthaben</CardTitle>
+            {eintraege.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Aktiv verfügbar: <span className="font-medium text-foreground">{formatCurrency(aktiv)}</span>
+              </p>
+            )}
+          </div>
+          <Button size="sm" variant="outline" onClick={handleAdd}>
+            <Plus className="h-4 w-4 mr-1" />
+            Hinzufügen
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground px-6 pb-4">Lade...</p>
+          ) : eintraege.length === 0 ? (
+            <p className="text-sm text-muted-foreground px-6 pb-4">Keine manuellen Einträge vorhanden.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bezeichnung</TableHead>
+                  <TableHead className="text-right">Betrag</TableHead>
+                  <TableHead>Verfällt am</TableHead>
+                  <TableHead>Notizen</TableHead>
+                  <TableHead className="w-20" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {eintraege.map((e) => {
+                  const abgelaufen = e.verfaellt_am < today;
+                  return (
+                    <TableRow key={e.id} className={abgelaufen ? 'opacity-50' : undefined}>
+                      <TableCell className={abgelaufen ? 'line-through text-muted-foreground' : 'font-medium'}>
+                        {e.bezeichnung}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(e.betrag)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {format(parseDateISO(e.verfaellt_am), 'dd.MM.yyyy', { locale: de })}
+                        {abgelaufen && (
+                          <Badge variant="secondary" className="ml-2 text-xs">abgelaufen</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                        {e.notizen ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleEdit(e)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(e.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <ManuelleGuthabenDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        eintrag={selectedEintrag}
+        kundenId={kundenId}
+      />
     </>
   );
 }
@@ -446,6 +715,9 @@ export default function BudgetTrackerDetail() {
       <p className="text-xs text-muted-foreground">
         ✓ = abgerechnet &nbsp; ○ = offen &nbsp; Budgets basieren auf abgerechneten Transaktionen (billed=true)
       </p>
+
+      {/* Manuelle Guthaben */}
+      <ManuelleGuthabenSektion kundenId={kundenId!} />
     </div>
   );
 }

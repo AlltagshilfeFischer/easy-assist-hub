@@ -254,6 +254,19 @@ export interface MitarbeiterNebenbeschaeftigung {
   sv_pflicht: boolean;
 }
 
+// ─── Budget Manuelle Einträge ────────────────────────────────
+
+export interface BudgetManuellerEintrag {
+  id: string;
+  kunden_id: string;
+  bezeichnung: string;
+  betrag: number;
+  verfaellt_am: string; // ISO date string
+  notizen: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Pflegebudget ───────────────────────────────────────────
 
 export type ServiceType = 'ENTLASTUNG' | 'KOMBI' | 'VERHINDERUNG' | 'PRIVAT';
