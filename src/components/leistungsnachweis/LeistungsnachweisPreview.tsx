@@ -29,6 +29,8 @@ interface LeistungsnachweisData {
   ist_privat: boolean;
   abweichende_rechnungsadresse: boolean;
   unterschrift_kunde_bild: string | null;
+  unterschrift_kunde_zeitstempel: string | null;
+  unterschrift_kunde_durch: string | null;
   unterschrift_gf_name: string | null;
   cb_kombinationsleistung?: boolean;
   cb_entlastungsleistung?: boolean;
@@ -66,7 +68,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
     const end = new Date(t.end_at);
     const day = start.getDate();
     const uhrzeit = `${format(start, 'HH:mm')}-${format(end, 'HH:mm')}`;
-    const hours = t.iststunden ?? ((end.getTime() - start.getTime()) / 3600000);
+    const hours = (t.iststunden != null && t.iststunden > 0) ? t.iststunden : ((end.getTime() - start.getTime()) / 3600000);
     totalStunden += hours;
     const existing = dayMap.get(day);
     if (existing) {
@@ -247,6 +249,12 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
             )}
           </div>
           <p style={{ fontSize: '8px', marginTop: '1mm' }}>Unterschrift Leistungsnehmer</p>
+          {nachweis.unterschrift_kunde_zeitstempel && (
+            <p style={{ fontSize: '7px', color: '#666', marginTop: '0.5mm' }}>
+              {format(new Date(nachweis.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy, HH:mm')} Uhr
+              {nachweis.unterschrift_kunde_durch ? ` – ${nachweis.unterschrift_kunde_durch}` : ''}
+            </p>
+          )}
         </div>
       </div>
 
