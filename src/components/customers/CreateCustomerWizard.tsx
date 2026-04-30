@@ -16,13 +16,17 @@ import { StepAbrechnung } from './wizard/StepAbrechnung';
 import { StepDokumente } from './wizard/StepDokumente';
 import { StepEmployeeMatching } from './wizard/StepEmployeeMatching';
 import { customerBaseSchema } from '@/lib/validations/customer-schema';
+import type { Employee } from '@/types/domain';
+import type { Database } from '@/integrations/supabase/types';
+
+type KundenInsert = Database['public']['Tables']['kunden']['Insert'];
 
 interface TimeWindow { wochentag: number; von: string; bis: string; }
 
 interface CreateCustomerWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  employees: any[];
+  employees: Employee[];
   onSuccess: () => void;
 }
 
@@ -52,6 +56,9 @@ const INITIAL_DATA = {
   verhinderungspflege_aktiv: false, verhinderungspflege_beantragt: false, verhinderungspflege_genehmigt: false,
   verhinderungspflege_budget: '3539',
   pflegesachleistung_aktiv: false, pflegesachleistung_beantragt: false, pflegesachleistung_genehmigt: false,
+  pflegesachleistung_budget: null as number | null,
+  entlastung_genehmigt: true,
+  initial_budget_entlastung: null as number | null,
 };
 
 export default function CreateCustomerWizard({ open, onOpenChange, employees, onSuccess }: CreateCustomerWizardProps) {
@@ -80,7 +87,12 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
     }
   }, [customerData.kategorie]);
 
-  const handleClose = () => { resetWizard(); onOpenChange(false); };
+  const handleClose = () => {
+    // Kunde wurde bereits angelegt aber Dialog wird vorzeitig geschlossen (z.B. im MA-Matching-Step)
+    if (createdCustomerId) onSuccess();
+    resetWizard();
+    onOpenChange(false);
+  };
 
   const handleSaveCustomerAndTimeWindows = async () => {
     const result = customerBaseSchema.safeParse(customerData);
@@ -100,7 +112,7 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
 
     setIsLoading(true);
     try {
-      const insertData: Record<string, any> = {
+      const insertData: KundenInsert = {
         kategorie: customerData.kategorie, vorname: customerData.vorname, nachname: customerData.nachname,
         telefonnr: customerData.telefonnr || null, email: customerData.email || null,
         strasse: customerData.strasse || null, stadt: customerData.stadt || null,
@@ -125,6 +137,9 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
         pflegesachleistung_aktiv: customerData.pflegesachleistung_aktiv,
         pflegesachleistung_beantragt: customerData.pflegesachleistung_beantragt,
         pflegesachleistung_genehmigt: customerData.pflegesachleistung_genehmigt,
+        pflegesachleistung_budget: customerData.pflegesachleistung_budget ? parseFloat(String(customerData.pflegesachleistung_budget)) : null,
+        entlastung_genehmigt: customerData.entlastung_genehmigt ?? true,
+        initial_budget_entlastung: customerData.initial_budget_entlastung ? parseFloat(String(customerData.initial_budget_entlastung)) : null,
         budget_prioritaet: budgetOrder.length > 0 ? budgetOrder : null,
       };
 
@@ -159,13 +174,15 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
         ...documentFiles.historie.map((f) => ({ file: f, kategorie: 'historie' })),
         ...documentFiles.antragswesen.map((f) => ({ file: f, kategorie: 'antragswesen' })),
       ];
+      let failedUploads = 0;
       if (allDocFiles.length > 0) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           for (const { file, kategorie } of allDocFiles) {
-            const filePath = `kunden/${customer.id}/${kategorie}/${Date.now()}_${file.name}`;
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const filePath = `kunden/${customer.id}/${kategorie}/${Date.now()}_${safeName}`;
             const { error: uploadError } = await supabase.storage.from('dokumente').upload(filePath, file);
-            if (uploadError) { console.error('Upload error:', uploadError); continue; }
+            if (uploadError) { console.error('Upload error:', uploadError); failedUploads++; continue; }
             await supabase.from('dokumente').insert({
               titel: file.name, dateiname: file.name, dateipfad: filePath,
               mime_type: file.type || 'application/octet-stream', groesse_bytes: file.size,
@@ -175,13 +192,18 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
         }
       }
 
-      toast.success('Kundendaten gespeichert');
+      if (failedUploads > 0) {
+        toast.warning(`Kundendaten gespeichert – ${failedUploads} Dokument(e) konnten nicht hochgeladen werden`);
+      } else {
+        toast.success('Kundendaten gespeichert');
+      }
       if (customerData.has_regular_appointments && customerData.zeitfenster.length > 0) {
         setStep('employees');
       } else { handleClose(); onSuccess(); }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving customer:', error);
-      toast.error(error.message || 'Fehler beim Speichern');
+      const msg = error instanceof Error ? error.message : 'Fehler beim Speichern';
+      toast.error(msg);
     } finally { setIsLoading(false); }
   };
 

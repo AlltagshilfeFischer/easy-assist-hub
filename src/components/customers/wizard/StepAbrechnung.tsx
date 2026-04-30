@@ -12,9 +12,25 @@ import {
 } from '@/components/ui/select';
 import { Lock, Euro, GripVertical, Info } from 'lucide-react';
 
+interface AbrechnungFormData {
+  pflegegrad: string;
+  kasse_privat?: string;
+  entlastung_genehmigt?: boolean;
+  privatrechnung_erlaubt?: boolean;
+  initial_budget_entlastung?: number | null;
+  verhinderungspflege_aktiv: boolean;
+  verhinderungspflege_beantragt?: boolean;
+  verhinderungspflege_genehmigt?: boolean;
+  verhinderungspflege_budget: string | number;
+  pflegesachleistung_aktiv: boolean;
+  pflegesachleistung_beantragt?: boolean;
+  pflegesachleistung_genehmigt?: boolean;
+  pflegesachleistung_budget?: number | null;
+}
+
 interface StepAbrechnungProps {
-  customerData: any;
-  setCustomerData: (fn: (prev: any) => any) => void;
+  customerData: AbrechnungFormData;
+  setCustomerData: (fn: (prev: AbrechnungFormData) => AbrechnungFormData) => void;
   budgetOrder: string[];
   setBudgetOrder: (fn: (prev: string[]) => string[]) => void;
   draggedBudget: string | null;
@@ -39,7 +55,7 @@ export function StepAbrechnung({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Abrechnungsart</Label>
-            <Select value={customerData.kasse_privat} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, kasse_privat: v }))}>
+            <Select value={customerData.kasse_privat} onValueChange={(v) => setCustomerData(p => ({ ...p, kasse_privat: v }))}>
               <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
               <SelectContent><SelectItem value="Kasse">Kasse</SelectItem><SelectItem value="Privat">Privat</SelectItem></SelectContent>
             </Select>
@@ -67,7 +83,7 @@ export function StepAbrechnung({
             <Switch
               checked={customerData.entlastung_genehmigt !== false}
               onCheckedChange={(checked) =>
-                setCustomerData((p: any) => ({ ...p, entlastung_genehmigt: checked }))
+                setCustomerData(p => ({ ...p, entlastung_genehmigt: checked }))
               }
             />
           </div>
@@ -79,7 +95,7 @@ export function StepAbrechnung({
             <Switch
               checked={!!customerData.privatrechnung_erlaubt}
               onCheckedChange={(checked) =>
-                setCustomerData((p: any) => ({ ...p, privatrechnung_erlaubt: checked }))
+                setCustomerData(p => ({ ...p, privatrechnung_erlaubt: checked }))
               }
             />
           </div>
@@ -92,7 +108,7 @@ export function StepAbrechnung({
               placeholder="z.B. 524.00"
               value={customerData.initial_budget_entlastung ?? ''}
               onChange={(e) =>
-                setCustomerData((p: any) => ({
+                setCustomerData(p => ({
                   ...p,
                   initial_budget_entlastung: e.target.value ? parseFloat(e.target.value) : null,
                 }))
@@ -102,19 +118,6 @@ export function StepAbrechnung({
               <Info className="h-3 w-3" />
               Verfällt am 01.07. – bitte zum Jahreswechsel aktualisieren
             </p>
-          </div>
-          <div>
-            <Label>VP genehmigt am</Label>
-            <Input
-              type="date"
-              value={customerData.verhinderungspflege_genehmigt_am ?? ''}
-              onChange={(e) =>
-                setCustomerData((p: any) => ({
-                  ...p,
-                  verhinderungspflege_genehmigt_am: e.target.value || null,
-                }))
-              }
-            />
           </div>
         </div>
       </div>
@@ -129,7 +132,11 @@ export function StepAbrechnung({
             </CardTitle>
             <Switch checked={customerData.verhinderungspflege_aktiv} onCheckedChange={(checked) => {
               if (!isPflegegrad1) {
-                setCustomerData((p: any) => ({ ...p, verhinderungspflege_aktiv: checked }));
+                setCustomerData(p => ({
+                  ...p,
+                  verhinderungspflege_aktiv: checked,
+                  ...(checked ? { verhinderungspflege_beantragt: true, verhinderungspflege_genehmigt: true } : {}),
+                }));
                 if (checked && !budgetOrder.includes('verhinderungspflege')) setBudgetOrder((prev) => [...prev, 'verhinderungspflege']);
                 else if (!checked) setBudgetOrder((prev) => prev.filter((b) => b !== 'verhinderungspflege'));
               }
@@ -139,27 +146,13 @@ export function StepAbrechnung({
         </CardHeader>
         {customerData.verhinderungspflege_aktiv && !isPflegegrad1 && (
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Beantragt</Label>
-                <Select value={customerData.verhinderungspflege_beantragt ? 'ja' : 'nein'} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, verhinderungspflege_beantragt: v === 'ja' }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="ja">Ja</SelectItem><SelectItem value="nein">Nein</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Genehmigt</Label>
-                <Select value={customerData.verhinderungspflege_genehmigt ? 'ja' : 'nein'} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, verhinderungspflege_genehmigt: v === 'ja' }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="ja">Ja</SelectItem><SelectItem value="nein">Nein</SelectItem></SelectContent>
-                </Select>
-              </div>
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label>Budget (€)</Label>
-                <Input type="number" value={customerData.verhinderungspflege_budget} onChange={(e) => setCustomerData((p: any) => ({ ...p, verhinderungspflege_budget: e.target.value }))} />
+                <Input type="number" value={customerData.verhinderungspflege_budget} onChange={(e) => setCustomerData(p => ({ ...p, verhinderungspflege_budget: e.target.value }))} />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">💡 Jährliche Neubeantragung zum 01.01. – System erinnert automatisch.</p>
+            <p className="text-xs text-muted-foreground">Jährliche Neubeantragung zum 01.01. – System erinnert automatisch.</p>
           </CardContent>
         )}
       </Card>
@@ -174,7 +167,11 @@ export function StepAbrechnung({
             </CardTitle>
             <Switch checked={customerData.pflegesachleistung_aktiv} onCheckedChange={(checked) => {
               if (!isPflegegrad1) {
-                setCustomerData((p: any) => ({ ...p, pflegesachleistung_aktiv: checked }));
+                setCustomerData(p => ({
+                  ...p,
+                  pflegesachleistung_aktiv: checked,
+                  ...(checked ? { pflegesachleistung_beantragt: true, pflegesachleistung_genehmigt: true } : {}),
+                }));
                 if (checked && !budgetOrder.includes('pflegesachleistung')) setBudgetOrder((prev) => [...prev, 'pflegesachleistung']);
                 else if (!checked) setBudgetOrder((prev) => prev.filter((b) => b !== 'pflegesachleistung'));
               }
@@ -184,20 +181,26 @@ export function StepAbrechnung({
         </CardHeader>
         {customerData.pflegesachleistung_aktiv && !isPflegegrad1 && (
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label>Beantragt</Label>
-                <Select value={customerData.pflegesachleistung_beantragt ? 'ja' : 'nein'} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegesachleistung_beantragt: v === 'ja' }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="ja">Ja</SelectItem><SelectItem value="nein">Nein</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Genehmigt</Label>
-                <Select value={customerData.pflegesachleistung_genehmigt ? 'ja' : 'nein'} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegesachleistung_genehmigt: v === 'ja' }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="ja">Ja</SelectItem><SelectItem value="nein">Nein</SelectItem></SelectContent>
-                </Select>
+                <Label>Budget (€/Monat)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="z.B. 573.00"
+                  value={customerData.pflegesachleistung_budget ?? ''}
+                  onChange={(e) =>
+                    setCustomerData(p => ({
+                      ...p,
+                      pflegesachleistung_budget: e.target.value ? parseFloat(e.target.value) : null,
+                    }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  40% des Sachleistungsbetrags (PG2: 304 €, PG3: 573 €, PG4: 711 €, PG5: 880 €)
+                </p>
               </div>
             </div>
           </CardContent>

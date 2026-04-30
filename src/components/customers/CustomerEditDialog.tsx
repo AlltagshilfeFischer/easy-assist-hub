@@ -27,14 +27,20 @@ import { StepDokumente } from '@/components/customers/wizard/StepDokumente';
 import { PflegekasseCombobox } from '@/components/customers/PflegekasseCombobox';
 import { supabase } from '@/integrations/supabase/client';
 import { customerBaseSchema } from '@/lib/validations/customer-schema';
+import type { Customer, Employee, CustomerTimeWindow } from '@/types/domain';
+import type { Database } from '@/integrations/supabase/types';
+
+type DokumentRow = Database['public']['Tables']['dokumente']['Row'];
+
+type EditingCustomer = Customer & { zeitfenster?: CustomerTimeWindow[]; begruendung?: string | null };
 
 interface CustomerEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  editingCustomer: any;
-  setEditingCustomer: (c: any) => void;
-  employees: any[] | undefined;
-  onSave: (e: React.FormEvent, overrides?: Partial<any>) => void;
+  editingCustomer: EditingCustomer;
+  setEditingCustomer: (c: EditingCustomer) => void;
+  employees: Employee[] | undefined;
+  onSave: (e: React.FormEvent, overrides?: Partial<Customer>) => void;
 }
 
 const getWeekdayName = (day: number): string => {
@@ -66,7 +72,7 @@ export function CustomerEditDialog({
   const [budgetOrder, setBudgetOrder] = useState<string[]>([]);
   const [draggedBudget, setDraggedBudget] = useState<string | null>(null);
   const [documentFiles, setDocumentFiles] = useState<{ vertrag: File[]; historie: File[]; antragswesen: File[] }>({ vertrag: [], historie: [], antragswesen: [] });
-  const [existingDokumente, setExistingDokumente] = useState<any[]>([]);
+  const [existingDokumente, setExistingDokumente] = useState<DokumentRow[]>([]);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Initialize budget order from customer data

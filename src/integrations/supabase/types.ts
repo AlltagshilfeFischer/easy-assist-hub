@@ -645,6 +645,7 @@ export type Database = {
           pflegekasse: string | null
           pflegesachleistung_aktiv: boolean | null
           pflegesachleistung_beantragt: boolean | null
+          pflegesachleistung_budget: number | null
           pflegesachleistung_genehmigt: boolean | null
           plz: string | null
           privatrechnung_erlaubt: boolean | null
@@ -710,6 +711,7 @@ export type Database = {
           pflegekasse?: string | null
           pflegesachleistung_aktiv?: boolean | null
           pflegesachleistung_beantragt?: boolean | null
+          pflegesachleistung_budget?: number | null
           pflegesachleistung_genehmigt?: boolean | null
           plz?: string | null
           privatrechnung_erlaubt?: boolean | null
@@ -775,6 +777,7 @@ export type Database = {
           pflegekasse?: string | null
           pflegesachleistung_aktiv?: boolean | null
           pflegesachleistung_beantragt?: boolean | null
+          pflegesachleistung_budget?: number | null
           pflegesachleistung_genehmigt?: boolean | null
           plz?: string | null
           privatrechnung_erlaubt?: boolean | null

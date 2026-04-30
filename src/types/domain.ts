@@ -110,6 +110,7 @@ export interface Customer {
   // Pflegesachleistung
   pflegesachleistung_aktiv?: boolean | null;
   pflegesachleistung_beantragt?: boolean | null;
+  pflegesachleistung_budget?: number | null;
   pflegesachleistung_genehmigt?: boolean | null;
 }
 

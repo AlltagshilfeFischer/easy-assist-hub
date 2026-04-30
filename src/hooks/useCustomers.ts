@@ -12,7 +12,8 @@ export function useCustomers(options?: { onlyActive?: boolean }) {
       let query = supabase
         .from('kunden')
         .select('*')
-        .order('name');
+        .order('nachname', { nullsFirst: false })
+        .order('vorname', { nullsFirst: false });
 
       if (options?.onlyActive) {
         query = query.eq('aktiv', true);
