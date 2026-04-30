@@ -625,6 +625,8 @@ const ScheduleBuilderModern = () => {
             : app
         ));
 
+        queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+
         const appointmentLabel = appointment.customer?.name || appointment.titel || 'Termin';
         const dateChanged = unassignedDateMatch && !isSameDay(new Date(appointment.start_at), new Date(unassignedDateMatch[1]));
         toast({

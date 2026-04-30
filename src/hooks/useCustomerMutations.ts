@@ -100,6 +100,10 @@ export function useCustomerMutations() {
       const { error: budgetError } = await supabase.from('budget_transactions').delete().eq('client_id', kundenId);
       if (budgetError) throw budgetError;
 
+      // 4b. budget_manuelle_eintraege – FK auf kunden_id (ON DELETE CASCADE, aber explizit für Konsistenz)
+      const { error: budgetManuelleError } = await supabase.from('budget_manuelle_eintraege').delete().eq('kunden_id', kundenId);
+      if (budgetManuelleError) throw budgetManuelleError;
+
       // 5. leistungen – FK auf kunden_id
       const { error: leistungenError } = await supabase.from('leistungen').delete().eq('kunden_id', kundenId);
       if (leistungenError) throw leistungenError;
@@ -170,6 +174,10 @@ export function useCustomerMutations() {
         // 4. budget_transactions – FK auf client_id (= kunden.id)
         const { error: budgetError } = await supabase.from('budget_transactions').delete().in('client_id', chunk);
         if (budgetError) throw budgetError;
+
+        // 4b. budget_manuelle_eintraege – FK auf kunden_id (ON DELETE CASCADE, aber explizit für Konsistenz)
+        const { error: budgetManuelleError } = await supabase.from('budget_manuelle_eintraege').delete().in('kunden_id', chunk);
+        if (budgetManuelleError) throw budgetManuelleError;
 
         // 5. leistungen – FK auf kunden_id
         const { error: leistungenError } = await supabase.from('leistungen').delete().in('kunden_id', chunk);
