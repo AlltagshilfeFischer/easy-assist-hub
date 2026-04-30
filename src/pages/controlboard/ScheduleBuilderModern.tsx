@@ -1016,15 +1016,29 @@ const ScheduleBuilderModern = () => {
 
   const handleDeleteAppointment = async (appointmentId: string) => {
     try {
+      // FK-Constraints: rechnungspositionen und termin_aenderungen zuerst löschen
+      const { error: rpError } = await supabase
+        .from('rechnungspositionen')
+        .delete()
+        .eq('termin_id', appointmentId);
+      if (rpError) throw rpError;
+
+      const { error: taError } = await supabase
+        .from('termin_aenderungen')
+        .delete()
+        .eq('termin_id', appointmentId);
+      if (taError) throw taError;
+
       const { error } = await supabase
         .from('termine')
         .delete()
         .eq('id', appointmentId);
-
       if (error) throw error;
 
       // Optimistisch aus lokalem State entfernen
       setAppointments(prev => prev.filter(app => app.id !== appointmentId));
+
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
 
       toast({
         title: 'Erfolg',

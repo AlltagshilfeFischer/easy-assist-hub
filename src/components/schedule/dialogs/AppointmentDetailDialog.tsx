@@ -178,8 +178,44 @@ export function AppointmentDetailDialog({
       if (deleteSeriesAction === 'single') {
         await onDelete(appointment.id);
       } else if (appointment.vorlage_id) {
-        await supabase.from('termin_vorlagen').update({ ist_aktiv: false }).eq('id', appointment.vorlage_id);
-        await supabase.from('termine').delete().eq('vorlage_id', appointment.vorlage_id).gte('start_at', new Date().toISOString());
+        // Betroffene Termin-IDs ermitteln, um FK-abhängige Datensätze zuerst zu löschen
+        const { data: betroffeneTermine, error: fetchError } = await supabase
+          .from('termine')
+          .select('id')
+          .eq('vorlage_id', appointment.vorlage_id)
+          .gte('start_at', new Date().toISOString());
+        if (fetchError) throw fetchError;
+
+        if (betroffeneTermine && betroffeneTermine.length > 0) {
+          const terminIds = betroffeneTermine.map(t => t.id);
+
+          const { error: rpError } = await supabase
+            .from('rechnungspositionen')
+            .delete()
+            .in('termin_id', terminIds);
+          if (rpError) throw rpError;
+
+          const { error: taError } = await supabase
+            .from('termin_aenderungen')
+            .delete()
+            .in('termin_id', terminIds);
+          if (taError) throw taError;
+        }
+
+        const { error: vorlagenError } = await supabase
+          .from('termin_vorlagen')
+          .update({ ist_aktiv: false })
+          .eq('id', appointment.vorlage_id);
+        if (vorlagenError) throw vorlagenError;
+
+        const { error: termineError } = await supabase
+          .from('termine')
+          .delete()
+          .eq('vorlage_id', appointment.vorlage_id)
+          .gte('start_at', new Date().toISOString());
+        if (termineError) throw termineError;
+
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
         toast({ title: 'Terminserie gelöscht' });
       }
       setShowDeleteSeriesDialog(false);
