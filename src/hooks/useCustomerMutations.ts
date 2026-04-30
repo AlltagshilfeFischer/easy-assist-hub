@@ -81,15 +81,50 @@ export function useCustomerMutations() {
 
   const deleteCustomerMutation = useMutation({
     mutationFn: async (kundenId: string) => {
-      // rechnungspositionen zuerst – hat RESTRICT auf kunden_id UND termin_id
+      // 1. termin_aenderungen – FK auf termin_id UND kunden_id (muss vor termine gelöscht werden)
+      const { error: terminAenderungenError } = await supabase
+        .from('termin_aenderungen')
+        .delete()
+        .or(`new_kunden_id.eq.${kundenId},old_kunden_id.eq.${kundenId}`);
+      if (terminAenderungenError) throw terminAenderungenError;
+
+      // 2. rechnungspositionen – FK auf kunden_id UND termin_id
       const { error: rPosError } = await supabase.from('rechnungspositionen').delete().eq('kunden_id', kundenId);
       if (rPosError) throw rPosError;
+
+      // 3. leistungsnachweise – FK auf kunden_id
+      const { error: leistungsnachweiseError } = await supabase.from('leistungsnachweise').delete().eq('kunden_id', kundenId);
+      if (leistungsnachweiseError) throw leistungsnachweiseError;
+
+      // 4. budget_transactions – FK auf client_id (= kunden.id)
+      const { error: budgetError } = await supabase.from('budget_transactions').delete().eq('client_id', kundenId);
+      if (budgetError) throw budgetError;
+
+      // 5. leistungen – FK auf kunden_id
+      const { error: leistungenError } = await supabase.from('leistungen').delete().eq('kunden_id', kundenId);
+      if (leistungenError) throw leistungenError;
+
+      // 6. notfallkontakte – FK auf kunden_id
+      const { error: notfallkontakteError } = await supabase.from('notfallkontakte').delete().eq('kunden_id', kundenId);
+      if (notfallkontakteError) throw notfallkontakteError;
+
+      // 7. dokumente – FK auf kunden_id
       const { error: dokumenteError } = await supabase.from('dokumente').delete().eq('kunden_id', kundenId);
       if (dokumenteError) throw dokumenteError;
+
+      // 8. termin_vorlagen – FK auf kunden_id (muss vor termine gelöscht werden)
+      const { error: vorlagenError } = await supabase.from('termin_vorlagen').delete().eq('kunden_id', kundenId);
+      if (vorlagenError) throw vorlagenError;
+
+      // 9. termine – FK auf kunden_id
       const { error: termineError } = await supabase.from('termine').delete().eq('kunden_id', kundenId);
       if (termineError) throw termineError;
+
+      // 10. kunden_zeitfenster – FK auf kunden_id
       const { error: zeitfensterError } = await supabase.from('kunden_zeitfenster').delete().eq('kunden_id', kundenId);
       if (zeitfensterError) throw zeitfensterError;
+
+      // 11. kunden – letzter Schritt
       const { error } = await supabase.from('kunden').delete().eq('id', kundenId);
       if (error) throw error;
     },
@@ -112,15 +147,55 @@ export function useCustomerMutations() {
       }
 
       for (const chunk of chunks) {
-        // rechnungspositionen zuerst – hat RESTRICT auf kunden_id UND termin_id
+        // 1. termin_aenderungen – FK auf termin_id UND kunden_id
+        const { error: terminAenderungenNewError } = await supabase
+          .from('termin_aenderungen')
+          .delete()
+          .in('new_kunden_id', chunk);
+        if (terminAenderungenNewError) throw terminAenderungenNewError;
+        const { error: terminAenderungenOldError } = await supabase
+          .from('termin_aenderungen')
+          .delete()
+          .in('old_kunden_id', chunk);
+        if (terminAenderungenOldError) throw terminAenderungenOldError;
+
+        // 2. rechnungspositionen – FK auf kunden_id UND termin_id
         const { error: rPosError } = await supabase.from('rechnungspositionen').delete().in('kunden_id', chunk);
         if (rPosError) throw rPosError;
+
+        // 3. leistungsnachweise – FK auf kunden_id
+        const { error: leistungsnachweiseError } = await supabase.from('leistungsnachweise').delete().in('kunden_id', chunk);
+        if (leistungsnachweiseError) throw leistungsnachweiseError;
+
+        // 4. budget_transactions – FK auf client_id (= kunden.id)
+        const { error: budgetError } = await supabase.from('budget_transactions').delete().in('client_id', chunk);
+        if (budgetError) throw budgetError;
+
+        // 5. leistungen – FK auf kunden_id
+        const { error: leistungenError } = await supabase.from('leistungen').delete().in('kunden_id', chunk);
+        if (leistungenError) throw leistungenError;
+
+        // 6. notfallkontakte – FK auf kunden_id
+        const { error: notfallkontakteError } = await supabase.from('notfallkontakte').delete().in('kunden_id', chunk);
+        if (notfallkontakteError) throw notfallkontakteError;
+
+        // 7. dokumente – FK auf kunden_id
         const { error: dokumenteError } = await supabase.from('dokumente').delete().in('kunden_id', chunk);
         if (dokumenteError) throw dokumenteError;
+
+        // 8. termin_vorlagen – FK auf kunden_id
+        const { error: vorlagenError } = await supabase.from('termin_vorlagen').delete().in('kunden_id', chunk);
+        if (vorlagenError) throw vorlagenError;
+
+        // 9. termine – FK auf kunden_id
         const { error: termineError } = await supabase.from('termine').delete().in('kunden_id', chunk);
         if (termineError) throw termineError;
+
+        // 10. kunden_zeitfenster – FK auf kunden_id
         const { error: zeitfensterError } = await supabase.from('kunden_zeitfenster').delete().in('kunden_id', chunk);
         if (zeitfensterError) throw zeitfensterError;
+
+        // 11. kunden – letzter Schritt
         const { error } = await supabase.from('kunden').delete().in('id', chunk);
         if (error) throw error;
       }

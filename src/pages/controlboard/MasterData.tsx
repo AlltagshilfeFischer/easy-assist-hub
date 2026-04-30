@@ -249,7 +249,9 @@ export default function MasterData() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Kunde löschen?</AlertDialogTitle>
-            <AlertDialogDescription>Diese Aktion kann nicht rückgängig gemacht werden. Alle zugehörigen Termine und Dokumente werden ebenfalls gelöscht.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle zugehörigen Daten werden unwiderruflich gelöscht: Termine, Leistungsnachweise, Budget-Einträge, Leistungen, Notfallkontakte, Dokumente, Regeltermine und Abrechnungspositionen.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
@@ -266,7 +268,7 @@ export default function MasterData() {
           <AlertDialogHeader>
             <AlertDialogTitle>{selectedCustomerIds.size} Kunden löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Alle zugehörigen Termine und Dokumente der ausgewählten {selectedCustomerIds.size} Kunden werden ebenfalls gelöscht.
+              Diese Aktion kann nicht rückgängig gemacht werden. Alle zugehörigen Daten der {selectedCustomerIds.size} ausgewählten Kunden werden unwiderruflich gelöscht: Termine, Leistungsnachweise, Budget-Einträge, Leistungen, Notfallkontakte, Dokumente, Regeltermine und Abrechnungspositionen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
