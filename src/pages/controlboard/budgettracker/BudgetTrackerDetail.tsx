@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getYear, getMonth, format, parseISO, parseISO as parseDateISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2, Play } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { useCustomers } from '@/hooks/useCustomers';
 import { useBudgetTransactionsByClientYear, useUpdateTransactionAllocation } from '@/hooks/useBudgetTransactions';
+import { useAbrechnungslauf } from '@/hooks/useAbrechnungslauf';
 import { useTariffs } from '@/hooks/useTariffs';
 import { useCareLevels } from '@/hooks/useCareLevels';
 import {
@@ -489,11 +490,15 @@ export default function BudgetTrackerDetail() {
   const currentYear = getYear(now);
   const currentMonth = getMonth(now) + 1;
 
+  const [selectedBillingMonth, setSelectedBillingMonth] = useState(currentMonth);
+  const [showAbrechnungDialog, setShowAbrechnungDialog] = useState(false);
+
   const { data: customers = [] } = useCustomers({ onlyActive: true });
   const { data: transactions = [] } = useBudgetTransactionsByClientYear(kundenId, currentYear);
   const { data: tariffs = [] } = useTariffs();
   const { data: careLevels = [] } = useCareLevels();
   const updateAllocation = useUpdateTransactionAllocation();
+  const abrechnungslauf = useAbrechnungslauf();
 
   const kunde = customers.find((c) => c.id === kundenId);
   const kundeExtended = kunde as typeof kunde & {
@@ -675,6 +680,93 @@ export default function BudgetTrackerDetail() {
           </Card>
         </div>
       )}
+
+      {/* Abrechnungslauf */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Abrechnungslauf</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Termine aus einem unterschriebenen Leistungsnachweis in den Budgettracker buchen.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <Select
+              value={String(selectedBillingMonth)}
+              onValueChange={(v) => setSelectedBillingMonth(Number(v))}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTH_NAMES.map((name, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">{currentYear}</span>
+            <Button
+              variant="outline"
+              onClick={() => setShowAbrechnungDialog(true)}
+              disabled={abrechnungslauf.isPending}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Abrechnungslauf starten
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Abrechnungslauf Bestätigungs-Dialog */}
+      <Dialog open={showAbrechnungDialog} onOpenChange={setShowAbrechnungDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Abrechnungslauf starten</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              Alle abgeschlossenen Termine von{' '}
+              <strong>{MONTH_NAMES[selectedBillingMonth - 1]} {currentYear}</strong> für{' '}
+              <strong>{fullName}</strong> werden mit FIFO-Budgetzuweisung in den Budgettracker gebucht.
+            </p>
+            <p className="text-muted-foreground">
+              Voraussetzung: Der Leistungsnachweis des Monats muss unterschrieben sein.
+              Bereits gebuchte Monate werden nicht doppelt gebucht.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAbrechnungDialog(false)}
+              disabled={abrechnungslauf.isPending}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => {
+                if (!kundeExtended) return;
+                abrechnungslauf.mutate(
+                  {
+                    kundenId: kundenId!,
+                    monat: selectedBillingMonth,
+                    jahr: currentYear,
+                    existingYearTransactions: transactions,
+                    kunde: kundeExtended,
+                    tariffs,
+                    careLevels,
+                  },
+                  { onSuccess: () => setShowAbrechnungDialog(false) },
+                );
+              }}
+              disabled={abrechnungslauf.isPending || !kundeExtended || !tariffs.length}
+            >
+              {abrechnungslauf.isPending ? 'Wird gebucht...' : 'Jetzt abrechnen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Monatstabelle */}
       <Card>
