@@ -1,14 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getYear, getMonth, format, parseISO, parseISO as parseDateISO } from 'date-fns';
+import { getYear, getMonth, format, parseISO as parseDateISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2, Play } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -21,8 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 import { useCustomers } from '@/hooks/useCustomers';
-import { useBudgetTransactionsByClientYear, useUpdateTransactionAllocation } from '@/hooks/useBudgetTransactions';
-import { useAbrechnungslauf } from '@/hooks/useAbrechnungslauf';
+import { useTermineForBudget } from '@/hooks/useTermineForBudget';
 import { useTariffs } from '@/hooks/useTariffs';
 import { useCareLevels } from '@/hooks/useCareLevels';
 import {
@@ -34,13 +32,13 @@ import {
 import {
   formatCurrency,
   isPrivateInsured,
-  aggregateConsumed,
   buildAvailability,
-  calculateTransactionAmount,
   hasExpiryWarning,
   getTotalManuelleGuthaben,
+  computeYearBudgetAllocations,
 } from '@/lib/pflegebudget/budgetCalculations';
-import type { BudgetTransaction, ServiceType, BudgetManuellerEintrag } from '@/types/domain';
+import type { TerminBudgetAllocation } from '@/lib/pflegebudget/budgetCalculations';
+import type { ServiceType, BudgetManuellerEintrag as DomainManuellerEintrag } from '@/types/domain';
 
 // ─── Konstanten ──────────────────────────────────────────────
 
@@ -62,6 +60,8 @@ const SERVICE_TYPE_COLORS: Record<ServiceType, string> = {
   VERHINDERUNG: 'bg-green-100 text-green-800',
   PRIVAT: 'bg-gray-100 text-gray-800',
 };
+
+const BILLED_STATUSES = new Set(['abgerechnet', 'bezahlt']);
 
 // ─── Hilfskomponenten ────────────────────────────────────────
 
@@ -110,46 +110,21 @@ function BudgetSummaryCard({
   );
 }
 
-function ServiceTypeBadge({
-  type,
-  billed,
-  onChangeType,
-}: {
-  type: ServiceType;
-  billed: boolean;
-  onChangeType?: (newType: ServiceType) => void;
-}) {
-  if (billed || !onChangeType) {
-    return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${SERVICE_TYPE_COLORS[type]}`}>
-        {SERVICE_TYPE_LABELS[type]}
-      </span>
-    );
-  }
-
+function ServiceTypeBadge({ type, split }: { type: ServiceType; split?: boolean }) {
   return (
-    <Select value={type} onValueChange={(v) => onChangeType(v as ServiceType)}>
-      <SelectTrigger className={`h-6 px-2 text-xs border-0 ${SERVICE_TYPE_COLORS[type]} w-28`}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {(['ENTLASTUNG', 'KOMBI', 'VERHINDERUNG', 'PRIVAT'] as ServiceType[]).map((t) => (
-          <SelectItem key={t} value={t} className="text-xs">
-            {SERVICE_TYPE_LABELS[t]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${SERVICE_TYPE_COLORS[type]}`}>
+      {SERVICE_TYPE_LABELS[type]}
+      {split && <span className="ml-1 opacity-60">~</span>}
+    </span>
   );
 }
 
-// ─── Monatszeile mit expandierbaren Transaktionen ────────────
+// ─── Monatszeile ─────────────────────────────────────────────
 
 interface MonthData {
-  month: number; // 1-12
-  transactions: BudgetTransaction[];
+  month: number;
+  allocations: TerminBudgetAllocation[];
   totalHours: number;
-  totalVisits: number;
   entlastungAmount: number;
   kombiAmount: number;
   vpAmount: number;
@@ -158,42 +133,44 @@ interface MonthData {
   hasOpen: boolean;
 }
 
-function MonthRow({
-  data,
-  tariffs,
-  onChangeType,
-}: {
-  data: MonthData;
-  tariffs: ReturnType<typeof useTariffs>['data'];
-  onChangeType: (txId: string, newType: ServiceType) => void;
-}) {
+function MonthRow({ data }: { data: MonthData }) {
   const [expanded, setExpanded] = useState(false);
-  const hasTransactions = data.transactions.length > 0;
+  const hasData = data.allocations.length > 0;
 
   return (
     <>
       <TableRow
-        className={`${hasTransactions ? 'cursor-pointer hover:bg-muted/40' : 'opacity-50'}`}
-        onClick={() => hasTransactions && setExpanded((v) => !v)}
+        className={hasData ? 'cursor-pointer hover:bg-muted/40' : 'opacity-50'}
+        onClick={() => hasData && setExpanded((v) => !v)}
       >
         <TableCell className="font-medium">
           <div className="flex items-center gap-2">
-            {hasTransactions ? (
-              expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            {hasData ? (
+              expanded
+                ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                : <ChevronRight className="h-4 w-4 text-muted-foreground" />
             ) : (
               <span className="w-4" />
             )}
             {MONTH_NAMES[data.month - 1]}
           </div>
         </TableCell>
-        <TableCell className="text-right">{hasTransactions ? `${data.totalHours.toFixed(1)} h` : '—'}</TableCell>
-        <TableCell className="text-right">{hasTransactions ? data.totalVisits : '—'}</TableCell>
-        <TableCell className="text-right">{data.entlastungAmount > 0 ? formatCurrency(data.entlastungAmount) : <span className="text-muted-foreground">—</span>}</TableCell>
-        <TableCell className="text-right">{data.kombiAmount > 0 ? formatCurrency(data.kombiAmount) : <span className="text-muted-foreground">—</span>}</TableCell>
-        <TableCell className="text-right">{data.vpAmount > 0 ? formatCurrency(data.vpAmount) : <span className="text-muted-foreground">—</span>}</TableCell>
-        <TableCell className="text-right">{data.privatAmount > 0 ? formatCurrency(data.privatAmount) : <span className="text-muted-foreground">—</span>}</TableCell>
+        <TableCell className="text-right">{hasData ? `${data.totalHours.toFixed(1)} h` : '—'}</TableCell>
+        <TableCell className="text-right">{hasData ? data.allocations.length : '—'}</TableCell>
+        <TableCell className="text-right">
+          {data.entlastungAmount > 0 ? formatCurrency(data.entlastungAmount) : <span className="text-muted-foreground">—</span>}
+        </TableCell>
+        <TableCell className="text-right">
+          {data.kombiAmount > 0 ? formatCurrency(data.kombiAmount) : <span className="text-muted-foreground">—</span>}
+        </TableCell>
+        <TableCell className="text-right">
+          {data.vpAmount > 0 ? formatCurrency(data.vpAmount) : <span className="text-muted-foreground">—</span>}
+        </TableCell>
+        <TableCell className="text-right">
+          {data.privatAmount > 0 ? formatCurrency(data.privatAmount) : <span className="text-muted-foreground">—</span>}
+        </TableCell>
         <TableCell className="text-center">
-          {hasTransactions && (
+          {hasData && (
             <div className="flex items-center justify-center gap-1">
               {data.hasBilled && <span className="text-xs text-green-600">✓</span>}
               {data.hasOpen && <span className="text-xs text-yellow-600">○</span>}
@@ -202,25 +179,23 @@ function MonthRow({
         </TableCell>
       </TableRow>
 
-      {expanded && data.transactions.map((tx) => (
-        <TableRow key={tx.id} className="bg-muted/20 text-sm">
+      {expanded && data.allocations.map((alloc) => (
+        <TableRow key={alloc.terminId} className="bg-muted/20 text-sm">
           <TableCell className="pl-12 text-muted-foreground">
-            {format(parseISO(tx.service_date), 'dd.MM.', { locale: de })}
+            {format(parseDateISO(alloc.serviceDate), 'dd.MM.', { locale: de })}
           </TableCell>
-          <TableCell className="text-right">{tx.hours.toFixed(1)} h</TableCell>
-          <TableCell className="text-right">{tx.visits}</TableCell>
+          <TableCell className="text-right">{alloc.hours.toFixed(1)} h</TableCell>
+          <TableCell className="text-right">1</TableCell>
           <TableCell colSpan={3} />
           <TableCell className="text-right font-medium">
-            {formatCurrency(tx.total_amount)}
+            {formatCurrency(alloc.totalAmount)}
           </TableCell>
           <TableCell>
             <div className="flex items-center justify-between gap-2">
-              <ServiceTypeBadge
-                type={tx.service_type}
-                billed={tx.billed}
-                onChangeType={!tx.billed ? (newType) => onChangeType(tx.id, newType) : undefined}
-              />
-              {tx.billed && <span className="text-xs text-green-600 whitespace-nowrap">✓ abg.</span>}
+              <ServiceTypeBadge type={alloc.serviceType} split={!!alloc.splitAllocations} />
+              {BILLED_STATUSES.has(alloc.status) && (
+                <span className="text-xs text-green-600 whitespace-nowrap">✓ abg.</span>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -253,26 +228,20 @@ function ManuelleGuthabenDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  eintrag: BudgetManuellerEintrag | null;
+  eintrag: DomainManuellerEintrag | null;
   kundenId: string;
 }) {
   const [form, setForm] = useState<ManuellerEintragFormState>(EMPTY_FORM);
   const create = useCreateBudgetManuellerEintrag(kundenId);
   const update = useUpdateBudgetManuellerEintrag(kundenId);
 
-  // Sync form state when dialog opens
   React.useEffect(() => {
     if (open) {
-      if (eintrag) {
-        setForm({
-          bezeichnung: eintrag.bezeichnung,
-          betrag: String(eintrag.betrag),
-          verfaellt_am: eintrag.verfaellt_am,
-          notizen: eintrag.notizen ?? '',
-        });
-      } else {
-        setForm(EMPTY_FORM);
-      }
+      setForm(
+        eintrag
+          ? { bezeichnung: eintrag.bezeichnung, betrag: String(eintrag.betrag), verfaellt_am: eintrag.verfaellt_am, notizen: eintrag.notizen ?? '' }
+          : EMPTY_FORM,
+      );
     }
   }, [open, eintrag]);
 
@@ -368,26 +337,10 @@ function ManuelleGuthabenSektion({ kundenId }: { kundenId: string }) {
   const deleteEintrag = useDeleteBudgetManuellerEintrag(kundenId);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedEintrag, setSelectedEintrag] = useState<BudgetManuellerEintrag | null>(null);
+  const [selectedEintrag, setSelectedEintrag] = useState<DomainManuellerEintrag | null>(null);
 
   const { aktiv } = getTotalManuelleGuthaben(eintraege);
   const today = new Date().toISOString().slice(0, 10);
-
-  const handleAdd = () => {
-    setSelectedEintrag(null);
-    setDialogOpen(true);
-  };
-
-  const handleEdit = (eintrag: BudgetManuellerEintrag) => {
-    setSelectedEintrag(eintrag);
-    setDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('Eintrag wirklich löschen?')) {
-      deleteEintrag.mutate(id);
-    }
-  };
 
   return (
     <>
@@ -401,7 +354,7 @@ function ManuelleGuthabenSektion({ kundenId }: { kundenId: string }) {
               </p>
             )}
           </div>
-          <Button size="sm" variant="outline" onClick={handleAdd}>
+          <Button size="sm" variant="outline" onClick={() => { setSelectedEintrag(null); setDialogOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" />
             Hinzufügen
           </Button>
@@ -430,34 +383,22 @@ function ManuelleGuthabenSektion({ kundenId }: { kundenId: string }) {
                       <TableCell className={abgelaufen ? 'line-through text-muted-foreground' : 'font-medium'}>
                         {e.bezeichnung}
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(e.betrag)}
-                      </TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(e.betrag)}</TableCell>
                       <TableCell className="text-sm">
                         {format(parseDateISO(e.verfaellt_am), 'dd.MM.yyyy', { locale: de })}
-                        {abgelaufen && (
-                          <Badge variant="secondary" className="ml-2 text-xs">abgelaufen</Badge>
-                        )}
+                        {abgelaufen && <Badge variant="secondary" className="ml-2 text-xs">abgelaufen</Badge>}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {e.notizen ?? '—'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleEdit(e)}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7"
+                            onClick={() => { setSelectedEintrag(e); setDialogOpen(true); }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(e.id)}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => { if (window.confirm('Eintrag wirklich löschen?')) deleteEintrag.mutate(e.id); }}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -490,15 +431,10 @@ export default function BudgetTrackerDetail() {
   const currentYear = getYear(now);
   const currentMonth = getMonth(now) + 1;
 
-  const [selectedBillingMonth, setSelectedBillingMonth] = useState(currentMonth);
-  const [showAbrechnungDialog, setShowAbrechnungDialog] = useState(false);
-
   const { data: customers = [] } = useCustomers({ onlyActive: true });
-  const { data: transactions = [] } = useBudgetTransactionsByClientYear(kundenId, currentYear);
+  const { data: termine = [], isLoading: termineLoading } = useTermineForBudget(kundenId, currentYear);
   const { data: tariffs = [] } = useTariffs();
   const { data: careLevels = [] } = useCareLevels();
-  const updateAllocation = useUpdateTransactionAllocation();
-  const abrechnungslauf = useAbrechnungslauf();
 
   const kunde = customers.find((c) => c.id === kundenId);
   const kundeExtended = kunde as typeof kunde & {
@@ -508,96 +444,94 @@ export default function BudgetTrackerDetail() {
     initial_budget_entlastung?: number | null;
   };
 
-  // ─── Berechnungen ────────────────────────────────────────
+  // ─── FIFO-Berechnung für das gesamte Jahr ────────────────
 
-  const { availability, consumedYear, privatConsumed, expiryWarning } = useMemo(() => {
-    if (!kunde || !tariffs.length || !careLevels.length) {
-      return { availability: null, consumedYear: { ENTLASTUNG: 0, KOMBI: 0, VERHINDERUNG: 0 }, privatConsumed: 0, expiryWarning: false };
-    }
+  const { allocations, availability, consumedYear, privatConsumed, expiryWarning } = useMemo(() => {
+    const empty = {
+      allocations: [] as TerminBudgetAllocation[],
+      availability: null,
+      consumedYear: { ENTLASTUNG: 0, KOMBI: 0, VERHINDERUNG: 0 },
+      privatConsumed: 0,
+      expiryWarning: false,
+    };
 
-    const billedTx = transactions.filter((tx) => tx.billed);
-    const consumedYearData = aggregateConsumed(billedTx, tariffs, true);
+    if (!kundeExtended || !tariffs.length || !careLevels.length) return empty;
 
-    const currentMonthBilledTx = billedTx.filter((tx) => {
-      const d = new Date(tx.service_date);
-      return getMonth(d) + 1 === currentMonth;
-    });
-    const consumedKombiMonth = aggregateConsumed(
-      currentMonthBilledTx.filter((tx) => tx.service_type === 'KOMBI'),
-      tariffs,
-      true,
-    ).KOMBI;
+    const { allocations: allocs, totalConsumedEntlastung, totalConsumedVP } =
+      computeYearBudgetAllocations(termine, kundeExtended, tariffs, careLevels, currentYear);
+
+    // Kombi des aktuellen Monats aus den berechneten Allokationen
+    const currentMonthKombiConsumed = allocs
+      .filter((a) => new Date(a.serviceDate).getMonth() + 1 === currentMonth)
+      .reduce((sum, a) => {
+        if (a.splitAllocations) {
+          return sum + a.splitAllocations.filter((s) => s.type === 'KOMBI').reduce((s2, s3) => s2 + s3.amount, 0);
+        }
+        return sum + (a.serviceType === 'KOMBI' ? a.totalAmount : 0);
+      }, 0);
+
+    const consumed = { ENTLASTUNG: totalConsumedEntlastung, KOMBI: 0, VERHINDERUNG: totalConsumedVP };
 
     const avail = buildAvailability(
-      kundeExtended!,
-      consumedYearData,
-      consumedKombiMonth,
+      kundeExtended,
+      consumed,
+      currentMonthKombiConsumed,
       careLevels,
       currentMonth,
       currentYear,
     );
 
-    const privat = transactions
-      .filter((tx) => tx.service_type === 'PRIVAT')
-      .reduce((sum, tx) => sum + tx.total_amount, 0);
+    const privat = allocs
+      .filter((a) => a.serviceType === 'PRIVAT')
+      .reduce((sum, a) => sum + a.totalAmount, 0);
 
     const expiry = hasExpiryWarning(
-      kundeExtended?.initial_budget_entlastung,
-      consumedYearData.ENTLASTUNG,
+      kundeExtended.initial_budget_entlastung,
+      totalConsumedEntlastung,
       currentMonth,
     );
 
-    return { availability: avail, consumedYear: consumedYearData, privatConsumed: privat, expiryWarning: expiry };
-  }, [kunde, transactions, tariffs, careLevels, currentMonth, currentYear]);
+    return {
+      allocations: allocs,
+      availability: avail,
+      consumedYear: consumed,
+      privatConsumed: privat,
+      expiryWarning: expiry,
+    };
+  }, [kundeExtended, termine, tariffs, careLevels, currentMonth, currentYear]);
 
   // ─── Monatstabelle aufbauen ──────────────────────────────
 
   const monthData: MonthData[] = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => {
       const month = i + 1;
-      const monthTx = transactions.filter((tx) => {
-        const d = new Date(tx.service_date);
-        return getMonth(d) + 1 === month;
-      });
+      const monthAllocs = allocations.filter(
+        (a) => new Date(a.serviceDate).getMonth() + 1 === month,
+      );
 
-      const totalHours = monthTx.reduce((s, tx) => s + tx.hours, 0);
-      const totalVisits = monthTx.reduce((s, tx) => s + tx.visits, 0);
+      const totalHours = monthAllocs.reduce((s, a) => s + a.hours, 0);
 
-      const byType = (type: ServiceType) =>
-        monthTx
-          .filter((tx) => tx.service_type === type)
-          .reduce((s, tx) => s + tx.total_amount, 0);
+      const amountByType = (type: ServiceType) =>
+        monthAllocs.reduce((sum, a) => {
+          if (a.splitAllocations) {
+            return sum + a.splitAllocations.filter((s) => s.type === type).reduce((s2, s3) => s2 + s3.amount, 0);
+          }
+          return sum + (a.serviceType === type ? a.totalAmount : 0);
+        }, 0);
 
       return {
         month,
-        transactions: monthTx,
+        allocations: monthAllocs,
         totalHours,
-        totalVisits,
-        entlastungAmount: byType('ENTLASTUNG'),
-        kombiAmount: byType('KOMBI'),
-        vpAmount: byType('VERHINDERUNG'),
-        privatAmount: byType('PRIVAT'),
-        hasBilled: monthTx.some((tx) => tx.billed),
-        hasOpen: monthTx.some((tx) => !tx.billed),
+        entlastungAmount: amountByType('ENTLASTUNG'),
+        kombiAmount: amountByType('KOMBI'),
+        vpAmount: amountByType('VERHINDERUNG'),
+        privatAmount: amountByType('PRIVAT'),
+        hasBilled: monthAllocs.some((a) => BILLED_STATUSES.has(a.status)),
+        hasOpen: monthAllocs.some((a) => !BILLED_STATUSES.has(a.status)),
       };
     });
-  }, [transactions]);
-
-  // ─── Umbuchung ───────────────────────────────────────────
-
-  const handleChangeType = (txId: string, newType: ServiceType) => {
-    const tx = transactions.find((t) => t.id === txId);
-    if (!tx || !tariffs.length) return;
-
-    const { hourlyRate, travelFlatTotal, totalAmount } = calculateTransactionAmount(
-      tx.hours,
-      tx.visits,
-      newType,
-      tariffs,
-    );
-
-    updateAllocation.mutate({ id: txId, serviceType: newType, hourlyRate, travelFlatTotal, totalAmount });
-  };
+  }, [allocations]);
 
   // ─── Loading / Not found ─────────────────────────────────
 
@@ -618,7 +552,7 @@ export default function BudgetTrackerDetail() {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Breadcrumb / Header */}
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/controlboard/budgettracker')}>
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -681,131 +615,43 @@ export default function BudgetTrackerDetail() {
         </div>
       )}
 
-      {/* Abrechnungslauf */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Abrechnungslauf</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Termine aus einem unterschriebenen Leistungsnachweis in den Budgettracker buchen.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <Select
-              value={String(selectedBillingMonth)}
-              onValueChange={(v) => setSelectedBillingMonth(Number(v))}
-            >
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTH_NAMES.map((name, i) => (
-                  <SelectItem key={i + 1} value={String(i + 1)}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-muted-foreground">{currentYear}</span>
-            <Button
-              variant="outline"
-              onClick={() => setShowAbrechnungDialog(true)}
-              disabled={abrechnungslauf.isPending}
-            >
-              <Play className="h-4 w-4 mr-2" />
-              Abrechnungslauf starten
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Abrechnungslauf Bestätigungs-Dialog */}
-      <Dialog open={showAbrechnungDialog} onOpenChange={setShowAbrechnungDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Abrechnungslauf starten</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <p>
-              Alle abgeschlossenen Termine von{' '}
-              <strong>{MONTH_NAMES[selectedBillingMonth - 1]} {currentYear}</strong> für{' '}
-              <strong>{fullName}</strong> werden mit FIFO-Budgetzuweisung in den Budgettracker gebucht.
-            </p>
-            <p className="text-muted-foreground">
-              Voraussetzung: Der Leistungsnachweis des Monats muss unterschrieben sein.
-              Bereits gebuchte Monate werden nicht doppelt gebucht.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowAbrechnungDialog(false)}
-              disabled={abrechnungslauf.isPending}
-            >
-              Abbrechen
-            </Button>
-            <Button
-              onClick={() => {
-                if (!kundeExtended) return;
-                abrechnungslauf.mutate(
-                  {
-                    kundenId: kundenId!,
-                    monat: selectedBillingMonth,
-                    jahr: currentYear,
-                    existingYearTransactions: transactions,
-                    kunde: kundeExtended,
-                    tariffs,
-                    careLevels,
-                  },
-                  { onSuccess: () => setShowAbrechnungDialog(false) },
-                );
-              }}
-              disabled={abrechnungslauf.isPending || !kundeExtended || !tariffs.length}
-            >
-              {abrechnungslauf.isPending ? 'Wird gebucht...' : 'Jetzt abrechnen'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Monatstabelle */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Monatsverlauf {currentYear}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Klicken Sie auf einen Monat, um einzelne Leistungen anzuzeigen. Nicht abgerechnete Einträge können umgebucht werden.
+            Alle abgeschlossenen Termine mit automatischer FIFO-Budgetzuweisung. Klick auf Monat für Details.
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-40">Monat</TableHead>
-                <TableHead className="text-right">Stunden</TableHead>
-                <TableHead className="text-right">Einsätze</TableHead>
-                <TableHead className="text-right">Entlastung</TableHead>
-                <TableHead className="text-right">Kombi</TableHead>
-                <TableHead className="text-right">VP</TableHead>
-                <TableHead className="text-right">Privat</TableHead>
-                <TableHead className="text-center w-20">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {monthData.map((data) => (
-                <MonthRow
-                  key={data.month}
-                  data={data}
-                  tariffs={tariffs}
-                  onChangeType={handleChangeType}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          {termineLoading ? (
+            <p className="text-sm text-muted-foreground px-6 py-4">Lade Termine...</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-40">Monat</TableHead>
+                  <TableHead className="text-right">Stunden</TableHead>
+                  <TableHead className="text-right">Einsätze</TableHead>
+                  <TableHead className="text-right">Entlastung</TableHead>
+                  <TableHead className="text-right">Kombi</TableHead>
+                  <TableHead className="text-right">VP</TableHead>
+                  <TableHead className="text-right">Privat</TableHead>
+                  <TableHead className="text-center w-20">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monthData.map((data) => (
+                  <MonthRow key={data.month} data={data} />
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        ✓ = abgerechnet &nbsp; ○ = offen &nbsp; Budgets basieren auf abgerechneten Transaktionen (billed=true)
+        ✓ = abgerechnet &nbsp; ○ = offen &nbsp; ~ = aufgeteilt auf mehrere Töpfe &nbsp; Budgets aus abgeschlossenen Terminen (live)
       </p>
 
       {/* Manuelle Guthaben */}

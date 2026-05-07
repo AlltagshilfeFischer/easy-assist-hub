@@ -411,6 +411,134 @@ export function hasExpiryWarning(
   return daysUntilJuly1 >= 0 && daysUntilJuly1 <= 60;
 }
 
+// ─── Jahres-Budgetberechnung direkt aus Terminen ─────────────
+
+export interface TerminRow {
+  id: string;
+  start_at: string;
+  end_at: string;
+  iststunden: number | null;
+  status: string;
+}
+
+export interface TerminBudgetAllocation {
+  terminId: string;
+  serviceDate: string;
+  hours: number;
+  status: string;
+  serviceType: ServiceType;
+  hourlyRate: number;
+  travelFlatTotal: number;
+  totalAmount: number;
+  splitAllocations?: SplitAllocation[];
+}
+
+/**
+ * Berechnet FIFO-Budgetzuweisung für alle abrechenbaren Termine eines Jahres.
+ * Verarbeitet Monat für Monat — Kombi setzt sich monatlich zurück,
+ * VP und Entlastung akkumulieren über das gesamte Jahr.
+ */
+export function computeYearBudgetAllocations(
+  termine: TerminRow[],
+  kunde: KundeForBudget & {
+    initial_budget_entlastung?: number | null;
+    entlastung_genehmigt?: boolean | null;
+    verhinderungspflege_genehmigt?: boolean | null;
+    pflegesachleistung_genehmigt?: boolean | null;
+  },
+  tariffs: Tariff[],
+  careLevels: CareLevel[],
+  year: number,
+): { allocations: TerminBudgetAllocation[]; totalConsumedEntlastung: number; totalConsumedVP: number } {
+  if (!tariffs.length || !careLevels.length) {
+    return { allocations: [], totalConsumedEntlastung: 0, totalConsumedVP: 0 };
+  }
+
+  const result: TerminBudgetAllocation[] = [];
+  let consumedEntlastung = 0;
+  let consumedVP = 0;
+
+  for (let month = 1; month <= 12; month++) {
+    const monthTermine = termine.filter((t) => new Date(t.start_at).getMonth() + 1 === month);
+    if (monthTermine.length === 0) continue;
+
+    const availability = buildAvailability(
+      kunde,
+      { ENTLASTUNG: consumedEntlastung, KOMBI: 0, VERHINDERUNG: consumedVP },
+      0,
+      careLevels,
+      month,
+      year,
+    );
+
+    const pseudoTx: BudgetTransaction[] = monthTermine.map((t) => {
+      const diffHours = (new Date(t.end_at).getTime() - new Date(t.start_at).getTime()) / (1000 * 60 * 60);
+      const hours = Math.round(Math.max(0, t.iststunden ?? diffHours) * 100) / 100;
+      return {
+        id: t.id,
+        client_id: '',
+        service_date: t.start_at.split('T')[0],
+        hours,
+        visits: 1,
+        service_type: 'ENTLASTUNG' as ServiceType,
+        hourly_rate: 0,
+        travel_flat_total: 0,
+        total_amount: 0,
+        allocation_type: 'AUTO' as const,
+        billed: false,
+        source: 'MANUAL' as const,
+        external_ref: null,
+        budget_id: null,
+        created_at: t.start_at,
+      };
+    });
+
+    const assigned = assignTransactionTypes(pseudoTx, kunde, availability, tariffs);
+
+    for (const tx of assigned) {
+      const termin = monthTermine.find((t) => t.id === tx.id);
+
+      if (tx.splitAllocations && tx.splitAllocations.length > 1) {
+        const totalSplitAmount = tx.splitAllocations.reduce((s, a) => s + a.amount, 0);
+        for (const alloc of tx.splitAllocations) {
+          if (alloc.type === 'ENTLASTUNG') consumedEntlastung += alloc.amount;
+          if (alloc.type === 'VERHINDERUNG') consumedVP += alloc.amount;
+        }
+        const { hourlyRate, travelFlatTotal } = calculateTransactionAmount(tx.hours, 1, tx.suggestedType, tariffs);
+        result.push({
+          terminId: tx.id,
+          serviceDate: tx.service_date,
+          hours: tx.hours,
+          status: termin?.status ?? 'completed',
+          serviceType: tx.suggestedType,
+          hourlyRate,
+          travelFlatTotal,
+          totalAmount: Math.round(totalSplitAmount * 100) / 100,
+          splitAllocations: tx.splitAllocations,
+        });
+      } else {
+        const { hourlyRate, travelFlatTotal, totalAmount } = calculateTransactionAmount(
+          tx.hours, tx.visits, tx.suggestedType, tariffs,
+        );
+        if (tx.suggestedType === 'ENTLASTUNG') consumedEntlastung += totalAmount;
+        if (tx.suggestedType === 'VERHINDERUNG') consumedVP += totalAmount;
+        result.push({
+          terminId: tx.id,
+          serviceDate: tx.service_date,
+          hours: tx.hours,
+          status: termin?.status ?? 'completed',
+          serviceType: tx.suggestedType,
+          hourlyRate,
+          travelFlatTotal,
+          totalAmount,
+        });
+      }
+    }
+  }
+
+  return { allocations: result, totalConsumedEntlastung: consumedEntlastung, totalConsumedVP: consumedVP };
+}
+
 // ─── Consumed-Beträge aus Transaktionen aggregieren ──────────
 
 export type ConsumedByType = {
