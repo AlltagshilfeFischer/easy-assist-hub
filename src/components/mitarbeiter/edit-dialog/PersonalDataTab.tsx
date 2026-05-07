@@ -40,15 +40,17 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
           <div className="space-y-1.5">
             <Label>Straße + Hausnr. *</Label>
             <Input {...register('strasse')} placeholder="Musterstraße 1" />
+            {errors.strasse && <p className="text-xs text-destructive">{errors.strasse.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>PLZ *</Label>
-            <Input {...register('plz')} placeholder="30159" />
+            <Input {...register('plz')} placeholder="30159" maxLength={5} />
             {errors.plz && <p className="text-xs text-destructive">{errors.plz.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label>Ort *</Label>
             <Input {...register('stadt')} placeholder="Hannover" />
+            {errors.stadt && <p className="text-xs text-destructive">{errors.stadt.message}</p>}
           </div>
         </div>
 

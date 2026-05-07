@@ -85,57 +85,59 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
 
   const handleSave = async (values: MitarbeiterFormValues) => {
     if (!mitarbeiter) return;
+
+    const { error } = await supabase.from('mitarbeiter').update({
+      vorname: values.vorname,
+      nachname: values.nachname,
+      telefon: values.telefon || null,
+      strasse: values.strasse || null,
+      plz: values.plz || null,
+      stadt: values.stadt || null,
+      farbe_kalender: values.farbe_kalender,
+      standort: (values.standort || 'Hannover') as 'Hannover',
+      zustaendigkeitsbereich: values.zustaendigkeitsbereich || null,
+      soll_wochenstunden: values.soll_wochenstunden ?? null,
+      max_termine_pro_tag: values.max_termine_pro_tag ?? null,
+      employment_type: values.employment_type || null,
+      gehalt_pro_monat: values.gehalt_pro_monat ?? null,
+      vertragsstunden_pro_monat: values.vertragsstunden_pro_monat ?? null,
+      geburtsdatum: values.geburtsdatum || null,
+      geburtsname: values.geburtsname || null,
+      geburtsort: values.geburtsort || null,
+      geburtsland: values.geburtsland || null,
+      geschlecht: values.geschlecht || null,
+      konfession: values.konfession || null,
+      email: values.email || null,
+      bank_institut: values.bank_institut || null,
+      iban: values.iban || null,
+      steuer_id: values.steuer_id || null,
+      steuerklasse: values.steuerklasse ?? null,
+      kinderfreibetrag: values.kinderfreibetrag ?? null,
+      sv_rv_nummer: values.sv_rv_nummer || null,
+      krankenkasse: values.krankenkasse || null,
+      weitere_beschaeftigung: values.weitere_beschaeftigung,
+    }).eq('id', mitarbeiter.id);
+
+    if (error) {
+      toast.error('Fehler beim Speichern', { description: error.message });
+      return;
+    }
+
     try {
-      const { error } = await supabase.from('mitarbeiter').update({
-        vorname: values.vorname,
-        nachname: values.nachname,
-        telefon: values.telefon || null,
-        strasse: values.strasse || null,
-        plz: values.plz || null,
-        stadt: values.stadt || null,
-        farbe_kalender: values.farbe_kalender,
-        standort: (values.standort || 'Hannover') as 'Hannover',
-        zustaendigkeitsbereich: values.zustaendigkeitsbereich || null,
-        soll_wochenstunden: values.soll_wochenstunden ?? null,
-        max_termine_pro_tag: values.max_termine_pro_tag ?? null,
-        employment_type: values.employment_type || null,
-        // Neue Felder — Reiter 1
-        gehalt_pro_monat: values.gehalt_pro_monat ?? null,
-        vertragsstunden_pro_monat: values.vertragsstunden_pro_monat ?? null,
-        geburtsdatum: values.geburtsdatum || null,
-        geburtsname: values.geburtsname || null,
-        geburtsort: values.geburtsort || null,
-        geburtsland: values.geburtsland || null,
-        geschlecht: values.geschlecht || null,
-        konfession: values.konfession || null,
-        email: values.email || null,
-        bank_institut: values.bank_institut || null,
-        iban: values.iban || null,
-        // Neue Felder — Reiter 2
-        steuer_id: values.steuer_id || null,
-        steuerklasse: values.steuerklasse ?? null,
-        kinderfreibetrag: values.kinderfreibetrag ?? null,
-        sv_rv_nummer: values.sv_rv_nummer || null,
-        krankenkasse: values.krankenkasse || null,
-        // Neue Felder — Reiter 3
-        weitere_beschaeftigung: values.weitere_beschaeftigung,
-      }).eq('id', mitarbeiter.id);
-
-      if (error) throw error;
-
-      // Qualifikationen separat speichern
       await saveQualifikationen.mutateAsync({
         mitarbeiterId: mitarbeiter.id,
         qualifikationIds: qualifikationState.ids,
       });
-
       toast.success('Mitarbeiter-Daten wurden aktualisiert');
-      onOpenChange(false);
-      onSuccess();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      toast.error('Fehler beim Speichern', { description: message });
+    } catch (qualError: unknown) {
+      const message = qualError instanceof Error ? qualError.message : 'Unbekannter Fehler';
+      toast.warning('Stammdaten gespeichert – Qualifikationen konnten nicht aktualisiert werden', {
+        description: message,
+      });
     }
+
+    onOpenChange(false);
+    onSuccess();
   };
 
   if (!mitarbeiter) return null;

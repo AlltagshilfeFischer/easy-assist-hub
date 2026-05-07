@@ -179,11 +179,21 @@ export default function BenutzerverwaltungNeu() {
     try {
       const { error } = await supabase.from('mitarbeiter').update({ ist_aktiv: false }).eq('id', selectedMitarbeiter);
       if (error) throw error;
-      // Also deactivate benutzer record
+
       const target = mitarbeiter.find(m => m.id === selectedMitarbeiter);
       if (target?.benutzer_id) {
-        await supabase.from('benutzer').update({ status: 'rejected' as any }).eq('id', target.benutzer_id);
+        const { error: benutzerError } = await supabase
+          .from('benutzer')
+          .update({ status: 'rejected' as any })
+          .eq('id', target.benutzer_id);
+        if (benutzerError) {
+          console.error('[Deaktivieren] Benutzer-Status konnte nicht gesetzt werden:', benutzerError);
+          toast({ variant: 'destructive', title: 'Teilweise fehlgeschlagen', description: 'Mitarbeiter deaktiviert, aber Benutzerkonto konnte nicht gesperrt werden. Bitte Seite neu laden.' });
+          loadData();
+          return;
+        }
       }
+
       toast({ title: 'Erfolgreich', description: 'Mitarbeiter wurde deaktiviert.' });
       setDeactivateDialogOpen(false);
       setSelectedMitarbeiter(null);
@@ -200,10 +210,21 @@ export default function BenutzerverwaltungNeu() {
     try {
       const { error } = await supabase.from('mitarbeiter').update({ ist_aktiv: true }).eq('id', mitarbeiterId);
       if (error) throw error;
+
       const target = mitarbeiter.find(m => m.id === mitarbeiterId);
       if (target?.benutzer_id) {
-        await supabase.from('benutzer').update({ status: 'approved' as any }).eq('id', target.benutzer_id);
+        const { error: benutzerError } = await supabase
+          .from('benutzer')
+          .update({ status: 'approved' as any })
+          .eq('id', target.benutzer_id);
+        if (benutzerError) {
+          console.error('[Reaktivieren] Benutzer-Status konnte nicht gesetzt werden:', benutzerError);
+          toast({ variant: 'destructive', title: 'Teilweise fehlgeschlagen', description: 'Mitarbeiter reaktiviert, aber Benutzerkonto-Status konnte nicht aktualisiert werden. Bitte Seite neu laden.' });
+          loadData();
+          return;
+        }
       }
+
       toast({ title: 'Erfolgreich', description: 'Mitarbeiter wurde reaktiviert.' });
       loadData();
     } catch (error: any) {

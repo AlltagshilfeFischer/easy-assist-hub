@@ -4,9 +4,9 @@ import { z } from 'zod';
 const personalDataSchema = z.object({
   vorname: z.string().min(1, 'Vorname ist erforderlich').trim(),
   nachname: z.string().min(1, 'Nachname ist erforderlich').trim(),
-  strasse: z.string().trim().optional().or(z.literal('')),
-  plz: z.string().regex(/^(\d{5})?$/, 'PLZ muss 5 Ziffern haben').optional().or(z.literal('')),
-  stadt: z.string().trim().optional().or(z.literal('')),
+  strasse: z.string().trim().min(1, 'Straße ist erforderlich'),
+  plz: z.string().regex(/^\d{5}$/, 'PLZ muss 5 Ziffern haben'),
+  stadt: z.string().trim().min(1, 'Ort ist erforderlich'),
   telefon: z.string().trim().optional().or(z.literal('')),
   email: z.string().email('Ungültige E-Mail-Adresse').optional().or(z.literal('')),
   geburtsdatum: z.string().optional().or(z.literal('')),
