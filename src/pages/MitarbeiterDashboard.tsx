@@ -70,7 +70,7 @@ export default function MitarbeiterDashboard() {
         for (const t of toComplete) t.status = 'completed';
       }
 
-      setAppointments((data as any) || []);
+      setAppointments((data ?? []) as Appointment[]);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -187,7 +187,7 @@ export default function MitarbeiterDashboard() {
               onEditAppointment={handleEditAppointment}
               onCorrectAppointment={handleCorrectAppointment}
               onSlotClick={handleSlotClick}
-              employeeName={`${employee.vorname} ${employee.nachname}`}
+              employeeName={[employee.vorname, employee.nachname].filter(Boolean).join(' ') || employee.name}
               employeeColor={employee.farbe_kalender}
             />
           )}
