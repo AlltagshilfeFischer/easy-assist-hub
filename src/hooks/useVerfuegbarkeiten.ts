@@ -59,6 +59,7 @@ export function useSaveVerfuegbarkeiten() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['verfuegbarkeiten', variables.mitarbeiterId] });
+      queryClient.invalidateQueries({ queryKey: ['verfuegbarkeiten-all'] });
     },
   });
 }

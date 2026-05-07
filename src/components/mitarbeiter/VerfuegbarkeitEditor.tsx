@@ -49,10 +49,16 @@ export function VerfuegbarkeitEditor({ mitarbeiterId, disabled }: Verfuegbarkeit
   };
 
   const handleSave = async () => {
+    const invalid = slots.find((s) => s.von >= s.bis);
+    if (invalid) {
+      const tag = WOCHENTAGE[invalid.wochentag];
+      toast.error(`Ungültige Zeit am ${tag}: Von-Zeit muss vor Bis-Zeit liegen`);
+      return;
+    }
     try {
       await saveMutation.mutateAsync({ mitarbeiterId, slots });
       setDirty(false);
-      toast.success('Verfuegbarkeiten gespeichert');
+      toast.success('Verfügbarkeiten gespeichert');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Fehler beim Speichern';
       toast.error(msg);

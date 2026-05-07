@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+
+type QualifikationRow = Database['public']['Tables']['qualifikationen']['Row'];
+type MitarbeiterQualifikationRow = Database['public']['Tables']['mitarbeiter_qualifikationen']['Row'];
 
 export interface Qualifikation {
   id: string;
@@ -12,11 +16,11 @@ export function useQualifikationen() {
   return useQuery({
     queryKey: ['qualifikationen'],
     queryFn: async (): Promise<Qualifikation[]> => {
-      const { data, error } = await (supabase
-        .from('qualifikationen' as any)
+      const { data, error } = await supabase
+        .from('qualifikationen')
         .select('id, name, kategorie')
         .order('kategorie')
-        .order('name')) as any;
+        .order('name');
       if (error) throw error;
       return (data ?? []) as Qualifikation[];
     },
@@ -29,12 +33,12 @@ export function useMitarbeiterQualifikationen(mitarbeiterId: string | null) {
     queryKey: ['mitarbeiter_qualifikationen', mitarbeiterId],
     enabled: !!mitarbeiterId,
     queryFn: async (): Promise<string[]> => {
-      const { data, error } = await (supabase
-        .from('mitarbeiter_qualifikationen' as any)
+      const { data, error } = await supabase
+        .from('mitarbeiter_qualifikationen')
         .select('qualifikation_id')
-        .eq('mitarbeiter_id', mitarbeiterId!)) as any;
+        .eq('mitarbeiter_id', mitarbeiterId!);
       if (error) throw error;
-      return ((data ?? []) as any[]).map((d: any) => d.qualifikation_id);
+      return (data ?? []).map((d: Pick<MitarbeiterQualifikationRow, 'qualifikation_id'>) => d.qualifikation_id);
     },
   });
 }
@@ -45,21 +49,20 @@ export function useSaveMitarbeiterQualifikationen() {
 
   return useMutation({
     mutationFn: async ({ mitarbeiterId, qualifikationIds }: { mitarbeiterId: string; qualifikationIds: string[] }) => {
-      // Delete existing
-      const { error: deleteError } = await (supabase
-        .from('mitarbeiter_qualifikationen' as any)
+      const { error: deleteError } = await supabase
+        .from('mitarbeiter_qualifikationen')
         .delete()
-        .eq('mitarbeiter_id', mitarbeiterId)) as any;
+        .eq('mitarbeiter_id', mitarbeiterId);
       if (deleteError) throw deleteError;
 
       if (qualifikationIds.length > 0) {
-        const rows = qualifikationIds.map((qId) => ({
+        const rows: Database['public']['Tables']['mitarbeiter_qualifikationen']['Insert'][] = qualifikationIds.map((qId) => ({
           mitarbeiter_id: mitarbeiterId,
           qualifikation_id: qId,
         }));
-        const { error: insertError } = await (supabase
-          .from('mitarbeiter_qualifikationen' as any)
-          .insert(rows as any)) as any;
+        const { error: insertError } = await supabase
+          .from('mitarbeiter_qualifikationen')
+          .insert(rows);
         if (insertError) throw insertError;
       }
     },
@@ -75,13 +78,13 @@ export function useCreateQualifikation() {
 
   return useMutation({
     mutationFn: async ({ name, kategorie = 'Allgemein' }: { name: string; kategorie?: string }) => {
-      const { data, error } = await (supabase
-        .from('qualifikationen' as any)
-        .insert({ name, kategorie } as any)
+      const { data, error } = await supabase
+        .from('qualifikationen')
+        .insert({ name, kategorie } satisfies Database['public']['Tables']['qualifikationen']['Insert'])
         .select('id, name, kategorie')
-        .single()) as any;
+        .single();
       if (error) throw error;
-      return data;
+      return data as QualifikationRow;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['qualifikationen'] });
