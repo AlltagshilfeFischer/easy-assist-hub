@@ -117,8 +117,12 @@ export function CustomerEditDialog({
 
   const preSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // DB-Felder sind nullable — null → undefined, damit Zod .default() und .optional() greifen
+    const normalized = Object.fromEntries(
+      Object.entries(editingCustomer).map(([k, v]) => [k, v === null ? undefined : v])
+    );
     const result = customerBaseSchema.safeParse({
-      ...editingCustomer,
+      ...normalized,
       pflegegrad: editingCustomer.pflegegrad != null ? String(editingCustomer.pflegegrad) : '',
       termindauer_stunden: editingCustomer.termindauer_stunden != null ? String(editingCustomer.termindauer_stunden) : '1.5',
       stunden_kontingent_monat: editingCustomer.stunden_kontingent_monat != null ? String(editingCustomer.stunden_kontingent_monat) : '',
