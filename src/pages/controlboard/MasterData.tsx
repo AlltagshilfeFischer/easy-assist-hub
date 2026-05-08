@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Building, FileSpreadsheet, FileText, Plus, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,9 +44,13 @@ const monthToDate = (monthString: string | null) => {
   return `${monthString.substring(0, 7)}-01`;
 };
 
+const VALID_TABS = ['stammdaten', 'abrechnung', 'dokumente'] as const;
+type EditTab = typeof VALID_TABS[number];
+
 export default function MasterData() {
   const [editingCustomer, setEditingCustomer] = useState<EditingCustomer | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [initialEditTab, setInitialEditTab] = useState<EditTab>('stammdaten');
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [showSmartImport, setShowSmartImport] = useState(false);
@@ -54,6 +59,7 @@ export default function MasterData() {
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ['customers'],
@@ -79,6 +85,35 @@ export default function MasterData() {
 
   const filters = useCustomerFilters(customers);
   const { updateCustomerMutation, convertToCustomerMutation, toggleCustomerStatusMutation, deleteCustomerMutation, bulkDeleteCustomersMutation } = useCustomerMutations();
+
+  // Deep-Link aus BudgetTracker: ?openKunde=<id>&tab=abrechnung
+  useEffect(() => {
+    const openKunde = searchParams.get('openKunde');
+    const rawTab = searchParams.get('tab');
+    if (!openKunde || !customers || customers.length === 0) return;
+
+    const customer = customers.find((c: any) => c.id === openKunde);
+    if (!customer) return;
+
+    // Params sofort leeren, damit kein Re-Open beim Schließen passiert
+    setSearchParams({}, { replace: true });
+
+    const tab: EditTab = VALID_TABS.includes(rawTab as EditTab) ? (rawTab as EditTab) : 'stammdaten';
+    setInitialEditTab(tab);
+
+    Promise.all([
+      supabase.from('kunden_zeitfenster').select('*').eq('kunden_id', customer.id).order('wochentag'),
+      supabase.from('notfallkontakte').select('*').eq('kunden_id', customer.id).order('created_at'),
+    ]).then(([{ data: zeitfensterData }, { data: notfallkontakteData }]) => {
+      setEditingCustomer({
+        ...customer,
+        eintritt: customer.eintritt || getCurrentMonth(),
+        zeitfenster: zeitfensterData || [],
+        notfallkontakte: notfallkontakteData || [],
+      });
+      setIsDialogOpen(true);
+    });
+  }, [customers, searchParams]);
 
   const handleToggleSelection = (id: string) => {
     setSelectedCustomerIds(prev => {
@@ -245,11 +280,18 @@ export default function MasterData() {
 
       <CustomerEditDialog
         open={isDialogOpen}
-        onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setEditingCustomer(null); }}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) {
+            setEditingCustomer(null);
+            setInitialEditTab('stammdaten');
+          }
+        }}
         editingCustomer={editingCustomer}
         setEditingCustomer={setEditingCustomer}
         employees={employees}
         onSave={handleSaveCustomer}
+        initialTab={initialEditTab}
       />
 
       {/* Delete Confirmation */}

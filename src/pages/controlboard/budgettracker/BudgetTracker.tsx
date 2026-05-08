@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getYear, getMonth } from 'date-fns';
-import { Search, AlertTriangle, ChevronRight, Loader2, Download } from 'lucide-react';
+import { Search, AlertTriangle, ChevronRight, Loader2, Download, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadCsv } from '@/lib/csvExport';
 import * as Progress from '@radix-ui/react-progress';
@@ -386,7 +386,23 @@ export default function BudgetTracker() {
                         <StatusBadge status={row.status} />
                       </TableCell>
                       <TableCell>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title="Stammdaten bearbeiten"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(
+                                `/dashboard/controlboard/master-data?openKunde=${row.kundenId}&tab=abrechnung`,
+                              );
+                            }}
+                          >
+                            <Settings className="h-3.5 w-3.5" />
+                          </Button>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

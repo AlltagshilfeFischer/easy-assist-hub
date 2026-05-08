@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getYear, getMonth, format, parseISO as parseDateISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2, Settings } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -562,7 +562,7 @@ export default function BudgetTrackerDetail() {
         <span className="font-semibold">{fullName}</span>
       </div>
 
-      <div className="flex items-start gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{fullName}</h1>
           <div className="flex items-center gap-2 mt-1">
@@ -577,6 +577,19 @@ export default function BudgetTrackerDetail() {
             )}
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 shrink-0"
+          onClick={() =>
+            navigate(
+              `/dashboard/controlboard/master-data?openKunde=${kundenId}&tab=abrechnung`,
+            )
+          }
+        >
+          <Settings className="h-4 w-4" />
+          Stammdaten
+        </Button>
       </div>
 
       {/* Budget-Summary-Cards */}

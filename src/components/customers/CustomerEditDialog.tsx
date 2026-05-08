@@ -45,6 +45,7 @@ interface CustomerEditDialogProps {
   setEditingCustomer: (c: EditingCustomer) => void;
   employees: Employee[] | undefined;
   onSave: (e: React.FormEvent, overrides?: Partial<EditingCustomer>) => void;
+  initialTab?: 'stammdaten' | 'abrechnung' | 'dokumente';
 }
 
 const getWeekdayName = (day: number): string => {
@@ -70,6 +71,7 @@ export function CustomerEditDialog({
   setEditingCustomer,
   employees,
   onSave,
+  initialTab,
 }: CustomerEditDialogProps) {
   const { settings } = useSettings();
   const [showAITimeWindows, setShowAITimeWindows] = useState(false);
@@ -156,7 +158,7 @@ export function CustomerEditDialog({
         </DialogHeader>
 
         <form onSubmit={preSubmit}>
-          <Tabs defaultValue="stammdaten" className="w-full">
+          <Tabs defaultValue={initialTab ?? 'stammdaten'} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="stammdaten" className="gap-1.5">
                 <User className="h-4 w-4" />
