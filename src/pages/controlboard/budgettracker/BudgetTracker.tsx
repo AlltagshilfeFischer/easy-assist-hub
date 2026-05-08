@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getYear, getMonth } from 'date-fns';
-import { Search, AlertTriangle, ChevronRight, Loader2, Download, Info } from 'lucide-react';
+import { Search, AlertTriangle, ChevronRight, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadCsv } from '@/lib/csvExport';
 import * as Progress from '@radix-ui/react-progress';
@@ -13,18 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import { useCustomers } from '@/hooks/useCustomers';
-import { useBudgetTransactionsByYear } from '@/hooks/useBudgetTransactions';
+import { useAllTermineForBudget } from '@/hooks/useAllTermineForBudget';
 import { useTariffs } from '@/hooks/useTariffs';
 import { useCareLevels } from '@/hooks/useCareLevels';
 import {
   formatCurrency,
   isPrivateInsured,
-  aggregateConsumed,
   buildAvailability,
   hasExpiryWarning,
-  getBillingStatus,
-  buildBillingSuggestion,
-  assignTransactionTypes,
+  computeYearBudgetAllocations,
 } from '@/lib/pflegebudget/budgetCalculations';
 import type { AllocationStatus } from '@/types/domain';
 
@@ -91,23 +88,17 @@ export default function BudgetTracker() {
   const { data: customers = [], isLoading: customersLoading } = useCustomers({ onlyActive: true });
   const { data: tariffs = [], isLoading: tariffsLoading } = useTariffs();
   const { data: careLevels = [], isLoading: careLevelsLoading } = useCareLevels();
-  const { data: allYearData = [], isLoading: txLoading } = useBudgetTransactionsByYear(currentYear);
+  const { data: termineByClient, isLoading: termineLoading } = useAllTermineForBudget(currentYear);
 
-  const isLoading = customersLoading || tariffsLoading || careLevelsLoading || txLoading;
+  const isLoading = customersLoading || tariffsLoading || careLevelsLoading || termineLoading;
 
-  // Tarife + Pflegegradtabelle sind für kassenfinanzierte Kunden notwendig.
-  // Wenn sie fehlen, zeigen wir trotzdem alle Kunden an — kassenbasierte Budget-Zellen
-  // werden mit einer Konfigurationswarnung ersetzt statt mit stillen Strichen.
   const tariffsReady = !tariffsLoading && tariffs.length > 0;
   const careLevelsReady = !careLevelsLoading && careLevels.length > 0;
   const budgetDataReady = tariffsReady && careLevelsReady;
   const configMissing = !isLoading && !budgetDataReady && customers.length > 0;
 
   const trackerRows = useMemo(() => {
-    // Alle aktiven Kunden anzeigen – auch ohne Pflegegrad
     return customers.map((kunde) => {
-      const clientTx = allYearData.filter((tx) => tx.client_id === kunde.id);
-
       const kundeExtended = kunde as typeof kunde & {
         entlastung_genehmigt?: boolean | null;
         verhinderungspflege_genehmigt?: boolean | null;
@@ -116,45 +107,48 @@ export default function BudgetTracker() {
         budget_prioritaet?: string[] | null;
       };
 
+      const name = `${kunde.nachname ?? ''}, ${kunde.vorname ?? ''}`.trim().replace(/^,\s*/, '');
+      const pflegegrad = kunde.pflegegrad ?? 0;
+      const isPrivate = isPrivateInsured(kunde.versichertennummer);
+
       if (!budgetDataReady) {
         return {
-          kundenId: kunde.id,
-          name: `${kunde.nachname ?? ''}, ${kunde.vorname ?? ''}`.trim().replace(/^,\s*/, ''),
-          pflegegrad: kunde.pflegegrad ?? 0,
-          availability: null,
-          expiryWarning: false,
-          consumedYear: { ENTLASTUNG: 0, KOMBI: 0, VERHINDERUNG: 0 },
-          privatConsumed: 0,
+          kundenId: kunde.id, name, pflegegrad,
+          availability: null, expiryWarning: false,
+          consumedEntlastung: 0, consumedVP: 0, privatConsumed: 0,
           status: 'OK' as AllocationStatus,
-          isPrivate: isPrivateInsured(kunde.versichertennummer),
-          hasEntlastung: false,
-          hasKombi: false,
-          hasVP: false,
+          isPrivate, hasEntlastung: false, hasKombi: false, hasVP: false,
         };
       }
 
-      // Fix C: Alle Transaktionen zählen für die Übersicht (nicht nur billed=true).
-      // Die Detail-Ansicht zeigt ebenfalls alle — das Abschließen eines Monats ändert
-      // nur billed=true, aber der Verbrauch war bereits vorher sichtbar.
-      const consumedYear = aggregateConsumed(clientTx, tariffs, false);
+      const kundeTermine = termineByClient[kunde.id] ?? [];
+      const { allocations, totalConsumedEntlastung, totalConsumedVP } = computeYearBudgetAllocations(
+        kundeTermine, kundeExtended, tariffs, careLevels, currentYear,
+      );
 
-      const privatConsumed = clientTx
-        .filter((tx) => tx.service_type === 'PRIVAT')
-        .reduce((sum, tx) => sum + tx.total_amount, 0);
+      const privatConsumed = allocations.reduce((sum, a) => {
+        if (a.splitAllocations) {
+          return sum + a.splitAllocations
+            .filter((sa) => sa.type === 'PRIVAT')
+            .reduce((s, sa) => s + sa.amount, 0);
+        }
+        return a.serviceType === 'PRIVAT' ? sum + a.totalAmount : sum;
+      }, 0);
 
-      const currentMonthTx = clientTx.filter((tx) => {
-        const d = new Date(tx.service_date);
-        return getMonth(d) + 1 === currentMonth;
-      });
-      const consumedKombiMonth = aggregateConsumed(
-        currentMonthTx.filter((tx) => tx.service_type === 'KOMBI'),
-        tariffs,
-        false,
-      ).KOMBI;
+      const consumedKombiMonth = allocations
+        .filter((a) => new Date(a.serviceDate).getMonth() + 1 === currentMonth)
+        .reduce((sum, a) => {
+          if (a.splitAllocations) {
+            return sum + a.splitAllocations
+              .filter((sa) => sa.type === 'KOMBI')
+              .reduce((s, sa) => s + sa.amount, 0);
+          }
+          return a.serviceType === 'KOMBI' ? sum + a.totalAmount : sum;
+        }, 0);
 
       const availability = buildAvailability(
         kundeExtended,
-        consumedYear,
+        { ENTLASTUNG: totalConsumedEntlastung, KOMBI: 0, VERHINDERUNG: totalConsumedVP },
         consumedKombiMonth,
         careLevels,
         currentMonth,
@@ -163,38 +157,31 @@ export default function BudgetTracker() {
 
       const expiryWarning = hasExpiryWarning(
         kundeExtended.initial_budget_entlastung,
-        consumedYear.ENTLASTUNG,
+        totalConsumedEntlastung,
         currentMonth,
       );
 
-      const isPrivate = isPrivateInsured(kunde.versichertennummer);
-
-      const assigned = assignTransactionTypes(clientTx, kundeExtended, availability, tariffs);
-      const suggestion = buildBillingSuggestion(assigned, tariffs);
-      const status = getBillingStatus(
-        kunde.pflegegrad ?? 0,
-        suggestion,
-        kundeExtended.initial_budget_entlastung,
-        currentMonth,
-        consumedYear.ENTLASTUNG,
-      );
+      const status: AllocationStatus = (() => {
+        if (pflegegrad === 0) return 'OK';
+        if (privatConsumed > 0.01) return 'BUDGET_EXCEEDED';
+        const carryOver = kundeExtended.initial_budget_entlastung ?? 0;
+        if (carryOver > 0 && currentMonth < 7 && Math.max(0, carryOver - totalConsumedEntlastung) > 0) return 'OPTIMIZE';
+        return 'OK';
+      })();
 
       return {
-        kundenId: kunde.id,
-        name: `${kunde.nachname ?? ''}, ${kunde.vorname ?? ''}`.trim().replace(/^,\s*/, ''),
-        pflegegrad: kunde.pflegegrad ?? 0,
-        availability,
-        expiryWarning,
-        consumedYear,
-        privatConsumed,
-        status,
-        isPrivate,
+        kundenId: kunde.id, name, pflegegrad,
+        availability, expiryWarning,
+        consumedEntlastung: totalConsumedEntlastung,
+        consumedVP: totalConsumedVP,
+        consumedKombiMonth,
+        privatConsumed, status, isPrivate,
         hasEntlastung: availability.entlastungYearlyTotal > 0,
         hasKombi: availability.kombiMonthlyMax > 0,
         hasVP: availability.vpYearlyTotal > 0,
       };
     });
-  }, [customers, allYearData, tariffs, careLevels, currentMonth, currentYear, budgetDataReady]);
+  }, [customers, termineByClient, tariffs, careLevels, currentMonth, currentYear, budgetDataReady]);
 
   const filteredRows = useMemo(() => {
     return trackerRows.filter((row) => {
@@ -225,13 +212,13 @@ export default function BudgetTracker() {
             className="gap-2"
             onClick={() => {
               downloadCsv(
-                ['Kunde', 'Pflegegrad', 'Entlastung', 'Kombi', 'Verhinderungspflege', 'Privat', 'Status'],
-                filteredRows.map(r => [
+                ['Kunde', 'Pflegegrad', 'Entlastung', 'Kombi (Monat)', 'Verhinderungspflege', 'Privat', 'Status'],
+                filteredRows.map((r) => [
                   r.name, r.pflegegrad,
-                  r.consumedYear.ENTLASTUNG, r.consumedYear.KOMBI,
-                  r.consumedYear.VERHINDERUNG, r.privatConsumed, r.status,
+                  r.consumedEntlastung, r.consumedKombiMonth ?? 0,
+                  r.consumedVP, r.privatConsumed, r.status,
                 ]),
-                `budgettracker_${currentYear}.csv`
+                `budgettracker_${currentYear}.csv`,
               );
             }}
             disabled={!filteredRows.length}
@@ -242,7 +229,7 @@ export default function BudgetTracker() {
         </div>
       </div>
 
-      {/* Fix A — Konfigurationswarnung wenn Tarife / Pflegegradtabelle fehlen */}
+      {/* Konfigurationswarnung wenn Tarife / Pflegegradtabelle fehlen */}
       {configMissing && (
         <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -330,45 +317,6 @@ export default function BudgetTracker() {
                         : 'Keine aktiven Kunden vorhanden'}
                     </TableCell>
                   </TableRow>
-                ) : allYearData.length === 0 && !isLoading ? (
-                  // Fix D — Kein Daten-Leer-State wenn Kunden vorhanden aber keine Transaktionen
-                  <>
-                    <TableRow>
-                      <TableCell colSpan={8}>
-                        <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground text-sm">
-                          <Info className="h-4 w-4 shrink-0" />
-                          Noch keine Abrechnungsdaten für {currentYear}. Transaktionen werden nach dem Import hier angezeigt.
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                    {filteredRows.map((row) => (
-                      <TableRow
-                        key={row.kundenId}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() =>
-                          navigate(`/dashboard/controlboard/budgettracker/${row.kundenId}`)
-                        }
-                      >
-                        <TableCell className="font-medium">{row.name || '(Kein Name)'}</TableCell>
-                        <TableCell>
-                          {row.pflegegrad > 0 ? (
-                            <Badge variant="outline">PG {row.pflegegrad}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell colSpan={4}>
-                          <span className="text-muted-foreground text-sm">Keine Transaktionen</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <StatusBadge status={row.status} />
-                        </TableCell>
-                        <TableCell>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </>
                 ) : (
                   filteredRows.map((row) => (
                     <TableRow
@@ -396,7 +344,7 @@ export default function BudgetTracker() {
                       <TableCell>
                         {row.availability && row.hasEntlastung ? (
                           <BudgetCell
-                            consumed={row.consumedYear.ENTLASTUNG}
+                            consumed={row.consumedEntlastung}
                             total={row.availability.entlastungYearlyTotal}
                             available={row.availability.entlastungAvailable}
                           />
@@ -419,7 +367,7 @@ export default function BudgetTracker() {
                       <TableCell>
                         {row.availability && row.hasVP ? (
                           <BudgetCell
-                            consumed={row.consumedYear.VERHINDERUNG}
+                            consumed={row.consumedVP}
                             total={row.availability.vpYearlyTotal}
                             available={row.availability.vpRemainingYear}
                           />
