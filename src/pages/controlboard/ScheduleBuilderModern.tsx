@@ -765,7 +765,6 @@ const ScheduleBuilderModern = () => {
 
   const handleCreateAppointment = async (data: any) => {
     try {
-      console.log('CreateAppointment payload received:', data);
 
       const appointmentSchema = z.object({
         titel: z.string().trim().min(1, 'Titel ist erforderlich'),
@@ -953,12 +952,14 @@ const ScheduleBuilderModern = () => {
         const first = new Date(start);
         while (first.getDay() !== targetDow) first.setDate(first.getDate() + 1);
 
-        const stepDays = data.intervall === 'biweekly' ? 14 : data.intervall === 'monthly' ? 28 : 7;
+        const stepDays = data.intervall === 'biweekly' ? 14 : 7;
+        const isMonthly = data.intervall === 'monthly';
         const [hh, mm] = String(data.start_zeit || '09:00').split(':').map((n: string) => parseInt(n, 10));
         const duration = Number(data.dauer_minuten || 60);
 
         const rows: any[] = [];
-        for (let d = new Date(first); d <= end; d.setDate(d.getDate() + stepDays)) {
+        let d = new Date(first);
+        while (d <= end) {
           const startAt = new Date(d);
           startAt.setHours(hh, mm, 0, 0);
           const endAt = new Date(startAt.getTime() + duration * 60_000);
@@ -973,6 +974,8 @@ const ScheduleBuilderModern = () => {
             vorlage_id: template?.id ?? null,
             notizen: data.notizen ?? null,
           });
+
+          d = isMonthly ? addMonths(d, 1) : new Date(d.setDate(d.getDate() + stepDays));
         }
 
         if (rows.length > 0) {

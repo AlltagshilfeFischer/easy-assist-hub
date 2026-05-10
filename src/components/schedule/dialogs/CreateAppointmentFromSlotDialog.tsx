@@ -13,6 +13,7 @@ import { de } from 'date-fns/locale';
 import { CalendarIcon, Clock, Repeat, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'sonner';
 import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
 import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminKategorie } from '@/types/domain';
@@ -206,6 +207,9 @@ export function CreateAppointmentFromSlotDialog({
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating single appointment:', error);
+      toast.error('Termin konnte nicht erstellt werden', {
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+      });
     } finally {
       setLoading(false);
     }
@@ -240,6 +244,9 @@ export function CreateAppointmentFromSlotDialog({
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating recurring appointment:', error);
+      toast.error('Regeltermin konnte nicht erstellt werden', {
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+      });
     } finally {
       setLoading(false);
     }

@@ -301,6 +301,7 @@ export function AppointmentDetailDialog({
         intervall: template.intervall, gueltig_von: template.gueltig_von, gueltig_bis: template.gueltig_bis, notizen: template.notizen,
       }).eq('id', editedAppointment.vorlage_id);
       if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
       toast({ title: 'Terminvorlage aktualisiert' });
       setShowEditTemplateDialog(false); onClose();
     } catch (e: any) { toast({ title: 'Fehler', description: e.message, variant: 'destructive' }); }
