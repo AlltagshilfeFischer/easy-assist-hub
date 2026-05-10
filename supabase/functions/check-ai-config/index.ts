@@ -5,6 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+type CheckResult =
+  | { valid: true }
+  | { valid: false; reason: 'missing_key' | 'invalid_key' | 'network_error'; error: string };
+
+function json(body: CheckResult, status = 200) {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status,
+  });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -13,10 +24,7 @@ serve(async (req) => {
   const apiKey = req.headers.get('x-openai-key') || Deno.env.get('OPENAI_API_KEY');
 
   if (!apiKey) {
-    return new Response(
-      JSON.stringify({ valid: false, error: 'OPENAI_API_KEY nicht konfiguriert' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
-    );
+    return json({ valid: false, reason: 'missing_key', error: 'OPENAI_API_KEY nicht konfiguriert' });
   }
 
   try {
@@ -25,22 +33,13 @@ serve(async (req) => {
     });
 
     if (response.ok) {
-      return new Response(
-        JSON.stringify({ valid: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
-      );
+      return json({ valid: true });
     }
 
     const body = await response.json().catch(() => ({}));
     const message = (body as { error?: { message?: string } }).error?.message ?? 'Ungültiger API-Key';
-    return new Response(
-      JSON.stringify({ valid: false, error: message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
-    );
+    return json({ valid: false, reason: 'invalid_key', error: message });
   } catch {
-    return new Response(
-      JSON.stringify({ valid: false, error: 'Netzwerkfehler beim Prüfen des API-Keys' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
-    );
+    return json({ valid: false, reason: 'network_error', error: 'Netzwerkfehler beim Prüfen des API-Keys' });
   }
 });

@@ -37,17 +37,23 @@ export default function Settings() {
       const { data, error } = await invokeAiFunction('check-ai-config', {});
       if (error) throw error;
 
-      const result = data as { valid: boolean; error?: string };
+      type CheckResult =
+        | { valid: true }
+        | { valid: false; reason: 'missing_key' | 'invalid_key' | 'network_error'; error: string };
+      const result = data as CheckResult;
       if (result.valid) {
         updateSettings({ aiModeEnabled: true, openAiApiKey: keyToTest.trim() });
         toast.success('API-Key gültig — KI-Modus aktiviert');
         return true;
       } else {
-        // Ungültiger Key → zurücksetzen
         updateSettings({ openAiApiKey: '', aiModeEnabled: false });
-        toast.error('Ungültiger API-Key', {
-          description: result.error ?? 'Der eingegebene Key wurde von OpenAI abgelehnt.',
-        });
+        const description =
+          result.reason === 'missing_key'
+            ? 'Kein API-Key auf dem Server konfiguriert.'
+            : result.reason === 'network_error'
+            ? 'OpenAI war nicht erreichbar. Bitte erneut versuchen.'
+            : (result.error ?? 'Der eingegebene Key wurde von OpenAI abgelehnt.');
+        toast.error('API-Key ungültig', { description });
         return false;
       }
     } catch {

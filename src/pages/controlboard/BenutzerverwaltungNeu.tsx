@@ -343,7 +343,14 @@ export default function BenutzerverwaltungNeu() {
     // Not used in new unified view
   };
 
+  const ASSIGNABLE_ROLES: UserRole[] = ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung', 'mitarbeiter'];
+
   const handleChangeRole = async (mitarbeiterId: string, newRole: string) => {
+    if (!ASSIGNABLE_ROLES.includes(newRole as UserRole)) {
+      toast({ variant: 'destructive', title: 'Fehler', description: 'Ungültige Rolle.' });
+      return;
+    }
+    const validatedRole = newRole as NonNullable<UserRole>;
     setActionLoading(mitarbeiterId);
     try {
       const { data: mitarbeiterData } = await supabase
@@ -372,7 +379,7 @@ export default function BenutzerverwaltungNeu() {
             email: `pending-${mitarbeiterId}@placeholder.local`,
             vorname: mitarbeiterData.vorname,
             nachname: mitarbeiterData.nachname,
-            rolle: newRole as any,
+            rolle: validatedRole,
             status: 'pending' as any,
           });
           if (createError) throw createError;
@@ -384,15 +391,15 @@ export default function BenutzerverwaltungNeu() {
       const { data: existingRole } = await supabase.from('user_roles').select('id').eq('user_id', benutzerId).maybeSingle();
 
       if (existingRole) {
-        const { error: updateError } = await supabase.from('user_roles').update({ role: newRole as any }).eq('user_id', benutzerId);
+        const { error: updateError } = await supabase.from('user_roles').update({ role: validatedRole }).eq('user_id', benutzerId);
         if (updateError) throw updateError;
       } else {
-        const { error: insertError } = await supabase.from('user_roles').insert({ user_id: benutzerId, role: newRole as any });
+        const { error: insertError } = await supabase.from('user_roles').insert({ user_id: benutzerId, role: validatedRole });
         if (insertError) throw insertError;
       }
 
       if (benutzerId) {
-        await supabase.from('benutzer').update({ rolle: newRole as any }).eq('id', benutzerId);
+        await supabase.from('benutzer').update({ rolle: validatedRole }).eq('id', benutzerId);
       }
 
       // Force logout the affected user so new role takes effect on next login
