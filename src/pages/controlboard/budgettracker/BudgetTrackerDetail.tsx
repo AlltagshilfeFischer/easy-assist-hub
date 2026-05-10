@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getYear, getMonth, format, parseISO as parseDateISO } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2, Settings } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Plus, Pencil, Trash2, ExternalLink } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,11 +18,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import { useCustomers } from '@/hooks/useCustomers';
 import { useTermineForBudget } from '@/hooks/useTermineForBudget';
 import { useTariffs } from '@/hooks/useTariffs';
 import { useCareLevels } from '@/hooks/useCareLevels';
+import { useUpdateKundenBudget } from '@/hooks/useUpdateKundenBudget';
 import {
   useBudgetManuelleEintraege,
   useCreateBudgetManuellerEintrag,
@@ -422,6 +431,254 @@ function ManuelleGuthabenSektion({ kundenId }: { kundenId: string }) {
   );
 }
 
+// ─── Budget-Konfiguration ────────────────────────────────────
+
+type KundeForKonfig = {
+  id: string;
+  pflegegrad?: number | null;
+  entlastung_genehmigt?: boolean | null;
+  initial_budget_entlastung?: number | null;
+  pflegesachleistung_genehmigt?: boolean | null;
+  verhinderungspflege_genehmigt?: boolean | null;
+};
+
+type KonfigForm = {
+  pflegegrad: number;
+  entlastung: boolean;
+  vorjahresrest: string;
+  kombi: boolean;
+  vp: boolean;
+};
+
+function PotIndikator({ label, active, sub }: { label: string; active: boolean; sub?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+        active
+          ? 'border-green-200 bg-green-50 text-green-700'
+          : 'border-transparent bg-muted text-muted-foreground'
+      }`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-green-500' : 'bg-muted-foreground/50'}`} />
+      {label}
+      {sub && <span className="opacity-60">{sub}</span>}
+    </span>
+  );
+}
+
+function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
+  const navigate = useNavigate();
+  const update = useUpdateKundenBudget();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<KonfigForm>({
+    pflegegrad: kunde.pflegegrad ?? 0,
+    entlastung: kunde.entlastung_genehmigt ?? false,
+    vorjahresrest: String(kunde.initial_budget_entlastung ?? ''),
+    kombi: kunde.pflegesachleistung_genehmigt ?? false,
+    vp: kunde.verhinderungspflege_genehmigt ?? false,
+  });
+
+  // Formular mit aktuellen Kundendaten synchronisieren (nach erfolgreichem Speichern)
+  useEffect(() => {
+    if (!editing) {
+      setForm({
+        pflegegrad: kunde.pflegegrad ?? 0,
+        entlastung: kunde.entlastung_genehmigt ?? false,
+        vorjahresrest: String(kunde.initial_budget_entlastung ?? ''),
+        kombi: kunde.pflegesachleistung_genehmigt ?? false,
+        vp: kunde.verhinderungspflege_genehmigt ?? false,
+      });
+    }
+  }, [kunde, editing]);
+
+  const handlePgChange = (pg: number) => {
+    setForm((prev) => ({
+      ...prev,
+      pflegegrad: pg,
+      entlastung: pg >= 1 ? prev.entlastung : false,
+      kombi: pg >= 2 ? prev.kombi : false,
+      vp: pg >= 2 ? prev.vp : false,
+    }));
+  };
+
+  const handleSave = () => {
+    const vorjahresrestNum = form.vorjahresrest ? parseFloat(form.vorjahresrest) : null;
+    update.mutate(
+      {
+        kundenId: kunde.id,
+        pflegegrad: form.pflegegrad,
+        entlastung_genehmigt: form.entlastung,
+        initial_budget_entlastung: form.entlastung && vorjahresrestNum ? vorjahresrestNum : null,
+        pflegesachleistung_genehmigt: form.kombi,
+        verhinderungspflege_genehmigt: form.vp,
+      },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
+
+  const pg = kunde.pflegegrad ?? 0;
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        {/* Kopfzeile: Indikatoren + Aktionen */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {!editing ? (
+              <>
+                <span className="text-sm font-medium text-muted-foreground shrink-0">Leistungstöpfe:</span>
+                <PotIndikator label="§ 45b Entlastung" active={!!(kunde.entlastung_genehmigt && pg >= 1)} />
+                <PotIndikator label="§ 45a Kombi" active={!!(kunde.pflegesachleistung_genehmigt && pg >= 2)} />
+                <PotIndikator label="§ 39 VP" active={!!(kunde.verhinderungspflege_genehmigt && pg >= 2)} />
+                <PotIndikator label="Privat" active />
+                {!!kunde.initial_budget_entlastung && (
+                  <span className="text-xs text-muted-foreground">
+                    · Vorjahresrest: {formatCurrency(kunde.initial_budget_entlastung)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-sm font-medium">Budget-Konfiguration bearbeiten</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {!editing ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() =>
+                    navigate(`/dashboard/controlboard/master-data?openKunde=${kunde.id}&tab=abrechnung`)
+                  }
+                >
+                  Vollständige Stammdaten
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Konfigurieren
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                  Abbrechen
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={update.isPending}>
+                  {update.isPending ? 'Speichern…' : 'Speichern'}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Bearbeitungsformular */}
+        {editing && (
+          <div className="mt-4 space-y-5 border-t pt-4">
+            {/* Pflegegrad */}
+            <div className="flex items-center gap-4">
+              <Label className="w-44 shrink-0 text-sm font-medium">Pflegegrad</Label>
+              <Select
+                value={String(form.pflegegrad)}
+                onValueChange={(v) => handlePgChange(parseInt(v))}
+              >
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Kein PG (0)</SelectItem>
+                  <SelectItem value="1">PG 1</SelectItem>
+                  <SelectItem value="2">PG 2</SelectItem>
+                  <SelectItem value="3">PG 3</SelectItem>
+                  <SelectItem value="4">PG 4</SelectItem>
+                  <SelectItem value="5">PG 5</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* § 45b Entlastungsbetrag */}
+            <div className={`space-y-3 ${form.pflegegrad < 1 ? 'pointer-events-none opacity-40' : ''}`}>
+              <div className="flex items-center gap-4">
+                <Switch
+                  id="entlastung"
+                  checked={form.entlastung}
+                  onCheckedChange={(v) => setForm((p) => ({ ...p, entlastung: v }))}
+                  disabled={form.pflegegrad < 1}
+                />
+                <Label htmlFor="entlastung" className="cursor-pointer leading-tight">
+                  § 45b Entlastungsbetrag{' '}
+                  <span className="font-normal text-muted-foreground">— 131€/Monat, ab PG 1</span>
+                </Label>
+              </div>
+              {form.entlastung && form.pflegegrad >= 1 && (
+                <div className="flex items-center gap-4 pl-10">
+                  <Label htmlFor="vorjahresrest" className="w-36 shrink-0 text-sm text-muted-foreground">
+                    Vorjahresrest (€)
+                  </Label>
+                  <Input
+                    id="vorjahresrest"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.vorjahresrest}
+                    onChange={(e) => setForm((p) => ({ ...p, vorjahresrest: e.target.value }))}
+                    placeholder="0,00"
+                    className="w-32"
+                  />
+                  <span className="text-xs text-muted-foreground">verfällt 01.07.</span>
+                </div>
+              )}
+            </div>
+
+            {/* § 45a Kombinationsleistung */}
+            <div className={`flex items-center gap-4 ${form.pflegegrad < 2 ? 'pointer-events-none opacity-40' : ''}`}>
+              <Switch
+                id="kombi"
+                checked={form.kombi}
+                onCheckedChange={(v) => setForm((p) => ({ ...p, kombi: v }))}
+                disabled={form.pflegegrad < 2}
+              />
+              <Label htmlFor="kombi" className="cursor-pointer leading-tight">
+                § 45a Kombinationsleistung{' '}
+                <span className="font-normal text-muted-foreground">— monatlich, PG-abhängig, ab PG 2</span>
+              </Label>
+            </div>
+
+            {/* § 39 Verhinderungspflege */}
+            <div className={`flex items-center gap-4 ${form.pflegegrad < 2 ? 'pointer-events-none opacity-40' : ''}`}>
+              <Switch
+                id="vp"
+                checked={form.vp}
+                onCheckedChange={(v) => setForm((p) => ({ ...p, vp: v }))}
+                disabled={form.pflegegrad < 2}
+              />
+              <Label htmlFor="vp" className="cursor-pointer leading-tight">
+                § 39 Verhinderungspflege{' '}
+                <span className="font-normal text-muted-foreground">— 3.539€/Jahr, ab PG 2</span>
+              </Label>
+            </div>
+
+            <div className="flex justify-end border-t pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() =>
+                  navigate(`/dashboard/controlboard/master-data?openKunde=${kunde.id}&tab=abrechnung`)
+                }
+              >
+                Vollständige Stammdaten öffnen
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Hauptkomponente ─────────────────────────────────────────
 
 export default function BudgetTrackerDetail() {
@@ -562,35 +819,23 @@ export default function BudgetTrackerDetail() {
         <span className="font-semibold">{fullName}</span>
       </div>
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{fullName}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline">PG {kunde.pflegegrad ?? '—'}</Badge>
-            {kunde.pflegekasse && <span className="text-sm text-muted-foreground">{kunde.pflegekasse}</span>}
-            {isPrivate && <Badge variant="secondary">Privatversichert</Badge>}
-            {expiryWarning && (
-              <div className="flex items-center gap-1 text-sm text-orange-600">
-                <AlertTriangle className="h-4 w-4" />
-                Vorjahresrest läuft bald ab
-              </div>
-            )}
-          </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{fullName}</h1>
+        <div className="flex items-center gap-2 mt-1">
+          <Badge variant="outline">PG {kunde.pflegegrad ?? '—'}</Badge>
+          {kunde.pflegekasse && <span className="text-sm text-muted-foreground">{kunde.pflegekasse}</span>}
+          {isPrivate && <Badge variant="secondary">Privatversichert</Badge>}
+          {expiryWarning && (
+            <div className="flex items-center gap-1 text-sm text-orange-600">
+              <AlertTriangle className="h-4 w-4" />
+              Vorjahresrest läuft bald ab
+            </div>
+          )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 shrink-0"
-          onClick={() =>
-            navigate(
-              `/dashboard/controlboard/master-data?openKunde=${kundenId}&tab=abrechnung`,
-            )
-          }
-        >
-          <Settings className="h-4 w-4" />
-          Stammdaten
-        </Button>
       </div>
+
+      {/* Budget-Konfiguration (Töpfe aktivieren / bearbeiten) */}
+      <BudgetKonfiguration kunde={kundeExtended ?? kunde} />
 
       {/* Budget-Summary-Cards */}
       {availability && (
