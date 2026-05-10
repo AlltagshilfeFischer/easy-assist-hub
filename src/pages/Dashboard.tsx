@@ -14,7 +14,6 @@ import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import AktivitaetsLog from './controlboard/AktivitaetsLog';
 import Reporting from './controlboard/Reporting';
 
-import MitarbeiterStart from './MitarbeiterStart';
 import BudgetTracker from './controlboard/budgettracker/BudgetTracker';
 import BudgetTrackerDetail from './controlboard/budgettracker/BudgetTrackerDetail';
 
@@ -55,7 +54,7 @@ export default function Dashboard() {
     return (
       <DashboardLayout>
         <Routes>
-          <Route path="/" element={<MitarbeiterStart />} />
+          <Route path="/" element={<Navigate to="/dashboard/mein-bereich" replace />} />
           <Route path="/mein-bereich" element={<MitarbeiterDashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

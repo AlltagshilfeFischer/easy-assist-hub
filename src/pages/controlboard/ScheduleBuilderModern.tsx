@@ -921,11 +921,7 @@ const ScheduleBuilderModern = () => {
 
       // 2) Try server-side generation first
       const fromDate = data.gueltig_von as string; // 'yyyy-MM-dd'
-      const toDate = (data.gueltig_bis as string) || (() => {
-        const d = new Date(fromDate);
-        d.setDate(d.getDate() + 60); // generate ~2 months ahead if no end provided
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      })();
+      const toDate = (data.gueltig_bis as string) || format(addMonths(new Date(fromDate), 12), 'yyyy-MM-dd');
 
       const { data: genCount, error: genError } = await supabase.rpc('generate_termine_from_vorlagen', {
         p_from: fromDate,
