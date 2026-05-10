@@ -18,7 +18,8 @@ export function useCustomerMutations() {
 
   const updateCustomerMutation = useMutation({
     mutationFn: async (customerData: UpdateCustomerPayload) => {
-      const { zeitfenster, notfallkontakte, hauptbetreuer, ...kundenData } = customerData;
+      // "name" ist eine GENERATED ALWAYS-Spalte in kunden — darf nicht explizit gesetzt werden
+      const { zeitfenster, notfallkontakte, hauptbetreuer, name: _name, ...kundenData } = customerData as typeof customerData & { name?: string };
 
       const { error: kundenError } = await supabase
         .from('kunden')
