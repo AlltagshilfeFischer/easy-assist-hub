@@ -18,12 +18,24 @@ export function useCustomerMutations() {
 
   const updateCustomerMutation = useMutation({
     mutationFn: async (customerData: UpdateCustomerPayload) => {
-      const { zeitfenster, notfallkontakte, hauptbetreuer, ...rest } = customerData as typeof customerData & { name?: string };
+      // Generierte/nicht-DB-Felder per Destrukturierung entfernen
+      // name: GENERATED ALWAYS AS (vorname || ' ' || nachname) — nicht updatebar
+      // has_regular_appointments, column1: nicht in kunden-Tabelle
+      const {
+        zeitfenster,
+        notfallkontakte,
+        hauptbetreuer,
+        name: _name,
+        column1: _column1,
+        has_regular_appointments: _hasRegular,
+        ...rest
+      } = customerData as typeof customerData & {
+        name?: string;
+        column1?: string;
+        has_regular_appointments?: boolean;
+      };
 
-      // Generierte Spalten explizit entfernen — PostgreSQL GENERATED ALWAYS erlaubt kein Update
       const kundenData: Record<string, unknown> = { ...rest };
-      delete kundenData['name'];
-      delete kundenData['column1'];
 
       const { error: kundenError } = await supabase
         .from('kunden')
