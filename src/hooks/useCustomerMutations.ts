@@ -18,20 +18,24 @@ export function useCustomerMutations() {
 
   const updateCustomerMutation = useMutation({
     mutationFn: async (customerData: UpdateCustomerPayload) => {
-      // "name" ist eine GENERATED ALWAYS-Spalte in kunden — darf nicht explizit gesetzt werden
-      const { zeitfenster, notfallkontakte, hauptbetreuer, name: _name, ...kundenData } = customerData as typeof customerData & { name?: string };
+      const { zeitfenster, notfallkontakte, hauptbetreuer, ...rest } = customerData as typeof customerData & { name?: string };
+
+      // Generierte Spalten explizit entfernen — PostgreSQL GENERATED ALWAYS erlaubt kein Update
+      const kundenData: Record<string, unknown> = { ...rest };
+      delete kundenData['name'];
+      delete kundenData['column1'];
 
       const { error: kundenError } = await supabase
         .from('kunden')
         .update(kundenData)
-        .eq('id', kundenData.id);
+        .eq('id', kundenData['id'] as string);
       if (kundenError) throw kundenError;
 
       if (zeitfenster && Array.isArray(zeitfenster)) {
-        await supabase.from('kunden_zeitfenster').delete().eq('kunden_id', kundenData.id);
+        await supabase.from('kunden_zeitfenster').delete().eq('kunden_id', kundenData['id'] as string);
         if (zeitfenster.length > 0) {
           const windowsToInsert = zeitfenster.map((w) => ({
-            kunden_id: kundenData.id,
+            kunden_id: kundenData['id'] as string,
             wochentag: w.wochentag,
             von: w.von,
             bis: w.bis,
@@ -54,7 +58,7 @@ export function useCustomerMutations() {
         if (valid.length > 0) {
           const { error: insertError } = await supabase.from('notfallkontakte').insert(
             valid.map((k) => ({
-              kunden_id: kundenData.id,
+              kunden_id: kundenData['id'] as string,
               name: k.name.trim(),
               bezug: k.bezug?.trim() || null,
               telefon: k.telefon.trim(),
