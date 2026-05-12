@@ -166,30 +166,32 @@ export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest
           </div>
         </div>
 
-        {/* Notfallkontakte */}
-        {notfallkontakte.length > 0 && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                <AlertTriangle className="h-4 w-4 text-destructive" /> Notfallkontakte
-              </h3>
-              <div className="space-y-2">
-                {notfallkontakte.map((nk) => (
-                  <div key={nk.id} className="flex justify-between items-center text-sm rounded-md border p-2">
-                    <div>
-                      <span className="font-medium">{nk.name}</span>
-                      {nk.bezug && <span className="text-muted-foreground text-xs ml-1">({nk.bezug})</span>}
-                    </div>
-                    <a href={`tel:${nk.telefon}`} className="text-primary flex items-center gap-1 text-xs">
-                      <Phone className="h-3 w-3" /> {nk.telefon}
-                    </a>
+        {/* Notfallkontakte — immer anzeigen */}
+        <Separator />
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4 text-destructive" /> Notfallkontakte
+          </h3>
+          {loading ? (
+            <p className="text-xs text-muted-foreground">Lädt...</p>
+          ) : notfallkontakte.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">Keine Notfallkontakte hinterlegt.</p>
+          ) : (
+            <div className="space-y-2">
+              {notfallkontakte.map((nk) => (
+                <div key={nk.id} className="flex justify-between items-center text-sm rounded-md border p-2.5 bg-red-50/50 dark:bg-red-950/20 border-red-100 dark:border-red-900">
+                  <div>
+                    <span className="font-medium">{nk.name}</span>
+                    {nk.bezug && <span className="text-muted-foreground text-xs ml-1">({nk.bezug})</span>}
                   </div>
-                ))}
-              </div>
+                  <a href={`tel:${nk.telefon}`} className="text-primary flex items-center gap-1 font-medium hover:underline">
+                    <Phone className="h-3.5 w-3.5" /> {nk.telefon}
+                  </a>
+                </div>
+              ))}
             </div>
-          </>
-        )}
+          )}
+        </div>
 
         {/* Zeitfenster */}
         {zeitfenster.length > 0 && (
