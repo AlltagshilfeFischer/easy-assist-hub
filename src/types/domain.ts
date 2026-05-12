@@ -123,6 +123,18 @@ export interface CustomerSummary {
   farbe_kalender?: string;
 }
 
+// ─── Ausweichort ────────────────────────────────────────────
+export interface Ausweichort {
+  id: string;
+  name: string;
+  strasse: string | null;
+  plz: string | null;
+  stadt: string | null;
+  notizen: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // ─── Appointment / Termin ───────────────────────────────────
 
 /** Minimal appointment fields used by calendar/grid components */
@@ -139,6 +151,8 @@ export interface CalendarAppointment {
   status?: TerminStatus;
   notizen?: string | null;
   kategorie?: TerminKategorie | null;
+  ausweichort_id?: string | null;
+  ausweichort?: Ausweichort | null;
   customer?: { id: string; name: string | null; farbe_kalender?: string; email?: string | null; telefonnr?: string | null; strasse?: string | null; plz?: string | null; stadt?: string | null; stadtteil?: string | null; pflegegrad?: number | null; pflegekasse?: string | null; versichertennummer?: string | null; sonstiges?: string | null; vorname?: string | null; nachname?: string | null };
   employee?: { id: string; name: string; farbe_kalender: string };
   vorlage_id?: string | null;
@@ -374,4 +388,5 @@ export interface TerminVorlage {
   gueltig_bis: string | null;
   titel: string;
   notizen: string | null;
+  ausweichort_id?: string | null;
 }

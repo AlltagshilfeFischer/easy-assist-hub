@@ -29,13 +29,14 @@ export function useAppointments(options?: UseAppointmentsOptions) {
         .from('termine')
         .select(`
           id, titel, kunden_id, mitarbeiter_id, start_at, end_at, status,
-          vorlage_id, ist_ausnahme, ausnahme_grund, notizen, iststunden,
+          vorlage_id, ist_ausnahme, ausnahme_grund, notizen, iststunden, ausweichort_id,
           customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, farbe_kalender, email, telefonnr,
             geburtsdatum, pflegegrad, adresse, strasse, plz, stadt, stadtteil, aktiv, pflegekasse,
             versichertennummer, stunden_kontingent_monat, mitarbeiter,
             angehoerige_ansprechpartner),
           employee:mitarbeiter!termine_mitarbeiter_id_fkey(id, vorname, nachname, farbe_kalender, telefon, ist_aktiv,
-            max_termine_pro_tag)
+            max_termine_pro_tag),
+          ausweichort:ausweichorte!termine_ausweichort_id_fkey(id, name, strasse, plz, stadt, notizen)
         `)
         .order('start_at', { ascending: true });
 
@@ -57,6 +58,7 @@ export function useAppointments(options?: UseAppointmentsOptions) {
       return (data ?? []).map((row) => {
         const cust = row.customer as any;
         const emp = row.employee as any;
+        const ort = (row as any).ausweichort as any;
 
         return {
           ...row,
@@ -74,6 +76,7 @@ export function useAppointments(options?: UseAppointmentsOptions) {
                 farbe_kalender: emp.farbe_kalender ?? '#3B82F6',
               }
             : undefined,
+          ausweichort: ort ?? null,
         } as Appointment;
       });
     },

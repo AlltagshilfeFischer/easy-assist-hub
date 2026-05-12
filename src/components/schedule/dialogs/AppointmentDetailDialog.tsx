@@ -11,11 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { format, getDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Clock, User, Phone, Mail, MapPin, Save, X, AlertTriangle, Trash2, AlertCircle, Repeat, Calendar, Users } from 'lucide-react';
+import { Clock, User, Phone, Mail, MapPin, Save, X, AlertTriangle, Trash2, AlertCircle, Repeat, Calendar, Users, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CreateRecurringAppointmentDialog } from './CreateRecurringAppointmentDialog';
+import { AusweichortSelector } from '@/components/schedule/AusweichortSelector';
 import { AppointmentAttachments } from '@/components/schedule/AppointmentAttachments';
 import { AppointmentHistorySection } from '@/components/schedule/AppointmentHistorySection';
 import { KundenDetailDialog } from '@/components/customers/KundenDetailDialog';
@@ -461,6 +462,24 @@ export function AppointmentDetailDialog({
                     </span>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Einsatzort */}
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Einsatzort</Label>
+            <div className="mt-1.5">
+              <AusweichortSelector
+                value={editedAppointment.ausweichort_id ?? null}
+                onChange={(v) => updateField({ ausweichort_id: v })}
+                zIndex={210}
+              />
+            </div>
+            {!editedAppointment.ausweichort_id && customer && (customer.strasse || customer.stadt) && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 ml-0.5">
+                <Home className="h-3 w-3 shrink-0" />
+                <span>Kundenwohnung: {[customer.strasse, [customer.plz, customer.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</span>
               </div>
             )}
           </div>

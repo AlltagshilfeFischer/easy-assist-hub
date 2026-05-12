@@ -11,6 +11,7 @@ import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
+import { AusweichortSelector } from '../AusweichortSelector';
 import { TIME_SLOTS, DURATION_OPTIONS } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminVorlage } from '@/types/domain';
 
@@ -58,6 +59,7 @@ export function CreateRecurringAppointmentDialog({
   const [gueltigVon, setGueltigVon] = useState<Date>();
   const [gueltigBis, setGueltigBis] = useState<Date>();
   const [notizen, setNotizen] = useState('');
+  const [ausweichortId, setAusweichortId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
@@ -71,6 +73,7 @@ export function CreateRecurringAppointmentDialog({
       setGueltigVon(new Date(editingTemplate.gueltig_von));
       setGueltigBis(editingTemplate.gueltig_bis ? new Date(editingTemplate.gueltig_bis) : undefined);
       setNotizen(editingTemplate.notizen || '');
+      setAusweichortId(editingTemplate.ausweichort_id ?? null);
     }
   }, [editingTemplate]);
 
@@ -102,6 +105,7 @@ export function CreateRecurringAppointmentDialog({
         gueltig_von: format(gueltigVon, 'yyyy-MM-dd'),
         gueltig_bis: format(endDate, 'yyyy-MM-dd'),
         notizen: notizen || null,
+        ausweichort_id: ausweichortId || null,
       });
 
       setKundenId('');
@@ -238,6 +242,11 @@ export function CreateRecurringAppointmentDialog({
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Einsatzort</Label>
+            <AusweichortSelector value={ausweichortId} onChange={setAusweichortId} zIndex={202} />
           </div>
 
           <div className="space-y-2">

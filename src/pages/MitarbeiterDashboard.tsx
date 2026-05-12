@@ -48,8 +48,9 @@ export default function MitarbeiterDashboard() {
       const { data, error } = await supabase
         .from('termine')
         .select(`
-          id, titel, start_at, end_at, status, mitarbeiter_id, kunden_id,
-          customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, farbe_kalender, strasse, plz, stadt, stadtteil, telefonnr, pflegegrad, pflegekasse, versichertennummer, sonstiges)
+          id, titel, start_at, end_at, status, mitarbeiter_id, kunden_id, ausweichort_id,
+          customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, farbe_kalender, strasse, plz, stadt, stadtteil, telefonnr, pflegegrad, pflegekasse, versichertennummer, sonstiges),
+          ausweichort:ausweichorte!termine_ausweichort_id_fkey(id, name, strasse, plz, stadt, notizen)
         `)
         .eq('mitarbeiter_id', mitarbeiterId)
         .order('start_at', { ascending: true });

@@ -57,8 +57,13 @@ export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest
   if (!appointment) return null;
 
   const customerName = [customer?.vorname, customer?.nachname].filter(Boolean).join(' ') || customer?.name || 'Unbekannt';
+  const ausweichort = appointment.ausweichort;
+  const einsatzAdresse = ausweichort
+    ? [ausweichort.strasse, [ausweichort.plz, ausweichort.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+    : [customer?.strasse, [customer?.plz, customer?.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const einsatzName = ausweichort ? ausweichort.name : null;
   const adresse = [customer?.strasse, [customer?.plz, customer?.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-  const mapsUrl = adresse ? `https://maps.google.com/?q=${encodeURIComponent(adresse)}` : null;
+  const mapsUrl = einsatzAdresse ? `https://maps.google.com/?q=${encodeURIComponent(einsatzAdresse)}` : null;
 
   const startDate = parseISO(appointment.start_at);
   const endDate = parseISO(appointment.end_at);
@@ -104,19 +109,27 @@ export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest
                 </a>
               </div>
             )}
-            {adresse && (
+            {einsatzAdresse && (
               <div className="flex justify-between items-start">
-                <span className="text-muted-foreground">Adresse</span>
+                <span className="text-muted-foreground">
+                  {ausweichort ? 'Ausweichort' : 'Adresse'}
+                </span>
                 <div className="text-right">
+                  {ausweichort && (
+                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 block mb-0.5">{ausweichort.name}</span>
+                  )}
                   {mapsUrl ? (
                     <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary flex items-center gap-1 hover:underline">
-                      <MapPin className="h-3 w-3 shrink-0" /> {adresse}
+                      <MapPin className="h-3 w-3 shrink-0" /> {einsatzAdresse}
                     </a>
                   ) : (
-                    <span className="font-medium">{adresse}</span>
+                    <span className="font-medium">{einsatzAdresse}</span>
                   )}
-                  {customer?.stadtteil && (
+                  {!ausweichort && customer?.stadtteil && (
                     <span className="text-xs text-muted-foreground block">({customer.stadtteil})</span>
+                  )}
+                  {ausweichort?.notizen && (
+                    <span className="text-xs text-muted-foreground block mt-0.5">{ausweichort.notizen}</span>
                   )}
                 </div>
               </div>

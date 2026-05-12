@@ -12,7 +12,7 @@ import { Scissors, Copy, MapPin } from "lucide-react";
 import type { CalendarAppointment } from '@/types/domain';
 
 interface DraggableAppointmentProps {
-  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer' | 'notizen'>;
+  appointment: Pick<CalendarAppointment, 'id' | 'titel' | 'start_at' | 'end_at' | 'mitarbeiter_id' | 'customer' | 'notizen' | 'ausweichort' | 'ausweichort_id'>;
   isDragging?: boolean;
   isConflicting?: boolean;
   onClick?: () => void;
@@ -78,12 +78,17 @@ export function DraggableAppointment({
               <div className="font-semibold text-white truncate text-xs drop-shadow-sm">
                 {appointment.customer?.name}
               </div>
-              {appointment.customer?.stadtteil && (
+              {appointment.ausweichort ? (
+                <div className="flex items-center gap-0.5">
+                  <MapPin className="h-2 w-2 text-amber-200 flex-shrink-0" />
+                  <span className="text-[9px] text-amber-200 truncate">{appointment.ausweichort.name}</span>
+                </div>
+              ) : appointment.customer?.stadtteil ? (
                 <div className="flex items-center gap-0.5">
                   <MapPin className="h-2 w-2 text-white/70 flex-shrink-0" />
                   <span className="text-[9px] text-white/70 truncate">{appointment.customer.stadtteil}</span>
                 </div>
-              )}
+              ) : null}
             </div>
             <div className="text-white/90 text-xs flex-shrink-0 font-medium drop-shadow-sm">
               {format(new Date(appointment.start_at), 'HH:mm')}

@@ -780,6 +780,7 @@ const ScheduleBuilderModern = () => {
           .refine((v) => !isNaN(Date.parse(v)), { message: 'Ungültige Endzeit' }),
         notizen: z.string().nullable().optional(),
         kategorie: z.string().nullable().optional(),
+        ausweichort_id: z.string().uuid().nullable().optional(),
       }).refine(
         (vals) => new Date(vals.end_at).getTime() > new Date(vals.start_at).getTime(),
         { path: ['end_at'], message: 'Endzeit muss nach Startzeit liegen' }
@@ -847,6 +848,7 @@ const ScheduleBuilderModern = () => {
           status: payload.mitarbeiter_id ? 'scheduled' : 'unassigned',
           notizen: payload.notizen ?? null,
           kategorie: payload.kategorie ?? null,
+          ausweichort_id: payload.ausweichort_id ?? null,
         }])
         .select(`*, customer:kunden!termine_kunden_id_fkey(*), employee:mitarbeiter!termine_mitarbeiter_id_fkey(*)`)
         .single();
@@ -901,7 +903,7 @@ const ScheduleBuilderModern = () => {
       // 1) Create template and return its id
       const { data: template, error } = await supabase
         .from('termin_vorlagen')
-        .insert([{ 
+        .insert([{
           titel: data.titel,
           kunden_id: data.kunden_id,
           mitarbeiter_id: data.mitarbeiter_id,
@@ -912,6 +914,7 @@ const ScheduleBuilderModern = () => {
           gueltig_von: data.gueltig_von,
           gueltig_bis: data.gueltig_bis,
           notizen: data.notizen,
+          ausweichort_id: data.ausweichort_id ?? null,
           ist_aktiv: true
         }])
         .select('id')
@@ -969,6 +972,7 @@ const ScheduleBuilderModern = () => {
             status: data.mitarbeiter_id ? 'scheduled' : 'unassigned',
             vorlage_id: template?.id ?? null,
             notizen: data.notizen ?? null,
+            ausweichort_id: data.ausweichort_id ?? null,
           });
 
           d = isMonthly ? addMonths(d, 1) : new Date(d.setDate(d.getDate() + stepDays));

@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
+import { AusweichortSelector } from '../AusweichortSelector';
 import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminKategorie } from '@/types/domain';
 
@@ -43,6 +44,7 @@ interface CreateAppointmentDialogProps {
     end_at: string;
     notizen?: string | null;
     kategorie?: string | null;
+    ausweichort_id?: string | null;
   }) => Promise<void>;
 }
 
@@ -64,6 +66,7 @@ export function CreateAppointmentDialog({
   const [isInternTermin, setIsInternTermin] = useState(false);
   const [kategorie, setKategorie] = useState<string>('');
   const [notizen, setNotizen] = useState('');
+  const [ausweichortId, setAusweichortId] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,6 +123,7 @@ export function CreateAppointmentDialog({
         end_at: endAt.toISOString(),
         notizen: notizen.trim() || null,
         kategorie: kategorie || null,
+        ausweichort_id: ausweichortId || null,
       });
 
       // Reset form
@@ -133,6 +137,7 @@ export function CreateAppointmentDialog({
       setIsInternTermin(false);
       setKategorie('');
       setNotizen('');
+      setAusweichortId(null);
       onOpenChange(false);
     } catch (error: unknown) {
       console.error('Error creating appointment:', error);
@@ -306,6 +311,16 @@ export function CreateAppointmentDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Ort */}
+          <div className="space-y-2">
+            <Label>Einsatzort</Label>
+            <AusweichortSelector
+              value={ausweichortId}
+              onChange={setAusweichortId}
+              zIndex={202}
+            />
           </div>
 
           {/* Notizen */}

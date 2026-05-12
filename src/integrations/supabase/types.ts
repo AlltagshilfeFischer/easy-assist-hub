@@ -460,6 +460,39 @@ export type Database = {
           },
         ]
       }
+      ausweichorte: {
+        Row: {
+          id: string
+          name: string
+          strasse: string | null
+          plz: string | null
+          stadt: string | null
+          notizen: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          strasse?: string | null
+          plz?: string | null
+          stadt?: string | null
+          notizen?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          strasse?: string | null
+          plz?: string | null
+          stadt?: string | null
+          notizen?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       einsatzorte: {
         Row: {
           bezeichnung: string | null
@@ -1937,6 +1970,7 @@ export type Database = {
       }
       termin_vorlagen: {
         Row: {
+          ausweichort_id: string | null
           created_at: string
           dauer_minuten: number
           gueltig_bis: string | null
@@ -1953,6 +1987,7 @@ export type Database = {
           wochentag: number
         }
         Insert: {
+          ausweichort_id?: string | null
           created_at?: string
           dauer_minuten?: number
           gueltig_bis?: string | null
@@ -1969,6 +2004,7 @@ export type Database = {
           wochentag: number
         }
         Update: {
+          ausweichort_id?: string | null
           created_at?: string
           dauer_minuten?: number
           gueltig_bis?: string | null
@@ -2006,6 +2042,7 @@ export type Database = {
           absage_datum: string | null
           absage_kanal: string | null
           ausnahme_grund: string | null
+          ausweichort_id: string | null
           created_at: string
           einsatzort_id: string | null
           end_at: string
@@ -2026,6 +2063,7 @@ export type Database = {
           absage_datum?: string | null
           absage_kanal?: string | null
           ausnahme_grund?: string | null
+          ausweichort_id?: string | null
           created_at?: string
           einsatzort_id?: string | null
           end_at: string
@@ -2046,6 +2084,7 @@ export type Database = {
           absage_datum?: string | null
           absage_kanal?: string | null
           ausnahme_grund?: string | null
+          ausweichort_id?: string | null
           created_at?: string
           einsatzort_id?: string | null
           end_at?: string
