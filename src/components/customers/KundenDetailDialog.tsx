@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { MapPin, Phone, Mail, User, Shield, Clock, AlertTriangle, Heart, CreditCard, FileText, Users } from 'lucide-react';
+import { MapPin, Phone, Mail, User, Shield, Clock, AlertTriangle, Heart, CreditCard, FileText, Users, Stethoscope } from 'lucide-react';
 import { EntityDokumente } from '@/components/dokumente/entity-dokumente';
+import { HaushaltshilfeVerordnungen } from '@/components/customers/HaushaltshilfeVerordnungen';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NotfallKontakt {
@@ -374,6 +375,16 @@ export function KundenDetailDialog({ isOpen, onClose, kundenId }: KundenDetailDi
                 </AccordionContent>
               </AccordionItem>
             )}
+
+            {/* Haushaltshilfe §38 */}
+            <AccordionItem value="haushaltshilfe">
+              <AccordionTrigger className="text-sm font-semibold">
+                <span className="flex items-center gap-2"><Stethoscope className="h-4 w-4" /> Haushaltshilfe §38</span>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2">
+                <HaushaltshilfeVerordnungen kundenId={kunde.id} />
+              </AccordionContent>
+            </AccordionItem>
 
             {/* Dokumente */}
             <AccordionItem value="dokumente">
