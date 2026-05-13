@@ -44,7 +44,11 @@ export function useCustomerMutations() {
       if (kundenError) throw kundenError;
 
       if (zeitfenster && Array.isArray(zeitfenster)) {
-        await supabase.from('kunden_zeitfenster').delete().eq('kunden_id', kundenData['id'] as string);
+        const { error: deleteZfError } = await supabase
+          .from('kunden_zeitfenster')
+          .delete()
+          .eq('kunden_id', kundenData['id'] as string);
+        if (deleteZfError) throw deleteZfError;
         if (zeitfenster.length > 0) {
           const windowsToInsert = zeitfenster.map((w) => ({
             kunden_id: kundenData['id'] as string,
@@ -63,7 +67,7 @@ export function useCustomerMutations() {
         const { error: deleteError } = await supabase
           .from('notfallkontakte')
           .delete()
-          .eq('kunden_id', kundenData.id);
+          .eq('kunden_id', kundenData['id'] as string);
         if (deleteError) throw deleteError;
 
         const valid = notfallkontakte.filter((k) => k.name.trim() && k.telefon.trim());
@@ -127,9 +131,28 @@ export function useCustomerMutations() {
         .or(`new_kunden_id.eq.${kundenId},old_kunden_id.eq.${kundenId}`);
       if (terminAenderungenError) throw terminAenderungenError;
 
-      // 2. rechnungspositionen – FK auf kunden_id UND termin_id
+      // 2. rechnungspositionen – FK auf kunden_id UND termin_id UND rechnung_id
       const { error: rPosError } = await supabase.from('rechnungspositionen').delete().eq('kunden_id', kundenId);
       if (rPosError) throw rPosError;
+
+      // 2b. rechnungen (privat_kunde_id FK) – abrechnungs_historie zuerst (FK auf rechnung_id)
+      const { data: rechnungenIds } = await supabase
+        .from('rechnungen')
+        .select('id')
+        .eq('privat_kunde_id', kundenId);
+      if (rechnungenIds && rechnungenIds.length > 0) {
+        const ids = rechnungenIds.map((r) => r.id);
+        const { error: historieError } = await supabase
+          .from('abrechnungs_historie')
+          .delete()
+          .in('rechnung_id', ids);
+        if (historieError) throw historieError;
+      }
+      const { error: rechnungenError } = await supabase
+        .from('rechnungen')
+        .delete()
+        .eq('privat_kunde_id', kundenId);
+      if (rechnungenError) throw rechnungenError;
 
       // 3. leistungsnachweise – FK auf kunden_id
       const { error: leistungsnachweiseError } = await supabase.from('leistungsnachweise').delete().eq('kunden_id', kundenId);
@@ -202,9 +225,28 @@ export function useCustomerMutations() {
           .in('old_kunden_id', chunk);
         if (terminAenderungenOldError) throw terminAenderungenOldError;
 
-        // 2. rechnungspositionen – FK auf kunden_id UND termin_id
+        // 2. rechnungspositionen – FK auf kunden_id UND termin_id UND rechnung_id
         const { error: rPosError } = await supabase.from('rechnungspositionen').delete().in('kunden_id', chunk);
         if (rPosError) throw rPosError;
+
+        // 2b. rechnungen (privat_kunde_id FK) – abrechnungs_historie zuerst
+        const { data: rechnungenIds } = await supabase
+          .from('rechnungen')
+          .select('id')
+          .in('privat_kunde_id', chunk);
+        if (rechnungenIds && rechnungenIds.length > 0) {
+          const ids = rechnungenIds.map((r) => r.id);
+          const { error: historieError } = await supabase
+            .from('abrechnungs_historie')
+            .delete()
+            .in('rechnung_id', ids);
+          if (historieError) throw historieError;
+        }
+        const { error: rechnungenError } = await supabase
+          .from('rechnungen')
+          .delete()
+          .in('privat_kunde_id', chunk);
+        if (rechnungenError) throw rechnungenError;
 
         // 3. leistungsnachweise – FK auf kunden_id
         const { error: leistungsnachweiseError } = await supabase.from('leistungsnachweise').delete().in('kunden_id', chunk);
