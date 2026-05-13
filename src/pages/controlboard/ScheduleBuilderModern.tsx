@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { checkPauseConflict } from '@/lib/schedule/validatePause';
 import { ProScheduleCalendar } from '@/components/schedule/calendar/ProScheduleCalendar';
 // DayView entfernt — nur Wochen- und Monatsansicht
 import { MonthView } from '@/components/schedule/calendar/MonthView';
@@ -107,6 +108,7 @@ const ScheduleBuilderModern = () => {
     targetDate: Date;
   } | null>(null);
   const [pendingCreateData, setPendingCreateData] = useState<Record<string, unknown> | null>(null);
+  const [pendingUpdateAppointment, setPendingUpdateAppointment] = useState<any | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -735,6 +737,10 @@ const ScheduleBuilderModern = () => {
       // Neuen Termin trotzdem erstellen (Konflikt-Check überspringen)
       await handleCreateAppointment({ ...pendingCreateData, _skipConflictCheck: true });
       setPendingCreateData(null);
+    } else if (conflictWarning.appointmentId === '__update__' && pendingUpdateAppointment) {
+      // Termin-Bearbeitung trotzdem speichern (Pause-Check überspringen)
+      await performAppointmentUpdate(pendingUpdateAppointment);
+      setPendingUpdateAppointment(null);
     } else {
       await assignAppointment(
         conflictWarning.appointmentId,
@@ -1203,6 +1209,145 @@ const ScheduleBuilderModern = () => {
     });
   };
 
+  /**
+   * Perform the actual DB update for an appointment from AppointmentDetailDialog.
+   * Called directly when no pause conflict, or after user confirms override.
+   */
+  const performAppointmentUpdate = async (appointment: any) => {
+    try {
+      // Bug 11: Wenn Status → unassigned, Mitarbeiter entfernen
+      const effectiveMitarbeiterId = appointment.status === 'unassigned'
+        ? null
+        : appointment.mitarbeiter_id;
+
+      const updateData: any = {
+        titel: appointment.titel,
+        status: appointment.status,
+        mitarbeiter_id: effectiveMitarbeiterId,
+        kunden_id: appointment.kunden_id ?? null,
+        start_at: appointment.start_at,
+        end_at: appointment.end_at,
+        notizen: appointment.notizen ?? null,
+        iststunden: appointment.iststunden ?? null,
+        kategorie: appointment.kategorie ?? null,
+        absage_datum: appointment.absage_datum ?? null,
+        absage_kanal: appointment.absage_kanal ?? null,
+      };
+
+      // Include series exception fields if present
+      if (appointment.ist_ausnahme !== undefined) {
+        updateData.ist_ausnahme = appointment.ist_ausnahme;
+      }
+      if (appointment.ausnahme_grund) {
+        updateData.ausnahme_grund = appointment.ausnahme_grund;
+      }
+
+      const { error } = await supabase
+        .from('termine')
+        .update(updateData)
+        .eq('id', appointment.id);
+
+      if (error) throw error;
+
+      // Terminhistorie loggen (fire-and-forget)
+      const oldApp = appointments.find(a => a.id === appointment.id);
+      if (oldApp) {
+        const oldData: Record<string, unknown> = {};
+        const newData: Record<string, unknown> = {};
+        const STATUS_LABELS: Record<string, string> = {
+          unassigned: 'Offen', scheduled: 'Geplant', in_progress: 'In Bearb.',
+          completed: 'Abgeschlossen', cancelled: 'Abgesagt (kurzfr.)',
+          nicht_angetroffen: 'Nicht angetroffen', abgesagt_rechtzeitig: 'Rechtz. abgesagt',
+          abgerechnet: 'Abgerechnet', bezahlt: 'Bezahlt',
+        };
+        let operation = 'Aktualisiert';
+
+        if (oldApp.status !== appointment.status) {
+          oldData.status = oldApp.status;
+          newData.status = appointment.status;
+          operation = `Status: ${STATUS_LABELS[oldApp.status ?? ''] ?? oldApp.status} → ${STATUS_LABELS[appointment.status] ?? appointment.status}`;
+        } else if (oldApp.mitarbeiter_id !== effectiveMitarbeiterId) {
+          const oldEmp = employees.find(e => e.id === oldApp.mitarbeiter_id)?.name ?? '—';
+          const newEmp = employees.find(e => e.id === effectiveMitarbeiterId)?.name ?? '—';
+          oldData.mitarbeiter_id = oldApp.mitarbeiter_id;
+          newData.mitarbeiter_id = effectiveMitarbeiterId;
+          operation = `Mitarbeiter: ${oldEmp} → ${newEmp}`;
+        } else if (oldApp.start_at !== appointment.start_at) {
+          oldData.start_at = oldApp.start_at;
+          oldData.end_at = oldApp.end_at;
+          newData.start_at = appointment.start_at;
+          newData.end_at = appointment.end_at;
+          operation = `Verschoben: ${format(new Date(oldApp.start_at), 'dd.MM. HH:mm', { locale: de })} → ${format(new Date(appointment.start_at), 'dd.MM. HH:mm', { locale: de })}`;
+        }
+        logTerminChange(appointment.id, operation, oldData, newData);
+      }
+
+      // Optimistisch lokalen State updaten
+      setAppointments(prev => prev.map(app =>
+        app.id === appointment.id
+          ? { ...app, ...updateData, mitarbeiter_id: effectiveMitarbeiterId }
+          : app
+      ));
+
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+
+      toast({
+        title: 'Erfolg',
+        description: appointment.ist_ausnahme
+          ? 'Einzeltermin wurde als Ausnahme gespeichert.'
+          : 'Termin wurde aktualisiert.'
+      });
+
+      setEditingAppointment(null);
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Aktualisieren.',
+        variant: 'destructive'
+      });
+      await loadData(); // Bei Fehler: synchronisieren
+    }
+  };
+
+  /**
+   * Called by AppointmentDetailDialog.onUpdate.
+   * Runs pause validation first, then either saves directly or shows ConflictWarningDialog.
+   */
+  const handleAppointmentUpdate = async (appointment: any) => {
+    const effectiveMitarbeiterId = appointment.status === 'unassigned'
+      ? null
+      : appointment.mitarbeiter_id;
+
+    // Only validate when a Mitarbeiter is assigned
+    if (effectiveMitarbeiterId) {
+      const newStart = new Date(appointment.start_at);
+      const newEnd = new Date(appointment.end_at);
+
+      const result = checkPauseConflict(
+        effectiveMitarbeiterId,
+        newStart,
+        newEnd,
+        appointments,
+        appointment.id, // exclude the appointment being edited
+      );
+
+      if (result.hasConflict) {
+        setPendingUpdateAppointment(appointment);
+        setConflictWarning({
+          show: true,
+          appointmentId: '__update__',
+          employeeId: effectiveMitarbeiterId,
+          conflicts: result.overlappingAppointments,
+          pauseViolations: result.violatingAppointments,
+          targetDate: newStart,
+        });
+        return; // Wait for user confirmation
+      }
+    }
+
+    await performAppointmentUpdate(appointment);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -1456,101 +1601,7 @@ const ScheduleBuilderModern = () => {
           employees={employees}
           customers={customers}
           customerTimeWindows={editingAppointment ? customerTimeWindows.filter(tw => tw.kunden_id === editingAppointment.kunden_id) : []}
-          onUpdate={async (appointment) => {
-            try {
-              // Bug 11: Wenn Status → unassigned, Mitarbeiter entfernen
-              const effectiveMitarbeiterId = appointment.status === 'unassigned'
-                ? null
-                : appointment.mitarbeiter_id;
-
-              const updateData: any = {
-                titel: appointment.titel,
-                status: appointment.status,
-                mitarbeiter_id: effectiveMitarbeiterId,
-                kunden_id: appointment.kunden_id ?? null,
-                start_at: appointment.start_at,
-                end_at: appointment.end_at,
-                notizen: appointment.notizen ?? null,
-                iststunden: appointment.iststunden ?? null,
-                kategorie: appointment.kategorie ?? null,
-                absage_datum: appointment.absage_datum ?? null,
-                absage_kanal: appointment.absage_kanal ?? null,
-              };
-
-              // Include series exception fields if present
-              if (appointment.ist_ausnahme !== undefined) {
-                updateData.ist_ausnahme = appointment.ist_ausnahme;
-              }
-              if (appointment.ausnahme_grund) {
-                updateData.ausnahme_grund = appointment.ausnahme_grund;
-              }
-              
-              const { error } = await supabase
-                .from('termine')
-                .update(updateData)
-                .eq('id', appointment.id);
-
-              if (error) throw error;
-
-              // Terminhistorie loggen (fire-and-forget)
-              const oldApp = appointments.find(a => a.id === appointment.id);
-              if (oldApp) {
-                const oldData: Record<string, unknown> = {};
-                const newData: Record<string, unknown> = {};
-                const STATUS_LABELS: Record<string, string> = {
-                  unassigned: 'Offen', scheduled: 'Geplant', in_progress: 'In Bearb.',
-                  completed: 'Abgeschlossen', cancelled: 'Abgesagt (kurzfr.)',
-                  nicht_angetroffen: 'Nicht angetroffen', abgesagt_rechtzeitig: 'Rechtz. abgesagt',
-                  abgerechnet: 'Abgerechnet', bezahlt: 'Bezahlt',
-                };
-                let operation = 'Aktualisiert';
-
-                if (oldApp.status !== appointment.status) {
-                  oldData.status = oldApp.status;
-                  newData.status = appointment.status;
-                  operation = `Status: ${STATUS_LABELS[oldApp.status ?? ''] ?? oldApp.status} → ${STATUS_LABELS[appointment.status] ?? appointment.status}`;
-                } else if (oldApp.mitarbeiter_id !== effectiveMitarbeiterId) {
-                  const oldEmp = employees.find(e => e.id === oldApp.mitarbeiter_id)?.name ?? '—';
-                  const newEmp = employees.find(e => e.id === effectiveMitarbeiterId)?.name ?? '—';
-                  oldData.mitarbeiter_id = oldApp.mitarbeiter_id;
-                  newData.mitarbeiter_id = effectiveMitarbeiterId;
-                  operation = `Mitarbeiter: ${oldEmp} → ${newEmp}`;
-                } else if (oldApp.start_at !== appointment.start_at) {
-                  oldData.start_at = oldApp.start_at;
-                  oldData.end_at = oldApp.end_at;
-                  newData.start_at = appointment.start_at;
-                  newData.end_at = appointment.end_at;
-                  operation = `Verschoben: ${format(new Date(oldApp.start_at), 'dd.MM. HH:mm', { locale: de })} → ${format(new Date(appointment.start_at), 'dd.MM. HH:mm', { locale: de })}`;
-                }
-                logTerminChange(appointment.id, operation, oldData, newData);
-              }
-
-              // Optimistisch lokalen State updaten
-              setAppointments(prev => prev.map(app =>
-                app.id === appointment.id
-                  ? { ...app, ...updateData, mitarbeiter_id: effectiveMitarbeiterId }
-                  : app
-              ));
-
-              queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
-
-              toast({
-                title: 'Erfolg',
-                description: appointment.ist_ausnahme
-                  ? 'Einzeltermin wurde als Ausnahme gespeichert.'
-                  : 'Termin wurde aktualisiert.'
-              });
-
-              setEditingAppointment(null);
-            } catch (error) {
-              toast({
-                title: 'Fehler',
-                description: 'Fehler beim Aktualisieren.',
-                variant: 'destructive'
-              });
-              await loadData(); // Bei Fehler: synchronisieren
-            }
-          }}
+          onUpdate={handleAppointmentUpdate}
           onDelete={handleDeleteAppointment}
         />
 
@@ -1569,17 +1620,21 @@ const ScheduleBuilderModern = () => {
           appointmentTitle={
             conflictWarning.appointmentId === '__new__'
               ? (pendingCreateData?.titel as string) || 'Neuer Termin'
-              : appointments.find(app => app.id === conflictWarning.appointmentId)?.titel || ''
+              : conflictWarning.appointmentId === '__update__'
+                ? pendingUpdateAppointment?.titel || 'Termin bearbeiten'
+                : appointments.find(app => app.id === conflictWarning.appointmentId)?.titel || ''
           }
           conflictingAppointments={conflictWarning.conflicts}
           pauseViolations={conflictWarning.pauseViolations}
           newAppointmentTime={
             conflictWarning.appointmentId === '__new__'
               ? { start: (pendingCreateData?.start_at as string) || '', end: (pendingCreateData?.end_at as string) || '' }
-              : {
-                  start: appointments.find(app => app.id === conflictWarning.appointmentId)?.start_at || new Date().toISOString(),
-                  end: appointments.find(app => app.id === conflictWarning.appointmentId)?.end_at || new Date().toISOString()
-                }
+              : conflictWarning.appointmentId === '__update__'
+                ? { start: pendingUpdateAppointment?.start_at || '', end: pendingUpdateAppointment?.end_at || '' }
+                : {
+                    start: appointments.find(app => app.id === conflictWarning.appointmentId)?.start_at || new Date().toISOString(),
+                    end: appointments.find(app => app.id === conflictWarning.appointmentId)?.end_at || new Date().toISOString()
+                  }
           }
         />
 
