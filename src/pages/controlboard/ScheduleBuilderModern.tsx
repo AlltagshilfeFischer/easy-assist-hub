@@ -107,6 +107,13 @@ const ScheduleBuilderModern = () => {
     targetDate: Date;
   } | null>(null);
   const [pendingCreateData, setPendingCreateData] = useState<Record<string, unknown> | null>(null);
+  const [absenceConfirm, setAbsenceConfirm] = useState<{
+    show: boolean;
+    appointmentId: string;
+    employeeId: string;
+    targetDate: Date | undefined;
+    employeeName: string;
+  }>({ show: false, appointmentId: '', employeeId: '', targetDate: undefined, employeeName: '' });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -692,7 +699,7 @@ const ScheduleBuilderModern = () => {
       return;
     }
 
-    // Check for employee absences on target date
+    // G-14: Check for employee absences on target date — show AlertDialog confirmation
     const effectiveDate = targetDate || new Date(appointment.start_at);
     const hasAbsence = abwesenheiten.some(a => {
       if (a.mitarbeiter_id !== employeeId) return false;
@@ -706,12 +713,14 @@ const ScheduleBuilderModern = () => {
 
     if (hasAbsence) {
       const absentEmployee = employees.find(e => e.id === employeeId);
-      toast({
-        title: 'Warnung: Mitarbeiter abwesend',
-        description: `${absentEmployee?.name || 'Mitarbeiter'} ist an diesem Tag als abwesend eingetragen.`,
-        variant: 'destructive'
+      setAbsenceConfirm({
+        show: true,
+        appointmentId,
+        employeeId,
+        targetDate,
+        employeeName: absentEmployee?.name || 'Mitarbeiter',
       });
-      // Warning only — don't block the assignment (per spec: "warnen, aber nicht blockieren")
+      return; // Wait for user confirmation before proceeding
     }
 
     const { overlaps, pauseViolations } = checkForConflicts(appointmentId, employeeId, targetDate);
@@ -1203,6 +1212,95 @@ const ScheduleBuilderModern = () => {
     });
   };
 
+  // G-14: Abwesenheits-Bestätigung nach Drop — Zuweisung trotz Abwesenheit fortführen
+  const handleAbsenceConfirm = async () => {
+    const { appointmentId, employeeId, targetDate } = absenceConfirm;
+    setAbsenceConfirm({ show: false, appointmentId: '', employeeId: '', targetDate: undefined, employeeName: '' });
+
+    const { overlaps, pauseViolations } = checkForConflicts(appointmentId, employeeId, targetDate);
+    if (overlaps.length > 0 || pauseViolations.length > 0) {
+      setConflictWarning({
+        show: true,
+        appointmentId,
+        employeeId,
+        conflicts: overlaps,
+        pauseViolations,
+        targetDate,
+      });
+    } else {
+      await assignAppointment(appointmentId, employeeId, targetDate);
+    }
+  };
+
+  // G-09: Termin duplizieren — Original bleibt, Kopie +7 Tage, Status unassigned
+  const handleDuplicateAppointment = async (appointment: LocalAppointment) => {
+    try {
+      const originalStart = new Date(appointment.start_at);
+      const originalEnd = new Date(appointment.end_at);
+      const durationMs = originalEnd.getTime() - originalStart.getTime();
+
+      const newStart = addDays(originalStart, 7);
+      const newEnd = new Date(newStart.getTime() + durationMs);
+
+      const { data: inserted, error } = await supabase
+        .from('termine')
+        .insert([{
+          titel: appointment.titel,
+          kunden_id: appointment.kunden_id ?? null,
+          mitarbeiter_id: null,
+          start_at: newStart.toISOString(),
+          end_at: newEnd.toISOString(),
+          status: 'unassigned' as Database['public']['Enums']['termin_status'],
+          vorlage_id: null,
+          ist_ausnahme: false,
+          notizen: appointment.notizen ?? null,
+          kategorie: appointment.kategorie ?? null,
+        }])
+        .select(`*, customer:kunden!termine_kunden_id_fkey(*), employee:mitarbeiter!termine_mitarbeiter_id_fkey(*)`)
+        .single();
+
+      if (error) throw error;
+
+      if (inserted) {
+        const newApp: LocalAppointment = {
+          id: inserted.id,
+          titel: inserted.titel,
+          kunden_id: inserted.kunden_id,
+          mitarbeiter_id: inserted.mitarbeiter_id,
+          start_at: inserted.start_at,
+          end_at: inserted.end_at,
+          vorlage_id: inserted.vorlage_id,
+          ist_ausnahme: inserted.ist_ausnahme,
+          ausnahme_grund: inserted.ausnahme_grund,
+          status: inserted.status,
+          notizen: inserted.notizen,
+          kategorie: inserted.kategorie as LocalAppointment['kategorie'],
+          customer: inserted.customer
+            ? { ...(inserted.customer as any), farbe_kalender: (inserted.customer as any).farbe_kalender || '#10B981' }
+            : undefined,
+          employee: undefined,
+        };
+        setAppointments(prev => [...prev, newApp]);
+        // Navigate to the week containing the duplicate
+        setCurrentWeek(newStart);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+
+      toast({
+        title: 'Termin kopiert',
+        description: `Kopie erstellt (+7 Tage, Status: unzugeordnet)`,
+      });
+    } catch (error: any) {
+      console.error('Error duplicating appointment:', error);
+      toast({
+        title: 'Fehler',
+        description: `Fehler beim Duplizieren: ${error?.message || 'Unbekannter Fehler'}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -1456,6 +1554,7 @@ const ScheduleBuilderModern = () => {
           employees={employees}
           customers={customers}
           customerTimeWindows={editingAppointment ? customerTimeWindows.filter(tw => tw.kunden_id === editingAppointment.kunden_id) : []}
+          onDuplicate={async (appt) => { await handleDuplicateAppointment(appt as LocalAppointment); }}
           onUpdate={async (appointment) => {
             try {
               // Bug 11: Wenn Status → unassigned, Mitarbeiter entfernen
@@ -1553,6 +1652,26 @@ const ScheduleBuilderModern = () => {
           }}
           onDelete={handleDeleteAppointment}
         />
+
+        {/* G-14: Abwesenheits-Bestätigung */}
+        <AlertDialog open={absenceConfirm.show} onOpenChange={(open) => !open && setAbsenceConfirm(prev => ({ ...prev, show: false }))}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mitarbeiter abwesend</AlertDialogTitle>
+              <AlertDialogDescription>
+                <strong>{absenceConfirm.employeeName}</strong> ist an{absenceConfirm.targetDate ? ` ${format(absenceConfirm.targetDate, 'EEEE, dd.MM.yyyy', { locale: de })}` : ' diesem Tag'} als abwesend eingetragen (Urlaub/Krankheit). Termin trotzdem zuweisen?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setAbsenceConfirm({ show: false, appointmentId: '', employeeId: '', targetDate: undefined, employeeName: '' })}>
+                Abbrechen
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleAbsenceConfirm}>
+                Trotzdem zuweisen
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <ConflictWarningDialog
           isOpen={conflictWarning.show}
