@@ -74,6 +74,24 @@ interface Abrechnungsregel {
   gueltig_bis: string | null;
 }
 
+interface MwstResult {
+  mwst_satz: number;
+  mwst_betrag: number;
+  brutto_betrag: number;
+}
+
+/**
+ * §4 Nr. 16 UStG: Pflegeleistungen sind steuerbefreit wenn Pflegegrad > 0.
+ * Privatkunden ohne Pflegegrad zahlen 19% MwSt.
+ */
+function calculateMwst(nettoBetrag: number, pflegegrad: number | null, leistungsart: string): MwstResult {
+  const hatPflegegrad = pflegegrad !== null && pflegegrad > 0;
+  const mwst_satz = !hatPflegegrad && leistungsart === "privat" ? 0.19 : 0;
+  const mwst_betrag = Math.round(nettoBetrag * mwst_satz * 100) / 100;
+  const brutto_betrag = Math.round((nettoBetrag + mwst_betrag) * 100) / 100;
+  return { mwst_satz, mwst_betrag, brutto_betrag };
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
@@ -301,32 +319,60 @@ serve(async (req) => {
 
         // Calculate totals
         let nettoBetrag = 0;
-        const positionen: any[] = [];
+        let mwstBetragGesamt = 0;
+        const positionen: Array<{
+          termin_id: string;
+          leistung_id: string;
+          kunden_id: string;
+          mitarbeiter_id: string | null;
+          leistungsart: string;
+          leistungsdatum: string;
+          leistungsbeginn: string;
+          leistungsende: string;
+          stunden: number;
+          stundensatz: number;
+          einzelbetrag: number;
+          mwst_satz: number;
+          mwst_betrag: number;
+          brutto_betrag: number;
+          ist_gueltig: boolean;
+          validierung_hinweise: null;
+        }> = [];
 
         for (const terminData of group.termine) {
-          const stunden = terminData.iststunden || 
+          const stunden = terminData.iststunden ||
             ((new Date(terminData.end_at).getTime() - new Date(terminData.start_at).getTime()) / (1000 * 60 * 60));
-          
+
           const stundensatz = terminData.regel?.stundensatz || 0;
           const einzelbetrag = stunden * stundensatz;
           nettoBetrag += einzelbetrag;
+
+          const pflegegrad: number | null = terminData.kunden?.pflegegrad ?? null;
+          const leistungsart: string = terminData.leistung.art;
+          const mwst = calculateMwst(einzelbetrag, pflegegrad, leistungsart);
+          mwstBetragGesamt += mwst.mwst_betrag;
 
           positionen.push({
             termin_id: terminData.id,
             leistung_id: terminData.leistung.id,
             kunden_id: terminData.kunden_id,
             mitarbeiter_id: terminData.mitarbeiter_id,
-            leistungsart: terminData.leistung.art,
+            leistungsart,
             leistungsdatum: terminData.start_at.split("T")[0],
             leistungsbeginn: terminData.start_at.split("T")[1].substring(0, 5),
             leistungsende: terminData.end_at.split("T")[1].substring(0, 5),
             stunden,
             stundensatz,
             einzelbetrag,
+            mwst_satz: mwst.mwst_satz,
+            mwst_betrag: mwst.mwst_betrag,
+            brutto_betrag: mwst.brutto_betrag,
             ist_gueltig: true,
             validierung_hinweise: null
           });
         }
+
+        const bruttoBetragGesamt = Math.round((nettoBetrag + mwstBetragGesamt) * 100) / 100;
 
         // Determine recipient
         const empfaengerName = group.kostentraeger?.name || 
@@ -345,7 +391,8 @@ serve(async (req) => {
             abrechnungszeitraum_von: zeitraum_von,
             abrechnungszeitraum_bis: zeitraum_bis,
             netto_betrag: nettoBetrag,
-            brutto_betrag: nettoBetrag, // No MwSt for Pflegeleistungen
+            mwst_betrag: mwstBetragGesamt,
+            brutto_betrag: bruttoBetragGesamt,
             erstellt_von: user.id,
             validierung_ergebnis: { errors: [], warnings: validationWarnings },
             validierung_warnungen: validationWarnings
@@ -408,6 +455,8 @@ serve(async (req) => {
             details: {
               anzahl_positionen: positionen.length,
               netto_betrag: nettoBetrag,
+              mwst_betrag: mwstBetragGesamt,
+              brutto_betrag: bruttoBetragGesamt,
               zeitraum: { von: zeitraum_von, bis: zeitraum_bis }
             }
           });
