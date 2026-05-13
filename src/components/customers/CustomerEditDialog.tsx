@@ -24,6 +24,7 @@ import { Plus, Trash2, Sparkles, FileText, Receipt, User, AlertCircle } from 'lu
 import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator';
 import { useSettings } from '@/hooks/useSettings';
 import { StepAbrechnung } from '@/components/customers/wizard/StepAbrechnung';
+import { normalizeBudgetOrder } from '@/lib/budgetPriority';
 import { StepDokumente } from '@/components/customers/wizard/StepDokumente';
 import { PflegekasseCombobox } from '@/components/customers/PflegekasseCombobox';
 import { supabase } from '@/integrations/supabase/client';
@@ -82,23 +83,11 @@ export function CustomerEditDialog({
   const [existingDokumente, setExistingDokumente] = useState<DokumentRow[]>([]);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Initialize budget order from customer data
+  // Initialize budget order from customer data (normalize to full 5-bucket order)
   useEffect(() => {
     if (editingCustomer) {
       const bp = editingCustomer.budget_prioritaet;
-      if (bp && Array.isArray(bp) && bp.length > 0) {
-        setBudgetOrder(bp);
-      } else {
-        // Build from active flags
-        const order: string[] = [];
-        if (editingCustomer.pflegesachleistung_aktiv) order.push('pflegesachleistung');
-        if (editingCustomer.initial_budget_entlastung && editingCustomer.initial_budget_entlastung > 0)
-          order.push('vorjahresrest_entlastung');
-        if (editingCustomer.verhinderungspflege_aktiv) order.push('verhinderungspflege');
-        if (editingCustomer.entlastung_genehmigt !== false) order.push('entlastungsbetrag');
-        if (editingCustomer.privatrechnung_erlaubt) order.push('privat');
-        setBudgetOrder(order);
-      }
+      setBudgetOrder(normalizeBudgetOrder(Array.isArray(bp) ? bp : null));
       setDocumentFiles({ vertrag: [], historie: [], antragswesen: [] });
       // Load existing documents
       loadExistingDokumente(editingCustomer.id);

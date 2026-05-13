@@ -217,35 +217,50 @@ export function assignTransactionTypes(
         }
       : null;
 
-    // Kundenspezifische Priorisierung: 'pflegesachleistung' = KOMBI, 'verhinderungspflege' = VP
-    const budgetPrio = kunde.budget_prioritaet;
-    let configurablePools: Pool[];
-    if (budgetPrio && budgetPrio.length > 0) {
-      configurablePools = budgetPrio
-        .map((key) => {
-          if (key === 'pflegesachleistung') return kombiPool;
-          if (key === 'verhinderungspflege') return vpPool;
-          return null;
-        })
-        .filter((p): p is Pool => p !== null);
-    } else {
-      // Default-Reihenfolge: KOMBI → VP
-      configurablePools = [kombiPool, ...(vpPool ? [vpPool] : [])];
-    }
+    // Kundenspezifische Priorisierung
+    // Neue Keys: 'kombileistung', 'vorjahresrest_entlastung', 'verhinderungspflege', 'entlastungsbetrag', 'privat'
+    // Legacy-Keys (Rückwärtskompatibilität): 'pflegesachleistung' = KOMBI
+    const expiringPool: Pool = {
+      type: 'ENTLASTUNG', // Vorjahresrest
+      remaining: () => remainingExpiringEntl,
+      consume: (amt) => { remainingExpiringEntl -= amt; },
+    };
+    const entlPool: Pool = {
+      type: 'ENTLASTUNG', // Regulärer EB
+      remaining: () => remainingEntlastung,
+      consume: (amt) => { remainingEntlastung -= amt; },
+    };
 
-    const pools: Pool[] = [
-      ...configurablePools,
-      {
-        type: 'ENTLASTUNG', // Expiring Vorjahresrest
-        remaining: () => remainingExpiringEntl,
-        consume: (amt) => { remainingExpiringEntl -= amt; },
-      },
-      {
-        type: 'ENTLASTUNG', // Regulärer EB
-        remaining: () => remainingEntlastung,
-        consume: (amt) => { remainingEntlastung -= amt; },
-      },
-    ];
+    const budgetPrio = kunde.budget_prioritaet;
+    let pools: Pool[];
+
+    if (budgetPrio && budgetPrio.length > 0) {
+      pools = budgetPrio
+        .flatMap((key) => {
+          // Neue 5-Bucket Keys
+          if (key === 'kombileistung') return [kombiPool];
+          if (key === 'vorjahresrest_entlastung') return [expiringPool];
+          if (key === 'verhinderungspflege') return vpPool ? [vpPool] : [];
+          if (key === 'entlastungsbetrag') return [entlPool];
+          if (key === 'privat') return []; // PRIVAT immer als Fallback am Ende
+          // Legacy Keys
+          if (key === 'pflegesachleistung') return [kombiPool];
+          return [];
+        });
+
+      // Nicht in budgetPrio enthaltene Pools als Fallback anhängen
+      const hasKombi = budgetPrio.some((k) => k === 'kombileistung' || k === 'pflegesachleistung');
+      const hasExpiring = budgetPrio.includes('vorjahresrest_entlastung');
+      const hasVP = budgetPrio.includes('verhinderungspflege');
+      const hasEntl = budgetPrio.includes('entlastungsbetrag');
+      if (!hasKombi) pools.push(kombiPool);
+      if (!hasExpiring) pools.push(expiringPool);
+      if (!hasVP && vpPool) pools.push(vpPool);
+      if (!hasEntl) pools.push(entlPool);
+    } else {
+      // Default-Reihenfolge aus den Abrechnungsregeln
+      pools = [kombiPool, expiringPool, ...(vpPool ? [vpPool] : []), entlPool];
+    }
 
     let remaining = totalAmount;
     const allocations: SplitAllocation[] = [];
