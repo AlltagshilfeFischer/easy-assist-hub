@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,13 +21,14 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw,
   Search, ArrowUpDown, ChevronLeft, ChevronRight, X,
   User, TrendingUp, FileCheck, PenLine, ExternalLink,
-  WifiOff, Wifi, RotateCcw, Lock, ChevronsUpDown, Check, Bell
+  RotateCcw, Lock, ChevronsUpDown, Check, Bell
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import LeistungsnachweisPreview from '@/components/leistungsnachweis/LeistungsnachweisPreview';
+import KundenSignaturPad from '@/components/leistungsnachweis/KundenSignaturPad';
 import { exportElementToPdf } from '@/lib/pdfExport';
 import { downloadCsv } from '@/lib/csvExport';
 import { Download } from 'lucide-react';
@@ -53,6 +54,9 @@ interface LeistungsnachweisRow {
   unterschrift_kunde_durch: string | null;
   unterschrift_gf_template: string | null;
   unterschrift_gf_name: string | null;
+  unterschrift_mitarbeiter_bild: string | null;
+  unterschrift_mitarbeiter_zeitstempel: string | null;
+  unterschrift_mitarbeiter_durch: string | null;
   cb_kombinationsleistung: boolean;
   cb_entlastungsleistung: boolean;
   cb_verhinderungspflege: boolean;
@@ -115,9 +119,9 @@ export default function Leistungsnachweise() {
   const [sortAsc, setSortAsc] = useState(true);
   const [showDetail, setShowDetail] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
-  const [signerName, setSignerName] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showStornierConfirm, setShowStornierConfirm] = useState(false);
+  const [showKundenSignatur, setShowKundenSignatur] = useState(false);
 
   // Online status tracking
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -133,9 +137,6 @@ export default function Leistungsnachweise() {
     };
   }, []);
 
-  // Canvas refs
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const isDrawingRef = useRef(false);
 
   const isCurrentMonth = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
 
@@ -402,69 +403,44 @@ export default function Leistungsnachweise() {
     },
   });
 
-  // Signature mutation – offline-capable
-  const signMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedLN || !canvasRef.current) throw new Error('Keine Daten');
-      const dataUrl = canvasRef.current.toDataURL('image/png');
-      const zeitstempel = new Date().toISOString();
-      const durch = signerName || 'Kunde';
+  // Kunden-Unterschrift speichern (wird vom KundenSignaturPad aufgerufen)
+  const handleKundenSignatur = async (dataUrl: string, durch: string) => {
+    if (!selectedLN) return;
+    const zeitstempel = new Date().toISOString();
+    const hours = termine ? calculateHoursFromTermine(termine) : { geplant: 0, geleistet: 0 };
+    const pendingData = { dataUrl, zeitstempel, durch, frozenGeplant: hours.geplant, frozenGeleistet: hours.geleistet };
 
-      // Freeze hours at signing time
-      const hours = termine ? calculateHoursFromTermine(termine) : { geplant: 0, geleistet: 0 };
-      const pendingData = { dataUrl, zeitstempel, durch, frozenGeplant: hours.geplant, frozenGeleistet: hours.geleistet };
+    // Immer zuerst in localStorage sichern
+    localStorage.setItem(`pending_signature_${selectedLN.id}`, JSON.stringify(pendingData));
 
-      // Always save to localStorage first
-      localStorage.setItem(`pending_signature_${selectedLN.id}`, JSON.stringify(pendingData));
+    // Lokalen State sofort aktualisieren
+    setSelectedLN(prev => prev ? {
+      ...prev,
+      unterschrift_kunde_bild: dataUrl,
+      unterschrift_kunde_zeitstempel: zeitstempel,
+      unterschrift_kunde_durch: durch,
+      status: 'unterschrieben',
+    } : null);
 
-      if (isOnline) {
-        // Try to sync immediately
+    setShowKundenSignatur(false);
+
+    if (isOnline) {
+      try {
         await syncSignatureToDb(selectedLN.id, pendingData);
         localStorage.removeItem(`pending_signature_${selectedLN.id}`);
-      }
-    },
-    onSuccess: () => {
-      const dataUrl = canvasRef.current?.toDataURL('image/png') || null;
-      const zeitstempel = new Date().toISOString();
-      const durch = signerName || 'Kunde';
-
-      // Update local state immediately
-      setSelectedLN(prev => prev ? {
-        ...prev,
-        unterschrift_kunde_bild: dataUrl,
-        unterschrift_kunde_zeitstempel: zeitstempel,
-        unterschrift_kunde_durch: durch,
-        status: 'unterschrieben',
-      } : null);
-
-      if (isOnline) {
         toast.success('Unterschrift gespeichert');
-      } else {
+      } catch (err) {
         toast.success('Unterschrift lokal gespeichert', {
-          description: 'Wird automatisch synchronisiert, sobald Internet verfügbar ist.',
+          description: 'Sync fehlgeschlagen — wird bei nächster Verbindung wiederholt.',
         });
       }
-      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
-    },
-    onError: (err) => {
-      // If online sync failed, signature is still in localStorage
-      if (!isOnline) {
-        toast.success('Unterschrift lokal gespeichert', {
-          description: 'Wird automatisch synchronisiert, sobald Internet verfügbar ist.',
-        });
-        // Update local state anyway
-        setSelectedLN(prev => prev ? {
-          ...prev,
-          unterschrift_kunde_bild: canvasRef.current?.toDataURL('image/png') || null,
-          unterschrift_kunde_zeitstempel: new Date().toISOString(),
-          unterschrift_kunde_durch: signerName || 'Kunde',
-          status: 'unterschrieben',
-        } : null);
-      } else {
-        toast.error('Fehler beim Speichern', { description: err instanceof Error ? err.message : 'Unbekannt' });
-      }
+    } else {
+      toast.success('Unterschrift lokal gespeichert', {
+        description: 'Wird automatisch synchronisiert, sobald Internet verfügbar ist.',
+      });
     }
-  });
+    queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+  };
 
   // Auto-sync pending signatures on reconnect
   useEffect(() => {
@@ -605,71 +581,6 @@ export default function Leistungsnachweise() {
     ).length;
   }, [nachweise]);
 
-  // Canvas drawing helpers
-  const initCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    ctx.strokeStyle = '#1a1a1a';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-  }, []);
-
-  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-
-  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
-    isDrawingRef.current = true;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const pos = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-  };
-
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawingRef.current) return;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    const pos = getPos(e);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-  };
-
-  const endDraw = () => { isDrawingRef.current = false; };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    // Transform zurücksetzen damit clearRect wirklich ALLES löscht
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-  };
-
-  // Initialize canvas when detail dialog opens for signing
-  useEffect(() => {
-    if (showDetail && !selectedLN?.unterschrift_kunde_zeitstempel && selectedLN?.status !== 'abgeschlossen') {
-      setTimeout(initCanvas, 100);
-    }
-  }, [showDetail, selectedLN?.status, selectedLN?.unterschrift_kunde_zeitstempel, initCanvas]);
 
   // Pre-fill billing checkboxes from customer data when opening a new LN
   useEffect(() => {
@@ -1325,146 +1236,130 @@ export default function Leistungsnachweise() {
 
                   <Separator />
 
-                  {/* Unterschrift Kunde */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold flex items-center gap-2">
-                        <PenLine className="h-4 w-4 text-muted-foreground" />
-                        Unterschrift Kunde
-                      </h3>
+                  {/* Unterschriften (Kunde + Mitarbeiter) */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <PenLine className="h-4 w-4 text-muted-foreground" />
+                      Unterschriften
+                    </h3>
+
+                    {/* ── KUNDEN-UNTERSCHRIFT ── */}
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-foreground">Kunde / Leistungsnehmer</p>
+                        {selectedLN.unterschrift_kunde_zeitstempel ? (
+                          <span className="flex items-center gap-1 text-xs text-success font-medium">
+                            <CheckCircle2 className="h-3 w-3" /> Unterschrieben
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Ausstehend</span>
+                        )}
+                      </div>
+
                       {selectedLN.unterschrift_kunde_zeitstempel ? (
-                        <span className="flex items-center gap-1 text-xs text-success font-medium">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Unterschrieben
-                        </span>
+                        <div className="space-y-2">
+                          <div className="rounded-md border border-border bg-white p-3 flex flex-col items-center gap-2">
+                            {selectedLN.unterschrift_kunde_bild && (
+                              <img
+                                src={selectedLN.unterschrift_kunde_bild}
+                                alt="Kunden-Unterschrift"
+                                className="max-h-20 w-full object-contain"
+                              />
+                            )}
+                            <div className="w-full border-t border-dashed border-border pt-2 flex items-center justify-between text-xs text-muted-foreground">
+                              <span className="font-medium">{selectedLN.unterschrift_kunde_durch || '–'}</span>
+                              <span>{format(new Date(selectedLN.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
+                            </div>
+                          </div>
+                          {selectedLN.status === 'unterschrieben' && !showStornierConfirm && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                              onClick={() => setShowStornierConfirm(true)}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" /> Unterschrift zurücksetzen
+                            </Button>
+                          )}
+                          {showStornierConfirm && (
+                            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-2 text-sm">
+                              <p className="text-foreground">Unterschrift wirklich löschen? Der LN wird auf „Offen" zurückgesetzt.</p>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => stornierMutation.mutate(selectedLN.id)}
+                                  disabled={stornierMutation.isPending}
+                                  className="gap-1"
+                                >
+                                  {stornierMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                  Ja, löschen
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => setShowStornierConfirm(false)}>
+                                  Abbrechen
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ) : canSign ? (
-                        <span className="text-xs text-muted-foreground">Ausstehend</span>
-                      ) : null}
+                        <div className="space-y-2">
+                          {hasPendingSignatures && isOnline && (
+                            <div className="flex items-center gap-2 text-xs rounded-md border border-primary/30 bg-primary/10 px-3 py-2">
+                              <RefreshCw className="h-3.5 w-3.5 text-primary animate-spin" />
+                              <span className="text-primary font-medium">Ausstehende Unterschriften werden synchronisiert…</span>
+                            </div>
+                          )}
+                          <Button
+                            className="w-full gap-2 h-10"
+                            onClick={() => setShowKundenSignatur(true)}
+                          >
+                            <PenLine className="h-4 w-4" />
+                            {isOnline ? 'Zur Unterschrift (Vollbild)' : 'Zur Unterschrift (Offline)'}
+                          </Button>
+                          <p className="text-xs text-muted-foreground text-center">
+                            Gerät dem Kunden übergeben — optimiert für Handy-Querformat
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+                          {selectedLN.status === 'abgeschlossen' ? 'Leistungsnachweis abgeschlossen.' : 'Kein Unterschrift-Eingang möglich.'}
+                        </p>
+                      )}
                     </div>
 
-                    {selectedLN.unterschrift_kunde_zeitstempel ? (
-                      /* ── BEREITS UNTERSCHRIEBEN ── */
-                      <div className="space-y-2">
-                        <div className="rounded-lg border border-border bg-white p-4 flex flex-col items-center gap-3">
-                          {selectedLN.unterschrift_kunde_bild && (
+                    {/* ── MITARBEITER-UNTERSCHRIFT ── */}
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-foreground">Mitarbeiter</p>
+                        {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
+                          <span className="flex items-center gap-1 text-xs text-success font-medium">
+                            <CheckCircle2 className="h-3 w-3" /> Unterschrieben
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Ausstehend (MA-Bereich)</span>
+                        )}
+                      </div>
+                      {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
+                        <div className="rounded-md border border-border bg-white p-3 flex flex-col items-center gap-2">
+                          {selectedLN.unterschrift_mitarbeiter_bild && (
                             <img
-                              src={selectedLN.unterschrift_kunde_bild}
-                              alt="Unterschrift"
-                              className="max-h-28 w-full object-contain"
+                              src={selectedLN.unterschrift_mitarbeiter_bild}
+                              alt="Mitarbeiter-Unterschrift"
+                              className="max-h-20 w-full object-contain"
                             />
                           )}
                           <div className="w-full border-t border-dashed border-border pt-2 flex items-center justify-between text-xs text-muted-foreground">
-                            <span className="font-medium">{selectedLN.unterschrift_kunde_durch || '–'}</span>
-                            <span>{format(new Date(selectedLN.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
+                            <span className="font-medium">{selectedLN.unterschrift_mitarbeiter_durch || '–'}</span>
+                            <span>{format(new Date(selectedLN.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
                           </div>
                         </div>
-
-                        {selectedLN.status === 'unterschrieben' && !showStornierConfirm && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                            onClick={() => setShowStornierConfirm(true)}
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" /> Unterschrift zurücksetzen
-                          </Button>
-                        )}
-                        {showStornierConfirm && (
-                          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-2 text-sm">
-                            <p className="text-foreground">Unterschrift wirklich löschen? Der LN wird auf „Offen" zurückgesetzt.</p>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => stornierMutation.mutate(selectedLN.id)}
-                                disabled={stornierMutation.isPending}
-                                className="gap-1"
-                              >
-                                {stornierMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                                Ja, löschen
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => setShowStornierConfirm(false)}>
-                                Abbrechen
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : canSign ? (
-                      /* ── UNTERSCHRIFT AUFNEHMEN ── */
-                      <div className="space-y-3">
-                        {!isOnline && (
-                          <div className="flex items-center gap-2 text-xs rounded-md border border-warning/40 bg-warning/10 px-3 py-2">
-                            <WifiOff className="h-3.5 w-3.5 text-warning" />
-                            <span className="text-warning font-medium">Offline</span>
-                            <span className="text-muted-foreground">– Wird lokal gespeichert und später synchronisiert</span>
-                          </div>
-                        )}
-                        {hasPendingSignatures && isOnline && (
-                          <div className="flex items-center gap-2 text-xs rounded-md border border-primary/30 bg-primary/10 px-3 py-2">
-                            <RefreshCw className="h-3.5 w-3.5 text-primary animate-spin" />
-                            <span className="text-primary font-medium">Ausstehende Unterschriften werden synchronisiert…</span>
-                          </div>
-                        )}
-
-                        {/* Name */}
-                        <Input
-                          className="h-9 text-sm"
-                          value={signerName}
-                          onChange={e => setSignerName(e.target.value)}
-                          placeholder="Name des Unterzeichners..."
-                        />
-
-                        {/* Signature pad */}
-                        <div className="relative rounded-xl border-2 border-border bg-white overflow-hidden" style={{ height: 180 }}>
-                          {/* Guide line */}
-                          <div className="absolute bottom-9 left-5 right-5 border-b border-dashed border-gray-200 pointer-events-none" />
-                          <span className="absolute bottom-3 left-5 text-[10px] text-gray-300 pointer-events-none select-none">Unterschrift</span>
-                          <canvas
-                            ref={canvasRef}
-                            className="absolute inset-0 w-full h-full cursor-crosshair touch-none"
-                            onMouseDown={startDraw}
-                            onMouseMove={draw}
-                            onMouseUp={endDraw}
-                            onMouseLeave={endDraw}
-                            onTouchStart={startDraw}
-                            onTouchMove={draw}
-                            onTouchEnd={endDraw}
-                          />
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 gap-1.5"
-                            onClick={clearCanvas}
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" /> Leeren
-                          </Button>
-                          <Button
-                            className="flex-[2] gap-2"
-                            onClick={() => signMutation.mutate()}
-                            disabled={signMutation.isPending}
-                          >
-                            {signMutation.isPending
-                              ? <Loader2 className="h-4 w-4 animate-spin" />
-                              : isOnline
-                                ? <CheckCircle2 className="h-4 w-4" />
-                                : <WifiOff className="h-4 w-4" />
-                            }
-                            {isOnline ? 'Unterschreiben & Bestätigen' : 'Lokal speichern'}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
-                        {selectedLN.status === 'abgeschlossen'
-                          ? 'Leistungsnachweis ist abgeschlossen.'
-                          : `Status: ${statusConfig[selectedLN.status]?.label || selectedLN.status} – kein Unterschrift-Eingang möglich.`
-                        }
-                      </p>
-                    )}
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Wird vom Mitarbeiter im „Mein Bereich" unterschrieben.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </ScrollArea>
@@ -1538,6 +1433,20 @@ export default function Leistungsnachweise() {
           </div>
         ) : null;
       })()}
+
+      {/* Kunden-Unterschrift Vollbild-Overlay */}
+      {showKundenSignatur && selectedLN && (
+        <KundenSignaturPad
+          kundeName={getKundeName(selectedLN.kunden_id)}
+          monat={selectedLN.monat}
+          jahr={selectedLN.jahr}
+          termine={filteredTermine}
+          liveGeleistet={displayHours.geleistet}
+          isOnline={isOnline}
+          onConfirm={handleKundenSignatur}
+          onCancel={() => setShowKundenSignatur(false)}
+        />
+      )}
     </div>
   );
 }

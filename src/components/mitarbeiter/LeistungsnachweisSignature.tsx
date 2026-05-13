@@ -93,11 +93,12 @@ export function LeistungsnachweisSignature() {
     queryFn: async () => {
       if (!mitarbeiterId) return [];
 
-      // 1. Get all open LN
+      // 1. Get alle LNs ohne Mitarbeiter-Unterschrift (unabhängig vom LN-Status)
       const { data: allLN, error: lnError } = await supabase
         .from('leistungsnachweise')
         .select('*')
-        .eq('status', 'offen')
+        .is('unterschrift_mitarbeiter_zeitstempel', null)
+        .not('status', 'eq', 'abgeschlossen')
         .order('jahr', { ascending: false })
         .order('monat', { ascending: false });
       if (lnError) throw lnError;
@@ -181,39 +182,18 @@ export function LeistungsnachweisSignature() {
     enabled: !!selectedLN
   });
 
-  // Sign mutation
+  // Sign mutation — speichert als Mitarbeiter-Unterschrift (eigene Felder)
   const signMutation = useMutation({
     mutationFn: async () => {
       if (!selectedLN || !canvasRef.current) throw new Error('Keine Daten');
       const signatureData = canvasRef.current.toDataURL('image/png');
 
-      // Calculate frozen hours from termine
-      let frozenGeplant = 0;
-      let frozenGeleistet = 0;
-      if (termine) {
-        const now = new Date();
-        for (const t of termine) {
-          if (['cancelled', 'abgesagt_rechtzeitig'].includes(t.status)) continue;
-          const start = new Date(t.start_at);
-          const end = new Date(t.end_at);
-          const duration = (end.getTime() - start.getTime()) / 3600000;
-          frozenGeplant += duration;
-          const effectiveStatus = (t.status === 'scheduled' && end < now) ? 'completed' : t.status;
-          if (['completed', 'nicht_angetroffen'].includes(effectiveStatus)) {
-            frozenGeleistet += t.iststunden ? Number(t.iststunden) : duration;
-          }
-        }
-      }
-
       const { error } = await supabase
         .from('leistungsnachweise')
         .update({
-          unterschrift_kunde_bild: signatureData,
-          unterschrift_kunde_zeitstempel: new Date().toISOString(),
-          unterschrift_kunde_durch: signerName || 'Kunde',
-          status: 'unterschrieben',
-          frozen_geplante_stunden: Math.round(frozenGeplant * 100) / 100,
-          frozen_geleistete_stunden: Math.round(frozenGeleistet * 100) / 100,
+          unterschrift_mitarbeiter_bild: signatureData,
+          unterschrift_mitarbeiter_zeitstempel: new Date().toISOString(),
+          unterschrift_mitarbeiter_durch: signerName.trim() || 'Mitarbeiter',
         })
         .eq('id', selectedLN.id);
       if (error) throw error;
@@ -311,8 +291,8 @@ export function LeistungsnachweisSignature() {
     );
   }
 
-  const pendingNachweise = nachweise?.filter(n => !n.unterschrift_kunde_zeitstempel && !hiddenIds.has(n.id)) || [];
-  const hiddenNachweise = nachweise?.filter(n => !n.unterschrift_kunde_zeitstempel && hiddenIds.has(n.id)) || [];
+  const pendingNachweise = nachweise?.filter(n => !hiddenIds.has(n.id)) || [];
+  const hiddenNachweise = nachweise?.filter(n => hiddenIds.has(n.id)) || [];
 
   const unhideNachweis = (id: string) => {
     setHiddenIds(prev => {
@@ -448,11 +428,11 @@ export function LeistungsnachweisSignature() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Name des Unterschreibenden</Label>
+                  <Label>Ihr Name (Mitarbeiter)</Label>
                   <Input
                     value={signerName}
                     onChange={e => setSignerName(e.target.value)}
-                    placeholder="Name eingeben"
+                    placeholder="Vor- und Nachname"
                   />
                 </div>
 

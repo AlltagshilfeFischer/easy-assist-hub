@@ -32,6 +32,9 @@ interface LeistungsnachweisData {
   unterschrift_kunde_bild: string | null;
   unterschrift_kunde_zeitstempel: string | null;
   unterschrift_kunde_durch: string | null;
+  unterschrift_mitarbeiter_bild?: string | null;
+  unterschrift_mitarbeiter_zeitstempel?: string | null;
+  unterschrift_mitarbeiter_durch?: string | null;
   unterschrift_gf_name: string | null;
   cb_kombinationsleistung?: boolean;
   cb_entlastungsleistung?: boolean;
@@ -234,10 +237,11 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
         </p>
       </div>
 
-      {/* Unterschriften */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6mm', marginTop: '8mm' }}>
-        <div style={{ width: '45%' }}>
-          <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', position: 'relative' }}>
+      {/* Unterschriften – drei Spalten: GF | Kunde | Mitarbeiter */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '3mm', marginBottom: '6mm', marginTop: '8mm' }}>
+        {/* GF / Stempel */}
+        <div style={{ flex: 1 }}>
+          <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>
             {stempelUrl ? (
               <img
                 src={`${stempelUrl}?t=${Math.floor(Date.now() / 60000)}`}
@@ -257,10 +261,12 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
           </div>
           <p style={{ fontSize: '8px', marginTop: '1mm' }}>Handzeichen (Alltagshilfe Fischer)</p>
         </div>
-        <div style={{ width: '45%' }}>
+
+        {/* Kunde */}
+        <div style={{ flex: 1 }}>
           <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
             {nachweis.unterschrift_kunde_bild && (
-              <img src={nachweis.unterschrift_kunde_bild} alt="Unterschrift" style={{ maxHeight: '14mm', maxWidth: '100%' }} />
+              <img src={nachweis.unterschrift_kunde_bild} alt="Kunden-Unterschrift" style={{ maxHeight: '14mm', maxWidth: '100%' }} />
             )}
           </div>
           <p style={{ fontSize: '8px', marginTop: '1mm' }}>Unterschrift Leistungsnehmer</p>
@@ -268,6 +274,31 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
             <p style={{ fontSize: '7px', color: '#666', marginTop: '0.5mm' }}>
               {format(new Date(nachweis.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy, HH:mm')} Uhr
               {nachweis.unterschrift_kunde_durch ? ` – ${nachweis.unterschrift_kunde_durch}` : ''}
+            </p>
+          )}
+        </div>
+
+        {/* Mitarbeiter */}
+        <div style={{ flex: 1 }}>
+          <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+            {nachweis.unterschrift_mitarbeiter_bild ? (
+              <img src={nachweis.unterschrift_mitarbeiter_bild} alt="Mitarbeiter-Unterschrift" style={{ maxHeight: '14mm', maxWidth: '100%' }} />
+            ) : (
+              <div style={{
+                width: '100%', height: '13mm',
+                border: '1.5px dashed #ccc',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '7px', color: '#bbb',
+              }}>
+                Ausstehend
+              </div>
+            )}
+          </div>
+          <p style={{ fontSize: '8px', marginTop: '1mm' }}>Unterschrift Mitarbeiter</p>
+          {nachweis.unterschrift_mitarbeiter_zeitstempel && (
+            <p style={{ fontSize: '7px', color: '#666', marginTop: '0.5mm' }}>
+              {format(new Date(nachweis.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm')} Uhr
+              {nachweis.unterschrift_mitarbeiter_durch ? ` – ${nachweis.unterschrift_mitarbeiter_durch}` : ''}
             </p>
           )}
         </div>
