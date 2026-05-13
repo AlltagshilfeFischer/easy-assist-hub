@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { requireAuth, unauthorizedResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +12,8 @@ serve(async (req) => {
   }
 
   try {
+    await requireAuth(req);
+
     const { text } = await req.json();
 
     if (!text || typeof text !== 'string') {
@@ -158,6 +161,8 @@ Extrahiere alle Zeitfenster und gib sie strukturiert zurück. Priorität ist imm
 
   } catch (error) {
     console.error('Error in parse-time-windows:', error);
+    const status = (error as any)?.status;
+    if (status === 401 || status === 403) return unauthorizedResponse((error as Error).message, status);
     return new Response(
       JSON.stringify({ error: (error as Error).message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

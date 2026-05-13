@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { requireAdmin, unauthorizedResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,8 @@ serve(async (req) => {
   }
 
   try {
+    await requireAdmin(req);
+
     const { timeWindows, plz, preferences, frequency } = await req.json();
 
     if (!timeWindows || !Array.isArray(timeWindows)) {
@@ -199,6 +202,8 @@ Gib die Top 3-5 Mitarbeiter zurück mit Begründung.`;
 
   } catch (error) {
     console.error('Error in suggest-employees:', error);
+    const status = (error as any)?.status;
+    if (status === 401 || status === 403) return unauthorizedResponse((error as Error).message, status);
     return new Response(
       JSON.stringify({ error: (error as Error).message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

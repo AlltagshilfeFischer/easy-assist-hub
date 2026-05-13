@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { requireAuth, unauthorizedResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,8 @@ serve(async (req) => {
   }
 
   try {
+    await requireAuth(req);
+
     const OPENAI_API_KEY = req.headers.get('x-openai-key') || Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
@@ -144,6 +147,8 @@ Erkenne verschiedene Formate: Listen, Tabellen, Fließtext, CSV, etc.`,
     });
   } catch (error) {
     console.error("parse-mitarbeiter-text error:", error);
+    const status = (error as any)?.status;
+    if (status === 401 || status === 403) return unauthorizedResponse((error as Error).message, status);
     return new Response(
       JSON.stringify({ error: (error as Error).message || "Unbekannter Fehler" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

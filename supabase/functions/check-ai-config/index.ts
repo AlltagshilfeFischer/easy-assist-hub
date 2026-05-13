@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { requireAdmin, unauthorizedResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +20,13 @@ function json(body: CheckResult, status = 200) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    await requireAdmin(req);
+  } catch (err) {
+    const status = (err as any)?.status ?? 401;
+    return unauthorizedResponse((err as Error).message, status);
   }
 
   const apiKey = req.headers.get('x-openai-key') || Deno.env.get('OPENAI_API_KEY');

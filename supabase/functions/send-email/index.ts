@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { requireAdmin, unauthorizedResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,38 +23,7 @@ Deno.serve(async (req) => {
       throw new Error('RESEND_API_KEY is not configured');
     }
 
-    // Verify caller is authenticated
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const authHeader = req.headers.get('Authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      throw new Error('Not authenticated');
-    }
-    const token = authHeader.slice('Bearer '.length).trim();
-
-    // Allow service-role calls (from other edge functions) and admin users
-    const isServiceRole = token === (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-
-    if (!isServiceRole) {
-      let callerId: string | null = null;
-      try {
-        const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-        const payloadJson = atob(payloadBase64);
-        const payload = JSON.parse(payloadJson);
-        callerId = payload.sub ?? null;
-      } catch (_e) {
-        throw new Error('Not authenticated');
-      }
-      if (!callerId) throw new Error('Not authenticated');
-
-      const { data: isAdmin } = await supabaseAdmin.rpc('is_admin_or_higher', { _user_id: callerId });
-      if (!isAdmin) {
-        throw new Error('Not authorized - admin role required');
-      }
-    }
+    await requireAdmin(req);
 
     const { to, subject, html }: EmailRequest = await req.json();
 
@@ -92,6 +61,8 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error('send-email error:', error);
+    const status = (error as any)?.status;
+    if (status === 401 || status === 403) return unauthorizedResponse((error as Error).message, status);
     return new Response(
       JSON.stringify({ error: (error as Error).message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }

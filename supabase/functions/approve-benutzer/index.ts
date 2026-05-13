@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
+import { requireAdmin, unauthorizedResponse } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,45 +12,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    );
+    await requireAdmin(req);
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    // Verify admin role using verified JWT
-    const authHeader = req.headers.get('Authorization') || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      throw new Error('Not authenticated');
-    }
-    const token = authHeader.slice('Bearer '.length).trim();
-    let userId: string | null = null;
-    try {
-      const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-      const payloadJson = atob(payloadBase64);
-      const payload = JSON.parse(payloadJson);
-      userId = payload.sub ?? null;
-    } catch (e) {
-      console.error('JWT decode failed:', e);
-      throw new Error('Not authenticated');
-    }
-    if (!userId) {
-      throw new Error('Not authenticated');
-    }
-
-    const { data: isAdmin, error: isAdminErr } = await supabaseAdmin.rpc('is_admin_or_higher', { _user_id: userId });
-    if (isAdminErr || !isAdmin) {
-      throw new Error('Not authorized - admin role required');
-    }
 
     const { registration_id, email, vorname, nachname } = await req.json();
 
@@ -305,6 +273,8 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error:', error);
+    const status = (error as any)?.status;
+    if (status === 401 || status === 403) return unauthorizedResponse((error as Error).message, status);
     return new Response(
       JSON.stringify({ error: (error as Error).message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
