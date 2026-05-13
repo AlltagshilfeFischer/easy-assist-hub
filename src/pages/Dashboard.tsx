@@ -13,6 +13,7 @@ import Leistungsnachweise from './controlboard/Leistungsnachweise';
 import Dokumentenverwaltung from './controlboard/Dokumentenverwaltung';
 import AktivitaetsLog from './controlboard/AktivitaetsLog';
 import Reporting from './controlboard/Reporting';
+import Rechnungen from './controlboard/Rechnungen';
 
 import BudgetTracker from './controlboard/budgettracker/BudgetTracker';
 import BudgetTrackerDetail from './controlboard/budgettracker/BudgetTrackerDetail';
@@ -75,6 +76,7 @@ export default function Dashboard() {
           <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
           <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
           <Route path="/controlboard/reporting" element={<Reporting />} />
+          <Route path="/controlboard/rechnungen" element={<Rechnungen />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </DashboardLayout>
@@ -97,6 +99,7 @@ export default function Dashboard() {
         <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
         <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
         <Route path="/controlboard/reporting" element={<Reporting />} />
+        <Route path="/controlboard/rechnungen" element={<Rechnungen />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
