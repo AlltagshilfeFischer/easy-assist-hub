@@ -211,12 +211,36 @@ export default function BudgetTracker() {
             size="sm"
             className="gap-2"
             onClick={() => {
+              const fmt = (n: number) =>
+                new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+                  Math.round(n * 100) / 100,
+                );
+              const statusLabel = (s: string) =>
+                s === 'BUDGET_EXCEEDED' ? 'Überschritten' : s === 'OPTIMIZE' ? 'Optimieren' : 'OK';
               downloadCsv(
-                ['Kunde', 'Pflegegrad', 'Entlastung', 'Kombi (Monat)', 'Verhinderungspflege', 'Privat', 'Status'],
+                [
+                  'Kunde',
+                  'Pflegegrad',
+                  'Entlastung verbraucht (€)',
+                  'Entlastung verfügbar (€)',
+                  'Entlastung gesamt (€)',
+                  'Kombi verbraucht Monat (€)',
+                  'VP verbraucht (€)',
+                  'VP verfügbar (€)',
+                  'Privat (€)',
+                  'Status',
+                ],
                 filteredRows.map((r) => [
-                  r.name, r.pflegegrad,
-                  r.consumedEntlastung, r.consumedKombiMonth ?? 0,
-                  r.consumedVP, r.privatConsumed, r.status,
+                  r.name,
+                  r.pflegegrad,
+                  fmt(r.consumedEntlastung),
+                  fmt(r.availability?.entlastungAvailable ?? 0),
+                  fmt(r.availability?.entlastungYearlyTotal ?? 0),
+                  fmt(r.consumedKombiMonth ?? 0),
+                  fmt(r.consumedVP),
+                  fmt(r.availability?.vpRemainingYear ?? 0),
+                  fmt(r.privatConsumed),
+                  statusLabel(r.status),
                 ]),
                 `budgettracker_${currentYear}.csv`,
               );
