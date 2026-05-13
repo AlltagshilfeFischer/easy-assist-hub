@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/useSettings';
+import { useGfStempelUrl } from '@/hooks/useOrganisationSettings';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Settings as SettingsIcon,
   Sparkles,
@@ -13,15 +15,79 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Stamp,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import { invokeAiFunction } from '@/lib/aiClient';
 import { toast } from 'sonner';
+
+const MAX_STAMP_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+const ALLOWED_STAMP_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
 export default function Settings() {
   const { settings, updateSettings } = useSettings();
   const [isValidating, setIsValidating] = useState(false);
   const [keyInput, setKeyInput] = useState(settings.openAiApiKey);
   const [showKey, setShowKey] = useState(false);
+
+  // GF-Stempel
+  const { stempelUrl, isLoading: isStempelLoading, saveStempelUrl, isSaving: isStempelSaving } = useGfStempelUrl();
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStempelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = '';
+
+    if (!file) return;
+
+    if (!ALLOWED_STAMP_TYPES.includes(file.type)) {
+      toast.error('Nur PNG oder JPG erlaubt');
+      return;
+    }
+    if (file.size > MAX_STAMP_SIZE_BYTES) {
+      toast.error('Datei zu groß — maximal 2 MB erlaubt');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const ext = file.name.split('.').pop() ?? 'png';
+      const storagePath = `gf-stempel/stempel.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(storagePath, file, { upsert: true, contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
+      // Cache-Buster damit das neue Bild sofort sichtbar ist
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+      await saveStempelUrl(publicUrl);
+      toast.success('Stempel erfolgreich gespeichert');
+    } catch (err) {
+      console.error(err);
+      toast.error('Upload fehlgeschlagen');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleStempelDelete = async () => {
+    try {
+      await saveStempelUrl(null);
+      // Datei aus Storage entfernen (best-effort)
+      await supabase.storage.from('avatars').remove(['gf-stempel/stempel.png', 'gf-stempel/stempel.jpg']);
+      toast.success('Stempel entfernt');
+    } catch (err) {
+      console.error(err);
+      toast.error('Löschen fehlgeschlagen');
+    }
+  };
 
   const validateAndSave = async (keyToTest: string) => {
     if (!keyToTest.trim()) {
@@ -209,6 +275,88 @@ export default function Settings() {
               </ul>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* GF-Stempel / Unterschrift */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Stamp className="h-5 w-5" />
+            GF-Stempel / Unterschrift
+          </CardTitle>
+          <CardDescription>
+            Bild (PNG/JPG, max. 2 MB) wird auf dem Leistungsnachweis unten links angezeigt.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Vorschau */}
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              {isStempelLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Lade…
+                </div>
+              ) : stempelUrl ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Aktueller Stempel:</p>
+                  <div className="border rounded-lg p-3 bg-white inline-block">
+                    <img
+                      src={stempelUrl}
+                      alt="GF-Stempel"
+                      className="max-h-24 max-w-xs object-contain"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center text-sm text-muted-foreground">
+                  Noch kein Stempel hinterlegt
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Aktionen */}
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isStempelSaving}
+              className="gap-2"
+            >
+              {isUploading || isStempelSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {stempelUrl ? 'Stempel ersetzen' : 'Stempel hochladen'}
+            </Button>
+            {stempelUrl && (
+              <Button
+                variant="outline"
+                onClick={handleStempelDelete}
+                disabled={isUploading || isStempelSaving}
+                className="gap-2 text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+                Entfernen
+              </Button>
+            )}
+          </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg"
+            className="hidden"
+            onChange={handleStempelUpload}
+          />
+
+          <p className="text-xs text-muted-foreground">
+            Empfohlen: transparenter Hintergrund (PNG), mind. 200×100 px.
+          </p>
         </CardContent>
       </Card>
     </div>
