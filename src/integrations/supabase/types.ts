@@ -672,8 +672,6 @@ export type Database = {
           mitarbeiter: string | null
           nachname: string | null
           name: string | null
-          notfall_name: string | null
-          notfall_telefon: string | null
           pflegegrad: number | null
           pflegekasse: string | null
           pflegesachleistung_aktiv: boolean | null
@@ -738,8 +736,6 @@ export type Database = {
           mitarbeiter?: string | null
           nachname?: string | null
           name?: string | null
-          notfall_name?: string | null
-          notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
           pflegesachleistung_aktiv?: boolean | null
@@ -804,8 +800,6 @@ export type Database = {
           mitarbeiter?: string | null
           nachname?: string | null
           name?: string | null
-          notfall_name?: string | null
-          notfall_telefon?: string | null
           pflegegrad?: number | null
           pflegekasse?: string | null
           pflegesachleistung_aktiv?: boolean | null

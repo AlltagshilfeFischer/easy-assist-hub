@@ -38,8 +38,6 @@ export default function NewEntries() {
     startdatum: '',
     eintritt: '',
     austritt: '',
-    notfall_name: '',
-    notfall_telefon: '',
     angehoerige_ansprechpartner: '',
     has_regular_appointments: false,
     mitarbeiter: ''
@@ -95,8 +93,6 @@ export default function NewEntries() {
           startdatum: customerData.startdatum || null,
           eintritt: customerData.eintritt || null,
           austritt: customerData.austritt || null,
-          notfall_name: customerData.notfall_name,
-          notfall_telefon: customerData.notfall_telefon,
           angehoerige_ansprechpartner: customerData.angehoerige_ansprechpartner,
           kasse_privat: customerData.kasse_privat,
           verhinderungspflege_status: customerData.verhinderungspflege_status,
@@ -201,8 +197,6 @@ export default function NewEntries() {
         startdatum: '',
         eintritt: '',
         austritt: '',
-        notfall_name: '',
-        notfall_telefon: '',
         angehoerige_ansprechpartner: '',
         has_regular_appointments: false,
         mitarbeiter: ''
