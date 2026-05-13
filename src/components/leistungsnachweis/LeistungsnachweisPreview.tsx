@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { useGfStempelUrl } from '@/hooks/useOrganisationSettings';
 
 interface Kunde {
   vorname: string | null;
@@ -54,6 +55,7 @@ const monthNames = [
 const SKIP_STATUS = ['cancelled', 'abgesagt_rechtzeitig'];
 
 export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: Props) {
+  const { stempelUrl } = useGfStempelUrl();
   const kundenName = [kunde.vorname, kunde.nachname].filter(Boolean).join(' ') || kunde.name || '';
   const adresse = kunde.adresse || [kunde.strasse, [kunde.plz, kunde.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   const geburtsdatum = kunde.geburtsdatum ? format(new Date(kunde.geburtsdatum), 'dd.MM.yyyy') : '';
@@ -235,9 +237,22 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
       {/* Unterschriften */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6mm', marginTop: '8mm' }}>
         <div style={{ width: '45%' }}>
-          <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>
-            {nachweis.unterschrift_gf_name && (
-              <span style={{ fontStyle: 'italic', fontSize: '10px' }}>{nachweis.unterschrift_gf_name}</span>
+          <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', position: 'relative' }}>
+            {stempelUrl ? (
+              <img
+                src={stempelUrl}
+                alt="Stempel / Unterschrift GF"
+                style={{ maxHeight: '14mm', maxWidth: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <div style={{
+                width: '100%', height: '13mm',
+                border: '1.5px dashed #aaa',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '7px', color: '#aaa',
+              }}>
+                Stempel / Unterschrift GF
+              </div>
             )}
           </div>
           <p style={{ fontSize: '8px', marginTop: '1mm' }}>Handzeichen (Alltagshilfe Fischer)</p>

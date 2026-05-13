@@ -380,6 +380,27 @@ export type Database = {
         }
         Relationships: []
       }
+      einstellungen: {
+        Row: {
+          key: string
+          value: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dokumente: {
         Row: {
           beschreibung: string | null
