@@ -571,14 +571,19 @@ export default function Leistungsnachweise() {
     };
   }, [nachweise, hoursByKunde]);
 
-  // Count LNs that are older than 7 days and still missing the customer signature
+  // LNs ohne Kunden-Unterschrift, deren Monat vor mehr als 7 Tagen endete.
+  // Basis ist das Monatsende, nicht created_at — ein LN kann direkt am Monatsanfang
+  // erstellt werden und ist trotzdem erst nach Monatsende "überfällig".
   const overdueWithoutSignatureCount = useMemo(() => {
     if (!nachweise) return 0;
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    return nachweise.filter(
-      ln => !ln.unterschrift_kunde_zeitstempel && new Date(ln.created_at) < sevenDaysAgo
-    ).length;
+    const now = new Date();
+    return nachweise.filter(ln => {
+      if (ln.unterschrift_kunde_zeitstempel) return false;
+      if (ln.status === 'abgeschlossen') return false;
+      // Gnadenfrist: 7 Tage nach dem letzten Tag des LN-Monats
+      const graceEnd = new Date(ln.jahr, ln.monat, 7); // 7. des Folgemonats
+      return graceEnd < now;
+    }).length;
   }, [nachweise]);
 
 
