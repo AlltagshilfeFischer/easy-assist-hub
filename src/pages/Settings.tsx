@@ -54,8 +54,8 @@ export default function Settings() {
 
     setIsUploading(true);
     try {
-      const ext = file.name.split('.').pop() ?? 'png';
-      const storagePath = `gf-stempel/stempel.${ext}`;
+      // Feste Extension "png" — vereinfacht Delete und verhindert Extension-Mismatch
+      const storagePath = `gf-stempel/stempel.png`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -64,10 +64,8 @@ export default function Settings() {
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
-      // Cache-Buster damit das neue Bild sofort sichtbar ist
-      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-      await saveStempelUrl(publicUrl);
+      // Nur die saubere URL in DB speichern — Cache-Buster wird beim Anzeigen ergänzt
+      await saveStempelUrl(urlData.publicUrl);
       toast.success('Stempel erfolgreich gespeichert');
     } catch (err) {
       console.error(err);
@@ -80,8 +78,8 @@ export default function Settings() {
   const handleStempelDelete = async () => {
     try {
       await saveStempelUrl(null);
-      // Datei aus Storage entfernen (best-effort)
-      await supabase.storage.from('avatars').remove(['gf-stempel/stempel.png', 'gf-stempel/stempel.jpg']);
+      // Datei aus Storage entfernen (best-effort, feste Extension)
+      await supabase.storage.from('avatars').remove(['gf-stempel/stempel.png']);
       toast.success('Stempel entfernt');
     } catch (err) {
       console.error(err);

@@ -72,7 +72,9 @@ export function normalizeBudgetOrder(raw: string[] | null | undefined): BudgetBu
       k === 'pflegesachleistung' ? 'kombileistung' : k
     ) as BudgetBucketKey[];
     const missing = DEFAULT_BUDGET_ORDER.filter((k) => !mapped.includes(k));
-    return [...mapped, ...missing];
+    const legacyResult = [...mapped, ...missing];
+    const withoutPrivat = legacyResult.filter((k) => k !== 'privat');
+    return [...withoutPrivat, 'privat'];
   }
 
   // Neues Format: fehlende Buckets am Ende ergänzen
@@ -80,5 +82,8 @@ export function normalizeBudgetOrder(raw: string[] | null | undefined): BudgetBu
     DEFAULT_BUDGET_ORDER.includes(k as BudgetBucketKey)
   );
   const missing = DEFAULT_BUDGET_ORDER.filter((k) => !valid.includes(k));
-  return [...valid, ...missing];
+  const result = [...valid, ...missing];
+  // Invariante: 'privat' immer letzter Eintrag
+  const withoutPrivat = result.filter((k) => k !== 'privat');
+  return [...withoutPrivat, 'privat'];
 }
