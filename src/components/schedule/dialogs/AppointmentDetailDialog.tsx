@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { format, getDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Clock, User, Phone, Mail, MapPin, Save, X, AlertTriangle, Trash2, AlertCircle, Repeat, Calendar, Users, Home } from 'lucide-react';
+import { Clock, User, Phone, Mail, MapPin, Save, X, AlertTriangle, Trash2, AlertCircle, Repeat, Calendar, Users, Home, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,6 +32,7 @@ interface AppointmentDetailDialogProps {
   customers: Customer[];
   onUpdate: (appointment: Appointment) => Promise<void>;
   onDelete: (appointmentId: string) => Promise<void>;
+  onDuplicate?: (appointment: Appointment) => Promise<void>;
   isConflicting?: boolean;
   customerTimeWindows?: CustomerTimeWindow[];
 }
@@ -56,7 +57,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 export function AppointmentDetailDialog({
   isOpen, onClose, appointment, employees, customers,
-  onUpdate, onDelete, isConflicting = false, customerTimeWindows = []
+  onUpdate, onDelete, onDuplicate, isConflicting = false, customerTimeWindows = []
 }: AppointmentDetailDialogProps) {
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(false);
@@ -545,9 +546,16 @@ export function AppointmentDetailDialog({
 
         {/* Footer */}
         <div className="px-6 py-3 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={handleDeleteClick} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs">
-            <Trash2 className="h-3.5 w-3.5 mr-1" />Löschen
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handleDeleteClick} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs">
+              <Trash2 className="h-3.5 w-3.5 mr-1" />Löschen
+            </Button>
+            {onDuplicate && (
+              <Button variant="ghost" size="sm" onClick={async () => { await onDuplicate(appointment); onClose(); }} disabled={loading} className="h-8 text-xs text-muted-foreground hover:text-foreground">
+                <Copy className="h-3.5 w-3.5 mr-1" />Duplizieren (+7 Tage)
+              </Button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onClose} className="h-8">Schließen</Button>
             {hasChanges && (
