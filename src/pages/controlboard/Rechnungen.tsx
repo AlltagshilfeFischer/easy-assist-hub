@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, subMonths, startOfMonth } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
@@ -98,11 +98,12 @@ function PdfExportAction({ rechnung }: { rechnung: Rechnung }) {
     }
   };
 
-  useMemo(() => {
+  useEffect(() => {
     if (triggered && positionen) {
       exportRechnungPdf(rechnung, positionen);
+      setTriggered(false);
     }
-  }, [triggered, positionen]);
+  }, [triggered, positionen, rechnung]);
 
   return (
     <DropdownMenuItem onClick={handleClick}>
@@ -119,9 +120,15 @@ export default function Rechnungen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<RechnungStatus | 'alle'>('alle');
   const [monthFilter, setMonthFilter] = useState<string>('alle');
-  const [selectedRechnung, setSelectedRechnung] = useState<Rechnung | null>(null);
+  const [selectedRechnungId, setSelectedRechnungId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [stornoTarget, setStornoTarget] = useState<string | null>(null);
+
+  // Immer aus Query-Daten ableiten — bleibt automatisch nach Mutation aktuell
+  const selectedRechnung = useMemo(
+    () => rechnungen?.find((r) => r.id === selectedRechnungId) ?? null,
+    [rechnungen, selectedRechnungId]
+  );
 
   const monthOptions = useMemo(() => buildMonthOptions(), []);
 
@@ -174,9 +181,6 @@ export default function Rechnungen() {
 
   const handleUpdateStatus = (id: string, status: RechnungStatus) => {
     updateStatus({ id, status });
-    if (selectedRechnung?.id === id) {
-      setSelectedRechnung((prev) => prev ? { ...prev, status } : null);
-    }
   };
 
   const handleStorno = (id: string) => {
@@ -186,9 +190,6 @@ export default function Rechnungen() {
   const confirmStorno = () => {
     if (stornoTarget) {
       storno(stornoTarget);
-      if (selectedRechnung?.id === stornoTarget) {
-        setSelectedRechnung((prev) => prev ? { ...prev, status: 'storniert' } : null);
-      }
       setStornoTarget(null);
     }
   };
@@ -372,7 +373,7 @@ export default function Rechnungen() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => { setSelectedRechnung(r); setSheetOpen(true); }}
+                                onClick={() => { setSelectedRechnungId(r.id); setSheetOpen(true); }}
                               >
                                 <Eye className="h-4 w-4 mr-2" />
                                 Details anzeigen

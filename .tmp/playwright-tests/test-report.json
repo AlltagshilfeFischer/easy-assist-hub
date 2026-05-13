@@ -1,0 +1,220 @@
+{
+  "summary": {
+    "pass": 23,
+    "warn": 6,
+    "fail": 0,
+    "error": 1
+  },
+  "results": [
+    {
+      "emoji": "✅",
+      "testName": "1.1 Login mit falschen Credentials",
+      "status": "PASS",
+      "detail": "Fehlermeldung sichtbar, kein Dashboard-Zugriff",
+      "ts": "2026-05-13T04:38:45.315Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "1.2 Korrekter Login",
+      "status": "PASS",
+      "detail": "Weiterleitung zu: https://portal.alltagshilfe-fischer.de/dashboard",
+      "ts": "2026-05-13T04:38:47.588Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "1.3 Session nach Reload",
+      "status": "PASS",
+      "detail": "Session bleibt erhalten",
+      "ts": "2026-05-13T04:38:51.983Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "1.4 GF Sidebar vollständig",
+      "status": "PASS",
+      "detail": "Alle Items sichtbar",
+      "ts": "2026-05-13T04:38:52.039Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "2.1 Direkter URL: Dienstplan",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:38:55.402Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "2.2 Direkter URL: Budgettracker",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:38:58.248Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "2.3 Browser Zurück-Button",
+      "status": "PASS",
+      "detail": "Zurück zu: https://portal.alltagshilfe-fischer.de/dashboard/controlboard/budgettracker",
+      "ts": "2026-05-13T04:39:03.023Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "2.4 Mein Bereich für GF zugänglich",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:39:06.297Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "3.1 Kunden-Tab öffnen",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:39:12.498Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "3.2 Kunden-Anlegen Button",
+      "status": "PASS",
+      "detail": "Dialog/Formular geöffnet",
+      "ts": "2026-05-13T04:39:14.914Z"
+    },
+    {
+      "emoji": "❌",
+      "testName": "3.4 Kunde anlegen (Pflegegrad 2)",
+      "status": "ERROR",
+      "detail": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('select[name=\"pflegegrad\"], input[name=\"pflegegrad\"], [data-value], button[role=\"combobox\"]').first()\n    - locator resolved to <button dir=\"ltr\" type=\"button\" role=\"combobox\" data-state=\"closed\" aria-expanded=\"false\" aria-autocomplete=\"none\" aria-controls=\"radix-:r5:\" class=\"flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 w-full sm:w-[180px]\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"text-center space-y-2\">…</div> from <div role=\"dialog\" tabindex=\"-1\" id=\"radix-:re:\" data-state=\"open\" aria-labelledby=\"radix-:rf:\" aria-describedby=\"radix-:rg:\" class=\"fixed left-[50%] top-[50%] z-[201] grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-lef…>…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"text-center space-y-2\">…</div> from <div role=\"dialog\" tabindex=\"-1\" id=\"radix-:re:\" data-state=\"open\" aria-labelledby=\"radix-:rf:\" aria-describedby=\"radix-:rg:\" class=\"fixed left-[50%] top-[50%] z-[201] grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-lef…>…</div> subtree intercepts pointer events\n  2 × retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div data-state=\"open\" aria-hidden=\"true\" data-aria-hidden=\"true\" class=\"fixed inset-0 z-[200] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0\"></div> intercepts pointer events\n  14 × retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"text-center space-y-2\">…</div> from <div role=\"dialog\" tabindex=\"-1\" id=\"radix-:re:\" data-state=\"open\" aria-labelledby=\"radix-:rf:\" aria-describedby=\"radix-:rg:\" class=\"fixed left-[50%] top-[50%] z-[201] grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-lef…>…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"text-center space-y-2\">…</div> from <div role=\"dialog\" tabindex=\"-1\" id=\"radix-:re:\" data-state=\"open\" aria-labelledby=\"radix-:rf:\" aria-describedby=\"radix-:rg:\" class=\"fixed left-[50%] top-[50%] z-[201] grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-lef…>…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div data-state=\"open\" aria-hidden=\"true\" data-aria-hidden=\"true\" class=\"fixed inset-0 z-[200] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0\"></div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div data-state=\"open\" aria-hidden=\"true\" data-aria-hidden=\"true\" class=\"fixed inset-0 z-[200] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0\"></div> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"text-center space-y-2\">…</div> from <div role=\"dialog\" tabindex=\"-1\" id=\"radix-:re:\" data-state=\"open\" aria-labelledby=\"radix-:rf:\" aria-describedby=\"radix-:rg:\" class=\"fixed left-[50%] top-[50%] z-[201] grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-lef…>…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n",
+      "ts": "2026-05-13T04:39:45.091Z"
+    },
+    {
+      "emoji": "⚠️",
+      "testName": "3.5 Neuer Kunde in Liste sichtbar",
+      "status": "WARN",
+      "detail": "Name nicht in Liste gefunden",
+      "ts": "2026-05-13T04:39:47.135Z"
+    },
+    {
+      "emoji": "⚠️",
+      "testName": "3.6 Kundendaten bearbeiten",
+      "status": "WARN",
+      "detail": "Neuer Kunde nicht in Liste klickbar",
+      "ts": "2026-05-13T04:39:47.252Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "4.1 Budgettracker lädt",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:39:51.306Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "4.2 Kunden-Auswahl im Budgettracker",
+      "status": "PASS",
+      "detail": "7 Optionen gefunden",
+      "ts": "2026-05-13T04:39:52.450Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "4.3 Budget-Töpfe sichtbar",
+      "status": "PASS",
+      "detail": "Entlastung: true, Verhinderung: true, Privat: true",
+      "ts": "2026-05-13T04:39:54.708Z"
+    },
+    {
+      "emoji": "⚠️",
+      "testName": "4.4 Transaktion-Dialog",
+      "status": "WARN",
+      "detail": "Kein Transaktion-Button gefunden",
+      "ts": "2026-05-13T04:39:54.776Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "5.1 Dienstplan-Kalender lädt",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:39:59.986Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "5.2 Termin-Dialog öffnet",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:02.092Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "6.1 Leistungsnachweise lädt",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:07.207Z"
+    },
+    {
+      "emoji": "⚠️",
+      "testName": "6.2 Export-Button sichtbar",
+      "status": "WARN",
+      "detail": "Kein Export-Button gefunden",
+      "ts": "2026-05-13T04:40:07.208Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "6.3 Filter vorhanden",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:07.210Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "7.1 Reporting lädt",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:11.158Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "7.2 Charts/Diagramme vorhanden",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:11.158Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "7.3 Export-Button sichtbar",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:11.161Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "8.1 Einstellungen für GF zugänglich",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:14.119Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "9.2 404-Handling",
+      "status": "PASS",
+      "detail": "Redirect zu Dashboard",
+      "ts": "2026-05-13T04:40:16.934Z"
+    },
+    {
+      "emoji": "⚠️",
+      "testName": "9.3 Aktivitätslog: GF kein Zugriff",
+      "status": "WARN",
+      "detail": "GF hat Zugriff auf Aktivitätslog — prüfen ob gewollt",
+      "ts": "2026-05-13T04:40:21.555Z"
+    },
+    {
+      "emoji": "✅",
+      "testName": "9.4 Benutzerverwaltung für GF zugänglich",
+      "status": "PASS",
+      "detail": "",
+      "ts": "2026-05-13T04:40:24.748Z"
+    },
+    {
+      "emoji": "⚠️",
+      "testName": "10.1 Logout",
+      "status": "WARN",
+      "detail": "Kein Logout-Button gefunden",
+      "ts": "2026-05-13T04:40:27.877Z"
+    }
+  ]
+}
