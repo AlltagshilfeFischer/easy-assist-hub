@@ -95,12 +95,23 @@ Detailwissen wird ueber Rules und Skills bereitgestellt — NICHT hier duplizier
 | DB-Schema | — | `/db-schema` (auto) |
 | Reporting | — | `/reporting` (auto) |
 
+## Abrechnung — WICHTIG
+
+**Der Leistungsnachweis (LN) IST die Rechnung** — das Dokument das an die Pflegekasse geht.
+Kein separates Rechnungsdokument für Kassenabrechnung.
+
+**rechnungen-Tabelle + rechnungspositionen: NICHT VERWENDEN.**
+Das DB-Schema hat diese Tabellen noch — sie sind veraltet und werden nicht genutzt.
+Kein Code schreiben der `rechnungen` erstellt, anzeigt oder verwaltet.
+
+Abrechnungsfluss: `batch-billing` → upsert `leistungsnachweise` + `budget_transactions` → Termine auf `abgerechnet`.
+
 ## Agents
 
 | Agent | Wann aktivieren |
 |-------|-----------------|
 | `eah-dienstplan` | Schedule-Bugs, Kalender-Features |
-| `eah-abrechnung` | Budget, Billing, LN, Rechnungen |
+| `eah-abrechnung` | Budget, Billing, Leistungsnachweise |
 | `eah-rollen` | Permissions, RLS, Route Guards |
 
 

@@ -19,7 +19,6 @@ interface BillingRequest {
   zeitraum_von: string;
   zeitraum_bis: string;
   kunden_ids?: string[];
-  kostentraeger_id?: string;
   dry_run?: boolean;
 }
 
@@ -27,7 +26,6 @@ interface BillingRequest {
 
 interface TerminRow {
   id: string;
-  titel: string;
   start_at: string;
   end_at: string;
   iststunden: number | null;
@@ -44,7 +42,6 @@ interface TerminRow {
     initial_budget_entlastung: number | null;
     budget_prioritaet: string[] | null;
   } | null;
-  mitarbeiter: { id: string } | null;
 }
 
 interface LeistungRow {
@@ -55,44 +52,40 @@ interface LeistungRow {
   gueltig_von: string;
   gueltig_bis: string | null;
   kostentraeger_id: string | null;
-  kostentraeger: { id: string; name: string; typ: string } | null;
 }
 
-// ─── Rechnung-Gruppe ──────────────────────────────────────────
+// ─── LN-Gruppe (ein Leistungsnachweis pro Kunde x Monat x Jahr) ──
 
-interface PositionForRechnung {
-  terminId: string;
+interface LNGroup {
   kundenId: string;
-  mitarbeiterId: string | null;
-  leistungId: string | null;
-  leistungsart: string;
-  serviceDate: string;
-  beginn: string;
-  ende: string;
-  amount: number;
-  hourlyRate: number;
-  stunden: number;
-  mwstSatz: number;
-  mwstBetrag: number;
-  bruttoBetrag: number;
-}
-
-interface RechnungGroup {
+  kundenName: string;
+  monat: number;
+  jahr: number;
   kostentraegerId: string | null;
-  empfaengerName: string;
-  privatKundeId: string | null;
-  kundenId: string;
-  positionen: PositionForRechnung[];
+  // cb_* werden aus den FIFO-Allokationen abgeleitet
+  cbEntlastungsleistung: boolean;
+  cbKombinationsleistung: boolean;
+  cbVerhinderungspflege: boolean;
+  istPrivat: boolean;
+  gesamtStunden: number;
+  terminIds: Set<string>;
+  // Für budget_transactions (nur ENTLASTUNG/KOMBI/VERHINDERUNG)
+  budgetPositionen: Array<{
+    terminId: string;
+    serviceDate: string;
+    serviceType: "ENTLASTUNG" | "KOMBI" | "VERHINDERUNG";
+    hours: number;
+    visits: number;
+    hourlyRate: number;
+    amount: number;
+    travelFlat: number;
+  }>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
 
 function r2(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-function toHHMM(iso: string): string {
-  return iso.split("T")[1]?.slice(0, 5) ?? "00:00";
 }
 
 function resolveHours(termin: TerminRow): number {
@@ -108,22 +101,26 @@ const SERVICE_TYPE_TO_ART: Record<string, string> = {
   VERHINDERUNG: "verhinderungspflege",
 };
 
-function findLeistung(
-  serviceType: string,
+function findKostentraeger(
   leistungen: LeistungRow[],
   kundenId: string,
   serviceDate: string,
-): LeistungRow | undefined {
-  const art = SERVICE_TYPE_TO_ART[serviceType];
-  if (!art) return undefined;
-  return leistungen.find(
-    (l) =>
-      l.kunden_id === kundenId &&
-      l.art === art &&
-      l.status === "aktiv" &&
-      l.gueltig_von <= serviceDate &&
-      (l.gueltig_bis === null || l.gueltig_bis >= serviceDate),
-  );
+): string | null {
+  // Nehme Kostenträger von der ersten aktiven Kassen-Leistung
+  const arts = ["entlastungsleistung", "pflegesachleistung", "verhinderungspflege"];
+  for (const art of arts) {
+    const l = leistungen.find(
+      (l) =>
+        l.kunden_id === kundenId &&
+        l.art === art &&
+        l.status === "aktiv" &&
+        l.gueltig_von <= serviceDate &&
+        (l.gueltig_bis === null || l.gueltig_bis >= serviceDate) &&
+        l.kostentraeger_id !== null,
+    );
+    if (l?.kostentraeger_id) return l.kostentraeger_id;
+  }
+  return null;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -159,24 +156,23 @@ serve(async (req) => {
 
     // ── Input ─────────────────────────────────────────────────
     const body: BillingRequest = await req.json();
-    const { zeitraum_von, zeitraum_bis, kunden_ids, kostentraeger_id, dry_run = false } = body;
+    const { zeitraum_von, zeitraum_bis, kunden_ids, dry_run = false } = body;
     if (!zeitraum_von || !zeitraum_bis) {
-      return jsonResponse({ error: "zeitraum_von and zeitraum_bis are required" }, 400);
+      return jsonResponse({ error: "zeitraum_von and zeitraum_bis sind erforderlich" }, 400);
     }
 
-    // ── 1. Termine laden ──────────────────────────────────────
+    // ── 1. Abrechenbare Termine laden ─────────────────────────
     let termineQuery = supabase
       .from("termine")
       .select(`
-        id, titel, start_at, end_at, iststunden, kunden_id, mitarbeiter_id,
+        id, start_at, end_at, iststunden, kunden_id, mitarbeiter_id,
         kunden:kunden_id (
           id, vorname, nachname, pflegegrad,
           entlastung_genehmigt, verhinderungspflege_genehmigt, pflegesachleistung_genehmigt,
           initial_budget_entlastung, budget_prioritaet
-        ),
-        mitarbeiter:mitarbeiter_id (id)
+        )
       `)
-      .eq("status", "completed")
+      .in("status", ["completed", "cancelled"])
       .gte("start_at", zeitraum_von)
       .lte("start_at", zeitraum_bis);
 
@@ -188,16 +184,15 @@ serve(async (req) => {
       return jsonResponse({
         success: true,
         message: "Keine abrechenbaren Termine im Zeitraum gefunden",
-        rechnungen: [],
-        validierung: { is_valid: true, errors: [], warnings: [] },
+        leistungsnachweise: [],
+        warnings: [],
       });
     }
 
     const kundenIds = [...new Set((termine as TerminRow[]).map((t) => t.kunden_id))];
-
-    // ── 2. Stammdaten parallel laden ─────────────────────────
     const billingYear = new Date(zeitraum_von + "T00:00:00Z").getUTCFullYear();
 
+    // ── 2. Stammdaten parallel laden ─────────────────────────
     const [tariffsRes, careLevelsRes, leistungenRes, preConsumedRes] = await Promise.all([
       supabase
         .from("tariffs")
@@ -208,9 +203,7 @@ serve(async (req) => {
         .select("pflegegrad, kombi_max_40_prozent_monat"),
       supabase
         .from("leistungen")
-        .select(
-          "id, kunden_id, art, status, gueltig_von, gueltig_bis, kostentraeger_id, kostentraeger:kostentraeger_id(id, name, typ)",
-        )
+        .select("id, kunden_id, art, status, gueltig_von, gueltig_bis, kostentraeger_id")
         .in("kunden_id", kundenIds)
         .eq("status", "aktiv"),
       // Bereits abgerechnete Budgets im laufenden Jahr (vor dem Abrechnungszeitraum)
@@ -246,9 +239,9 @@ serve(async (req) => {
       else if (tx.service_type === "VERHINDERUNG") e.VERHINDERUNG += tx.total_amount;
     }
 
-    // ── 4. FIFO-Allokation pro Kunde ──────────────────────────
+    // ── 4. FIFO-Allokation pro Kunde, LN-Gruppen aufbauen ────
     const warnings: string[] = [];
-    const rechnungGroups = new Map<string, RechnungGroup>();
+    const lnGroups = new Map<string, LNGroup>(); // key: `${kundenId}:${yyyy-MM}`
     const billedTerminIds: string[] = [];
 
     const termineByKunde = new Map<string, TerminRow[]>();
@@ -290,80 +283,72 @@ serve(async (req) => {
         preConsumed.VERHINDERUNG,
       );
 
-      const terminMap = new Map(kundenTermine.map((t) => [t.id, t]));
+      const kundenName = `${kundeData.vorname ?? ""} ${kundeData.nachname ?? ""}`.trim();
 
       for (const result of allocationResults) {
-        const termin = terminMap.get(result.terminId)!;
         billedTerminIds.push(result.terminId);
 
-        for (const pos of result.positions) {
-          const posEntry: PositionForRechnung = {
-            terminId: result.terminId,
-            kundenId,
-            mitarbeiterId: termin.mitarbeiter?.id ?? null,
-            leistungId: null,
-            leistungsart: "privat",
-            serviceDate: result.serviceDate,
-            beginn: toHHMM(termin.start_at),
-            ende: toHHMM(termin.end_at),
-            amount: pos.amount,
-            hourlyRate: pos.hourlyRate,
-            stunden: pos.stunden,
-            mwstSatz: pos.mwstSatz,
-            mwstBetrag: pos.mwstBetrag,
-            bruttoBetrag: pos.bruttoBetrag,
-          };
+        const dateObj = new Date(result.serviceDate + "T00:00:00Z");
+        const monat = dateObj.getUTCMonth() + 1;
+        const jahr = dateObj.getUTCFullYear();
+        const lnKey = `${kundenId}:${jahr}-${String(monat).padStart(2, "0")}`;
 
-          if (pos.serviceType === "PRIVAT") {
-            // Privatrechnung direkt an den Kunden
-            const groupKey = `${kundenId}:privat`;
-            if (!rechnungGroups.has(groupKey)) {
-              rechnungGroups.set(groupKey, {
-                kostentraegerId: null,
-                empfaengerName: `${kundeData.vorname ?? ""} ${kundeData.nachname ?? ""}`.trim(),
-                privatKundeId: kundenId,
-                kundenId,
-                positionen: [],
-              });
-            }
-            rechnungGroups.get(groupKey)!.positionen.push(posEntry);
-          } else {
-            // Kassenrechnung an den Kostenträger
-            const leistung = findLeistung(pos.serviceType, leistungen, kundenId, result.serviceDate);
-            if (!leistung) {
+        if (!lnGroups.has(lnKey)) {
+          const ktId = findKostentraeger(leistungen, kundenId, result.serviceDate);
+          lnGroups.set(lnKey, {
+            kundenId,
+            kundenName,
+            monat,
+            jahr,
+            kostentraegerId: ktId,
+            cbEntlastungsleistung: false,
+            cbKombinationsleistung: false,
+            cbVerhinderungspflege: false,
+            istPrivat: false,
+            gesamtStunden: 0,
+            terminIds: new Set(),
+            budgetPositionen: [],
+          });
+        }
+        const group = lnGroups.get(lnKey)!;
+        group.terminIds.add(result.terminId);
+        group.gesamtStunden = r2(group.gesamtStunden + result.hours);
+
+        for (const pos of result.positions) {
+          switch (pos.serviceType) {
+            case "ENTLASTUNG": group.cbEntlastungsleistung = true; break;
+            case "KOMBI":      group.cbKombinationsleistung = true; break;
+            case "VERHINDERUNG": group.cbVerhinderungspflege = true; break;
+            case "PRIVAT":     group.istPrivat = true; break;
+          }
+
+          if (pos.serviceType !== "PRIVAT") {
+            const art = SERVICE_TYPE_TO_ART[pos.serviceType];
+            const leistungActive = leistungen.find(
+              (l) =>
+                l.kunden_id === kundenId &&
+                l.art === art &&
+                l.status === "aktiv" &&
+                l.gueltig_von <= result.serviceDate &&
+                (l.gueltig_bis === null || l.gueltig_bis >= result.serviceDate),
+            );
+            if (!leistungActive) {
               warnings.push(
-                `Keine aktive ${SERVICE_TYPE_TO_ART[pos.serviceType] ?? pos.serviceType}-Leistung ` +
-                `für ${kundeData.vorname} ${kundeData.nachname} am ${result.serviceDate}.`,
+                `Keine aktive ${art}-Leistung für ${kundenName} am ${result.serviceDate}.`,
               );
             }
-
-            const ktId = leistung?.kostentraeger_id ?? null;
-            const ktName = leistung?.kostentraeger?.name ?? "Pflegekasse";
-            const groupKey = `${kundenId}:kasse:${ktId ?? "unbekannt"}`;
-
-            if (!rechnungGroups.has(groupKey)) {
-              rechnungGroups.set(groupKey, {
-                kostentraegerId: ktId,
-                empfaengerName: ktName,
-                privatKundeId: null,
-                kundenId,
-                positionen: [],
-              });
-            }
-            rechnungGroups.get(groupKey)!.positionen.push({
-              ...posEntry,
-              leistungId: leistung?.id ?? null,
-              leistungsart: SERVICE_TYPE_TO_ART[pos.serviceType] ?? pos.serviceType.toLowerCase(),
+            group.budgetPositionen.push({
+              terminId: result.terminId,
+              serviceDate: result.serviceDate,
+              serviceType: pos.serviceType as "ENTLASTUNG" | "KOMBI" | "VERHINDERUNG",
+              hours: pos.stunden,
+              visits: result.visits,
+              hourlyRate: pos.hourlyRate,
+              amount: pos.amount,
+              travelFlat: pos.travelFlat,
             });
           }
         }
-      }
-    }
-
-    // Optionaler Filter nach Kostenträger
-    if (kostentraeger_id) {
-      for (const [key, group] of rechnungGroups) {
-        if (group.kostentraegerId !== kostentraeger_id) rechnungGroups.delete(key);
       }
     }
 
@@ -372,111 +357,86 @@ serve(async (req) => {
       return jsonResponse({
         success: true,
         dry_run: true,
-        validierung: { is_valid: true, errors: [], warnings },
-        zusammenfassung: { termine_gesamt: termine.length, gruppen: rechnungGroups.size },
-        gruppen_preview: [...rechnungGroups.values()].map((g) => {
-          const terminIds = [...new Set(g.positionen.map((p) => p.terminId))];
-          const splitTermine = terminIds.filter(
-            (tid) => g.positionen.filter((p) => p.terminId === tid).length > 1,
-          ).length;
-          const netto = r2(g.positionen.reduce((s, p) => s + p.amount, 0));
-          const mwst = r2(g.positionen.reduce((s, p) => s + p.mwstBetrag, 0));
-          return {
-            empfaenger: g.empfaengerName,
-            typ: g.privatKundeId ? "Privat" : "Kasse",
-            termine_anzahl: terminIds.length,
-            split_termine: splitTermine,
-            positionen_anzahl: g.positionen.length,
-            netto_betrag: netto,
-            mwst_betrag: mwst,
-            brutto_betrag: r2(netto + mwst),
-          };
-        }),
-        rechnungen: [],
+        warnings,
+        zusammenfassung: {
+          termine_gesamt: (termine as TerminRow[]).length,
+          leistungsnachweise: lnGroups.size,
+        },
+        vorschau: [...lnGroups.values()].map((g) => ({
+          kunde: g.kundenName,
+          monat: g.monat,
+          jahr: g.jahr,
+          termine_anzahl: g.terminIds.size,
+          gesamtstunden: g.gesamtStunden,
+          toeffe: {
+            entlastung: g.cbEntlastungsleistung,
+            kombi: g.cbKombinationsleistung,
+            verhinderung: g.cbVerhinderungspflege,
+            privat: g.istPrivat,
+          },
+        })),
       });
     }
 
-    // ── 5. Rechnungen, Positionen, Termine ───────────────────
-    const erstellteRechnungen: unknown[] = [];
+    // ── 5. Leistungsnachweise upserten ────────────────────────
+    const erstellteLN: unknown[] = [];
 
-    for (const group of rechnungGroups.values()) {
-      if (!group.positionen.length) continue;
-
-      const nettoBetrag = r2(group.positionen.reduce((s, p) => s + p.amount, 0));
-      const mwstBetrag = r2(group.positionen.reduce((s, p) => s + p.mwstBetrag, 0));
-      const bruttoBetrag = r2(nettoBetrag + mwstBetrag);
-      const mwstSatz = nettoBetrag > 0 ? r2(mwstBetrag / nettoBetrag) : 0;
-
-      const { data: rechnungsnummer } = await supabase.rpc("generate_rechnungsnummer");
-
-      const { data: rechnung, error: rechnungErr } = await supabase
-        .from("rechnungen")
-        .insert({
-          rechnungsnummer,
-          kostentraeger_id: group.kostentraegerId,
-          privat_kunde_id: group.privatKundeId,
-          empfaenger_name: group.empfaengerName,
-          abrechnungszeitraum_von: zeitraum_von,
-          abrechnungszeitraum_bis: zeitraum_bis,
-          netto_betrag: nettoBetrag,
-          mwst_satz: mwstSatz,
-          mwst_betrag: mwstBetrag,
-          brutto_betrag: bruttoBetrag,
-          erstellt_von: user.id,
-          validierung_ergebnis: warnings.length ? { warnings } : null,
-          validierung_warnungen: warnings.length ? warnings : null,
-        })
-        .select()
+    for (const group of lnGroups.values()) {
+      const { data: ln, error: lnErr } = await supabase
+        .from("leistungsnachweise")
+        .upsert(
+          {
+            kunden_id: group.kundenId,
+            monat: group.monat,
+            jahr: group.jahr,
+            kostentraeger_id: group.kostentraegerId,
+            cb_entlastungsleistung: group.cbEntlastungsleistung,
+            cb_kombinationsleistung: group.cbKombinationsleistung,
+            cb_verhinderungspflege: group.cbVerhinderungspflege,
+            ist_privat: group.istPrivat,
+            geleistete_stunden: group.gesamtStunden,
+            status: "entwurf",
+          },
+          { onConflict: "kunden_id,monat,jahr", ignoreDuplicates: false },
+        )
+        .select("id")
         .single();
 
-      if (rechnungErr) throw new Error(`Rechnung anlegen: ${rechnungErr.message}`);
+      if (lnErr) throw new Error(`Leistungsnachweis upsert: ${lnErr.message}`);
 
-      const positionen = group.positionen.map((p) => ({
-        rechnung_id: rechnung.id,
-        termin_id: p.terminId,
-        kunden_id: p.kundenId,
-        mitarbeiter_id: p.mitarbeiterId,
-        leistung_id: p.leistungId,
-        leistungsart: p.leistungsart,
-        leistungsdatum: p.serviceDate,
-        leistungsbeginn: p.beginn,
-        leistungsende: p.ende,
-        stunden: p.stunden,
-        stundensatz: p.hourlyRate,
-        einzelbetrag: p.amount,
-        mwst_satz: p.mwstSatz,
-        mwst_betrag: p.mwstBetrag,
-        brutto_betrag: p.bruttoBetrag,
-        ist_gueltig: true,
-        validierung_hinweise: null,
-      }));
+      // ── 6. Budget-Transaktionen schreiben ─────────────────
+      if (group.budgetPositionen.length) {
+        const txRows = group.budgetPositionen.map((p) => ({
+          client_id: group.kundenId,
+          service_type: p.serviceType,
+          service_date: p.serviceDate,
+          hours: p.hours,
+          visits: p.visits,
+          hourly_rate: p.hourlyRate,
+          total_amount: p.amount,
+          travel_flat_total: p.travelFlat,
+          allocation_type: "FIFO",
+          source: "MANUAL",
+          billed: true,
+          external_ref: ln.id,
+        }));
 
-      const { error: posErr } = await supabase.from("rechnungspositionen").insert(positionen);
-      if (posErr) throw new Error(`Positionen anlegen: ${posErr.message}`);
+        const { error: txErr } = await supabase.from("budget_transactions").insert(txRows);
+        if (txErr) throw new Error(`Budget-Transaktionen: ${txErr.message}`);
+      }
 
-      const splitCount = [...new Set(positionen.map((p) => p.termin_id))].filter(
-        (tid) => positionen.filter((p) => p.termin_id === tid).length > 1,
-      ).length;
-
-      await supabase.from("abrechnungs_historie").insert({
-        rechnung_id: rechnung.id,
-        aktion: "erstellt",
-        neuer_status: "entwurf",
-        durchgefuehrt_von: user.id,
-        details: {
-          positionen_anzahl: positionen.length,
-          split_termine: splitCount,
-          netto_betrag: nettoBetrag,
-          mwst_betrag: mwstBetrag,
-          brutto_betrag: bruttoBetrag,
-          zeitraum: { von: zeitraum_von, bis: zeitraum_bis },
-        },
+      erstellteLN.push({
+        ln_id: ln.id,
+        kunden_id: group.kundenId,
+        kunde: group.kundenName,
+        monat: group.monat,
+        jahr: group.jahr,
+        termine_anzahl: group.terminIds.size,
+        gesamtstunden: group.gesamtStunden,
       });
-
-      erstellteRechnungen.push({ ...rechnung, positionen_anzahl: positionen.length });
     }
 
-    // Terme auf 'abgerechnet' setzen
+    // ── 7. Termine auf 'abgerechnet' setzen ──────────────────
     const uniqueTerminIds = [...new Set(billedTerminIds)];
     if (uniqueTerminIds.length) {
       const { error: updateErr } = await supabase
@@ -489,13 +449,13 @@ serve(async (req) => {
     return jsonResponse({
       success: true,
       dry_run: false,
-      validierung: { is_valid: true, errors: [], warnings },
+      warnings,
       zusammenfassung: {
-        termine_gesamt: termine.length,
-        gruppen: rechnungGroups.size,
-        rechnungen_erstellt: erstellteRechnungen.length,
+        termine_gesamt: (termine as TerminRow[]).length,
+        termine_abgerechnet: uniqueTerminIds.length,
+        leistungsnachweise_erstellt: erstellteLN.length,
       },
-      rechnungen: erstellteRechnungen,
+      leistungsnachweise: erstellteLN,
     });
   } catch (err) {
     console.error("Billing error:", err);
