@@ -2,6 +2,10 @@
 // Pflegebudget Business-Logik
 // Alle Berechnungen erfolgen dynamisch aus Kunden-Stammdaten
 // + abgerechneten Transaktionen (billed=true)
+//
+// WICHTIG: Algorithmus muss synchron bleiben mit:
+//   supabase/functions/_shared/budget-allocation.ts  (batch-billing)
+// Konstanten VP_JAHRESBUDGET + EB_MONATSBETRAG in beiden Dateien identisch halten.
 // =============================================================
 
 import type {
