@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await requireAdmin(req);
+    const userId = await requireAdmin(req);
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
