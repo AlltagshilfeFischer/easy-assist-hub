@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -10,7 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Lock, Euro, GripVertical, Info } from 'lucide-react';
+import { Lock, Euro, ChevronUp, ChevronDown, Info } from 'lucide-react';
+import {
+  BUDGET_BUCKETS,
+  type BudgetBucketKey,
+  normalizeBudgetOrder,
+} from '@/lib/budgetPriority';
+
+// ─── Props ───────────────────────────────────────────────────────────────────
 
 interface AbrechnungFormData {
   pflegegrad: string;
@@ -37,6 +45,8 @@ interface StepAbrechnungProps {
   setDraggedBudget: (v: string | null) => void;
 }
 
+// ─── Komponente ──────────────────────────────────────────────────────────────
+
 export function StepAbrechnung({
   customerData,
   setCustomerData,
@@ -46,6 +56,28 @@ export function StepAbrechnung({
   setDraggedBudget,
 }: StepAbrechnungProps) {
   const isPflegegrad1 = customerData.pflegegrad === '1';
+
+  const normalizedOrder = normalizeBudgetOrder(budgetOrder.length > 0 ? budgetOrder : null);
+
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    setBudgetOrder((prev) => {
+      const order = normalizeBudgetOrder(prev.length > 0 ? prev : null);
+      const updated = [...order];
+      [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+      return updated;
+    });
+  };
+
+  const moveDown = (index: number) => {
+    if (index === normalizedOrder.length - 1) return;
+    setBudgetOrder((prev) => {
+      const order = normalizeBudgetOrder(prev.length > 0 ? prev : null);
+      const updated = [...order];
+      [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+      return updated;
+    });
+  };
 
   return (
     <div className="space-y-6 mt-4">
@@ -57,7 +89,10 @@ export function StepAbrechnung({
             <Label>Abrechnungsart</Label>
             <Select value={customerData.kasse_privat} onValueChange={(v) => setCustomerData(p => ({ ...p, kasse_privat: v }))}>
               <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-              <SelectContent><SelectItem value="Kasse">Kasse</SelectItem><SelectItem value="Privat">Privat</SelectItem></SelectContent>
+              <SelectContent>
+                <SelectItem value="Kasse">Kasse</SelectItem>
+                <SelectItem value="Privat">Privat</SelectItem>
+              </SelectContent>
             </Select>
           </div>
           <div>
@@ -71,7 +106,7 @@ export function StepAbrechnung({
         </div>
       </div>
 
-      {/* Pflegebudget-Konfiguration (für Budgettracker) */}
+      {/* Pflegebudget-Konfiguration */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Pflegebudget-Konfiguration</h3>
         <div className="grid grid-cols-2 gap-4">
@@ -123,34 +158,38 @@ export function StepAbrechnung({
       </div>
 
       {/* Verhinderungspflege (§ 39) */}
-      <Card className={`${isPflegegrad1 ? 'opacity-50' : ''}`}>
+      <Card className={isPflegegrad1 ? 'opacity-50' : ''}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               {isPflegegrad1 && <Lock className="h-4 w-4 text-muted-foreground" />}
               Verhinderungspflege (§ 39 SGB XI)
             </CardTitle>
-            <Switch checked={customerData.verhinderungspflege_aktiv} onCheckedChange={(checked) => {
-              if (!isPflegegrad1) {
-                setCustomerData(p => ({
-                  ...p,
-                  verhinderungspflege_aktiv: checked,
-                  ...(checked ? { verhinderungspflege_beantragt: true, verhinderungspflege_genehmigt: true } : {}),
-                }));
-                if (checked && !budgetOrder.includes('verhinderungspflege')) setBudgetOrder((prev) => [...prev, 'verhinderungspflege']);
-                else if (!checked) setBudgetOrder((prev) => prev.filter((b) => b !== 'verhinderungspflege'));
-              }
-            }} disabled={isPflegegrad1} />
+            <Switch
+              checked={customerData.verhinderungspflege_aktiv}
+              onCheckedChange={(checked) => {
+                if (!isPflegegrad1) {
+                  setCustomerData(p => ({
+                    ...p,
+                    verhinderungspflege_aktiv: checked,
+                    ...(checked ? { verhinderungspflege_beantragt: true, verhinderungspflege_genehmigt: true } : {}),
+                  }));
+                }
+              }}
+              disabled={isPflegegrad1}
+            />
           </div>
           {isPflegegrad1 && <p className="text-xs text-destructive">Nicht verfügbar bei Pflegegrad 1</p>}
         </CardHeader>
         {customerData.verhinderungspflege_aktiv && !isPflegegrad1 && (
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <Label>Budget (€)</Label>
-                <Input type="number" value={customerData.verhinderungspflege_budget} onChange={(e) => setCustomerData(p => ({ ...p, verhinderungspflege_budget: e.target.value }))} />
-              </div>
+            <div>
+              <Label>Budget (€)</Label>
+              <Input
+                type="number"
+                value={customerData.verhinderungspflege_budget}
+                onChange={(e) => setCustomerData(p => ({ ...p, verhinderungspflege_budget: e.target.value }))}
+              />
             </div>
             <p className="text-xs text-muted-foreground">Jährliche Neubeantragung zum 01.01. – System erinnert automatisch.</p>
           </CardContent>
@@ -158,88 +197,146 @@ export function StepAbrechnung({
       </Card>
 
       {/* Umwandlung Pflegesachleistung (§ 45a) */}
-      <Card className={`${isPflegegrad1 ? 'opacity-50' : ''}`}>
+      <Card className={isPflegegrad1 ? 'opacity-50' : ''}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               {isPflegegrad1 && <Lock className="h-4 w-4 text-muted-foreground" />}
               Umwandlung Pflegesachleistung (§ 45a SGB XI)
             </CardTitle>
-            <Switch checked={customerData.pflegesachleistung_aktiv} onCheckedChange={(checked) => {
-              if (!isPflegegrad1) {
-                setCustomerData(p => ({
-                  ...p,
-                  pflegesachleistung_aktiv: checked,
-                  ...(checked ? { pflegesachleistung_beantragt: true, pflegesachleistung_genehmigt: true } : {}),
-                }));
-                if (checked && !budgetOrder.includes('pflegesachleistung')) setBudgetOrder((prev) => [...prev, 'pflegesachleistung']);
-                else if (!checked) setBudgetOrder((prev) => prev.filter((b) => b !== 'pflegesachleistung'));
-              }
-            }} disabled={isPflegegrad1} />
+            <Switch
+              checked={customerData.pflegesachleistung_aktiv}
+              onCheckedChange={(checked) => {
+                if (!isPflegegrad1) {
+                  setCustomerData(p => ({
+                    ...p,
+                    pflegesachleistung_aktiv: checked,
+                    ...(checked ? { pflegesachleistung_beantragt: true, pflegesachleistung_genehmigt: true } : {}),
+                  }));
+                }
+              }}
+              disabled={isPflegegrad1}
+            />
           </div>
           {isPflegegrad1 && <p className="text-xs text-destructive">Nicht verfügbar bei Pflegegrad 1</p>}
         </CardHeader>
         {customerData.pflegesachleistung_aktiv && !isPflegegrad1 && (
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <Label>Budget (€/Monat)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="z.B. 573.00"
-                  value={customerData.pflegesachleistung_budget ?? ''}
-                  onChange={(e) =>
-                    setCustomerData(p => ({
-                      ...p,
-                      pflegesachleistung_budget: e.target.value ? parseFloat(e.target.value) : null,
-                    }))
-                  }
-                />
-                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  40% des Sachleistungsbetrags (PG2: 304 €, PG3: 573 €, PG4: 711 €, PG5: 880 €)
-                </p>
-              </div>
+            <div>
+              <Label>Budget (€/Monat)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="z.B. 573.00"
+                value={customerData.pflegesachleistung_budget ?? ''}
+                onChange={(e) =>
+                  setCustomerData(p => ({
+                    ...p,
+                    pflegesachleistung_budget: e.target.value ? parseFloat(e.target.value) : null,
+                  }))
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                40% des Sachleistungsbetrags (PG2: 304 €, PG3: 573 €, PG4: 711 €, PG5: 880 €)
+              </p>
             </div>
           </CardContent>
         )}
       </Card>
 
-      {/* Budget-Priorisierung */}
-      {budgetOrder.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Budget-Priorisierung</CardTitle>
-            <CardDescription className="text-xs">Ziehen Sie die Budgets in die gewünschte Abrechnungsreihenfolge</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {budgetOrder.map((budget, index) => (
-                <div key={budget} draggable onDragStart={() => setDraggedBudget(budget)} onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => { if (draggedBudget && draggedBudget !== budget) { setBudgetOrder((prev) => { const newOrder = [...prev]; const fromIndex = newOrder.indexOf(draggedBudget!); const toIndex = newOrder.indexOf(budget); newOrder.splice(fromIndex, 1); newOrder.splice(toIndex, 0, draggedBudget!); return newOrder; }); } setDraggedBudget(null); }}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-colors ${draggedBudget === budget ? 'border-primary bg-primary/5' : 'bg-background hover:bg-muted/50'}`}>
-                  <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <Badge variant="outline" className="text-xs">{index + 1}</Badge>
-                  <span className="text-sm font-medium">
-                    {budget === 'verhinderungspflege' && 'Verhinderungspflege (§ 39)'}
-                    {budget === 'pflegesachleistung' && 'Pflegesachleistung (§ 45a)'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">Die Abrechnungs-Engine verwendet diese Reihenfolge zur Budget-Priorisierung.</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Abrechnungsreihenfolge (Budget-Priorisierung) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Euro className="h-4 w-4" />
+            Abrechnungsreihenfolge
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Legen Sie fest, in welcher Reihenfolge die Budgettöpfe für diesen Kunden genutzt werden.
+            Nicht verfügbare Töpfe werden automatisch übersprungen.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {normalizedOrder.map((bucketKey, index) => {
+              const meta = BUDGET_BUCKETS.find((b) => b.key === bucketKey);
+              if (!meta) return null;
+              const isFirst = index === 0;
+              const isLast = index === normalizedOrder.length - 1;
 
-      {budgetOrder.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <Euro className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Aktivieren Sie oben Budgets, um die Priorisierung festzulegen.</p>
-        </div>
-      )}
+              return (
+                <div
+                  key={bucketKey}
+                  draggable={!meta.alwaysEnabled}
+                  onDragStart={() => !meta.alwaysEnabled && setDraggedBudget(bucketKey)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    if (draggedBudget && draggedBudget !== bucketKey) {
+                      setBudgetOrder((prev) => {
+                        const order = normalizeBudgetOrder(prev.length > 0 ? prev : null);
+                        const fromIndex = order.indexOf(draggedBudget as BudgetBucketKey);
+                        const toIndex = order.indexOf(bucketKey);
+                        if (fromIndex === -1 || toIndex === -1) return order;
+                        const updated = [...order];
+                        updated.splice(fromIndex, 1);
+                        updated.splice(toIndex, 0, draggedBudget as BudgetBucketKey);
+                        return updated;
+                      });
+                    }
+                    setDraggedBudget(null);
+                  }}
+                  className={[
+                    'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                    draggedBudget === bucketKey ? 'border-primary bg-primary/5' : 'bg-background hover:bg-muted/50',
+                    !meta.alwaysEnabled ? 'cursor-grab active:cursor-grabbing' : 'opacity-70',
+                  ].join(' ')}
+                >
+                  <Badge variant="outline" className="text-xs min-w-[24px] justify-center shrink-0">
+                    {index + 1}
+                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{meta.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">{meta.description}</p>
+                  </div>
+                  {meta.alwaysEnabled ? (
+                    <Badge variant="secondary" className="text-xs shrink-0">Fix</Badge>
+                  ) : (
+                    <div className="flex flex-col gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={isFirst}
+                        onClick={() => moveUp(index)}
+                        aria-label="Nach oben"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={isLast}
+                        onClick={() => moveDown(index)}
+                        aria-label="Nach unten"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Reihenfolge per Drag & Drop oder Pfeile ändern. Gilt nur für diesen Kunden.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
