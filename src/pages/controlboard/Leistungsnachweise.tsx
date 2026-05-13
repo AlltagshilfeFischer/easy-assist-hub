@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,8 +21,9 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Loader2, RefreshCw,
   Search, ArrowUpDown, ChevronLeft, ChevronRight, X,
   User, TrendingUp, FileCheck, PenLine, ExternalLink,
-  WifiOff, Wifi, RotateCcw, Lock, ChevronsUpDown, Check
+  WifiOff, Wifi, RotateCcw, Lock, ChevronsUpDown, Check, Bell
 } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
 import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -98,6 +100,7 @@ type SortKey = 'name' | 'geplant' | 'geleistet' | 'status';
 
 export default function Leistungsnachweise() {
   const queryClient = useQueryClient();
+  const { isGeschaeftsfuehrer } = useUserRole();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -592,6 +595,16 @@ export default function Leistungsnachweise() {
     };
   }, [nachweise, hoursByKunde]);
 
+  // Count LNs that are older than 7 days and still missing the customer signature
+  const overdueWithoutSignatureCount = useMemo(() => {
+    if (!nachweise) return 0;
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return nachweise.filter(
+      ln => !ln.unterschrift_kunde_zeitstempel && new Date(ln.created_at) < sevenDaysAgo
+    ).length;
+  }, [nachweise]);
+
   // Canvas drawing helpers
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -788,6 +801,35 @@ export default function Leistungsnachweise() {
           </div>
         </div>
       </div>
+
+      {/* Reminder: LNs awaiting customer signature (GF only) */}
+      {isGeschaeftsfuehrer && overdueWithoutSignatureCount > 0 && (
+        <Alert className="border-warning/50 bg-warning/10 text-warning-foreground">
+          <Bell className="h-4 w-4 text-warning" />
+          <AlertDescription className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-foreground">
+              <span className="font-bold">{overdueWithoutSignatureCount}</span>{' '}
+              {overdueWithoutSignatureCount === 1
+                ? 'Leistungsnachweis wartet'
+                : 'Leistungsnachweise warten'}{' '}
+              auf Kunden-Unterschrift (älter als 7 Tage)
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 h-7 text-xs border-warning/40 hover:bg-warning/10"
+              onClick={() => {
+                setStatusFilter('offen');
+                setSearchQuery('');
+                setKundenFilter('alle');
+                setMitarbeiterFilter('alle');
+              }}
+            >
+              Anzeigen
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
