@@ -253,7 +253,7 @@ export function StepAbrechnung({
               />
               <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                40% des Sachleistungsbetrags (PG2: 304 €, PG3: 573 €, PG4: 711 €, PG5: 880 €)
+                40% des Sachleistungsbetrags (PG2: 318,40 €, PG3: 598,80 €, PG4: 743,60 €, PG5: 916,60 €)
               </p>
             </div>
             <div className="flex items-center justify-between">

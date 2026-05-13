@@ -4,10 +4,10 @@
  * Muss synchron bleiben mit: src/lib/pflegebudget/budgetCalculations.ts
  *
  * Algorithmus: FIFO-Zuweisung nach Prioritätsreihenfolge
- *   1. KOMBI (§45a, monatlich, verfällt)
- *   2. Vorjahresrest Entlastung (FIFO, verfällt 01.07.)
- *   3. VERHINDERUNG (§39, jährlich, eigener Tarif)
- *   4. Reguläre Entlastung (§45b, 131€/Monat)
+ *   1. Vorjahresrest Entlastung (FIFO, verfällt 01.07.)
+ *   2. VERHINDERUNG (§39, jährlich, eigener Tarif)
+ *   3. Reguläre Entlastung (§45b, 131€/Monat)
+ *   4. KOMBI (§45a, monatlich, verfällt)
  *   5. PRIVAT (Fallback, unbegrenzt)
  */
 
@@ -194,27 +194,42 @@ function buildPools(
   pg: number,
 ): Pool[] {
   const kombiPool: Pool = { type: "KOMBI", remaining: kombiAmt, isVP: false };
+  const expiringEntlPool: Pool = { type: "ENTLASTUNG", remaining: expiringEnt, isVP: false };
+  const regularEntPool: Pool = { type: "ENTLASTUNG", remaining: regularEnt, isVP: false };
   const vpPool: Pool | null = pg >= 2
     ? { type: "VERHINDERUNG", remaining: vpBudget, isVP: true }
     : null;
 
-  let configurable: Pool[];
   if (budgetPrio && budgetPrio.length > 0) {
-    configurable = budgetPrio
-      .map((k) =>
-        k === "pflegesachleistung" ? kombiPool
-        : k === "verhinderungspflege" ? vpPool
-        : null
-      )
-      .filter((p): p is Pool => p !== null);
-  } else {
-    configurable = [kombiPool, ...(vpPool ? [vpPool] : [])];
+    const pools: Pool[] = budgetPrio
+      .flatMap((k) => {
+        if (k === "vorjahresrest_entlastung") return [expiringEntlPool];
+        if (k === "verhinderungspflege") return vpPool ? [vpPool] : [];
+        if (k === "entlastungsbetrag") return [regularEntPool];
+        if (k === "kombileistung" || k === "pflegesachleistung") return [kombiPool];
+        if (k === "privat") return []; // PRIVAT ist immer Fallback
+        return [];
+      });
+
+    // Fehlende Pools in korrekter Default-Reihenfolge als Fallback anhängen
+    const hasExpiring = budgetPrio.includes("vorjahresrest_entlastung");
+    const hasVP = budgetPrio.includes("verhinderungspflege");
+    const hasEntl = budgetPrio.includes("entlastungsbetrag");
+    const hasKombi = budgetPrio.some((k) => k === "kombileistung" || k === "pflegesachleistung");
+    if (!hasExpiring) pools.push(expiringEntlPool);
+    if (!hasVP && vpPool) pools.push(vpPool);
+    if (!hasEntl) pools.push(regularEntPool);
+    if (!hasKombi) pools.push(kombiPool);
+
+    return pools;
   }
 
+  // Default-Reihenfolge: Vorjahresrest → VP → EB → Kombi
   return [
-    ...configurable,
-    { type: "ENTLASTUNG", remaining: expiringEnt, isVP: false }, // Vorjahresrest zuerst (FIFO)
-    { type: "ENTLASTUNG", remaining: regularEnt, isVP: false },  // Laufendes Jahr
+    expiringEntlPool,                      // Vorjahresrest zuerst (FIFO, verfällt 01.07.)
+    ...(vpPool ? [vpPool] : []),           // Verhinderungspflege (nur PG >= 2)
+    regularEntPool,                         // Regulärer Entlastungsbetrag
+    kombiPool,                              // Kombileistung (letzter Kassentopf)
   ];
 }
 

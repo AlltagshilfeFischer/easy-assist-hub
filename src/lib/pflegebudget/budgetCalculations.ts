@@ -252,18 +252,18 @@ export function assignTransactionTypes(
           return [];
         });
 
-      // Nicht in budgetPrio enthaltene Pools als Fallback anhängen
-      const hasKombi = budgetPrio.some((k) => k === 'kombileistung' || k === 'pflegesachleistung');
+      // Nicht in budgetPrio enthaltene Pools als Fallback in korrekter Reihenfolge anhängen
       const hasExpiring = budgetPrio.includes('vorjahresrest_entlastung');
       const hasVP = budgetPrio.includes('verhinderungspflege');
       const hasEntl = budgetPrio.includes('entlastungsbetrag');
-      if (!hasKombi) pools.push(kombiPool);
+      const hasKombi = budgetPrio.some((k) => k === 'kombileistung' || k === 'pflegesachleistung');
       if (!hasExpiring) pools.push(expiringPool);
       if (!hasVP && vpPool) pools.push(vpPool);
       if (!hasEntl) pools.push(entlPool);
+      if (!hasKombi) pools.push(kombiPool);
     } else {
-      // Default-Reihenfolge aus den Abrechnungsregeln
-      pools = [kombiPool, expiringPool, ...(vpPool ? [vpPool] : []), entlPool];
+      // Default-Reihenfolge: Vorjahresrest → VP → EB → Kombi
+      pools = [expiringPool, ...(vpPool ? [vpPool] : []), entlPool, kombiPool];
     }
 
     let remaining = totalAmount;

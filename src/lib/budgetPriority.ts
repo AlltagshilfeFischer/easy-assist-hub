@@ -50,10 +50,10 @@ export const BUDGET_BUCKETS: BudgetBucketMeta[] = [
 
 /** Standard-Reihenfolge gemäß Abrechnungsregeln */
 export const DEFAULT_BUDGET_ORDER: BudgetBucketKey[] = [
-  'kombileistung',
   'vorjahresrest_entlastung',
   'verhinderungspflege',
   'entlastungsbetrag',
+  'kombileistung',
   'privat',
 ];
 
