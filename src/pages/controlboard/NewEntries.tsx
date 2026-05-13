@@ -480,7 +480,7 @@ export default function NewEntries() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="kasse_privat">Pflegekasse</Label>
+                  <Label htmlFor="kasse_privat">Abrechnungsart</Label>
                   <Select
                     value={newCustomer.kasse_privat}
                     onValueChange={(value) => setNewCustomer({ ...newCustomer, kasse_privat: value })}

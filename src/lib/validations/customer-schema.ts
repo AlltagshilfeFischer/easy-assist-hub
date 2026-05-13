@@ -4,14 +4,11 @@ export const customerBaseSchema = z.object({
   kategorie: z.enum(['Interessent', 'Kunde']).default('Kunde'),
   vorname: z.string().min(1, 'Vorname ist erforderlich').trim(),
   nachname: z.string().min(1, 'Nachname ist erforderlich').trim(),
-  strasse: z.string().min(1, 'Straße ist erforderlich').trim(),
-  plz: z.string().regex(/^\d{5}$/, 'PLZ muss genau 5 Ziffern haben'),
+  // Adress- und Kontaktfelder: Pflicht für Kunden, optional für Interessenten (via superRefine)
+  strasse: z.string().trim().optional().or(z.literal('')),
+  plz: z.string().optional().or(z.literal('')),
   stadt: z.string().optional().or(z.literal('')),
-  telefonnr: z
-    .string()
-    .min(1, 'Telefonnummer ist erforderlich')
-    .trim()
-    .regex(/^[+\d][\d\s\-\/()]{4,}$/, 'Ungültige Telefonnummer (nur Ziffern, +, -, / erlaubt)'),
+  telefonnr: z.string().trim().optional().or(z.literal('')),
   email: z.string().email('Ungültige E-Mail-Adresse').optional().or(z.literal('')),
   // Optionale Felder
   geburtsdatum: z.string().optional().or(z.literal('')),
@@ -50,13 +47,19 @@ export const customerBaseSchema = z.object({
   // Meta
   has_regular_appointments: z.boolean().default(false),
 }).superRefine((data, ctx) => {
-  // Ort ist Pflicht fuer Kunden, optional fuer Interessenten
-  if (data.kategorie === 'Kunde' && (!data.stadt || !data.stadt.trim())) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Ort ist erforderlich',
-      path: ['stadt'],
-    });
+  if (data.kategorie === 'Kunde') {
+    if (!data.strasse?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Straße ist erforderlich', path: ['strasse'] });
+    }
+    if (!data.plz || !/^\d{5}$/.test(data.plz)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'PLZ muss genau 5 Ziffern haben', path: ['plz'] });
+    }
+    if (!data.telefonnr?.trim() || !/^[+\d][\d\s\-\/()]{4,}$/.test(data.telefonnr.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Telefonnummer ist erforderlich', path: ['telefonnr'] });
+    }
+    if (!data.stadt?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ort ist erforderlich', path: ['stadt'] });
+    }
   }
 });
 

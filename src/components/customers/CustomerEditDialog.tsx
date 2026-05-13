@@ -63,7 +63,7 @@ const getCurrentMonth = () => {
 const dateToMonth = (dateString: string | null) => {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
 export function CustomerEditDialog({

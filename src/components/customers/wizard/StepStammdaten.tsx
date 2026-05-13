@@ -174,7 +174,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2 col-span-3"><Label htmlFor="strasse">Straße und Hausnummer *</Label><Input id="strasse" value={customerData.strasse} onChange={(e) => setCustomerData((p: any) => ({ ...p, strasse: e.target.value }))} placeholder="Straße und Hausnummer" required /></div>
           <div className="space-y-2"><Label htmlFor="plz">PLZ *</Label><Input id="plz" value={customerData.plz} onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 5); setCustomerData((p: any) => ({ ...p, plz: val })); }} placeholder="30159" maxLength={5} inputMode="numeric" required /></div>
-          <div className="space-y-2 col-span-2"><Label htmlFor="stadt">Stadt</Label><Input id="stadt" value={customerData.stadt} onChange={(e) => setCustomerData((p: any) => ({ ...p, stadt: e.target.value }))} placeholder="Stadt" /></div>
+          <div className="space-y-2 col-span-2"><Label htmlFor="stadt">Stadt *</Label><Input id="stadt" value={customerData.stadt} onChange={(e) => setCustomerData((p: any) => ({ ...p, stadt: e.target.value }))} placeholder="Stadt" required /></div>
         </div>
         <div className="grid grid-cols-4 gap-4">
           <div><Label htmlFor="stadtteil">Stadtteil</Label><Input id="stadtteil" value={customerData.stadtteil} onChange={(e) => setCustomerData((p: any) => ({ ...p, stadtteil: e.target.value }))} placeholder="z.B. Linden, Mitte" /></div>
