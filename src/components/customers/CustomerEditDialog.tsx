@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -90,8 +91,12 @@ export function CustomerEditDialog({
       } else {
         // Build from active flags
         const order: string[] = [];
-        if (editingCustomer.verhinderungspflege_aktiv) order.push('verhinderungspflege');
         if (editingCustomer.pflegesachleistung_aktiv) order.push('pflegesachleistung');
+        if (editingCustomer.initial_budget_entlastung && editingCustomer.initial_budget_entlastung > 0)
+          order.push('vorjahresrest_entlastung');
+        if (editingCustomer.verhinderungspflege_aktiv) order.push('verhinderungspflege');
+        if (editingCustomer.entlastung_genehmigt !== false) order.push('entlastungsbetrag');
+        if (editingCustomer.privatrechnung_erlaubt) order.push('privat');
         setBudgetOrder(order);
       }
       setDocumentFiles({ vertrag: [], historie: [], antragswesen: [] });
@@ -216,7 +221,30 @@ export function CustomerEditDialog({
                       }}
                     />
                   </div>
+                  {/* Fix 2: Geschlecht */}
+                  <div>
+                    <Label htmlFor="geschlecht">Geschlecht</Label>
+                    <Select
+                      value={editingCustomer.geschlecht ?? ''}
+                      onValueChange={(value) => setEditingCustomer({ ...editingCustomer, geschlecht: value || null })}
+                    >
+                      <SelectTrigger id="geschlecht"><SelectValue placeholder="Auswählen" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="maennlich">Männlich</SelectItem>
+                        <SelectItem value="weiblich">Weiblich</SelectItem>
+                        <SelectItem value="divers">Divers</SelectItem>
+                        <SelectItem value="keine_angabe">Keine Angabe</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                {editingCustomer.kategorie === 'Interessent' && (
+                  <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+                    Als Interessent werden nur Basis-Daten erfasst.
+                    Weitere Felder werden sichtbar nach Umwandlung zu Kunde.
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="hauptbetreuer">Hauptbetreuer</Label>
@@ -257,23 +285,136 @@ export function CustomerEditDialog({
               <div className="space-y-4 border-t pt-4">
                 <h3 className="text-lg font-semibold">Kontaktdaten</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><Label htmlFor="telefonnr">Telefon</Label><Input id="telefonnr" value={editingCustomer.telefonnr || ''} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setEditingCustomer({ ...editingCustomer, telefonnr: val }); }} inputMode="tel" /></div>
+                  {/* Fix 5: Telefon als Pflichtfeld */}
+                  <div><Label htmlFor="telefonnr">Telefon *</Label><Input id="telefonnr" value={editingCustomer.telefonnr || ''} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setEditingCustomer({ ...editingCustomer, telefonnr: val }); }} inputMode="tel" required /></div>
                   <div><Label htmlFor="email">E-Mail</Label><Input id="email" type="email" value={editingCustomer.email || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })} /></div>
+                  {/* Fix 3: Kontaktweg */}
+                  <div>
+                    <Label htmlFor="kontaktweg">Kontaktweg</Label>
+                    <Select
+                      value={editingCustomer.kontaktweg ?? ''}
+                      onValueChange={(value) => setEditingCustomer({ ...editingCustomer, kontaktweg: value || null })}
+                    >
+                      <SelectTrigger id="kontaktweg"><SelectValue placeholder="Auswählen" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="telefon">Telefon</SelectItem>
+                        <SelectItem value="email">E-Mail</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
-              {/* Pflegedaten */}
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="text-lg font-semibold">Pflegedaten</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label htmlFor="pflegegrad">Pflegegrad</Label><Input id="pflegegrad" type="number" min="0" max="5" value={editingCustomer.pflegegrad || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, pflegegrad: e.target.value ? parseInt(e.target.value) : null })} /></div>
-                  <div><Label htmlFor="stunden_kontingent_monat">Stunden</Label><Input id="stunden_kontingent_monat" type="number" step="0.5" value={editingCustomer.stunden_kontingent_monat || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, stunden_kontingent_monat: e.target.value ? parseFloat(e.target.value) : null })} /></div>
+              {/* Fix 4: Rechnungskopie — nur für Nicht-Interessenten */}
+              {editingCustomer.kategorie !== 'Interessent' && (
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="text-lg font-semibold">Rechnungskopie</h3>
+                  <div className="flex flex-col gap-3">
+                    {[
+                      { value: 'email', label: 'Per E-Mail' },
+                      { value: 'kunde', label: 'An Kunde' },
+                      { value: 'abweichende_adresse', label: 'Abweichende Adresse' },
+                    ].map(({ value, label }) => {
+                      const checked = (editingCustomer.rechnungskopie ?? []).includes(value);
+                      return (
+                        <div key={value} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`rechnungskopie-${value}`}
+                            checked={checked}
+                            onCheckedChange={(isChecked) => {
+                              const current = editingCustomer.rechnungskopie ?? [];
+                              const updated = isChecked
+                                ? [...current, value]
+                                : current.filter((v) => v !== value);
+                              setEditingCustomer({ ...editingCustomer, rechnungskopie: updated });
+                            }}
+                          />
+                          <Label htmlFor={`rechnungskopie-${value}`}>{label}</Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {(editingCustomer.rechnungskopie ?? []).includes('abweichende_adresse') && (
+                    <div className="grid grid-cols-2 gap-4 mt-2 pl-6 border-l-2 border-muted">
+                      <div className="col-span-2">
+                        <Label htmlFor="rk-adresse-name">Name des Empfängers</Label>
+                        <Input
+                          id="rk-adresse-name"
+                          value={editingCustomer.rechnungskopie_adresse_name ?? ''}
+                          onChange={(e) => setEditingCustomer({ ...editingCustomer, rechnungskopie_adresse_name: e.target.value || null })}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label htmlFor="rk-adresse-strasse">Straße</Label>
+                        <Input
+                          id="rk-adresse-strasse"
+                          value={editingCustomer.rechnungskopie_adresse_strasse ?? ''}
+                          onChange={(e) => setEditingCustomer({ ...editingCustomer, rechnungskopie_adresse_strasse: e.target.value || null })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="rk-adresse-plz">PLZ</Label>
+                        <Input
+                          id="rk-adresse-plz"
+                          value={editingCustomer.rechnungskopie_adresse_plz ?? ''}
+                          onChange={(e) => setEditingCustomer({ ...editingCustomer, rechnungskopie_adresse_plz: e.target.value || null })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="rk-adresse-stadt">Stadt</Label>
+                        <Input
+                          id="rk-adresse-stadt"
+                          value={editingCustomer.rechnungskopie_adresse_stadt ?? ''}
+                          onChange={(e) => setEditingCustomer({ ...editingCustomer, rechnungskopie_adresse_stadt: e.target.value || null })}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label>Pflegekasse</Label><PflegekasseCombobox value={editingCustomer.pflegekasse || ''} onValueChange={(v) => setEditingCustomer({ ...editingCustomer, pflegekasse: v })} /></div>
-                  <div><Label htmlFor="versichertennummer">Versichertennummer</Label><Input id="versichertennummer" value={editingCustomer.versichertennummer || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, versichertennummer: e.target.value })} /></div>
+              )}
+
+              {/* Fix 6 + Fix 1: Pflegedaten — nur für Nicht-Interessenten */}
+              {editingCustomer.kategorie !== 'Interessent' && (
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="text-lg font-semibold">Pflegedaten</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Fix 1: Pflegegrad als Select */}
+                    <div>
+                      <Label htmlFor="pflegegrad">Pflegegrad</Label>
+                      <Select
+                        value={
+                          editingCustomer.pflegegrad == null
+                            ? 'nicht_vorhanden'
+                            : String(editingCustomer.pflegegrad)
+                        }
+                        onValueChange={(value) =>
+                          setEditingCustomer({
+                            ...editingCustomer,
+                            pflegegrad: value === 'nicht_vorhanden' ? null : parseInt(value),
+                          })
+                        }
+                      >
+                        <SelectTrigger id="pflegegrad"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nicht_vorhanden">Nicht vorhanden</SelectItem>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label htmlFor="stunden_kontingent_monat">Stunden</Label><Input id="stunden_kontingent_monat" type="number" step="0.5" value={editingCustomer.stunden_kontingent_monat || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, stunden_kontingent_monat: e.target.value ? parseFloat(e.target.value) : null })} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label>Pflegekasse</Label><PflegekasseCombobox value={editingCustomer.pflegekasse || ''} onValueChange={(v) => setEditingCustomer({ ...editingCustomer, pflegekasse: v })} /></div>
+                    <div><Label htmlFor="versichertennummer">Versichertennummer</Label><Input id="versichertennummer" value={editingCustomer.versichertennummer || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, versichertennummer: e.target.value })} /></div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Status */}
               <div className="space-y-4 border-t pt-4">
@@ -294,31 +435,34 @@ export function CustomerEditDialog({
                 </div>
               </div>
 
-              {/* Ein- und Austrittsdaten */}
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="text-lg font-semibold">Ein- und Austrittsdaten</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label htmlFor="eintritt">Eintrittsmonat</Label><Input id="eintritt" type="month" value={dateToMonth(editingCustomer.eintritt) || getCurrentMonth()} onChange={(e) => setEditingCustomer({ ...editingCustomer, eintritt: e.target.value })} /></div>
-                  <div><Label htmlFor="austritt">Austrittsmonat</Label><Input id="austritt" type="month" value={dateToMonth(editingCustomer.austritt) || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, austritt: e.target.value })} /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="kopie_lw">Kopie LW</Label>
-                    <Select value={editingCustomer.kopie_lw || '__none__'} onValueChange={(value) => setEditingCustomer({ ...editingCustomer, kopie_lw: value === '__none__' ? null : value })}>
-                      <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Auswählen</SelectItem>
-                        <SelectItem value="Ja">Ja</SelectItem>
-                        <SelectItem value="Nein">Nein</SelectItem>
-                      </SelectContent>
-                    </Select>
+              {/* Fix 6: Ein- und Austrittsdaten — nur für Nicht-Interessenten */}
+              {editingCustomer.kategorie !== 'Interessent' && (
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="text-lg font-semibold">Ein- und Austrittsdaten</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label htmlFor="eintritt">Eintrittsmonat</Label><Input id="eintritt" type="month" value={dateToMonth(editingCustomer.eintritt) || getCurrentMonth()} onChange={(e) => setEditingCustomer({ ...editingCustomer, eintritt: e.target.value })} /></div>
+                    <div><Label htmlFor="austritt">Austrittsmonat</Label><Input id="austritt" type="month" value={dateToMonth(editingCustomer.austritt) || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, austritt: e.target.value })} /></div>
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="kopie_lw">Kopie LW</Label>
+                      <Select value={editingCustomer.kopie_lw || '__none__'} onValueChange={(value) => setEditingCustomer({ ...editingCustomer, kopie_lw: value === '__none__' ? null : value })}>
+                        <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Auswählen</SelectItem>
+                          <SelectItem value="Ja">Ja</SelectItem>
+                          <SelectItem value="Nein">Nein</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div><Label htmlFor="angehoerige_ansprechpartner">Angehörige/Ansprechpartner</Label><Input id="angehoerige_ansprechpartner" value={editingCustomer.angehoerige_ansprechpartner || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, angehoerige_ansprechpartner: e.target.value })} /></div>
+                  <div><Label htmlFor="sonstiges">Sonstiges</Label><Textarea id="sonstiges" value={editingCustomer.sonstiges || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, sonstiges: e.target.value })} rows={3} /></div>
                 </div>
-                <div><Label htmlFor="angehoerige_ansprechpartner">Angehörige/Ansprechpartner</Label><Input id="angehoerige_ansprechpartner" value={editingCustomer.angehoerige_ansprechpartner || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, angehoerige_ansprechpartner: e.target.value })} /></div>
-                <div><Label htmlFor="sonstiges">Sonstiges</Label><Textarea id="sonstiges" value={editingCustomer.sonstiges || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, sonstiges: e.target.value })} rows={3} /></div>
-              </div>
+              )}
 
-              {/* Zeitfenster Section */}
+              {/* Fix 6: Zeitfenster — nur für Nicht-Interessenten */}
+              {editingCustomer.kategorie !== 'Interessent' && (
               <div className="space-y-3 border-t pt-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-lg font-semibold">Zeitfenster</Label>
@@ -397,6 +541,7 @@ export function CustomerEditDialog({
                   />
                 )}
               </div>
+              )}
 
               {/* Notfallkontakte */}
               <div className="space-y-3 border-t pt-4">
