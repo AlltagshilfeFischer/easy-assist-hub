@@ -240,7 +240,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
           <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm', position: 'relative' }}>
             {stempelUrl ? (
               <img
-                src={stempelUrl}
+                src={`${stempelUrl}?t=${Math.floor(Date.now() / 60000)}`}
                 alt="Stempel / Unterschrift GF"
                 style={{ maxHeight: '14mm', maxWidth: '100%', objectFit: 'contain' }}
               />

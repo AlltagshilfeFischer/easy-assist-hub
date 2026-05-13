@@ -123,7 +123,8 @@ serve(async (req) => {
     }
 
     // Check if user is admin
-    const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: user.id });
+    const { data: isAdmin, error: adminCheckError } = await supabase.rpc("is_admin_or_higher", { _user_id: user.id });
+    if (adminCheckError) throw new Error(`Admin check failed: ${adminCheckError.message}`);
     if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: "Admin access required" }),
@@ -344,11 +345,11 @@ serve(async (req) => {
             ((new Date(terminData.end_at).getTime() - new Date(terminData.start_at).getTime()) / (1000 * 60 * 60));
 
           const stundensatz = terminData.regel?.stundensatz || 0;
-          const einzelbetrag = stunden * stundensatz;
+          const einzelbetrag = Math.round(stunden * stundensatz * 100) / 100;
           nettoBetrag += einzelbetrag;
 
           const pflegegrad: number | null = terminData.kunden?.pflegegrad ?? null;
-          const leistungsart: string = terminData.leistung.art;
+          const leistungsart: string = (terminData.leistung.art as string).toLowerCase();
           const mwst = calculateMwst(einzelbetrag, pflegegrad, leistungsart);
           mwstBetragGesamt += mwst.mwst_betrag;
 
@@ -372,7 +373,8 @@ serve(async (req) => {
           });
         }
 
-        const bruttoBetragGesamt = Math.round((nettoBetrag + mwstBetragGesamt) * 100) / 100;
+        const nettoBetragGesamt = Math.round(nettoBetrag * 100) / 100;
+        const bruttoBetragGesamt = Math.round((nettoBetragGesamt + mwstBetragGesamt) * 100) / 100;
 
         // Determine recipient
         const empfaengerName = group.kostentraeger?.name || 
@@ -390,7 +392,7 @@ serve(async (req) => {
             empfaenger_name: empfaengerName,
             abrechnungszeitraum_von: zeitraum_von,
             abrechnungszeitraum_bis: zeitraum_bis,
-            netto_betrag: nettoBetrag,
+            netto_betrag: nettoBetragGesamt,
             mwst_betrag: mwstBetragGesamt,
             brutto_betrag: bruttoBetragGesamt,
             erstellt_von: user.id,
@@ -441,7 +443,11 @@ serve(async (req) => {
           const { error: kontingentError } = await supabase.rpc("update_kontingent", {
             p_leistung_id: leistungId,
             p_stunden: stunden
-          }).then((res: any) => res, () => ({ error: null })); // RPC may not exist yet
+          }).then((res: any) => res, (err: unknown) => {
+            console.warn("update_kontingent RPC not available:", err);
+            return { error: null };
+          });
+          if (kontingentError) console.warn(`Kontingent-Update fehlgeschlagen für Leistung ${leistungId}:`, kontingentError);
         }
 
         // Log to audit
