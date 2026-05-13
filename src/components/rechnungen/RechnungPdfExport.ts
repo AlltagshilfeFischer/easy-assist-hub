@@ -3,6 +3,22 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { Rechnung, Rechnungsposition } from '@/hooks/useRechnungen';
 
+const LEISTUNGSART_LABELS: Record<string, string> = {
+  kombileistung: 'Kombileistung (§45a)',
+  vorjahresrest_entlastung: 'Entlastung Vorjahresrest',
+  verhinderungspflege: 'Verhinderungspflege (§39)',
+  entlastungsbetrag: 'Entlastungsbetrag (§45b)',
+  privat: 'Privat',
+  KOMBI: 'Kombileistung (§45a)',
+  VERHINDERUNG: 'Verhinderungspflege (§39)',
+  ENTLASTUNG: 'Entlastungsbetrag (§45b)',
+  PRIVAT: 'Privat',
+};
+
+function formatLeistungsart(raw: string): string {
+  return LEISTUNGSART_LABELS[raw] ?? raw;
+}
+
 function formatCurrency(value: number): string {
   return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -118,7 +134,7 @@ export async function exportRechnungPdf(
     }
 
     pdf.text(formatDate(pos.leistungsdatum), colDatum, y);
-    pdf.text(pos.leistungsart, colLeistungsart, y);
+    pdf.text(formatLeistungsart(pos.leistungsart), colLeistungsart, y);
     pdf.text(pos.stunden.toFixed(2), colStunden, y);
     pdf.text(formatCurrency(pos.stundensatz), colSatz, y);
     pdf.text(formatCurrency(pos.einzelbetrag), colBetrag, y, { align: 'right' });

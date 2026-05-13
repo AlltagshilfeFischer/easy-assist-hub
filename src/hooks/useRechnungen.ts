@@ -44,7 +44,8 @@ export function useRechnungen() {
       const fields: StatusUpdateFields = { status };
 
       if (status === 'freigegeben') {
-        fields.freigegeben_von = user?.id;
+        if (!user?.id) throw new Error('Nicht authentifiziert');
+        fields.freigegeben_von = user.id;
         fields.freigegeben_am = now;
       } else if (status === 'versendet') {
         fields.versendet_am = now;

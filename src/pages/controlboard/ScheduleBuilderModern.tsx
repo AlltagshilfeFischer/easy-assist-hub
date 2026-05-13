@@ -1864,6 +1864,28 @@ const ScheduleBuilderModern = () => {
               <AlertDialogAction
                 onClick={async () => {
                   if (seriesMoveDialog) {
+                    // G-14: Check for employee absences on target date before proceeding
+                    const singleAbsence = abwesenheiten.some(a => {
+                      if (a.mitarbeiter_id !== seriesMoveDialog.employeeId) return false;
+                      const match = a.zeitraum?.match(/[\[(](.+?),(.+?)[\])]/);
+                      if (!match) return false;
+                      const rangeStart = new Date(match[1].trim());
+                      const rangeEnd = new Date(match[2].trim());
+                      return seriesMoveDialog.targetDate >= rangeStart && seriesMoveDialog.targetDate < rangeEnd;
+                    });
+                    if (singleAbsence) {
+                      const absentEmp = employees.find(e => e.id === seriesMoveDialog.employeeId);
+                      setAbsenceConfirm({
+                        show: true,
+                        appointmentId: seriesMoveDialog.appointment.id,
+                        employeeId: seriesMoveDialog.employeeId,
+                        targetDate: seriesMoveDialog.targetDate,
+                        employeeName: absentEmp?.name || 'Mitarbeiter',
+                      });
+                      setSeriesMoveDialog(null);
+                      return;
+                    }
+
                     // Move only this appointment as an exception
                     const { overlaps, pauseViolations } = checkForConflicts(
                       seriesMoveDialog.appointment.id,
@@ -1901,6 +1923,28 @@ const ScheduleBuilderModern = () => {
                   const { appointment, employeeId, targetDate } = seriesMoveDialog;
                   const vorlageId = appointment.vorlage_id;
                   if (!vorlageId) return;
+
+                  // G-14: Check for employee absences on the target date
+                  const seriesAbsence = abwesenheiten.some(a => {
+                    if (a.mitarbeiter_id !== employeeId) return false;
+                    const match = a.zeitraum?.match(/[\[(](.+?),(.+?)[\])]/);
+                    if (!match) return false;
+                    const rangeStart = new Date(match[1].trim());
+                    const rangeEnd = new Date(match[2].trim());
+                    return targetDate >= rangeStart && targetDate < rangeEnd;
+                  });
+                  if (seriesAbsence) {
+                    const absentEmp = employees.find(e => e.id === employeeId);
+                    setAbsenceConfirm({
+                      show: true,
+                      appointmentId: appointment.id,
+                      employeeId,
+                      targetDate,
+                      employeeName: absentEmp?.name || 'Mitarbeiter',
+                    });
+                    setSeriesMoveDialog(null);
+                    return;
+                  }
 
                   try {
                     // 1. Compute new weekday (DB: 0=Mo … 6=So)
