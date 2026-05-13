@@ -179,7 +179,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRecoveryMode(false);
       initialPasswordRef.current = null;
       logAuthEvent('PASSWORD_CHANGE', user?.email || undefined);
+      return { error: null };
     }
+
+    // Supabase-Fehlermeldungen auf Deutsch übersetzen
+    const msg = error.message ?? '';
+    if (
+      msg.includes('different from the old password') ||
+      msg.includes('same as your current password') ||
+      msg.includes('should be different') ||
+      msg.includes('Password should be different')
+    ) {
+      return {
+        error: {
+          ...error,
+          message: 'Das neue Passwort darf nicht mit dem bisherigen Passwort übereinstimmen. Bitte wählen Sie ein anderes Passwort.',
+        },
+      };
+    }
+    if (msg.includes('Password should be at least') || msg.includes('at least 6') || msg.includes('at least 8')) {
+      return { error: { ...error, message: 'Das Passwort muss mindestens 8 Zeichen lang sein.' } };
+    }
+    if (msg.includes('Auth session missing') || msg.includes('session')) {
+      return { error: { ...error, message: 'Ihre Sitzung ist abgelaufen. Bitte fordern Sie einen neuen Link an.' } };
+    }
+
     return { error };
   };
 

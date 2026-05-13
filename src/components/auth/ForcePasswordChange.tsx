@@ -90,6 +90,9 @@ export function ForcePasswordChange({ children }: { children: React.ReactNode })
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="new-password">Neues Passwort</Label>
+              <p className="text-xs text-muted-foreground">
+                Mindestens 8 Zeichen. Das neue Passwort darf nicht mit dem bisherigen übereinstimmen.
+              </p>
               <div className="relative">
                 <Input
                   id="new-password"

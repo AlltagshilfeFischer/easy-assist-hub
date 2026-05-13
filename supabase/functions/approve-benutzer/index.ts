@@ -257,15 +257,123 @@ Deno.serve(async (req) => {
 
     console.log('Registration approved successfully');
 
-    const linkType = createdNewUser ? 'invite' : (emailConfirmed ? 'recovery' : 'invite');
-    await supabaseAdmin.auth.admin.generateLink({ type: linkType as any, email });
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://portal.alltagshilfe-fischer.de';
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    const displayName = [
+      vorname || registration.vorname,
+      nachname || registration.nachname,
+    ].filter(Boolean).join(' ') || 'Mitarbeiter/in';
+
+    // Bestehende selbst-registrierte User: E-Mail-Bestätigung nachholen, damit Login direkt klappt
+    if (!createdNewUser && !emailConfirmed) {
+      await supabaseAdmin.auth.admin.updateUserById(targetUserId!, { email_confirm: true });
+    }
+
+    let emailSubject: string;
+    let emailHtml: string;
+    let emailSent = false;
+
+    if (createdNewUser) {
+      // Neu angelegter User: Recovery-Link generieren, damit Passwort gesetzt werden kann
+      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: `${siteUrl}/?type=recovery` },
+      });
+      if (linkErr) console.warn('Could not generate recovery link:', linkErr.message);
+      const actionLink = linkData?.properties?.action_link || siteUrl;
+
+      emailSubject = 'Ihr Zugang zum Alltagshilfe Fischer Portal wurde genehmigt';
+      emailHtml = `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 24px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:600;">Alltagshilfe Fischer</h1>
+            <p style="color:#bfdbfe;margin:8px 0 0;font-size:14px;">Ihr Zugang wurde genehmigt</p>
+          </div>
+          <div style="padding:32px 24px;">
+            <p style="font-size:16px;color:#1e293b;margin:0 0 16px;">Hallo ${displayName},</p>
+            <p style="font-size:15px;color:#475569;line-height:1.6;margin:0 0 24px;">
+              Ihre Registrierung wurde genehmigt. Bitte klicken Sie auf den folgenden Button, um Ihr persönliches Passwort festzulegen und auf das Portal zuzugreifen:
+            </p>
+            <div style="text-align:center;margin:32px 0;">
+              <a href="${actionLink}" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 12px rgba(37,99,235,0.4);">
+                Passwort festlegen &amp; Anmelden
+              </a>
+            </div>
+            <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:24px 0 0;">
+              Falls der Button nicht funktioniert, kopieren Sie diesen Link:<br>
+              <a href="${actionLink}" style="color:#2563eb;word-break:break-all;">${actionLink}</a>
+            </p>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+            <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">
+              Diese E-Mail wurde automatisch versendet. Bitte antworten Sie nicht auf diese Nachricht.
+            </p>
+          </div>
+        </div>
+      `;
+    } else {
+      // Bestehender selbst-registrierter User: nur Freischaltungs-Benachrichtigung
+      emailSubject = 'Ihr Konto wurde freigeschaltet – Alltagshilfe Fischer';
+      emailHtml = `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+          <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px 24px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:600;">Alltagshilfe Fischer</h1>
+            <p style="color:#bfdbfe;margin:8px 0 0;font-size:14px;">Ihr Konto wurde freigeschaltet</p>
+          </div>
+          <div style="padding:32px 24px;">
+            <p style="font-size:16px;color:#1e293b;margin:0 0 16px;">Hallo ${displayName},</p>
+            <p style="font-size:15px;color:#475569;line-height:1.6;margin:0 0 24px;">
+              Ihr Konto bei Alltagshilfe Fischer wurde genehmigt. Sie können sich ab sofort mit Ihren bisherigen Zugangsdaten anmelden:
+            </p>
+            <div style="text-align:center;margin:32px 0;">
+              <a href="${siteUrl}" style="display:inline-block;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;box-shadow:0 4px 12px rgba(37,99,235,0.4);">
+                Zum Portal
+              </a>
+            </div>
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+            <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0;">
+              Diese E-Mail wurde automatisch versendet. Bitte antworten Sie nicht auf diese Nachricht.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    if (RESEND_API_KEY) {
+      try {
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'Alltagshilfe Fischer <noreply@af-verwaltung.de>',
+            to: [email],
+            subject: emailSubject,
+            html: emailHtml,
+          }),
+        });
+        const resendData = await resendRes.json();
+        if (!resendRes.ok) {
+          console.warn('Resend error in approve-benutzer:', resendData);
+        } else {
+          emailSent = true;
+          console.log('Approval email sent via Resend');
+        }
+      } catch (emailErr) {
+        console.warn('Failed to send approval email:', emailErr);
+      }
+    } else {
+      console.warn('RESEND_API_KEY not configured — no approval email sent');
+    }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: createdNewUser
-          ? 'Benutzer approved. Invite email gesendet.'
-          : (emailConfirmed ? 'Benutzer verknüpft. Passwort-Reset-Mail gesendet.' : 'Benutzer verknüpft. Invite-Mail gesendet.'),
+          ? `Benutzer genehmigt. ${emailSent ? 'Einladungs-E-Mail wurde gesendet.' : 'E-Mail konnte nicht gesendet werden (RESEND_API_KEY fehlt).'}`
+          : `Benutzer freigeschaltet. ${emailSent ? 'Benachrichtigungs-E-Mail wurde gesendet.' : 'E-Mail konnte nicht gesendet werden (RESEND_API_KEY fehlt).'}`,
         role: finalRole,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
