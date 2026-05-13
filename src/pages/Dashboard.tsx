@@ -94,7 +94,7 @@ export default function Dashboard() {
         <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
         <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
         <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
-        <Route path="/controlboard/aktivitaetslog" element={<AktivitaetsLog />} />
+        <Route path="/controlboard/aktivitaetslog" element={role === 'globaladmin' ? <AktivitaetsLog /> : <Navigate to="/dashboard" replace />} />
         <Route path="/controlboard/reporting" element={<Reporting />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
