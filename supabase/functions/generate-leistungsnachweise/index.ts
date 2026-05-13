@@ -1,5 +1,7 @@
-// DEPRECATED: LNs werden jetzt automatisch beim Seitenaufruf erstellt (autoGenerateNachweise in Leistungsnachweise.tsx)
-// Diese Edge Function wird nicht mehr vom Frontend aufgerufen.
+// DEAKTIVIERT: Diese Edge Function wird nicht mehr verwendet.
+// LNs entstehen ausschließlich über autoGenerateNachweise() in Leistungsnachweise.tsx,
+// das nur Kunden mit echten Terminen berücksichtigt.
+// Ein DB-Trigger (check_ln_has_termine) verhindert zusätzlich Phantom-LNs auf DB-Ebene.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
 const corsHeaders = {
@@ -11,6 +13,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Diese Function ist deaktiviert — Aufrufe werden abgewiesen.
+  return new Response(
+    JSON.stringify({ error: 'Diese Funktion ist deaktiviert. LNs werden automatisch im Frontend erstellt.' }),
+    { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
 
   try {
     // Auth check

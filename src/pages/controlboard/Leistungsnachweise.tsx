@@ -244,11 +244,12 @@ export default function Leistungsnachweise() {
       });
   }, [termine]);
 
-  // Auto-create LNs only for customers who have appointments in this month.
+  // Erstellt LNs ausschließlich für Kunden, die in diesem Monat Termine haben.
+  // Doppelt abgesichert: Frontend filtert bereits, DB-Trigger (check_ln_has_termine)
+  // blockt zusätzlich jeden Insert ohne zugehörigen Termin.
   const autoGenerateNachweise = async (kundenMitTerminen: string[]) => {
     if (kundenMitTerminen.length === 0) return;
 
-    // Load which customers already have a LN — no unique constraint dependency.
     const { data: existing } = await supabase
       .from('leistungsnachweise')
       .select('kunden_id')
@@ -267,9 +268,13 @@ export default function Leistungsnachweise() {
         status: 'offen' as const,
       }));
 
-    if (missingRows.length > 0) {
-      const { error } = await supabase.from('leistungsnachweise').insert(missingRows);
-      if (error) console.error('Leistungsnachweise konnten nicht erstellt werden:', error.message);
+    if (missingRows.length === 0) return;
+
+    const { error } = await supabase.from('leistungsnachweise').insert(missingRows);
+    if (error) {
+      // Trigger-Fehler bedeutet: Termin-Daten und LN-Liste sind inkonsistent.
+      // Kein Toast — tritt nur bei Race Conditions oder Edge-Function-Missbrauch auf.
+      console.error('[LN] Insert blockiert:', error.message);
     }
 
     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise', selectedMonth, selectedYear] });
