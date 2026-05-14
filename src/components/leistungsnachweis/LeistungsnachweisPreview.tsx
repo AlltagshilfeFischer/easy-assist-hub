@@ -205,7 +205,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
       {/* Leistungsart Checkboxen – driven by nachweis data */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5mm', fontSize: '9px', marginBottom: '3mm' }}>
         <label style={checkboxLabel}>
-          <CheckboxPrint checked={!!nachweis.cb_kombinationsleistung} /> Kombinationsleistung §38 SGB XI
+          <CheckboxPrint checked={!!nachweis.cb_kombinationsleistung} /> Kombinationsleistung §45a SGB XI
         </label>
         <label style={checkboxLabel}>
           <CheckboxPrint checked={!!nachweis.cb_entlastungsleistung} /> Entlastungsleistung §45b SGB XI

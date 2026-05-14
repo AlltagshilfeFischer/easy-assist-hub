@@ -1191,7 +1191,7 @@ export default function Leistungsnachweise() {
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
                         <Checkbox checked={selectedLN.cb_kombinationsleistung} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_kombinationsleistung: !!c })} />
-                        Kombileistung §38
+                        Kombileistung §45a
                       </label>
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
                         <Checkbox checked={selectedLN.cb_entlastungsleistung} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_entlastungsleistung: !!c })} />
