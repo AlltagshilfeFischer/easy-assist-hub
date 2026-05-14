@@ -24,6 +24,7 @@ import {
   RotateCcw, Lock, ChevronsUpDown, Check, Bell
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useHaushaltshilfeVerordnungen } from '@/hooks/useHaushaltshilfeVerordnungen';
 import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -192,6 +193,18 @@ export default function Leistungsnachweise() {
       return data;
     }
   });
+
+  // Haushaltshilfe-Verordnungen für den aktuell geöffneten LN-Kunden
+  const { data: hhVerordnungen = [] } = useHaushaltshilfeVerordnungen(selectedLN?.kunden_id);
+
+  // Gibt true zurück wenn mindestens eine §38-Verordnung den Monat des LN abdeckt
+  const hasActiveHHForSelectedLN = useMemo(() => {
+    if (!selectedLN || !hhVerordnungen.length) return false;
+    const firstDay = `${selectedLN.jahr}-${String(selectedLN.monat).padStart(2, '0')}-01`;
+    const lastDayDate = new Date(selectedLN.jahr, selectedLN.monat, 0);
+    const lastDay = `${lastDayDate.getFullYear()}-${String(lastDayDate.getMonth() + 1).padStart(2, '0')}-${String(lastDayDate.getDate()).padStart(2, '0')}`;
+    return hhVerordnungen.some(v => v.gueltig_von <= lastDay && v.gueltig_bis >= firstDay);
+  }, [selectedLN?.id, hhVerordnungen]);
 
   // Fetch termine for selected LN
   const { data: termine } = useQuery({
@@ -607,12 +620,13 @@ export default function Leistungsnachweise() {
     if (kunde.verhinderungspflege_aktiv) updates.cb_verhinderungspflege = true;
     if (kunde.pflegesachleistung_aktiv) updates.cb_kombinationsleistung = true;
     if (kunde.kasse_privat === 'Privat') updates.ist_privat = true;
+    if (hasActiveHHForSelectedLN) updates.cb_haushaltshilfe = true;
 
     if (Object.keys(updates).length > 0) {
       setSelectedLN(prev => prev ? { ...prev, ...updates } : null);
       updateMutation.mutate(updates);
     }
-  }, [showDetail, selectedLN?.id]);
+  }, [showDetail, selectedLN?.id, hasActiveHHForSelectedLN]);
 
   // Dienstplan link with week param based on first termin date
   const getDienstplanLink = () => {
