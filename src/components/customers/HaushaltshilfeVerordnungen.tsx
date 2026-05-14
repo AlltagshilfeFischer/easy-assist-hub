@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { format, isAfter, isBefore, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Plus, Pencil, Trash2, Clock, Calendar } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,6 +76,7 @@ export function HaushaltshilfeVerordnungen({ kundenId }: HaushaltshilfeVerordnun
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<VerordnungFormState>(FORM_DEFAULTS);
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   function openCreateDialog() {
     setEditingId(null);
@@ -126,20 +137,31 @@ export function HaushaltshilfeVerordnungen({ kundenId }: HaushaltshilfeVerordnun
       notizen: form.notizen || null,
     };
 
-    if (editingId) {
-      await updateMutation.mutateAsync({
-        id: editingId,
-        kundenId,
-        updates: payload as HaushaltshilfeVerordnungUpdate,
-      });
-    } else {
-      await createMutation.mutateAsync({ kunden_id: kundenId, ...payload });
+    try {
+      if (editingId) {
+        await updateMutation.mutateAsync({
+          id: editingId,
+          kundenId,
+          updates: payload as HaushaltshilfeVerordnungUpdate,
+        });
+      } else {
+        await createMutation.mutateAsync({ kunden_id: kundenId, ...payload });
+      }
+      closeDialog();
+    } catch {
+      // Fehler wird im onError-Handler des Hooks per Toast angezeigt
     }
-    closeDialog();
   }
 
-  async function handleDelete(id: string) {
-    await deleteMutation.mutateAsync({ id, kundenId });
+  async function handleDeleteConfirmed() {
+    if (!deleteId) return;
+    try {
+      await deleteMutation.mutateAsync({ id: deleteId, kundenId });
+    } catch {
+      // Fehler wird im onError-Handler des Hooks per Toast angezeigt
+    } finally {
+      setDeleteId(null);
+    }
   }
 
   const isPending =
@@ -196,7 +218,7 @@ export function HaushaltshilfeVerordnungen({ kundenId }: HaushaltshilfeVerordnun
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(v.id)}
+                        onClick={() => setDeleteId(v.id)}
                         disabled={isPending}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -226,6 +248,26 @@ export function HaushaltshilfeVerordnungen({ kundenId }: HaushaltshilfeVerordnun
           })}
         </div>
       )}
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Verordnung löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Verordnung wird unwiderruflich gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="max-w-md">
