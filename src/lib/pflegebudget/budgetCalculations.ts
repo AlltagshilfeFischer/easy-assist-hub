@@ -6,6 +6,7 @@
 // WICHTIG: Algorithmus muss synchron bleiben mit:
 //   supabase/functions/_shared/budget-allocation.ts  (batch-billing)
 // Konstanten VP_JAHRESBUDGET + EB_MONATSBETRAG in beiden Dateien identisch halten.
+// Priorität 0: §38 Haushaltshilfe — bypasses alle regulären Pools.
 // =============================================================
 
 import type {
@@ -24,6 +25,18 @@ import type {
 const VP_JAHRESBUDGET = 3539;
 // Monatlicher Entlastungsbetrag pro PG >= 1
 const EB_MONATSBETRAG = 131;
+
+// ─── Haushaltshilfe §38 ──────────────────────────────────────
+
+/**
+ * Minimales Interface für §38-Verordnungen — kompatibel mit dem vollen
+ * HaushaltshilfeVerordnung-Typ aus useHaushaltshilfeVerordnungen.ts.
+ */
+export interface HaushaltshilfeVerordnung {
+  gueltig_von: string;    // YYYY-MM-DD
+  gueltig_bis: string;    // YYYY-MM-DD
+  max_dauer_stunden: number;
+}
 
 // ─── Privatversicherten-Erkennung ───────────────────────────
 
@@ -456,6 +469,10 @@ export interface TerminBudgetAllocation {
  * Berechnet FIFO-Budgetzuweisung für alle abrechenbaren Termine eines Jahres.
  * Verarbeitet Monat für Monat — Kombi setzt sich monatlich zurück,
  * VP und Entlastung akkumulieren über das gesamte Jahr.
+ *
+ * Priorität 0: §38 Haushaltshilfe (wenn haushaltshilfeVerordnungen übergeben werden).
+ * HH-Termine werden direkt als HAUSHALTSHILFE allokiert und verbrauchen keine
+ * regulären Budget-Pools. Reguläre Termine durchlaufen weiterhin FIFO.
  */
 export function computeYearBudgetAllocations(
   termine: TerminRow[],
@@ -468,6 +485,7 @@ export function computeYearBudgetAllocations(
   tariffs: Tariff[],
   careLevels: CareLevel[],
   year: number,
+  haushaltshilfeVerordnungen?: HaushaltshilfeVerordnung[],
 ): { allocations: TerminBudgetAllocation[]; totalConsumedEntlastung: number; totalConsumedVP: number } {
   if (!tariffs.length || !careLevels.length) {
     return { allocations: [], totalConsumedEntlastung: 0, totalConsumedVP: 0 };
@@ -476,10 +494,45 @@ export function computeYearBudgetAllocations(
   const result: TerminBudgetAllocation[] = [];
   let consumedEntlastung = 0;
   let consumedVP = 0;
+  const verordnungen = haushaltshilfeVerordnungen ?? [];
 
   for (let month = 1; month <= 12; month++) {
     const monthTermine = termine.filter((t) => new Date(t.start_at).getMonth() + 1 === month);
     if (monthTermine.length === 0) continue;
+
+    // ── §38 HH: Termine vor FIFO-Pools splitten ──────────────
+    const hhTermine = monthTermine.filter((t) => {
+      const date = t.start_at.split('T')[0];
+      return verordnungen.some((v) => v.gueltig_von <= date && v.gueltig_bis >= date);
+    });
+    const regularTermine = monthTermine.filter((t) => {
+      const date = t.start_at.split('T')[0];
+      return !verordnungen.some((v) => v.gueltig_von <= date && v.gueltig_bis >= date);
+    });
+
+    // HH-Termine direkt allokieren (kein Pool-Verbrauch)
+    for (const t of hhTermine) {
+      const date = t.start_at.split('T')[0];
+      const verordnung = verordnungen.find((v) => v.gueltig_von <= date && v.gueltig_bis >= date)!;
+      const diffHours = (new Date(t.end_at).getTime() - new Date(t.start_at).getTime()) / (1000 * 60 * 60);
+      const rawHours = Math.max(0, t.iststunden ?? diffHours);
+      // Stunden auf max_dauer_stunden kappen (wie in budget-allocation.ts)
+      const hours = Math.round(Math.min(rawHours, verordnung.max_dauer_stunden) * 100) / 100;
+      const { hourlyRate, travelFlatTotal, totalAmount } = calculateTransactionAmount(hours, 1, 'ENTLASTUNG', tariffs);
+      result.push({
+        terminId: t.id,
+        serviceDate: date,
+        hours,
+        status: t.status,
+        serviceType: 'HAUSHALTSHILFE',
+        hourlyRate,
+        travelFlatTotal,
+        totalAmount,
+      });
+    }
+
+    // Nur reguläre Termine durch FIFO-Pools
+    if (regularTermine.length === 0) continue;
 
     const availability = buildAvailability(
       kunde,
@@ -490,7 +543,7 @@ export function computeYearBudgetAllocations(
       year,
     );
 
-    const pseudoTx: BudgetTransaction[] = monthTermine.map((t) => {
+    const pseudoTx: BudgetTransaction[] = regularTermine.map((t) => {
       const diffHours = (new Date(t.end_at).getTime() - new Date(t.start_at).getTime()) / (1000 * 60 * 60);
       const hours = Math.round(Math.max(0, t.iststunden ?? diffHours) * 100) / 100;
       return {
@@ -515,7 +568,7 @@ export function computeYearBudgetAllocations(
     const assigned = assignTransactionTypes(pseudoTx, kunde, availability, tariffs);
 
     for (const tx of assigned) {
-      const termin = monthTermine.find((t) => t.id === tx.id);
+      const termin = regularTermine.find((t) => t.id === tx.id);
 
       if (tx.splitAllocations && tx.splitAllocations.length > 1) {
         const totalSplitAmount = tx.splitAllocations.reduce((s, a) => s + a.amount, 0);
@@ -575,7 +628,7 @@ export function aggregateConsumed(
 
   for (const tx of transactions) {
     if (billedOnly && !tx.billed) continue;
-    if (tx.service_type === 'PRIVAT' || tx.service_type === ('PRIVAT' as ServiceType)) continue;
+    if (tx.service_type === 'PRIVAT' || tx.service_type === 'HAUSHALTSHILFE') continue;
 
     const type = tx.service_type as keyof ConsumedByType;
     if (type in result) {

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   allocateTermine,
   type CareLevel,
+  type HaushaltshilfeVerordnung,
   type KundeForAllocation,
   type Tariff,
   type TerminInput,
@@ -54,7 +55,8 @@ interface LeistungRow {
   kostentraeger_id: string | null;
 }
 
-// ─── LN-Gruppe (ein Leistungsnachweis pro Kunde x Monat x Jahr) ──
+// ─── LN-Gruppe (ein Leistungsnachweis pro Kunde × Monat × HH-Track) ──────────
+// cb_haushaltshilfe trennt HH §38 vom regulären LN (separate Abrechnung)
 
 interface LNGroup {
   kundenId: string;
@@ -62,14 +64,14 @@ interface LNGroup {
   monat: number;
   jahr: number;
   kostentraegerId: string | null;
-  // cb_* werden aus den FIFO-Allokationen abgeleitet
   cbEntlastungsleistung: boolean;
   cbKombinationsleistung: boolean;
   cbVerhinderungspflege: boolean;
+  cbHaushaltshilfe: boolean;
   istPrivat: boolean;
   gesamtStunden: number;
   terminIds: Set<string>;
-  // Für budget_transactions (nur ENTLASTUNG/KOMBI/VERHINDERUNG)
+  // Für budget_transactions (nur ENTLASTUNG/KOMBI/VERHINDERUNG — kein HH)
   budgetPositionen: Array<{
     terminId: string;
     serviceDate: string;
@@ -179,75 +181,73 @@ serve(async (req) => {
     if (kunden_ids?.length) termineQuery = termineQuery.in("kunden_id", kunden_ids);
 
     const { data: termine, error: termineErr } = await termineQuery;
-    if (termineErr) throw new Error(`Fehler beim Laden der Termine: ${termineErr.message}`);
+    if (termineErr) throw new Error(`Termine laden: ${termineErr.message}`);
     if (!termine?.length) {
-      return jsonResponse({
-        success: true,
-        message: "Keine abrechenbaren Termine im Zeitraum gefunden",
-        leistungsnachweise: [],
-        warnings: [],
-      });
+      return jsonResponse({ success: true, dry_run, warnings: [], zusammenfassung: { termine_gesamt: 0, leistungsnachweise: 0 }, vorschau: [] });
     }
 
-    const kundenIds = [...new Set((termine as TerminRow[]).map((t) => t.kunden_id))];
-    const billingYear = new Date(zeitraum_von + "T00:00:00Z").getUTCFullYear();
+    const billingYear = new Date(zeitraum_von).getFullYear();
+    const warnings: string[] = [];
+    const billedTerminIds: string[] = [];
 
-    // ── 2. Stammdaten parallel laden ─────────────────────────
-    const [tariffsRes, careLevelsRes, leistungenRes, preConsumedRes] = await Promise.all([
-      supabase
-        .from("tariffs")
-        .select("service_type, hourly_rate, travel_flat_per_visit, active")
-        .eq("active", true),
-      supabase
-        .from("care_levels")
-        .select("pflegegrad, kombi_max_40_prozent_monat"),
+    // ── 2. Stammdaten laden ───────────────────────────────────
+    const kundenIds = [...new Set((termine as TerminRow[]).map((t) => t.kunden_id))];
+
+    // Tarife + Care Levels
+    const [{ data: tariffs }, { data: careLevels }, { data: leistungen }] = await Promise.all([
+      supabase.from("tariffs").select("service_type, hourly_rate, travel_flat_per_visit, active").eq("active", true),
+      supabase.from("care_levels").select("pflegegrad, kombi_max_40_prozent_monat"),
       supabase
         .from("leistungen")
         .select("id, kunden_id, art, status, gueltig_von, gueltig_bis, kostentraeger_id")
-        .in("kunden_id", kundenIds)
-        .eq("status", "aktiv"),
-      // Bereits abgerechnete Budgets im laufenden Jahr (vor dem Abrechnungszeitraum)
-      supabase
-        .from("budget_transactions")
-        .select("client_id, service_type, total_amount")
-        .in("client_id", kundenIds)
-        .eq("billed", true)
-        .gte("service_date", `${billingYear}-01-01`)
-        .lt("service_date", zeitraum_von),
+        .in("kunden_id", kundenIds),
     ]);
 
-    if (tariffsRes.error) throw new Error(`Tarife: ${tariffsRes.error.message}`);
-    if (careLevelsRes.error) throw new Error(`Pflegegrade: ${careLevelsRes.error.message}`);
-    if (leistungenRes.error) throw new Error(`Leistungen: ${leistungenRes.error.message}`);
+    // Bereits abgerechnete Budgets im Billing-Jahr (vor zeitraum_von)
+    const { data: preConsumedRows } = await supabase
+      .from("budget_transactions")
+      .select("client_id, service_type, total_amount")
+      .in("client_id", kundenIds)
+      .eq("billed", true)
+      .gte("service_date", `${billingYear}-01-01`)
+      .lt("service_date", zeitraum_von.slice(0, 10));
 
-    const tariffs = (tariffsRes.data ?? []) as Tariff[];
-    const careLevels = (careLevelsRes.data ?? []) as CareLevel[];
-    const leistungen = (leistungenRes.data ?? []) as LeistungRow[];
-
-    if (!tariffs.length) {
-      throw new Error("Keine aktiven Tarife — Abrechnung nicht möglich.");
-    }
-
-    // ── 3. Vorverbrauch pro Kunde aggregieren ─────────────────
     const preConsumedMap = new Map<string, { ENTLASTUNG: number; VERHINDERUNG: number }>();
-    for (const tx of preConsumedRes.data ?? []) {
-      if (!preConsumedMap.has(tx.client_id)) {
-        preConsumedMap.set(tx.client_id, { ENTLASTUNG: 0, VERHINDERUNG: 0 });
-      }
-      const e = preConsumedMap.get(tx.client_id)!;
-      if (tx.service_type === "ENTLASTUNG") e.ENTLASTUNG += tx.total_amount;
-      else if (tx.service_type === "VERHINDERUNG") e.VERHINDERUNG += tx.total_amount;
+    for (const row of preConsumedRows ?? []) {
+      const cur = preConsumedMap.get(row.client_id) ?? { ENTLASTUNG: 0, VERHINDERUNG: 0 };
+      if (row.service_type === "ENTLASTUNG") cur.ENTLASTUNG += row.total_amount;
+      if (row.service_type === "VERHINDERUNG") cur.VERHINDERUNG += row.total_amount;
+      preConsumedMap.set(row.client_id, cur);
     }
 
-    // ── 4. FIFO-Allokation pro Kunde, LN-Gruppen aufbauen ────
-    const warnings: string[] = [];
-    const lnGroups = new Map<string, LNGroup>(); // key: `${kundenId}:${yyyy-MM}`
-    const billedTerminIds: string[] = [];
+    // ── 2b. Haushaltshilfe §38 Verordnungen laden ─────────────
+    // Nur Verordnungen, die den Abrechnungszeitraum (auch partiell) überschneiden
+    const { data: hhVerordnungenRows } = await supabase
+      .from("haushaltshilfe_verordnungen")
+      .select("kunden_id, gueltig_von, gueltig_bis, max_dauer_stunden")
+      .in("kunden_id", kundenIds)
+      .lte("gueltig_von", zeitraum_bis.slice(0, 10))
+      .gte("gueltig_bis", zeitraum_von.slice(0, 10));
 
+    const hhVerordnungenByKunde = new Map<string, HaushaltshilfeVerordnung[]>();
+    for (const row of hhVerordnungenRows ?? []) {
+      const existing = hhVerordnungenByKunde.get(row.kunden_id) ?? [];
+      existing.push({
+        gueltig_von: row.gueltig_von,
+        gueltig_bis: row.gueltig_bis,
+        max_dauer_stunden: Number(row.max_dauer_stunden),
+      });
+      hhVerordnungenByKunde.set(row.kunden_id, existing);
+    }
+
+    // ── 3. FIFO-Allokation pro Kunde ──────────────────────────
     const termineByKunde = new Map<string, TerminRow[]>();
     for (const t of termine as TerminRow[]) {
       termineByKunde.set(t.kunden_id, [...(termineByKunde.get(t.kunden_id) ?? []), t]);
     }
+
+    // lnKey: `${kundenId}:${yyyy-MM}:hh` oder `${kundenId}:${yyyy-MM}:reg`
+    const lnGroups = new Map<string, LNGroup>();
 
     for (const [kundenId, kundenTermine] of termineByKunde) {
       const kundeData = kundenTermine[0].kunden;
@@ -263,6 +263,7 @@ serve(async (req) => {
         pflegesachleistung_genehmigt: kundeData.pflegesachleistung_genehmigt,
         initial_budget_entlastung: kundeData.initial_budget_entlastung,
         budget_prioritaet: kundeData.budget_prioritaet,
+        haushaltshilfe_verordnungen: hhVerordnungenByKunde.get(kundenId) ?? [],
       };
 
       const terminInputs: TerminInput[] = kundenTermine.map((t) => ({
@@ -276,8 +277,8 @@ serve(async (req) => {
       const allocationResults = allocateTermine(
         terminInputs,
         kunde,
-        tariffs,
-        careLevels,
+        (tariffs ?? []) as Tariff[],
+        (careLevels ?? []) as CareLevel[],
         billingYear,
         preConsumed.ENTLASTUNG,
         preConsumed.VERHINDERUNG,
@@ -288,13 +289,15 @@ serve(async (req) => {
       for (const result of allocationResults) {
         billedTerminIds.push(result.terminId);
 
+        // Separater LN-Track für §38 HH vs. reguläre Budgets
+        const isHH = result.positions.some((p) => p.serviceType === "HAUSHALTSHILFE");
         const dateObj = new Date(result.serviceDate + "T00:00:00Z");
         const monat = dateObj.getUTCMonth() + 1;
         const jahr = dateObj.getUTCFullYear();
-        const lnKey = `${kundenId}:${jahr}-${String(monat).padStart(2, "0")}`;
+        const lnKey = `${kundenId}:${jahr}-${String(monat).padStart(2, "0")}:${isHH ? "hh" : "reg"}`;
 
         if (!lnGroups.has(lnKey)) {
-          const ktId = findKostentraeger(leistungen, kundenId, result.serviceDate);
+          const ktId = findKostentraeger(leistungen ?? [], kundenId, result.serviceDate);
           lnGroups.set(lnKey, {
             kundenId,
             kundenName,
@@ -304,6 +307,7 @@ serve(async (req) => {
             cbEntlastungsleistung: false,
             cbKombinationsleistung: false,
             cbVerhinderungspflege: false,
+            cbHaushaltshilfe: isHH,
             istPrivat: false,
             gesamtStunden: 0,
             terminIds: new Set(),
@@ -316,15 +320,17 @@ serve(async (req) => {
 
         for (const pos of result.positions) {
           switch (pos.serviceType) {
-            case "ENTLASTUNG": group.cbEntlastungsleistung = true; break;
-            case "KOMBI":      group.cbKombinationsleistung = true; break;
-            case "VERHINDERUNG": group.cbVerhinderungspflege = true; break;
-            case "PRIVAT":     group.istPrivat = true; break;
+            case "ENTLASTUNG":     group.cbEntlastungsleistung = true; break;
+            case "KOMBI":          group.cbKombinationsleistung = true; break;
+            case "VERHINDERUNG":   group.cbVerhinderungspflege = true; break;
+            case "HAUSHALTSHILFE": group.cbHaushaltshilfe = true; break;
+            case "PRIVAT":         group.istPrivat = true; break;
           }
 
-          if (pos.serviceType !== "PRIVAT") {
+          // budget_transactions nur für Kassentöpfe (kein HH — geht zur Krankenkasse)
+          if (pos.serviceType !== "PRIVAT" && pos.serviceType !== "HAUSHALTSHILFE") {
             const art = SERVICE_TYPE_TO_ART[pos.serviceType];
-            const leistungActive = leistungen.find(
+            const leistungActive = (leistungen ?? []).find(
               (l) =>
                 l.kunden_id === kundenId &&
                 l.art === art &&
@@ -372,6 +378,7 @@ serve(async (req) => {
             entlastung: g.cbEntlastungsleistung,
             kombi: g.cbKombinationsleistung,
             verhinderung: g.cbVerhinderungspflege,
+            haushaltshilfe: g.cbHaushaltshilfe,
             privat: g.istPrivat,
           },
         })),
@@ -393,18 +400,19 @@ serve(async (req) => {
             cb_entlastungsleistung: group.cbEntlastungsleistung,
             cb_kombinationsleistung: group.cbKombinationsleistung,
             cb_verhinderungspflege: group.cbVerhinderungspflege,
+            cb_haushaltshilfe: group.cbHaushaltshilfe,
             ist_privat: group.istPrivat,
             geleistete_stunden: group.gesamtStunden,
-            status: "entwurf",
+            status: "offen",
           },
-          { onConflict: "kunden_id,monat,jahr", ignoreDuplicates: false },
+          { onConflict: "kunden_id,monat,jahr,cb_haushaltshilfe", ignoreDuplicates: false },
         )
         .select("id")
         .single();
 
       if (lnErr) throw new Error(`Leistungsnachweis upsert: ${lnErr.message}`);
 
-      // ── 6. Budget-Transaktionen schreiben ─────────────────
+      // ── 6. Budget-Transaktionen schreiben (kein HH — geht zur Krankenkasse) ──
       if (group.budgetPositionen.length) {
         const txRows = group.budgetPositionen.map((p) => ({
           client_id: group.kundenId,
@@ -431,6 +439,7 @@ serve(async (req) => {
         kunde: group.kundenName,
         monat: group.monat,
         jahr: group.jahr,
+        haushaltshilfe: group.cbHaushaltshilfe,
         termine_anzahl: group.terminIds.size,
         gesamtstunden: group.gesamtStunden,
       });

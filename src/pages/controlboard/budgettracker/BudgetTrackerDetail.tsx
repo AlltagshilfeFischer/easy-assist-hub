@@ -32,6 +32,7 @@ import { useTermineForBudget } from '@/hooks/useTermineForBudget';
 import { useTariffs } from '@/hooks/useTariffs';
 import { useCareLevels } from '@/hooks/useCareLevels';
 import { useUpdateKundenBudget } from '@/hooks/useUpdateKundenBudget';
+import { useHaushaltshilfeVerordnungen } from '@/hooks/useHaushaltshilfeVerordnungen';
 import {
   useBudgetManuelleEintraege,
   useCreateBudgetManuellerEintrag,
@@ -61,6 +62,7 @@ const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   KOMBI: 'Kombi',
   VERHINDERUNG: 'VP',
   PRIVAT: 'Privat',
+  HAUSHALTSHILFE: 'HH §38',
 };
 
 const SERVICE_TYPE_COLORS: Record<ServiceType, string> = {
@@ -68,6 +70,7 @@ const SERVICE_TYPE_COLORS: Record<ServiceType, string> = {
   KOMBI: 'bg-purple-100 text-purple-800',
   VERHINDERUNG: 'bg-green-100 text-green-800',
   PRIVAT: 'bg-gray-100 text-gray-800',
+  HAUSHALTSHILFE: 'bg-amber-100 text-amber-800',
 };
 
 const BILLED_STATUSES = new Set(['abgerechnet', 'bezahlt']);
@@ -138,6 +141,7 @@ interface MonthData {
   kombiAmount: number;
   vpAmount: number;
   privatAmount: number;
+  hhHours: number;
   hasBilled: boolean;
   hasOpen: boolean;
 }
@@ -177,6 +181,11 @@ function MonthRow({ data }: { data: MonthData }) {
         </TableCell>
         <TableCell className="text-right">
           {data.privatAmount > 0 ? formatCurrency(data.privatAmount) : <span className="text-muted-foreground">—</span>}
+        </TableCell>
+        <TableCell className="text-right">
+          {data.hhHours > 0
+            ? <span className="text-amber-700 font-medium">{data.hhHours.toFixed(1)} h</span>
+            : <span className="text-muted-foreground">—</span>}
         </TableCell>
         <TableCell className="text-center">
           {hasData && (
@@ -692,6 +701,7 @@ export default function BudgetTrackerDetail() {
   const { data: termine = [], isLoading: termineLoading } = useTermineForBudget(kundenId, currentYear);
   const { data: tariffs = [] } = useTariffs();
   const { data: careLevels = [] } = useCareLevels();
+  const { data: haushaltshilfeVerordnungen = [] } = useHaushaltshilfeVerordnungen(kundenId ?? '');
 
   const kunde = customers.find((c) => c.id === kundenId);
   const kundeExtended = kunde as typeof kunde & {
@@ -715,7 +725,7 @@ export default function BudgetTrackerDetail() {
     if (!kundeExtended || !tariffs.length || !careLevels.length) return empty;
 
     const { allocations: allocs, totalConsumedEntlastung, totalConsumedVP } =
-      computeYearBudgetAllocations(termine, kundeExtended, tariffs, careLevels, currentYear);
+      computeYearBudgetAllocations(termine, kundeExtended, tariffs, careLevels, currentYear, haushaltshilfeVerordnungen);
 
     // Kombi des aktuellen Monats aus den berechneten Allokationen
     const currentMonthKombiConsumed = allocs
@@ -784,6 +794,9 @@ export default function BudgetTrackerDetail() {
         kombiAmount: amountByType('KOMBI'),
         vpAmount: amountByType('VERHINDERUNG'),
         privatAmount: amountByType('PRIVAT'),
+        hhHours: monthAllocs
+          .filter((a) => a.serviceType === 'HAUSHALTSHILFE')
+          .reduce((sum, a) => sum + a.hours, 0),
         hasBilled: monthAllocs.some((a) => BILLED_STATUSES.has(a.status)),
         hasOpen: monthAllocs.some((a) => !BILLED_STATUSES.has(a.status)),
       };
@@ -873,6 +886,57 @@ export default function BudgetTrackerDetail() {
         </div>
       )}
 
+      {/* Haushaltshilfe §38 Verordnungen */}
+      {haushaltshilfeVerordnungen.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Haushaltshilfe §38 Verordnungen</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Stundenkontingent auf Basis ärztlicher Verordnung — höchste Abrechnungspriorität.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {haushaltshilfeVerordnungen.map((v) => {
+              const today = new Date().toISOString().slice(0, 10);
+              const isAktiv = v.gueltig_von <= today && v.gueltig_bis >= today;
+              const hhConsumedHours = allocations
+                .filter(
+                  (a) =>
+                    a.serviceType === 'HAUSHALTSHILFE' &&
+                    a.serviceDate >= v.gueltig_von &&
+                    a.serviceDate <= v.gueltig_bis,
+                )
+                .reduce((sum, a) => sum + a.hours, 0);
+              return (
+                <div
+                  key={v.id}
+                  className={`flex items-center justify-between rounded-lg border px-4 py-3 ${isAktiv ? 'border-amber-200 bg-amber-50' : ''}`}
+                >
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">
+                      {format(parseDateISO(v.gueltig_von), 'dd.MM.yyyy', { locale: de })}
+                      {' – '}
+                      {format(parseDateISO(v.gueltig_bis), 'dd.MM.yyyy', { locale: de })}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {v.termine_pro_woche}× pro Woche · max. {v.max_dauer_stunden} h / Termin
+                    </div>
+                  </div>
+                  <div className="text-right space-y-0.5">
+                    <div className="text-sm font-semibold text-amber-700">
+                      {hhConsumedHours.toFixed(1)} h abgerechnet
+                    </div>
+                    <div className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${isAktiv ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}`}>
+                      {isAktiv ? 'Aktiv' : 'Abgelaufen'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Monatstabelle */}
       <Card>
         <CardHeader>
@@ -895,6 +959,7 @@ export default function BudgetTrackerDetail() {
                   <TableHead className="text-right">Kombi</TableHead>
                   <TableHead className="text-right">VP</TableHead>
                   <TableHead className="text-right">Privat</TableHead>
+                  <TableHead className="text-right text-amber-700">HH §38</TableHead>
                   <TableHead className="text-center w-20">Status</TableHead>
                 </TableRow>
               </TableHeader>

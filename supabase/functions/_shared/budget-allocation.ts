@@ -4,6 +4,7 @@
  * Muss synchron bleiben mit: src/lib/pflegebudget/budgetCalculations.ts
  *
  * Algorithmus: FIFO-Zuweisung nach Prioritätsreihenfolge
+ *   0. Haushaltshilfe §38 (aktive Verordnung → alle Termine darüber, kein Pool-Verbrauch)
  *   1. Vorjahresrest Entlastung (FIFO, verfällt 01.07.)
  *   2. VERHINDERUNG (§39, jährlich, eigener Tarif)
  *   3. Reguläre Entlastung (§45b, 131€/Monat)
@@ -13,7 +14,13 @@
 
 // ─── Types ──────────────────────────────────────────────────
 
-export type ServiceType = "ENTLASTUNG" | "KOMBI" | "VERHINDERUNG" | "PRIVAT";
+export type ServiceType = "ENTLASTUNG" | "KOMBI" | "VERHINDERUNG" | "PRIVAT" | "HAUSHALTSHILFE";
+
+export interface HaushaltshilfeVerordnung {
+  gueltig_von: string;    // YYYY-MM-DD
+  gueltig_bis: string;    // YYYY-MM-DD
+  max_dauer_stunden: number;
+}
 
 export interface Tariff {
   service_type: "ENTLASTUNG" | "KOMBI" | "VERHINDERUNG";
@@ -34,6 +41,7 @@ export interface KundeForAllocation {
   pflegesachleistung_genehmigt: boolean | null;
   initial_budget_entlastung: number | null;
   budget_prioritaet: string[] | null;
+  haushaltshilfe_verordnungen?: HaushaltshilfeVerordnung[] | null;
 }
 
 export interface TerminInput {
@@ -77,8 +85,21 @@ function r2(n: number): number {
 }
 
 function getActiveTariff(type: ServiceType, tariffs: Tariff[]): Tariff | undefined {
-  const lookup = type === "PRIVAT" ? "ENTLASTUNG" : type;
+  // HAUSHALTSHILFE und PRIVAT verwenden ENTLASTUNG-Tarif (kein eigener Tarif-Eintrag)
+  const lookup = (type === "PRIVAT" || type === "HAUSHALTSHILFE") ? "ENTLASTUNG" : type;
   return tariffs.find((t) => t.service_type === lookup && t.active);
+}
+
+/**
+ * Gibt die erste aktive Verordnung zurück, die das serviceDate abdeckt.
+ */
+function findActiveVerordnung(
+  serviceDate: string,
+  verordnungen: HaushaltshilfeVerordnung[],
+): HaushaltshilfeVerordnung | null {
+  return verordnungen.find(
+    (v) => v.gueltig_von <= serviceDate && v.gueltig_bis >= serviceDate,
+  ) ?? null;
 }
 
 // ─── Betragsberechnung ────────────────────────────────────────
@@ -275,6 +296,10 @@ function toBillingPositions(
  * FIFO-Budgetzuweisung für eine Menge von Terminen.
  * Portiert von computeYearBudgetAllocations in budgetCalculations.ts.
  *
+ * Priorität 0: §38 Haushaltshilfe (aktive Verordnung) — bypasses alle regulären Pools.
+ * Stunden werden auf max_dauer_stunden der Verordnung gekappt.
+ * HH-Termine erzeugen keine budget_transactions (separate Abrechnung zur Krankenkasse).
+ *
  * @param preConsumedEnt  Bereits abgerechnete ENTLASTUNG-€ im laufenden Jahr (vor Abrechnungszeitraum)
  * @param preConsumedVP   Bereits abgerechnete VERHINDERUNG-€ im laufenden Jahr (vor Abrechnungszeitraum)
  */
@@ -288,8 +313,9 @@ export function allocateTermine(
   preConsumedVP: number,
 ): TerminAllocationResult[] {
   const pg = kunde.pflegegrad ?? 0;
+  const verordnungen = kunde.haushaltshilfe_verordnungen ?? [];
 
-  // PG 0 oder fehlende Stammdaten → alles Privat
+  // PG 0 oder fehlende Stammdaten → alles Privat (HH §38 setzt PG voraus)
   if (pg === 0 || !tariffs.length || !careLevels.length) {
     return termine.map((t) => {
       const base = calculateAmount(t.hours, t.visits, "ENTLASTUNG", tariffs);
@@ -336,7 +362,7 @@ export function allocateTermine(
     const km = kombiMonthlyMax(pg, kunde.pflegesachleistung_genehmigt ?? false, careLevels);
     const vp = vpRemainingYear(pg, kunde.verhinderungspflege_genehmigt ?? false, consumedVP);
 
-    // Pools für diesen Monat (gemeinsam für alle Termine im Monat — KOMBI reset monatlich)
+    // Pools nur für reguläre Termine (HH-Termine bypasssen alle Pools)
     const pools = buildPools(
       kunde.budget_prioritaet,
       km,
@@ -347,6 +373,34 @@ export function allocateTermine(
     );
 
     for (const termin of monthTermine) {
+      // ── Priorität 0: §38 Haushaltshilfe ────────────────────────────────
+      const activeVerordnung = findActiveVerordnung(termin.serviceDate, verordnungen);
+      if (activeVerordnung) {
+        // Stunden auf max_dauer_stunden kappen (Abrechnung nach Verordnung)
+        const hhHours = r2(Math.min(termin.hours, activeVerordnung.max_dauer_stunden));
+        const amt = calculateAmount(hhHours, termin.visits, "HAUSHALTSHILFE", tariffs);
+        const mwst = calculateMwst(amt.total, pg);
+        results.push({
+          terminId: termin.id,
+          serviceDate: termin.serviceDate,
+          hours: hhHours,
+          visits: termin.visits,
+          positions: [{
+            serviceType: "HAUSHALTSHILFE",
+            amount: amt.total,
+            hourlyRate: amt.hourlyRate,
+            travelFlat: amt.travelFlat,
+            stunden: hhHours,
+            ...mwst,
+          }],
+          totalNet: amt.total,
+          totalMwst: mwst.mwstBetrag,
+          totalBrutto: mwst.bruttoBetrag,
+        });
+        continue; // Reguläre Pools werden nicht belastet
+      }
+
+      // ── Reguläre FIFO-Zuweisung ─────────────────────────────────────────
       const baseAmt = calculateAmount(termin.hours, termin.visits, "ENTLASTUNG", tariffs).total;
       const vpAmt = calculateAmount(termin.hours, termin.visits, "VERHINDERUNG", tariffs).total;
       const rawAllocs = fifoAssign(baseAmt, vpAmt, pools);

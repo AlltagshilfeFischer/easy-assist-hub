@@ -293,7 +293,7 @@ export interface BudgetManuellerEintrag {
 
 // ─── Pflegebudget ───────────────────────────────────────────
 
-export type ServiceType = 'ENTLASTUNG' | 'KOMBI' | 'VERHINDERUNG' | 'PRIVAT';
+export type ServiceType = 'ENTLASTUNG' | 'KOMBI' | 'VERHINDERUNG' | 'PRIVAT' | 'HAUSHALTSHILFE';
 export type TransactionSource = 'APLANO_IMPORT' | 'MANUAL';
 export type AllocationStatus = 'OK' | 'OPTIMIZE' | 'BUDGET_EXCEEDED';
 
