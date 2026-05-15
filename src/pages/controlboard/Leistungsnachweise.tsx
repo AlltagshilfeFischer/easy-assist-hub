@@ -403,7 +403,7 @@ export default function Leistungsnachweise() {
     },
   });
 
-  // GF-Unterschrift speichern → status = abgeschlossen
+  // GF zeichnet Canvas-Unterschrift (wenn MA nicht unterschrieben hat) → abgeschlossen
   const handleGfSignatur = async (dataUrl: string, durch: string) => {
     if (!selectedLN) return;
     const zeitstempel = new Date().toISOString();
@@ -424,6 +424,24 @@ export default function Leistungsnachweise() {
     }
     toast.success('GF-Unterschrift gespeichert — LN abgeschlossen');
     setShowGfSignatur(false);
+    setSelectedLN(data as LeistungsnachweisRow);
+    queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+  };
+
+  // GF bestätigt (wenn MA bereits unterschrieben hat) → nur abschließen, kein Canvas
+  const handleGfBestaetigen = async () => {
+    if (!selectedLN) return;
+    const { data, error } = await supabase
+      .from('leistungsnachweise')
+      .update({ status: 'abgeschlossen' })
+      .eq('id', selectedLN.id)
+      .select()
+      .single();
+    if (error) {
+      toast.error('Fehler', { description: error.message });
+      return;
+    }
+    toast.success('Leistungsnachweis abgeschlossen');
     setSelectedLN(data as LeistungsnachweisRow);
     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
   };
@@ -1383,34 +1401,57 @@ export default function Leistungsnachweise() {
                       )}
                     </div>
 
-                    {/* ── GF-UNTERSCHRIFT ── */}
+                    {/* ── MITARBEITER / GF ABSCHLUSS ── */}
                     <div className="rounded-lg border border-border p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium text-foreground">Geschäftsführung</p>
+                        <p className="text-xs font-medium text-foreground">
+                          {selectedLN.unterschrift_mitarbeiter_zeitstempel
+                            ? 'Mitarbeiter-Unterschrift'
+                            : 'GF-Abschluss'}
+                        </p>
                         {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
                           <span className="flex items-center gap-1 text-xs text-success font-medium">
-                            <CheckCircle2 className="h-3 w-3" /> Unterschrieben
+                            <CheckCircle2 className="h-3 w-3" /> Vorhanden
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Ausstehend</span>
+                          <span className="text-xs text-muted-foreground">
+                            {selectedLN.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Ausstehend'}
+                          </span>
                         )}
                       </div>
+
                       {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
-                        <div className="rounded-md border border-border bg-white p-3 flex flex-col items-center gap-2">
-                          {selectedLN.unterschrift_mitarbeiter_bild && (
-                            <img
-                              src={selectedLN.unterschrift_mitarbeiter_bild}
-                              alt="GF-Unterschrift"
-                              className="max-h-20 w-full object-contain"
-                            />
-                          )}
-                          <div className="w-full border-t border-dashed border-border pt-2 flex items-center justify-between text-xs text-muted-foreground">
-                            <span className="font-medium">{selectedLN.unterschrift_mitarbeiter_durch || '–'}</span>
-                            <span>{format(new Date(selectedLN.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
+                        /* MA hat unterschrieben → anzeigen + GF-Bestätigen */
+                        <div className="space-y-2">
+                          <div className="rounded-md border border-border bg-white p-3 flex flex-col items-center gap-2">
+                            {selectedLN.unterschrift_mitarbeiter_bild && (
+                              <img
+                                src={selectedLN.unterschrift_mitarbeiter_bild}
+                                alt="Mitarbeiter-Unterschrift"
+                                className="max-h-20 w-full object-contain"
+                              />
+                            )}
+                            <div className="w-full border-t border-dashed border-border pt-2 flex items-center justify-between text-xs text-muted-foreground">
+                              <span className="font-medium">{selectedLN.unterschrift_mitarbeiter_durch || '–'}</span>
+                              <span>{format(new Date(selectedLN.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
+                            </div>
                           </div>
+                          {selectedLN.status !== 'abgeschlossen' && (
+                            <Button
+                              className="w-full gap-2 h-10"
+                              onClick={handleGfBestaetigen}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              Bestätigen &amp; abschließen
+                            </Button>
+                          )}
                         </div>
                       ) : selectedLN.status !== 'abgeschlossen' ? (
+                        /* MA hat NICHT unterschrieben → GF muss Canvas-Unterschrift */
                         <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            Kein Mitarbeiter-Unterschrift — bitte GF-Unterschrift leisten.
+                          </p>
                           <Button
                             className="w-full gap-2 h-10"
                             variant={selectedLN.unterschrift_kunde_zeitstempel ? 'default' : 'outline'}

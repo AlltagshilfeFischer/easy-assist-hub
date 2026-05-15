@@ -294,7 +294,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
               </div>
             )}
           </div>
-          <p style={{ fontSize: '8px', marginTop: '1mm' }}>Unterschrift Geschäftsführung</p>
+          <p style={{ fontSize: '8px', marginTop: '1mm' }}>Unterschrift Mitarbeiter / GF</p>
           {nachweis.unterschrift_mitarbeiter_zeitstempel && (
             <p style={{ fontSize: '7px', color: '#666', marginTop: '0.5mm' }}>
               {format(new Date(nachweis.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm')} Uhr
