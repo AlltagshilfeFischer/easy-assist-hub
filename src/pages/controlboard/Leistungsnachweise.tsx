@@ -1023,7 +1023,14 @@ export default function Leistungsnachweise() {
                             aria-label={`${getKundeName(ln.kunden_id)} auswählen`}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">{getKundeName(ln.kunden_id)}</TableCell>
+                        <TableCell className="font-medium">
+                          {getKundeName(ln.kunden_id)}
+                          {ln.status !== 'offen' && (hoursByKunde.get(ln.kunden_id)?.geplant ?? 0) === 0 && (
+                            <span title="Keine Termine — LN trotzdem unterschrieben">
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 inline ml-1" />
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {kunde?.pflegegrad ? (
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted text-xs font-semibold text-foreground">
@@ -1114,6 +1121,16 @@ export default function Leistungsnachweise() {
                       </div>
                     )}
                   </div>
+
+                  {/* Warning: LN unterschrieben aber keine Termine mehr */}
+                  {selectedLN.status !== 'offen' && (hoursByKunde.get(selectedLN.kunden_id)?.geplant ?? 0) === 0 && (
+                    <Alert className="border-amber-200 bg-amber-50">
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      <AlertDescription className="text-sm text-amber-700">
+                        Dieser Leistungsnachweis hat keine Termine mehr — die Unterschrift bleibt trotzdem gültig.
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                   {/* Termine – wider table layout */}
                   <div>
