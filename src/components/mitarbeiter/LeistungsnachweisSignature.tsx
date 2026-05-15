@@ -44,14 +44,10 @@ export function LeistungsnachweisSignature() {
 
   const [activeSignatur, setActiveSignatur] = useState<{ lnId: string; type: 'kunde' | 'ma' } | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [hiddenKundeIds, setHiddenKundeIds] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('ln-ma-hidden-kunde') || '[]')); }
-    catch { return new Set(); }
-  });
-  const [hiddenMaIds, setHiddenMaIds] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('ln-ma-hidden-ma') || '[]')); }
-    catch { return new Set(); }
-  });
+  // In-memory only (kein localStorage) — wenn GF Unterschrift zurücksetzt,
+  // erscheint der LN beim nächsten Laden/Refresh automatisch wieder.
+  const [hiddenKundeIds, setHiddenKundeIds] = useState<Set<string>>(new Set());
+  const [hiddenMaIds, setHiddenMaIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const on = () => setIsOnline(true);
@@ -260,16 +256,16 @@ export function LeistungsnachweisSignature() {
 
   const hide = (id: string, type: 'kunde' | 'ma') => {
     if (type === 'kunde') {
-      setHiddenKundeIds(prev => { const n = new Set(prev); n.add(id); localStorage.setItem('ln-ma-hidden-kunde', JSON.stringify([...n])); return n; });
+      setHiddenKundeIds(prev => { const n = new Set(prev); n.add(id); return n; });
     } else {
-      setHiddenMaIds(prev => { const n = new Set(prev); n.add(id); localStorage.setItem('ln-ma-hidden-ma', JSON.stringify([...n])); return n; });
+      setHiddenMaIds(prev => { const n = new Set(prev); n.add(id); return n; });
     }
   };
   const unhide = (id: string, type: 'kunde' | 'ma') => {
     if (type === 'kunde') {
-      setHiddenKundeIds(prev => { const n = new Set(prev); n.delete(id); localStorage.setItem('ln-ma-hidden-kunde', JSON.stringify([...n])); return n; });
+      setHiddenKundeIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     } else {
-      setHiddenMaIds(prev => { const n = new Set(prev); n.delete(id); localStorage.setItem('ln-ma-hidden-ma', JSON.stringify([...n])); return n; });
+      setHiddenMaIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     }
   };
 
