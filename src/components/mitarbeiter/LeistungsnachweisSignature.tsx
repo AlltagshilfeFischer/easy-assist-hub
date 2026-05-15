@@ -1,43 +1,36 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { 
+import {
   FileText, PenLine, CheckCircle2, Clock,
-  Loader2, Trash2, Calendar, EyeOff, Eye, ChevronDown
+  Loader2, EyeOff, Eye, ChevronDown, RefreshCw, WifiOff
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import KundenSignaturPad from '@/components/leistungsnachweis/KundenSignaturPad';
 
 interface LNRow {
   id: string;
   kunden_id: string;
   monat: number;
   jahr: number;
-  geplante_stunden: number;
-  geleistete_stunden: number;
   status: string;
   unterschrift_kunde_bild: string | null;
   unterschrift_kunde_zeitstempel: string | null;
   unterschrift_kunde_durch: string | null;
-  // Computed from termine at query time (always current, not stale DB value)
+  frozen_geplante_stunden: number | null;
+  frozen_geleistete_stunden: number | null;
   computedGeplant: number;
   computedGeleistet: number;
 }
 
 interface Termin {
   id: string;
-  titel: string;
   start_at: string;
   end_at: string;
   status: string;
@@ -49,62 +42,49 @@ const monthNames = [
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
 ];
 
-const terminStatusLabel: Record<string, string> = {
-  completed: 'Stattgefunden',
-  scheduled: 'Geplant',
-  in_progress: 'Läuft',
-  nicht_angetroffen: 'Nicht angetroffen',
-  abgesagt_rechtzeitig: 'Rechtzeitig abgesagt',
-  cancelled: 'Abgesagt',
-};
-
 export function LeistungsnachweisSignature() {
   const { mitarbeiterId } = useUserRole();
   const queryClient = useQueryClient();
-  const [signDialogOpen, setSignDialogOpen] = useState(false);
+
   const [selectedLN, setSelectedLN] = useState<LNRow | null>(null);
-  const [signerName, setSignerName] = useState('');
+  const [showSignaturPad, setShowSignaturPad] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => {
     try {
-      const stored = localStorage.getItem('ln-hidden-ids');
+      const stored = localStorage.getItem('ln-ma-hidden-ids');
       return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch { return new Set(); }
   });
 
-  const hideNachweis = (id: string) => {
-    setHiddenIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      localStorage.setItem('ln-hidden-ids', JSON.stringify([...next]));
-      return next;
-    });
-    toast.success('Leistungsnachweis ausgeblendet');
-  };
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-  // Canvas refs
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const isDrawingRef = useRef(false);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-
-  // Fetch open leistungsnachweise, then filter to only those where
-  // this MA had termine in that specific month
+  // Fetch LNs without customer signature where this MA has termine
   const { data: nachweise, isLoading } = useQuery({
-    queryKey: ['mitarbeiter-leistungsnachweise', mitarbeiterId],
+    queryKey: ['ma-ln-kunden-unterschrift', mitarbeiterId],
     queryFn: async () => {
       if (!mitarbeiterId) return [];
 
-      // 1. Get alle LNs ohne Mitarbeiter-Unterschrift (unabhängig vom LN-Status)
+      // LNs ohne Kunden-Unterschrift, die nicht abgeschlossen sind
       const { data: allLN, error: lnError } = await supabase
         .from('leistungsnachweise')
-        .select('*')
-        .is('unterschrift_mitarbeiter_zeitstempel', null)
+        .select('id, kunden_id, monat, jahr, status, unterschrift_kunde_bild, unterschrift_kunde_zeitstempel, unterschrift_kunde_durch, frozen_geplante_stunden, frozen_geleistete_stunden')
+        .is('unterschrift_kunde_zeitstempel', null)
         .not('status', 'eq', 'abgeschlossen')
         .order('jahr', { ascending: false })
         .order('monat', { ascending: false });
       if (lnError) throw lnError;
       if (!allLN?.length) return [];
 
-      // 2. Get termine for this MA (with hours data for computation)
+      // Termine dieses Mitarbeiters
       const { data: myTermine, error: tError } = await supabase
         .from('termine')
         .select('kunden_id, start_at, end_at, status, iststunden')
@@ -112,7 +92,6 @@ export function LeistungsnachweisSignature() {
         .not('kunden_id', 'is', null);
       if (tError) throw tError;
 
-      // Build map of hours per "kundenId-monat-jahr" and set of matching keys
       const now = new Date();
       const myKeys = new Set<string>();
       const hoursMap = new Map<string, { geplant: number; geleistet: number }>();
@@ -123,20 +102,17 @@ export function LeistungsnachweisSignature() {
         myKeys.add(key);
 
         if (['cancelled', 'abgesagt_rechtzeitig'].includes(t.status)) continue;
-        const start = new Date(t.start_at);
-        const end = new Date(t.end_at);
-        const duration = (end.getTime() - start.getTime()) / 3600000;
+        const duration = (new Date(t.end_at).getTime() - new Date(t.start_at).getTime()) / 3600000;
         const cur = hoursMap.get(key) || { geplant: 0, geleistet: 0 };
         cur.geplant += duration;
-        const effectiveStatus = (t.status === 'scheduled' && end < now) ? 'completed' : t.status;
+        const effectiveStatus = t.status === 'scheduled' && new Date(t.end_at) < now ? 'completed' : t.status;
         if (['completed', 'nicht_angetroffen'].includes(effectiveStatus)) {
           cur.geleistet += t.iststunden ? Number(t.iststunden) : duration;
         }
         hoursMap.set(key, cur);
       }
 
-      // 3. Filter LN to only those matching and attach computed hours
-      return (allLN as Omit<LNRow, 'computedGeplant' | 'computedGeleistet'>[])
+      return allLN
         .filter(ln => myKeys.has(`${ln.kunden_id}-${ln.monat}-${ln.jahr}`))
         .map(ln => {
           const h = hoursMap.get(`${ln.kunden_id}-${ln.monat}-${ln.jahr}`) || { geplant: 0, geleistet: 0 };
@@ -147,31 +123,19 @@ export function LeistungsnachweisSignature() {
           } as LNRow;
         });
     },
-    enabled: !!mitarbeiterId
+    enabled: !!mitarbeiterId,
   });
 
-  // Fetch customer names
-  const { data: kunden } = useQuery({
-    queryKey: ['mitarbeiter-kunden-names'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('kunden')
-        .select('id, vorname, nachname, name');
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  // Fetch termine for selected LN
+  // Termine für das ausgewählte LN (für das Signatur-Pad)
   const { data: termine } = useQuery({
-    queryKey: ['ln-termine-sign', selectedLN?.kunden_id, selectedLN?.monat, selectedLN?.jahr],
+    queryKey: ['ma-ln-termine', selectedLN?.kunden_id, selectedLN?.monat, selectedLN?.jahr],
     queryFn: async () => {
       if (!selectedLN) return [];
       const von = new Date(selectedLN.jahr, selectedLN.monat - 1, 1).toISOString();
       const bis = new Date(selectedLN.jahr, selectedLN.monat, 0, 23, 59, 59).toISOString();
       const { data, error } = await supabase
         .from('termine')
-        .select('id, titel, start_at, end_at, status, iststunden')
+        .select('id, start_at, end_at, status, iststunden')
         .eq('kunden_id', selectedLN.kunden_id)
         .gte('start_at', von)
         .lte('start_at', bis)
@@ -179,106 +143,119 @@ export function LeistungsnachweisSignature() {
       if (error) throw error;
       return data as Termin[];
     },
-    enabled: !!selectedLN
+    enabled: !!selectedLN,
   });
 
-  // Sign mutation — speichert als Mitarbeiter-Unterschrift (eigene Felder)
-  const signMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedLN || !canvasRef.current) throw new Error('Keine Daten');
-      const signatureData = canvasRef.current.toDataURL('image/png');
-
-      const { error } = await supabase
-        .from('leistungsnachweise')
-        .update({
-          unterschrift_mitarbeiter_bild: signatureData,
-          unterschrift_mitarbeiter_zeitstempel: new Date().toISOString(),
-          unterschrift_mitarbeiter_durch: signerName.trim() || 'Mitarbeiter',
-        })
-        .eq('id', selectedLN.id);
+  const { data: kunden } = useQuery({
+    queryKey: ['kunden-names-ma'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kunden')
+        .select('id, vorname, nachname, name');
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      toast.success('Leistungsnachweis unterschrieben');
-      setSignDialogOpen(false);
-      setSelectedLN(null);
-      queryClient.invalidateQueries({ queryKey: ['mitarbeiter-leistungsnachweise'] });
-    },
-    onError: (err) => {
-      toast.error('Fehler', { description: err instanceof Error ? err.message : 'Unbekannt' });
-    }
   });
-
-  // Canvas drawing
-  const initCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
-    ctx.strokeStyle = '#1a1a1a';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-  }, []);
-
-  useEffect(() => {
-    if (signDialogOpen) {
-      const timerId = setTimeout(initCanvas, 100);
-      return () => clearTimeout(timerId);
-    }
-  }, [signDialogOpen, initCanvas]);
-
-  const getPos = (e: React.TouchEvent | React.MouseEvent): { x: number; y: number } => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-
-  const startDraw = (e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
-    isDrawingRef.current = true;
-    lastPointRef.current = getPos(e);
-  };
-
-  const draw = (e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
-    if (!isDrawingRef.current || !lastPointRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!ctx) return;
-    const pos = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    lastPointRef.current = pos;
-  };
-
-  const endDraw = () => {
-    isDrawingRef.current = false;
-    lastPointRef.current = null;
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!ctx || !canvas) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
 
   const getKundeName = (kundenId: string) => {
     const k = kunden?.find(c => c.id === kundenId);
     if (!k) return 'Unbekannt';
     if (k.vorname && k.nachname) return `${k.vorname} ${k.nachname}`;
     return k.name || 'Unbekannt';
+  };
+
+  const syncSignatureToDb = async (lnId: string, data: { dataUrl: string; zeitstempel: string; durch: string; frozenGeplant: number; frozenGeleistet: number }) => {
+    const { error } = await supabase
+      .from('leistungsnachweise')
+      .update({
+        unterschrift_kunde_bild: data.dataUrl,
+        unterschrift_kunde_zeitstempel: data.zeitstempel,
+        unterschrift_kunde_durch: data.durch,
+        status: 'unterschrieben',
+        frozen_geplante_stunden: data.frozenGeplant,
+        frozen_geleistete_stunden: data.frozenGeleistet,
+      })
+      .eq('id', lnId);
+    if (error) throw error;
+  };
+
+  // Auto-sync pending signatures on reconnect
+  useEffect(() => {
+    if (!isOnline) return;
+    const syncPending = async () => {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('pending_ma_sig_'));
+      if (!keys.length) return;
+      for (const key of keys) {
+        const lnId = key.replace('pending_ma_sig_', '');
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '');
+          await syncSignatureToDb(lnId, data);
+          localStorage.removeItem(key);
+          toast.success('Unterschrift erfolgreich synchronisiert');
+        } catch (err) {
+          console.error('Sync fehlgeschlagen:', lnId, err);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['ma-ln-kunden-unterschrift'] });
+    };
+    syncPending();
+  }, [isOnline]);
+
+  const hasPendingSignatures = useMemo(
+    () => Object.keys(localStorage).some(k => k.startsWith('pending_ma_sig_')),
+    [isOnline]
+  );
+
+  const handleKundenSignatur = async (dataUrl: string, durch: string) => {
+    if (!selectedLN) return;
+    const zeitstempel = new Date().toISOString();
+    const pendingData = {
+      dataUrl,
+      zeitstempel,
+      durch,
+      frozenGeplant: selectedLN.computedGeplant,
+      frozenGeleistet: selectedLN.computedGeleistet,
+    };
+
+    localStorage.setItem(`pending_ma_sig_${selectedLN.id}`, JSON.stringify(pendingData));
+    setShowSignaturPad(false);
+    setSelectedLN(null);
+
+    if (isOnline) {
+      try {
+        await syncSignatureToDb(selectedLN.id, pendingData);
+        localStorage.removeItem(`pending_ma_sig_${selectedLN.id}`);
+        toast.success('Unterschrift gespeichert');
+      } catch {
+        toast.success('Unterschrift lokal gespeichert', {
+          description: 'Wird automatisch synchronisiert, sobald Internet verfügbar ist.',
+        });
+      }
+    } else {
+      toast.success('Unterschrift lokal gespeichert', {
+        description: 'Wird automatisch synchronisiert, sobald Internet verfügbar ist.',
+      });
+    }
+    queryClient.invalidateQueries({ queryKey: ['ma-ln-kunden-unterschrift'] });
+  };
+
+  const hideNachweis = (id: string) => {
+    setHiddenIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem('ln-ma-hidden-ids', JSON.stringify([...next]));
+      return next;
+    });
+    toast.success('Leistungsnachweis ausgeblendet');
+  };
+
+  const unhideNachweis = (id: string) => {
+    setHiddenIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      localStorage.setItem('ln-ma-hidden-ids', JSON.stringify([...next]));
+      return next;
+    });
   };
 
   if (isLoading) {
@@ -294,62 +271,73 @@ export function LeistungsnachweisSignature() {
   const pendingNachweise = nachweise?.filter(n => !hiddenIds.has(n.id)) || [];
   const hiddenNachweise = nachweise?.filter(n => hiddenIds.has(n.id)) || [];
 
-  const unhideNachweis = (id: string) => {
-    setHiddenIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      localStorage.setItem('ln-hidden-ids', JSON.stringify([...next]));
-      return next;
-    });
-  };
-
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Leistungsnachweise
+            Leistungsnachweise — Kunden-Unterschrift
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          {/* Sync-Status */}
+          {hasPendingSignatures && isOnline && (
+            <div className="flex items-center gap-2 text-xs rounded-md border border-primary/30 bg-primary/10 px-3 py-2">
+              <RefreshCw className="h-3.5 w-3.5 text-primary animate-spin" />
+              <span className="text-primary font-medium">Ausstehende Unterschriften werden synchronisiert…</span>
+            </div>
+          )}
+          {hasPendingSignatures && !isOnline && (
+            <div className="flex items-center gap-2 text-xs rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700">
+              <WifiOff className="h-3.5 w-3.5 shrink-0" />
+              <span>Offline — Unterschriften werden bei Verbindung synchronisiert.</span>
+            </div>
+          )}
+
           {!pendingNachweise.length ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Keine offenen Leistungsnachweise zur Unterschrift
+              Keine Leistungsnachweise ausstehend — alle Kunden haben unterschrieben.
             </p>
           ) : (
             <div className="space-y-2">
               {pendingNachweise.map(ln => (
                 <div key={ln.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <p className="font-medium">{getKundeName(ln.kunden_id)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {monthNames[ln.monat - 1]} {ln.jahr} • {ln.computedGeleistet}h geleistet ({ln.computedGeplant}h geplant)
+                    <p className="font-medium text-sm">{getKundeName(ln.kunden_id)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {monthNames[ln.monat - 1]} {ln.jahr}
+                      {' · '}
+                      <span className="font-medium">{ln.computedGeleistet.toFixed(1)} h</span> geleistet
+                      {' · '}
+                      {ln.computedGeplant.toFixed(1)} h geplant
                     </p>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 shrink-0">
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-muted-foreground"
+                      className="text-muted-foreground h-8 w-8 p-0"
                       onClick={() => hideNachweis(ln.id)}
                       title="Ausblenden"
                     >
-                      <EyeOff className="h-4 w-4" />
+                      <EyeOff className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => { setSelectedLN(ln); setSignDialogOpen(true); }}
+                      onClick={() => { setSelectedLN(ln); setShowSignaturPad(true); }}
                     >
-                      <PenLine className="h-4 w-4 mr-1" /> Unterschreiben
+                      <PenLine className="h-3.5 w-3.5 mr-1.5" />
+                      Unterschreiben lassen
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
           )}
+
           {hiddenNachweise.length > 0 && (
-            <Collapsible className="mt-4">
+            <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full">
                 <ChevronDown className="h-3 w-3" />
                 {hiddenNachweise.length} ausgeblendet
@@ -364,12 +352,7 @@ export function LeistungsnachweisSignature() {
                           {monthNames[ln.monat - 1]} {ln.jahr}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-xs"
-                        onClick={() => unhideNachweis(ln.id)}
-                      >
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => unhideNachweis(ln.id)}>
                         <Eye className="h-3.5 w-3.5 mr-1" /> Einblenden
                       </Button>
                     </div>
@@ -381,101 +364,20 @@ export function LeistungsnachweisSignature() {
         </CardContent>
       </Card>
 
-      {/* Signature Dialog */}
-      <Dialog open={signDialogOpen} onOpenChange={setSignDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Leistungsnachweis unterschreiben</DialogTitle>
-          </DialogHeader>
-
-          {selectedLN && (
-            <ScrollArea className="max-h-[70vh]">
-              <div className="space-y-4 p-1">
-                <Card>
-                  <CardContent className="p-3">
-                    <p className="font-medium">{getKundeName(selectedLN.kunden_id)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {monthNames[selectedLN.monat - 1]} {selectedLN.jahr}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <div className="bg-muted/50 p-3 rounded-lg text-sm">
-                  <p className="font-medium mb-2">
-                    Ich bestätige, dass folgende Termine stattgefunden haben:
-                  </p>
-
-                  {!termine?.length ? (
-                    <p className="text-muted-foreground">Keine Termine</p>
-                  ) : (
-                    <div className="space-y-1 max-h-48 overflow-auto">
-                      {termine.map(t => {
-                        const start = new Date(t.start_at);
-                        const end = new Date(t.end_at);
-                        return (
-                          <div key={t.id} className="flex items-center justify-between py-1 border-b last:border-0">
-                            <span>
-                              {format(start, 'dd.MM.', { locale: de })} {format(start, 'HH:mm')}–{format(end, 'HH:mm')}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {terminStatusLabel[t.status] || t.status}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Ihr Name (Mitarbeiter)</Label>
-                  <Input
-                    value={signerName}
-                    onChange={e => setSignerName(e.target.value)}
-                    placeholder="Vor- und Nachname"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Unterschrift</Label>
-                    <Button variant="ghost" size="sm" onClick={clearCanvas}>
-                      <Trash2 className="h-3 w-3 mr-1" /> Löschen
-                    </Button>
-                  </div>
-                  <div className="border-2 border-dashed rounded-lg bg-white">
-                    <canvas
-                      ref={canvasRef}
-                      className="w-full h-40 touch-none cursor-crosshair"
-                      onMouseDown={startDraw}
-                      onMouseMove={draw}
-                      onMouseUp={endDraw}
-                      onMouseLeave={endDraw}
-                      onTouchStart={startDraw}
-                      onTouchMove={draw}
-                      onTouchEnd={endDraw}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Bitte hier unterschreiben (Touch oder Maus)
-                  </p>
-                </div>
-              </div>
-            </ScrollArea>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSignDialogOpen(false)}>Abbrechen</Button>
-            <Button
-              onClick={() => signMutation.mutate()}
-              disabled={signMutation.isPending || !signerName.trim()}
-            >
-              {signMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PenLine className="h-4 w-4 mr-2" />}
-              Unterschreiben & Bestätigen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Vollbild-Signaturpad für den Kunden */}
+      {showSignaturPad && selectedLN && (
+        <KundenSignaturPad
+          kundeName={getKundeName(selectedLN.kunden_id)}
+          monat={selectedLN.monat}
+          jahr={selectedLN.jahr}
+          termine={termine || []}
+          liveGeleistet={selectedLN.computedGeleistet}
+          isOnline={isOnline}
+          onConfirm={handleKundenSignatur}
+          onCancel={() => { setShowSignaturPad(false); setSelectedLN(null); }}
+          showHinweis
+        />
+      )}
     </>
   );
 }

@@ -123,6 +123,7 @@ export default function Leistungsnachweise() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showStornierConfirm, setShowStornierConfirm] = useState(false);
   const [showKundenSignatur, setShowKundenSignatur] = useState(false);
+  const [showGfSignatur, setShowGfSignatur] = useState(false);
 
   // Online status tracking
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -401,6 +402,31 @@ export default function Leistungsnachweise() {
       toast.error('Fehler', { description: err instanceof Error ? err.message : 'Unbekannt' });
     },
   });
+
+  // GF-Unterschrift speichern → status = abgeschlossen
+  const handleGfSignatur = async (dataUrl: string, durch: string) => {
+    if (!selectedLN) return;
+    const zeitstempel = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('leistungsnachweise')
+      .update({
+        unterschrift_mitarbeiter_bild: dataUrl,
+        unterschrift_mitarbeiter_zeitstempel: zeitstempel,
+        unterschrift_mitarbeiter_durch: durch,
+        status: 'abgeschlossen',
+      })
+      .eq('id', selectedLN.id)
+      .select()
+      .single();
+    if (error) {
+      toast.error('Fehler beim Speichern der GF-Unterschrift', { description: error.message });
+      return;
+    }
+    toast.success('GF-Unterschrift gespeichert — LN abgeschlossen');
+    setShowGfSignatur(false);
+    setSelectedLN(data as LeistungsnachweisRow);
+    queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+  };
 
   // Bulk close mutation: set selected LNs to abgeschlossen
   const bulkCloseMutation = useMutation({
@@ -1295,6 +1321,11 @@ export default function Leistungsnachweise() {
                               <span>{format(new Date(selectedLN.unterschrift_kunde_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
                             </div>
                           </div>
+                          {selectedLN.status !== 'abgeschlossen' && (
+                            <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
+                              Diese Unterschrift bleibt gültig, auch wenn sich Termine noch ändern.
+                            </p>
+                          )}
                           {selectedLN.status === 'unterschrieben' && !showStornierConfirm && (
                             <Button
                               variant="outline"
@@ -1352,16 +1383,16 @@ export default function Leistungsnachweise() {
                       )}
                     </div>
 
-                    {/* ── MITARBEITER-UNTERSCHRIFT ── */}
+                    {/* ── GF-UNTERSCHRIFT ── */}
                     <div className="rounded-lg border border-border p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium text-foreground">Mitarbeiter</p>
+                        <p className="text-xs font-medium text-foreground">Geschäftsführung</p>
                         {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
                           <span className="flex items-center gap-1 text-xs text-success font-medium">
                             <CheckCircle2 className="h-3 w-3" /> Unterschrieben
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Ausstehend (MA-Bereich)</span>
+                          <span className="text-xs text-muted-foreground">Ausstehend</span>
                         )}
                       </div>
                       {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
@@ -1369,7 +1400,7 @@ export default function Leistungsnachweise() {
                           {selectedLN.unterschrift_mitarbeiter_bild && (
                             <img
                               src={selectedLN.unterschrift_mitarbeiter_bild}
-                              alt="Mitarbeiter-Unterschrift"
+                              alt="GF-Unterschrift"
                               className="max-h-20 w-full object-contain"
                             />
                           )}
@@ -1378,9 +1409,25 @@ export default function Leistungsnachweise() {
                             <span>{format(new Date(selectedLN.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
                           </div>
                         </div>
+                      ) : selectedLN.status !== 'abgeschlossen' ? (
+                        <div className="space-y-2">
+                          <Button
+                            className="w-full gap-2 h-10"
+                            variant={selectedLN.unterschrift_kunde_zeitstempel ? 'default' : 'outline'}
+                            onClick={() => setShowGfSignatur(true)}
+                          >
+                            <PenLine className="h-4 w-4" />
+                            GF unterschreiben &amp; abschließen
+                          </Button>
+                          {!selectedLN.unterschrift_kunde_zeitstempel && (
+                            <p className="text-xs text-amber-600 text-center">
+                              Hinweis: Kunden-Unterschrift fehlt noch.
+                            </p>
+                          )}
+                        </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Wird vom Mitarbeiter im „Mein Bereich" unterschrieben.
+                        <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+                          Leistungsnachweis abgeschlossen.
                         </p>
                       )}
                     </div>
@@ -1469,6 +1516,22 @@ export default function Leistungsnachweise() {
           isOnline={isOnline}
           onConfirm={handleKundenSignatur}
           onCancel={() => setShowKundenSignatur(false)}
+          showHinweis
+        />
+      )}
+
+      {/* GF-Unterschrift Vollbild-Overlay */}
+      {showGfSignatur && selectedLN && (
+        <KundenSignaturPad
+          kundeName={getKundeName(selectedLN.kunden_id)}
+          monat={selectedLN.monat}
+          jahr={selectedLN.jahr}
+          termine={filteredTermine}
+          liveGeleistet={displayHours.geleistet}
+          isOnline={isOnline}
+          onConfirm={handleGfSignatur}
+          onCancel={() => setShowGfSignatur(false)}
+          headerTitle={`GF-Unterschrift: ${getKundeName(selectedLN.kunden_id)} — ${monthNames[selectedLN.monat - 1]} ${selectedLN.jahr}`}
         />
       )}
     </div>

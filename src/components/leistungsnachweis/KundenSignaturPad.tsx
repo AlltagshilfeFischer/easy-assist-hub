@@ -22,6 +22,8 @@ interface Props {
   isOnline: boolean;
   onConfirm: (dataUrl: string, signerName: string) => void;
   onCancel: () => void;
+  headerTitle?: string;
+  showHinweis?: boolean;
 }
 
 const monthNames = [
@@ -40,6 +42,8 @@ export default function KundenSignaturPad({
   isOnline,
   onConfirm,
   onCancel,
+  headerTitle,
+  showHinweis = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
@@ -169,7 +173,7 @@ export default function KundenSignaturPad({
           <PenLine className="h-5 w-5 text-blue-600 shrink-0" />
           <div className="min-w-0">
             <p className="font-semibold text-gray-900 truncate text-sm sm:text-base">
-              Unterschrift: {kundeName}
+              {headerTitle ?? `Unterschrift: ${kundeName}`}
             </p>
             <p className="text-xs text-gray-500">
               {monthNames[monat - 1]} {jahr}
@@ -235,6 +239,16 @@ export default function KundenSignaturPad({
           </div>
         </div>
       </div>
+
+      {/* Hinweis: Unterschrift bleibt gültig auch bei Terminänderungen */}
+      {showHinweis && (
+        <div className="px-4 py-2 shrink-0">
+          <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>Hinweis: Geplante Termine können sich noch ändern — diese Unterschrift bleibt trotzdem gültig.</span>
+          </div>
+        </div>
+      )}
 
       {/* Canvas — nimmt den gesamten verbleibenden Platz */}
       <div className="flex-1 relative bg-white min-h-0">

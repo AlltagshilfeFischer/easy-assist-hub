@@ -278,11 +278,11 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
           )}
         </div>
 
-        {/* Mitarbeiter */}
+        {/* GF-Signatur */}
         <div style={{ flex: 1 }}>
           <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
             {nachweis.unterschrift_mitarbeiter_bild ? (
-              <img src={nachweis.unterschrift_mitarbeiter_bild} alt="Mitarbeiter-Unterschrift" style={{ maxHeight: '14mm', maxWidth: '100%' }} />
+              <img src={nachweis.unterschrift_mitarbeiter_bild} alt="GF-Unterschrift" style={{ maxHeight: '14mm', maxWidth: '100%' }} />
             ) : (
               <div style={{
                 width: '100%', height: '13mm',
@@ -294,7 +294,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
               </div>
             )}
           </div>
-          <p style={{ fontSize: '8px', marginTop: '1mm' }}>Unterschrift Mitarbeiter</p>
+          <p style={{ fontSize: '8px', marginTop: '1mm' }}>Unterschrift Geschäftsführung</p>
           {nachweis.unterschrift_mitarbeiter_zeitstempel && (
             <p style={{ fontSize: '7px', color: '#666', marginTop: '0.5mm' }}>
               {format(new Date(nachweis.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm')} Uhr
