@@ -57,9 +57,9 @@ export function AbwesenheitGenehmigung() {
           .from('termine')
           .select('id')
           .eq('mitarbeiter_id', request.mitarbeiter_id)
+          .eq('status', 'scheduled')
           .gte('start_at', startDate.toISOString())
-          .lte('start_at', endDate.toISOString())
-          .not('status', 'in', '("cancelled","completed","abgerechnet","bezahlt")');
+          .lte('start_at', endDate.toISOString());
 
         if (overlapping?.length) {
           const ids = overlapping.map(t => t.id);
@@ -100,6 +100,7 @@ export function AbwesenheitGenehmigung() {
     onSuccess: () => {
       toast.success('Abwesenheit genehmigt – betroffene Termine wurden freigegeben');
       queryClient.invalidateQueries({ queryKey: ['pending-absence-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['termine'] });
     },
     onError: () => toast.error('Fehler beim Genehmigen'),
   });

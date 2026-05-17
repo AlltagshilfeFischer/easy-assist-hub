@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Palmtree, Plus, Loader2, CalendarDays, Trash2, Users } from 'lucide-react';
+import { Palmtree, Plus, Loader2, CalendarDays, Trash2, Search } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type Abwesenheit = Database['public']['Tables']['mitarbeiter_abwesenheiten']['Row'] & {
@@ -21,6 +21,8 @@ type Abwesenheit = Database['public']['Tables']['mitarbeiter_abwesenheiten']['Ro
 };
 
 type Mitarbeiter = { id: string; vorname: string | null; nachname: string | null };
+
+type ZeitraumFilter = 'aktuell' | 'vergangen' | 'alle';
 
 const TYP_OPTIONS = [
   { value: 'urlaub', label: 'Urlaub' },
@@ -34,7 +36,6 @@ function getTypLabel(t: string) {
 }
 
 interface AbwesenheitVerwaltungProps {
-  /** Im Sheet eingebettet — kein Card-Wrapper, kein doppelter Titel */
   embedded?: boolean;
 }
 
@@ -42,12 +43,15 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [filterMaId, setFilterMaId] = useState<string>('alle');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [zeitraumFilter, setZeitraumFilter] = useState<ZeitraumFilter>('aktuell');
   const [selectedMaId, setSelectedMaId] = useState('');
   const [von, setVon] = useState('');
   const [bis, setBis] = useState('');
   const [typ, setTyp] = useState('urlaub');
   const [grund, setGrund] = useState('');
+
+  const today = new Date().toISOString().split('T')[0];
 
   const { data: mitarbeiterList = [] } = useQuery<Mitarbeiter[]>({
     queryKey: ['mitarbeiter-liste'],
@@ -62,12 +66,20 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
   });
 
   const { data: abwesenheiten = [], isLoading } = useQuery<Abwesenheit[]>({
-    queryKey: ['alle-abwesenheiten'],
+    queryKey: ['alle-abwesenheiten', zeitraumFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('mitarbeiter_abwesenheiten')
         .select('*, mitarbeiter:mitarbeiter_id(id, vorname, nachname)')
         .order('von', { ascending: false });
+
+      if (zeitraumFilter === 'aktuell') {
+        query = query.gte('bis', today);
+      } else if (zeitraumFilter === 'vergangen') {
+        query = query.lt('bis', today);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as Abwesenheit[];
     },
@@ -99,14 +111,18 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
         });
       if (error) throw error;
 
-      // Überlappende aktive Termine des MA auf unassigned setzen
-      const { data: overlapping } = await supabase
+      // Nur scheduled Termine freigeben — completed, cancelled, etc. bleiben unberührt
+      const { data: overlapping, error: selectError } = await supabase
         .from('termine')
         .select('id')
         .eq('mitarbeiter_id', selectedMaId)
+        .eq('status', 'scheduled')
         .gte('start_at', startDate.toISOString())
-        .lte('start_at', endDate.toISOString())
-        .not('status', 'in', '("cancelled","completed","abgerechnet","bezahlt")');
+        .lte('start_at', endDate.toISOString());
+
+      if (selectError) {
+        console.error('Termine-Abfrage fehlgeschlagen:', selectError);
+      }
 
       if (overlapping?.length) {
         const ids = overlapping.map((t) => t.id);
@@ -116,7 +132,6 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
           .in('id', ids);
         if (unassignError) throw unassignError;
 
-        // Historie: Für jeden freigegebenen Termin einen Eintrag schreiben
         const typLabel = TYP_OPTIONS.find((o) => o.value === typ)?.label ?? typ;
         const reason = `Automatisch freigegeben: Abwesenheit ${typLabel} ${von} – ${bis}`;
         const { error: historyError } = await supabase.from('termin_aenderungen').insert(
@@ -133,12 +148,19 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
         );
         if (historyError) throw historyError;
       }
+
+      return overlapping?.length ?? 0;
     },
-    onSuccess: () => {
-      toast.success('Abwesenheit eingetragen');
+    onSuccess: (movedCount) => {
+      const msg =
+        movedCount > 0
+          ? `Abwesenheit eingetragen — ${movedCount} Termin${movedCount !== 1 ? 'e' : ''} freigegeben`
+          : 'Abwesenheit eingetragen';
+      toast.success(msg);
       setDialogOpen(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['alle-abwesenheiten'] });
+      queryClient.invalidateQueries({ queryKey: ['termine'] });
     },
     onError: (err) => {
       toast.error('Fehler', { description: err instanceof Error ? err.message : 'Unbekannt' });
@@ -170,27 +192,47 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
     return `${ma.vorname ?? ''} ${ma.nachname ?? ''}`.trim() || 'Unbekannt';
   }
 
-  const filtered = filterMaId === 'alle'
-    ? abwesenheiten
-    : abwesenheiten.filter((a) => a.mitarbeiter_id === filterMaId);
+  const filtered = abwesenheiten.filter((a) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const name = getMaName(a.mitarbeiter).toLowerCase();
+    const typStr = getTypLabel(a.typ ?? '').toLowerCase();
+    return name.includes(q) || typStr.includes(q);
+  });
+
+  const zeitraumTabs: { value: ZeitraumFilter; label: string }[] = [
+    { value: 'aktuell', label: 'Aktuell' },
+    { value: 'vergangen', label: 'Vergangen' },
+    { value: 'alle', label: 'Alle' },
+  ];
 
   const toolbar = (
-    <div className="flex items-center gap-2">
-      <Select value={filterMaId} onValueChange={setFilterMaId}>
-        <SelectTrigger className="w-44 h-8 text-sm">
-          <Users className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-          <SelectValue placeholder="Alle Mitarbeiter" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="alle">Alle Mitarbeiter</SelectItem>
-          {mitarbeiterList.map((ma) => (
-            <SelectItem key={ma.id} value={ma.id}>
-              {getMaName(ma)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button size="sm" onClick={() => setDialogOpen(true)}>
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="relative flex-1 min-w-40">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          className="pl-8 h-8 text-sm"
+          placeholder="Name oder Typ suchen…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+      <div className="flex border rounded-md overflow-hidden h-8 shrink-0">
+        {zeitraumTabs.map((tab) => (
+          <button
+            key={tab.value}
+            className={`px-3 text-xs font-medium transition-colors ${
+              zeitraumFilter === tab.value
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+            onClick={() => setZeitraumFilter(tab.value)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <Button size="sm" className="shrink-0" onClick={() => setDialogOpen(true)}>
         <Plus className="h-4 w-4 mr-1" />
         Eintragen
       </Button>
@@ -203,7 +245,7 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
     </div>
   ) : !filtered.length ? (
     <p className="text-sm text-muted-foreground text-center py-4">
-      Keine Abwesenheiten vorhanden
+      {searchQuery.trim() ? 'Keine Treffer für Ihre Suche' : 'Keine Abwesenheiten vorhanden'}
     </p>
   ) : (
     <div className="space-y-2">
@@ -215,7 +257,7 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
               <p className="font-medium text-sm truncate">
                 {getMaName(a.mitarbeiter)}
                 <span className="text-muted-foreground font-normal">
-                  {' '}— {getTypLabel(a.typ)}
+                  {' '}— {getTypLabel(a.typ ?? '')}
                 </span>
                 {a.grund && (
                   <span className="text-muted-foreground font-normal"> ({a.grund})</span>
@@ -250,25 +292,23 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
   return (
     <>
       {embedded ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            {toolbar}
-          </div>
+        <div className="space-y-3">
+          {toolbar}
           {list}
         </div>
       ) : (
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <CardTitle className="flex items-center gap-2 flex-1">
-              <Palmtree className="h-5 w-5 text-emerald-600" />
-              Abwesenheiten verwalten
-            </CardTitle>
-            {toolbar}
-          </div>
-        </CardHeader>
-        <CardContent>{list}</CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Palmtree className="h-5 w-5 text-emerald-600" />
+                Abwesenheiten verwalten
+              </CardTitle>
+              {toolbar}
+            </div>
+          </CardHeader>
+          <CardContent>{list}</CardContent>
+        </Card>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>

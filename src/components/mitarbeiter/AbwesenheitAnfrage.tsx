@@ -79,9 +79,9 @@ export function AbwesenheitAnfrage({ directEntry = false }: AbwesenheitAnfragePr
           .from('termine')
           .select('id')
           .eq('mitarbeiter_id', mitarbeiterId)
+          .eq('status', 'scheduled')
           .gte('start_at', startDate.toISOString())
-          .lte('start_at', endDate.toISOString())
-          .not('status', 'in', '("cancelled","completed","abgerechnet","bezahlt")');
+          .lte('start_at', endDate.toISOString());
 
         if (overlapping?.length) {
           const ids = overlapping.map(t => t.id);
