@@ -30,6 +30,7 @@ function isProtectedUser(m: Mitarbeiter): boolean {
 
 interface Mitarbeiter {
   id: string;
+  titel: string | null;
   vorname: string | null;
   nachname: string | null;
   ist_aktiv: boolean;

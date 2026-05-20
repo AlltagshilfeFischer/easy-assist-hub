@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { MitarbeiterFormValues } from './mitarbeiterFormSchema';
+import { MITARBEITER_TITEL } from './mitarbeiterFormSchema';
 
 const KALENDER_FARBEN = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
@@ -24,6 +25,18 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-foreground">Name <span className="text-xs font-normal text-muted-foreground">(Pflichtfelder)</span></legend>
 
+        <div className="space-y-1.5">
+          <Label>Titel / Präfix</Label>
+          <Select value={watch('titel') || ''} onValueChange={(v) => setValue('titel', v)}>
+            <SelectTrigger><SelectValue placeholder="Kein Titel" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Kein Titel</SelectItem>
+              {MITARBEITER_TITEL.map(t => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Vorname *</Label>

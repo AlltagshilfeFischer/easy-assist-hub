@@ -1,5 +1,13 @@
 # Code Style – Alltagshilfe Fischer
 
+## Regex & Validierung
+- **`\b` (Word-Boundary) NICHT mit optionalem Punkt kombinieren**: `\bDr\.?\b` matcht "Dr." NICHT,
+  weil `.` kein `\w`-Zeichen ist — nach dem Punkt gibt es keinen `\w`→`\W`-Übergang mehr.
+  Stattdessen: positional anchors verwenden, z.B. `(?:^|\s)Dr\.?\s` (Titel muss von Leerzeichen gefolgt werden).
+- **Stilistische Validierungen nicht als Blocker einbauen**: Regeln wie "Mixed Case" oder "kein Allcaps"
+  haben zu viele Ausnahmen (kurze Namen, internationale Namen, Abkürzungen) und frustrieren Nutzer.
+  Nur Regeln mit klarer Semantik als harte Fehler behandeln (z.B. "kein Titel im Namensfeld").
+
 ## TypeScript
 - **Kein `any`** — immer Typen aus `src/integrations/supabase/types.ts` oder `src/types/domain.ts`
 - Interfaces ueber Type-Aliases fuer Objekte bevorzugen

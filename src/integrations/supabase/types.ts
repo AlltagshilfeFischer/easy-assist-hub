@@ -1228,6 +1228,7 @@ export type Database = {
           rv_befreiung: boolean
           sv_rv_nummer: string | null
           telefon: string | null
+          titel: string | null
           updated_at: string
           vertragsstunden_pro_monat: number | null
           vorname: string | null
@@ -1271,6 +1272,7 @@ export type Database = {
           rv_befreiung?: boolean
           sv_rv_nummer?: string | null
           telefon?: string | null
+          titel?: string | null
           updated_at?: string
           vertragsstunden_pro_monat?: number | null
           vorname?: string | null
@@ -1314,6 +1316,7 @@ export type Database = {
           rv_befreiung?: boolean
           sv_rv_nummer?: string | null
           telefon?: string | null
+          titel?: string | null
           updated_at?: string
           vertragsstunden_pro_monat?: number | null
           vorname?: string | null

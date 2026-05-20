@@ -7,10 +7,43 @@ function toNullableNum(val: unknown) {
   return val;
 }
 
+// Erkennt bekannte Titel im Namensfeld.
+// WICHTIG: \b (Word-Boundary) funktioniert nicht zuverlässig nach optionalen Sonderzeichen
+// wie dem Punkt (z.B. \bDr\.?\b matcht "Dr." NICHT, weil nach dem Punkt kein \w→\W-Übergang
+// mehr stattfindet). Deshalb: Lookahead auf Leerzeichen nach Titel.
+const VERBOTENE_TITEL = /(?:^|\s)(?:Dr|Prof|Herr|Frau|Dipl|Mag|Ing)\.?\s/i;
+// Bindestrich mit Leerzeichen drumherum
+const BINDESTRICH_MIT_LEERZEICHEN = /\s-|-\s/;
+
+function nameRules(fieldLabel: string) {
+  return z.string()
+    .min(1, `${fieldLabel} ist erforderlich`)
+    .trim()
+    .refine(v => !VERBOTENE_TITEL.test(v), {
+      message: `Kein Titel im ${fieldLabel} (Dr., Prof., Herr, Frau) — Titel im Feld "Titel/Präfix" eintragen`,
+    })
+    .refine(v => !BINDESTRICH_MIT_LEERZEICHEN.test(v), {
+      message: 'Bindestrich ohne Leerzeichen schreiben (z.B. Müller-Schmidt)',
+    });
+}
+
+export const MITARBEITER_TITEL = [
+  'Dr.',
+  'Dr. med.',
+  'Prof.',
+  'Prof. Dr.',
+  'Dipl.-Ing.',
+  'Dipl.-Kfm.',
+  'Mag.',
+  'M.Sc.',
+  'B.Sc.',
+] as const;
+
 // ─── Reiter 1: Persoenliche Daten & Vertrag ─────────────────
 const personalDataSchema = z.object({
-  vorname: z.string().min(1, 'Vorname ist erforderlich').trim(),
-  nachname: z.string().min(1, 'Nachname ist erforderlich').trim(),
+  titel: z.string().optional().or(z.literal('')),
+  vorname: nameRules('Vorname'),
+  nachname: nameRules('Nachname'),
   strasse: z.string().trim().optional().or(z.literal('')),
   plz: z.string().regex(/^\d{5}$/, 'PLZ muss 5 Ziffern haben').optional().or(z.literal('')),
   stadt: z.string().trim().optional().or(z.literal('')),

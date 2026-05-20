@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, User, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { mitarbeiterFormSchema, type MitarbeiterFormValues } from './edit-dialog/mitarbeiterFormSchema';
+import { mitarbeiterFormSchema, type MitarbeiterFormValues, MITARBEITER_TITEL } from './edit-dialog/mitarbeiterFormSchema';
 
 const KALENDER_FARBEN = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
@@ -29,6 +29,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<MitarbeiterFormValues>({
     resolver: zodResolver(mitarbeiterFormSchema),
     defaultValues: {
+      titel: '',
       vorname: '',
       nachname: '',
       telefon: '',
@@ -69,6 +70,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
     setSaving(true);
     try {
       const { error } = await supabase.from('mitarbeiter').insert([{
+        titel: values.titel || null,
         vorname: values.vorname,
         nachname: values.nachname,
         telefon: values.telefon || null,
@@ -152,6 +154,18 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
             {/* ─── Reiter 1: Persoenliche Daten & Vertrag ─── */}
             <TabsContent value="personal" className="mt-4 space-y-5">
               {/* Name */}
+              <div className="space-y-1.5">
+                <Label>Titel / Präfix</Label>
+                <Select value={watch('titel') || ''} onValueChange={(v) => setValue('titel', v)}>
+                  <SelectTrigger><SelectValue placeholder="Kein Titel" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Kein Titel</SelectItem>
+                    {MITARBEITER_TITEL.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Vorname *</Label>
