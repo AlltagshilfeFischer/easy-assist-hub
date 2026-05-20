@@ -47,6 +47,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
       bank_institut: '',
       iban: '',
       gehalt_pro_monat: null,
+      hourly_rate: null,
       vertragsstunden_pro_monat: null,
       employment_type: '',
       soll_wochenstunden: null,
@@ -62,6 +63,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
   });
 
   const selectedColor = watch('farbe_kalender');
+  const isMinijob = watch('employment_type') === 'Minijob';
 
   const onSubmit = async (values: MitarbeiterFormValues) => {
     setSaving(true);
@@ -88,6 +90,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         bank_institut: values.bank_institut || null,
         iban: values.iban || null,
         gehalt_pro_monat: values.gehalt_pro_monat ?? null,
+        hourly_rate: values.hourly_rate ?? null,
         vertragsstunden_pro_monat: values.vertragsstunden_pro_monat ?? null,
         employment_type: values.employment_type || null,
         soll_wochenstunden: values.soll_wochenstunden ?? null,
@@ -183,11 +186,19 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
 
               {/* Vertragsdaten (Pflicht) */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Gehalt / Monat (€) *</Label>
-                  <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
-                  {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
-                </div>
+                {isMinijob ? (
+                  <div className="space-y-1.5">
+                    <Label>Gehalt / Stunde (€) *</Label>
+                    <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
+                    {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Gehalt / Monat (€) *</Label>
+                    <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
+                    {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label>Vertragsstunden / Monat *</Label>
                   <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />

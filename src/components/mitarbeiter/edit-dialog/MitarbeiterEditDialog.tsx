@@ -36,6 +36,7 @@ interface MitarbeiterData {
   benutzer_id: string | null;
   // Neue Felder
   gehalt_pro_monat: number | null;
+  hourly_rate: number | null;
   vertragsstunden_pro_monat: number | null;
   geburtsdatum: string | null;
   geburtsname: string | null;
@@ -51,6 +52,7 @@ interface MitarbeiterData {
   kinderfreibetrag: number | null;
   sv_rv_nummer: string | null;
   krankenkasse: string | null;
+  rv_befreiung: boolean | null;
   weitere_beschaeftigung: boolean | null;
 }
 
@@ -100,6 +102,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
       max_termine_pro_tag: values.max_termine_pro_tag ?? null,
       employment_type: values.employment_type || null,
       gehalt_pro_monat: values.gehalt_pro_monat ?? null,
+      hourly_rate: values.hourly_rate ?? null,
       vertragsstunden_pro_monat: values.vertragsstunden_pro_monat ?? null,
       geburtsdatum: values.geburtsdatum || null,
       geburtsname: values.geburtsname || null,
@@ -115,6 +118,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
       kinderfreibetrag: values.kinderfreibetrag ?? null,
       sv_rv_nummer: values.sv_rv_nummer || null,
       krankenkasse: values.krankenkasse || null,
+      rv_befreiung: values.rv_befreiung ?? false,
       weitere_beschaeftigung: values.weitere_beschaeftigung,
     }).eq('id', mitarbeiter.id);
 
@@ -262,6 +266,7 @@ function getDefaults(m: MitarbeiterData | null): MitarbeiterFormValues {
     bank_institut: m?.bank_institut || '',
     iban: m?.iban || '',
     gehalt_pro_monat: m?.gehalt_pro_monat ?? null,
+    hourly_rate: m?.hourly_rate ?? null,
     vertragsstunden_pro_monat: m?.vertragsstunden_pro_monat ?? null,
     employment_type: m?.employment_type || '',
     soll_wochenstunden: m?.soll_wochenstunden ?? null,
@@ -274,6 +279,7 @@ function getDefaults(m: MitarbeiterData | null): MitarbeiterFormValues {
     kinderfreibetrag: m?.kinderfreibetrag ?? null,
     sv_rv_nummer: m?.sv_rv_nummer || '',
     krankenkasse: m?.krankenkasse || '',
+    rv_befreiung: m?.rv_befreiung ?? false,
     weitere_beschaeftigung: m?.weitere_beschaeftigung ?? false,
   };
 }

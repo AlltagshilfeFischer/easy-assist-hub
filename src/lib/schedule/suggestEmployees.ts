@@ -6,6 +6,14 @@
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
 import type { Employee, CalendarAppointment } from '@/types/domain';
 
+interface Abwesenheit {
+  mitarbeiter_id: string;
+  zeitraum: unknown;
+  von?: string | null;
+  bis?: string | null;
+  status: string;
+}
+
 const BERLIN_TZ = 'Europe/Berlin';
 const PAUSE_MINUTES = 15;
 
@@ -56,6 +64,7 @@ export interface SuggestionInput {
   allAppointments: CalendarAppointment[];
   employees: Employee[];
   verfuegbarkeiten: Verfuegbarkeit[];
+  abwesenheiten?: Abwesenheit[];
 }
 
 export interface ScoredEmployee {
@@ -67,8 +76,31 @@ export interface ScoredEmployee {
 
 // ─── Main function ────────────────────────────────────────────────────────────
 
+/** Returns true if the given date falls within an approved absence */
+function isEmployeeAbsent(abwesenheiten: Abwesenheit[], employeeId: string, date: Date): boolean {
+  return abwesenheiten.some(a => {
+    if (a.mitarbeiter_id !== employeeId) return false;
+    // Primary: parse PostgreSQL TSTZRANGE "[start, end)"
+    const match = (a.zeitraum as string)?.match(/[\[(](.+?),(.+?)[\])]/);
+    if (match) {
+      const rangeStart = new Date(match[1].trim());
+      const rangeEnd = new Date(match[2].trim());
+      return date >= rangeStart && date < rangeEnd;
+    }
+    // Fallback: date-only von/bis columns
+    if (a.von && a.bis) {
+      const von = new Date(a.von);
+      const bis = new Date(a.bis);
+      // bis is inclusive for date-only ranges
+      bis.setHours(23, 59, 59, 999);
+      return date >= von && date <= bis;
+    }
+    return false;
+  });
+}
+
 export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
-  const { appointment, allAppointments, employees, verfuegbarkeiten } = input;
+  const { appointment, allAppointments, employees, verfuegbarkeiten, abwesenheiten = [] } = input;
 
   const apptStart = new Date(appointment.start_at);
   const apptEnd = new Date(appointment.end_at);
@@ -81,6 +113,9 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
 
   for (const employee of employees) {
     if (!employee.ist_aktiv) continue;
+
+    // ── Disqualification: employee is absent (Urlaub/Krankheit) on the appointment date ──
+    if (isEmployeeAbsent(abwesenheiten, employee.id, apptStart)) continue;
 
     // ── Appointments for this employee on the same day ─────────────────────
     const empAppts = allAppointments.filter(

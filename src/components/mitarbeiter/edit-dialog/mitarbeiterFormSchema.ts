@@ -22,6 +22,7 @@ const personalDataSchema = z.object({
     .or(z.literal('')),
   // Vertragsdaten
   gehalt_pro_monat: z.coerce.number().positive('Gehalt muss positiv sein').nullable().optional(),
+  hourly_rate: z.coerce.number().positive('Stundenlohn muss positiv sein').nullable().optional(),
   vertragsstunden_pro_monat: z.coerce.number().positive('Stunden müssen positiv sein').nullable().optional(),
   employment_type: z.string().optional().or(z.literal('')),
   soll_wochenstunden: z.coerce.number().min(0).nullable().optional(),
@@ -42,6 +43,7 @@ const taxSocialSchema = z.object({
   kinderfreibetrag: z.coerce.number().min(0).nullable().optional(),
   sv_rv_nummer: z.string().trim().optional().or(z.literal('')),
   krankenkasse: z.string().trim().optional().or(z.literal('')),
+  rv_befreiung: z.boolean().default(false),
 });
 
 // ─── Reiter 3: Weitere Beschaeftigungsverhaeltnisse ─────────
@@ -69,13 +71,15 @@ export type NebenbeschaeftigungFormValues = z.infer<typeof nebenbeschaeftigungSc
 
 // ─── Pflichtfeld-Pruefung fuer Einsatzplanung ───────────────
 export function checkStammdatenVollstaendig(data: Partial<MitarbeiterFormValues>): boolean {
+  const isMinijob = data.employment_type === 'Minijob';
+  const hasGehalt = isMinijob ? !!data.hourly_rate : !!data.gehalt_pro_monat;
   return !!(
     data.vorname &&
     data.nachname &&
     data.strasse &&
     data.plz &&
     data.stadt &&
-    data.gehalt_pro_monat &&
+    hasGehalt &&
     data.vertragsstunden_pro_monat
   );
 }

@@ -44,6 +44,7 @@ import { AIAppointmentCreator } from '@/components/schedule/ai/AIAppointmentCrea
 import { useSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { ConflictsNavigationCard } from '@/components/schedule/panels/ConflictsNavigationCard';
+import { UnassignedAppointmentsPanel } from '@/components/schedule/panels/UnassignedAppointmentsPanel';
 import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 
@@ -594,6 +595,48 @@ const ScheduleBuilderModern = () => {
         variant: 'destructive'
       });
       await loadData(); // Nur bei Fehler: Zustand synchronisieren
+    }
+  };
+
+  // Shared handler: Abwesenheits- + Konflikt-Check, dann Zuweisung
+  const handleAssignAppointment = async (appointmentId: string, employeeId: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (!appointment) return;
+
+    const effectiveDate = new Date(appointment.start_at);
+    const hasAbsence = abwesenheiten.some(a => {
+      if (a.mitarbeiter_id !== employeeId) return false;
+      const match = a.zeitraum?.match(/[\[(](.+?),(.+?)[\])]/);
+      if (!match) return false;
+      const rangeStart = new Date(match[1].trim());
+      const rangeEnd = new Date(match[2].trim());
+      return effectiveDate >= rangeStart && effectiveDate < rangeEnd;
+    });
+
+    if (hasAbsence) {
+      const absentEmployee = employees.find(e => e.id === employeeId);
+      setAbsenceConfirm({
+        show: true,
+        appointmentId,
+        employeeId,
+        targetDate: undefined,
+        employeeName: absentEmployee?.name || 'Mitarbeiter',
+      });
+      return;
+    }
+
+    const { overlaps, pauseViolations } = checkForConflicts(appointmentId, employeeId, undefined);
+    if (overlaps.length > 0 || pauseViolations.length > 0) {
+      setConflictWarning({
+        show: true,
+        appointmentId,
+        employeeId,
+        conflicts: overlaps,
+        pauseViolations,
+        targetDate: undefined,
+      });
+    } else {
+      await assignAppointment(appointmentId, employeeId);
     }
   };
 
@@ -1626,6 +1669,19 @@ const ScheduleBuilderModern = () => {
 
         {/* Main Content: Calendar + Unassigned Panel */}
         <div className="flex-1 flex flex-row min-h-0 gap-2 overflow-hidden">
+          {/* Unassigned Appointments Sidebar */}
+          <div className="w-64 flex-shrink-0 flex flex-col min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            <UnassignedAppointmentsPanel
+              unassignedAppointments={unassignedAppointments}
+              allAppointments={appointments}
+              employees={employees}
+              verfuegbarkeiten={allVerfuegbarkeiten}
+              abwesenheiten={abwesenheiten}
+              onAssignAppointment={handleAssignAppointment}
+              isLoading={loading}
+            />
+          </div>
+
           {/* Calendar */}
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             {/* Calendar Grid */}

@@ -16,11 +16,20 @@ import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
 import type { Employee, CalendarAppointment } from '@/types/domain';
 
+interface Abwesenheit {
+  mitarbeiter_id: string;
+  zeitraum: unknown;
+  von?: string | null;
+  bis?: string | null;
+  status: string;
+}
+
 interface UnassignedAppointmentsPanelProps {
   unassignedAppointments: CalendarAppointment[];
   allAppointments: CalendarAppointment[];
   employees: Employee[];
   verfuegbarkeiten: Verfuegbarkeit[];
+  abwesenheiten?: Abwesenheit[];
   onAssignAppointment: (appointmentId: string, employeeId: string) => void;
   isLoading?: boolean;
 }
@@ -30,6 +39,7 @@ export function UnassignedAppointmentsPanel({
   allAppointments,
   employees,
   verfuegbarkeiten,
+  abwesenheiten = [],
   onAssignAppointment,
   isLoading = false,
 }: UnassignedAppointmentsPanelProps) {
@@ -86,6 +96,7 @@ export function UnassignedAppointmentsPanel({
                 allAppointments={allAppointments}
                 employees={employees}
                 verfuegbarkeiten={verfuegbarkeiten}
+                abwesenheiten={abwesenheiten}
                 canAssign={canAssign}
                 onAssign={onAssignAppointment}
               />
@@ -104,6 +115,7 @@ interface AppointmentAccordionItemProps {
   allAppointments: CalendarAppointment[];
   employees: Employee[];
   verfuegbarkeiten: Verfuegbarkeit[];
+  abwesenheiten: Abwesenheit[];
   canAssign: boolean;
   onAssign: (appointmentId: string, employeeId: string) => void;
 }
@@ -113,6 +125,7 @@ function AppointmentAccordionItem({
   allAppointments,
   employees,
   verfuegbarkeiten,
+  abwesenheiten,
   canAssign,
   onAssign,
 }: AppointmentAccordionItemProps) {
@@ -123,8 +136,9 @@ function AppointmentAccordionItem({
         allAppointments,
         employees,
         verfuegbarkeiten,
+        abwesenheiten,
       }).slice(0, 3),
-    [appointment, allAppointments, employees, verfuegbarkeiten],
+    [appointment, allAppointments, employees, verfuegbarkeiten, abwesenheiten],
   );
 
   const customerName = appointment.customer?.name ?? appointment.titel ?? 'Unbekannter Kunde';
