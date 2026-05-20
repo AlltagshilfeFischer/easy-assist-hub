@@ -5,6 +5,7 @@
 
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
 import type { Employee, CalendarAppointment } from '@/types/domain';
+import { APP_TIMEZONE } from '@/lib/timezone';
 
 interface Abwesenheit {
   mitarbeiter_id: string;
@@ -13,8 +14,6 @@ interface Abwesenheit {
   bis?: string | null;
   status: string;
 }
-
-const BERLIN_TZ = 'Europe/Berlin';
 const PAUSE_MINUTES = 15;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -34,7 +33,7 @@ function toBerlinParts(isoUtc: string): { date: Date; weekdayIso: number; minute
 
   // Intl gives us the local parts in Berlin timezone
   const parts = new Intl.DateTimeFormat('de-DE', {
-    timeZone: BERLIN_TZ,
+    timeZone: APP_TIMEZONE,
     hour: 'numeric',
     minute: 'numeric',
     weekday: 'short',

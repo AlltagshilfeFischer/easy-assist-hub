@@ -1,6 +1,5 @@
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
-
-const BERLIN_TZ = 'Europe/Berlin';
+import { APP_TIMEZONE } from '@/lib/timezone';
 
 function timeToMinutes(time: string): number {
   const [hh, mm] = time.split(':').map(Number);
@@ -10,7 +9,7 @@ function timeToMinutes(time: string): number {
 function toBerlinWeekdayAndMinutes(isoUtc: string): { weekday: number; minutes: number } {
   const utcDate = new Date(isoUtc);
   const parts = new Intl.DateTimeFormat('de-DE', {
-    timeZone: BERLIN_TZ,
+    timeZone: APP_TIMEZONE,
     hour: 'numeric',
     minute: 'numeric',
     weekday: 'short',
