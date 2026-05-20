@@ -147,13 +147,23 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
     });
     if (hasPauseViolation) continue;
 
-    // ── Disqualification: employee not available on this weekday ───────────
+    // ── Disqualification: employee not available on this weekday/time ──────
     const empVerfueg = verfuegbarkeiten.filter(v => v.mitarbeiter_id === employee.id);
     const hasAnyVerfueg = empVerfueg.length > 0;
 
-    // Only disqualify if the employee has availability entries but none match the weekday
+    // No entries on this weekday → disqualify
     const weekdayVerfueg = empVerfueg.filter(v => v.wochentag === apptWeekday);
     if (hasAnyVerfueg && weekdayVerfueg.length === 0) continue;
+
+    // Has entries for this weekday but appointment falls outside every window → disqualify
+    const withinWindow = weekdayVerfueg.length === 0
+      ? true // no window data → don't disqualify on time
+      : weekdayVerfueg.some(v => {
+          const vStart = timeToMinutes(v.von);
+          const vEnd = timeToMinutes(v.bis);
+          return apptStartMinutes >= vStart && apptEndMinutes <= vEnd;
+        });
+    if (!withinWindow) continue;
 
     // ── Scoring ────────────────────────────────────────────────────────────
     let score = 0;
@@ -173,16 +183,9 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
     }
     // >= 80% no workload bonus
 
-    // Availability window check
-    const withinWindow = weekdayVerfueg.some(v => {
-      const vStart = timeToMinutes(v.von);
-      const vEnd = timeToMinutes(v.bis);
-      return apptStartMinutes >= vStart && apptEndMinutes <= vEnd;
-    });
-    if (withinWindow) {
-      score += 15;
-      reasonParts.push('Im Verfügbarkeitsfenster');
-    }
+    // Within availability window — already confirmed above
+    score += 15;
+    reasonParts.push('Im Verfügbarkeitsfenster');
 
     // 15-min buffer after last appointment on this day
     const lastEndMs = sameDayAppts.reduce((max, a) => {

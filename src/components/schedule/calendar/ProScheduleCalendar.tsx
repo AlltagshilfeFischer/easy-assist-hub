@@ -466,6 +466,7 @@ export function ProScheduleCalendar({
                       allAppointments={appointments}
                       employees={employees}
                       verfuegbarkeiten={verfuegbarkeiten}
+                      abwesenheiten={abwesenheiten}
                       isDragging={activeAppointmentId === appointment.id}
                       isHighlighted={highlightedAppointmentId === appointment.id}
                       onClick={() => onEditAppointment(appointment)}
@@ -605,6 +606,7 @@ interface UnassignedAppointmentWithSuggestionsProps {
   allAppointments: CalendarAppointment[];
   employees: Employee[];
   verfuegbarkeiten: Verfuegbarkeit[];
+  abwesenheiten: Abwesenheit[];
   isDragging: boolean;
   isHighlighted: boolean;
   onClick: () => void;
@@ -618,6 +620,7 @@ function UnassignedAppointmentWithSuggestions({
   allAppointments,
   employees,
   verfuegbarkeiten,
+  abwesenheiten,
   isDragging,
   isHighlighted,
   onClick,
@@ -627,8 +630,8 @@ function UnassignedAppointmentWithSuggestions({
 }: UnassignedAppointmentWithSuggestionsProps) {
   const suggestions = useMemo(
     () =>
-      suggestEmployees({ appointment, allAppointments, employees, verfuegbarkeiten }).slice(0, 3),
-    [appointment, allAppointments, employees, verfuegbarkeiten],
+      suggestEmployees({ appointment, allAppointments, employees, verfuegbarkeiten, abwesenheiten }).slice(0, 3),
+    [appointment, allAppointments, employees, verfuegbarkeiten, abwesenheiten],
   );
 
   return (
