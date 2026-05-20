@@ -10,10 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Palmtree, Plus, Loader2, CalendarDays, Trash2, Search } from 'lucide-react';
+import { Palmtree, Plus, Loader2, CalendarDays, Trash2, Search, ChevronsUpDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
 type Abwesenheit = Database['public']['Tables']['mitarbeiter_abwesenheiten']['Row'] & {
@@ -43,6 +46,7 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [maComboOpen, setMaComboOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [zeitraumFilter, setZeitraumFilter] = useState<ZeitraumFilter>('aktuell');
   const [selectedMaId, setSelectedMaId] = useState('');
@@ -90,10 +94,9 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
       if (!selectedMaId || !user) throw new Error('Mitarbeiter und Benutzer erforderlich');
       if (!von || !bis) throw new Error('Von- und Bis-Datum erforderlich');
 
-      const startDate = new Date(von);
-      const endDate = new Date(bis);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
+      // Parse as local midnight to avoid UTC-offset issues
+      const startDate = new Date(von + 'T00:00:00');
+      const endDate = new Date(bis + 'T23:59:59');
 
       const { error } = await supabase
         .from('mitarbeiter_abwesenheiten')
@@ -111,12 +114,12 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
         });
       if (error) throw error;
 
-      // Nur scheduled Termine freigeben — completed, cancelled, etc. bleiben unberührt
+      // Scheduled + in_progress Termine im Zeitraum auf unassigned setzen
       const { data: overlapping, error: selectError } = await supabase
         .from('termine')
         .select('id')
         .eq('mitarbeiter_id', selectedMaId)
-        .eq('status', 'scheduled')
+        .in('status', ['scheduled', 'in_progress'])
         .gte('start_at', startDate.toISOString())
         .lte('start_at', endDate.toISOString());
 
@@ -185,12 +188,15 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
     setBis('');
     setTyp('urlaub');
     setGrund('');
+    setMaComboOpen(false);
   }
 
   function getMaName(ma: Mitarbeiter | null) {
     if (!ma) return 'Unbekannt';
     return `${ma.vorname ?? ''} ${ma.nachname ?? ''}`.trim() || 'Unbekannt';
   }
+
+  const selectedMaName = mitarbeiterList.find((m) => m.id === selectedMaId);
 
   const filtered = abwesenheiten.filter((a) => {
     if (!searchQuery.trim()) return true;
@@ -319,18 +325,44 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
           <div className="space-y-4">
             <div>
               <Label>Mitarbeiter</Label>
-              <Select value={selectedMaId} onValueChange={setSelectedMaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Mitarbeiter wählen…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mitarbeiterList.map((ma) => (
-                    <SelectItem key={ma.id} value={ma.id}>
-                      {getMaName(ma)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={maComboOpen} onOpenChange={setMaComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={maComboOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedMaName ? getMaName(selectedMaName) : 'Mitarbeiter suchen…'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Name suchen…" />
+                    <CommandList>
+                      <CommandEmpty>Kein Mitarbeiter gefunden</CommandEmpty>
+                      <CommandGroup>
+                        {mitarbeiterList.map((ma) => (
+                          <CommandItem
+                            key={ma.id}
+                            value={getMaName(ma)}
+                            onSelect={() => {
+                              setSelectedMaId(ma.id);
+                              setMaComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn('mr-2 h-4 w-4', selectedMaId === ma.id ? 'opacity-100' : 'opacity-0')}
+                            />
+                            {getMaName(ma)}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <Label>Typ</Label>

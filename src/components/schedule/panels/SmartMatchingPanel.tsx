@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Clock, MapPin, Phone, Mail, Calendar, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Users, Clock, Phone, Mail, Calendar, Sparkles, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Employee, Customer, Appointment, CustomerTimeWindow } from '@/types/domain';
 
@@ -91,7 +92,8 @@ export function SmartMatchingPanel({
           canAssign: workloadPercentage < 100,
         };
       })
-      .sort((a, b) => b.matchScore - a.matchScore);
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 3);
   }, [selectedCustomer, customerTimeSlots, employees, appointments]);
 
   const getScoreColor = (score: number) => {
@@ -214,20 +216,30 @@ export function SmartMatchingPanel({
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>
-                            {match.currentAppointments}/{match.employee.max_termine_pro_tag || 8} Termine
+                            {match.currentAppointments} von {match.employee.max_termine_pro_tag || 8} Terminen
                           </span>
                           <Badge variant="outline" className="text-xs ml-auto">
-                            {Math.round(match.workloadPercentage)}% Auslastung
+                            {Math.round(match.workloadPercentage)}% ausgelastet
                           </Badge>
                         </div>
 
-                        <div className="flex flex-wrap gap-1">
-                          {match.matchReasons.slice(0, 3).map((reason, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {reason}
-                            </Badge>
-                          ))}
-                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-default w-fit">
+                                <Info className="h-3 w-3" />
+                                <span>Begründung</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs">
+                              <ul className="space-y-0.5">
+                                {match.matchReasons.map((reason, idx) => (
+                                  <li key={idx}>• {reason}</li>
+                                ))}
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
 
                         <Button
                           size="sm"
