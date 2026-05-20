@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,8 @@ import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
 import { AusweichortSelector } from '../AusweichortSelector';
 import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminKategorie } from '@/types/domain';
+import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
+import { checkVerfuegbarkeit } from '@/lib/schedule/checkVerfuegbarkeit';
 
 const KATEGORIE_OPTIONS: { value: TerminKategorie; label: string }[] = [
   { value: 'Kundentermin', label: 'Kundentermin' },
@@ -67,6 +69,17 @@ export function CreateAppointmentDialog({
   const [kategorie, setKategorie] = useState<string>('');
   const [notizen, setNotizen] = useState('');
   const [ausweichortId, setAusweichortId] = useState<string | null>(null);
+
+  const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
+
+  const verfuegbarkeitWarning = useMemo(() => {
+    if (!date || mitarbeiterId === 'unassigned' || !mitarbeiterId) return null;
+    const [startHours, startMins] = startTime.split(':').map(Number);
+    const startAt = new Date(date);
+    startAt.setHours(startHours, startMins, 0, 0);
+    const endAt = new Date(startAt.getTime() + dauerMinuten * 60000);
+    return checkVerfuegbarkeit(mitarbeiterId, startAt.toISOString(), endAt.toISOString(), allVerfuegbarkeiten);
+  }, [date, startTime, dauerMinuten, mitarbeiterId, allVerfuegbarkeiten]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,6 +264,17 @@ export function CreateAppointmentDialog({
                     ))}
                 </SelectContent>
               </Select>
+              {verfuegbarkeitWarning?.outsideWindow && (
+                <div className="flex items-start gap-2 p-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    {verfuegbarkeitWarning.noEntryForDay
+                      ? 'Mitarbeiter ist laut Verfügbarkeit an diesem Wochentag nicht verfügbar.'
+                      : 'Termin liegt außerhalb der eingetragenen Verfügbarkeit des Mitarbeiters.'}
+                    {' '}Termin kann trotzdem gespeichert werden.
+                  </span>
+                </div>
+              )}
             </div>
 
           <div className="space-y-2">
