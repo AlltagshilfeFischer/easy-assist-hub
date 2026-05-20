@@ -27,10 +27,10 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
 
         <div className="space-y-1.5">
           <Label>Titel / Präfix</Label>
-          <Select value={watch('titel') || ''} onValueChange={(v) => setValue('titel', v)}>
+          <Select value={watch('titel') || '__none__'} onValueChange={(v) => setValue('titel', v === '__none__' ? '' : v)}>
             <SelectTrigger><SelectValue placeholder="Kein Titel" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Kein Titel</SelectItem>
+              <SelectItem value="__none__">Kein Titel</SelectItem>
               {MITARBEITER_TITEL.map(t => (
                 <SelectItem key={t} value={t}>{t}</SelectItem>
               ))}
