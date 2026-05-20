@@ -6,6 +6,7 @@ import { Loader2, Sparkles, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import { invokeAiFunction } from '@/lib/aiClient';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 
 interface TimeWindow {
@@ -191,18 +192,16 @@ export default function AITimeWindowsCreator({ onConfirm, onCancel }: AITimeWind
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-xs">Von</Label>
-                        <Input
-                          type="time"
-                          value={editForm?.von}
-                          onChange={(e) => setEditForm(prev => prev ? { ...prev, von: e.target.value } : null)}
+                        <TimeInput
+                          value={editForm?.von ?? ''}
+                          onChange={(v) => setEditForm(prev => prev ? { ...prev, von: v } : null)}
                         />
                       </div>
                       <div>
                         <Label className="text-xs">Bis</Label>
-                        <Input
-                          type="time"
-                          value={editForm?.bis}
-                          onChange={(e) => setEditForm(prev => prev ? { ...prev, bis: e.target.value } : null)}
+                        <TimeInput
+                          value={editForm?.bis ?? ''}
+                          onChange={(v) => setEditForm(prev => prev ? { ...prev, bis: v } : null)}
                         />
                       </div>
                     </div>

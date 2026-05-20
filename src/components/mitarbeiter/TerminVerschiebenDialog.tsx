@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Badge } from '@/components/ui/badge';
 import { format, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -154,18 +155,16 @@ export function TerminVerschiebenDialog({
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Von</Label>
-                <Input
-                  type="time"
+                <TimeInput
                   value={newStartTime}
-                  onChange={(e) => setNewStartTime(e.target.value)}
+                  onChange={(v) => setNewStartTime(v)}
                 />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Bis</Label>
-                <Input
-                  type="time"
+                <TimeInput
                   value={newEndTime}
-                  onChange={(e) => setNewEndTime(e.target.value)}
+                  onChange={(v) => setNewEndTime(v)}
                 />
               </div>
               <div className="flex items-end pb-0.5">

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { format, getDay } from 'date-fns';
@@ -353,10 +354,10 @@ export function AppointmentDetailDialog({
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Datum & Zeit</Label>
             <div className="grid grid-cols-[1fr,auto,auto] gap-2 mt-2 items-center">
               <Input type="date" value={editDate} onChange={(e) => handleTimeChange('date', e.target.value)} className="h-9" />
-              <Input type="time" value={editStartTime} onChange={(e) => handleTimeChange('startTime', e.target.value)} className="h-9 w-28" />
+              <TimeInput value={editStartTime} onChange={(v) => handleTimeChange('startTime', v)} className="h-9 w-28" />
               <div className="flex items-center gap-1">
                 <span className="text-muted-foreground text-sm">–</span>
-                <Input type="time" value={editEndTime} onChange={(e) => handleTimeChange('endTime', e.target.value)} className="h-9 w-28" />
+                <TimeInput value={editEndTime} onChange={(v) => handleTimeChange('endTime', v)} className="h-9 w-28" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">

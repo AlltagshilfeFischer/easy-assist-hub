@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
@@ -306,8 +307,8 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
                 {[1,2,3,4,5,6,0].map(d => <option key={d} value={d}>{WEEKDAY_NAMES[d]}</option>)}
               </select>
             </div>
-            <div><Label className="text-xs">Von</Label><Input type="time" value={zeitfenster.von || ''} onChange={(e) => { const updated = [...customerData.zeitfenster]; updated[index] = { ...updated[index], von: e.target.value }; setCustomerData((p: any) => ({ ...p, zeitfenster: updated })); }} /></div>
-            <div><Label className="text-xs">Bis</Label><Input type="time" value={zeitfenster.bis || ''} onChange={(e) => { const updated = [...customerData.zeitfenster]; updated[index] = { ...updated[index], bis: e.target.value }; setCustomerData((p: any) => ({ ...p, zeitfenster: updated })); }} /></div>
+            <div><Label className="text-xs">Von</Label><TimeInput value={zeitfenster.von || ''} onChange={(v) => { const updated = [...customerData.zeitfenster]; updated[index] = { ...updated[index], von: v }; setCustomerData((p: any) => ({ ...p, zeitfenster: updated })); }} /></div>
+            <div><Label className="text-xs">Bis</Label><TimeInput value={zeitfenster.bis || ''} onChange={(v) => { const updated = [...customerData.zeitfenster]; updated[index] = { ...updated[index], bis: v }; setCustomerData((p: any) => ({ ...p, zeitfenster: updated })); }} /></div>
             <Button type="button" variant="ghost" size="icon" onClick={() => setCustomerData((p: any) => ({ ...p, zeitfenster: p.zeitfenster.filter((_: any, i: number) => i !== index) }))}><Trash2 className="h-4 w-4 text-destructive" /></Button>
           </div>
         ))}

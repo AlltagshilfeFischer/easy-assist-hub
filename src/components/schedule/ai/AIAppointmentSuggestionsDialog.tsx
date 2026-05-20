@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -181,10 +182,9 @@ export function AIAppointmentSuggestionsDialog({
                       
                       <div>
                         <Label>Startzeit</Label>
-                        <Input
-                          type="time"
+                        <TimeInput
                           value={suggestion.startzeit}
-                          onChange={(e) => updateSuggestion(index, 'startzeit', e.target.value)}
+                          onChange={(v) => updateSuggestion(index, 'startzeit', v)}
                         />
                       </div>
                       

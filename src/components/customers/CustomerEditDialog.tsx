@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -484,8 +485,8 @@ export function CustomerEditDialog({
                         <option value="3">Mittwoch</option><option value="4">Donnerstag</option><option value="5">Freitag</option><option value="6">Samstag</option>
                       </select>
                     </div>
-                    <div><Label className="text-xs">Von</Label><Input type="time" value={zeitfenster.von || ''} onChange={(e) => { const updated = [...(editingCustomer.zeitfenster || [])]; updated[index] = { ...updated[index], von: e.target.value }; setEditingCustomer({ ...editingCustomer, zeitfenster: updated }); }} /></div>
-                    <div><Label className="text-xs">Bis</Label><Input type="time" value={zeitfenster.bis || ''} onChange={(e) => { const updated = [...(editingCustomer.zeitfenster || [])]; updated[index] = { ...updated[index], bis: e.target.value }; setEditingCustomer({ ...editingCustomer, zeitfenster: updated }); }} /></div>
+                    <div><Label className="text-xs">Von</Label><TimeInput value={zeitfenster.von || ''} onChange={(v) => { const updated = [...(editingCustomer.zeitfenster || [])]; updated[index] = { ...updated[index], von: v }; setEditingCustomer({ ...editingCustomer, zeitfenster: updated }); }} /></div>
+                    <div><Label className="text-xs">Bis</Label><TimeInput value={zeitfenster.bis || ''} onChange={(v) => { const updated = [...(editingCustomer.zeitfenster || [])]; updated[index] = { ...updated[index], bis: v }; setEditingCustomer({ ...editingCustomer, zeitfenster: updated }); }} /></div>
                     <Button type="button" variant="ghost" size="icon" onClick={() => {
                       const updated = (editingCustomer.zeitfenster || []).filter((_: any, i: number) => i !== index);
                       setEditingCustomer({ ...editingCustomer, zeitfenster: updated });

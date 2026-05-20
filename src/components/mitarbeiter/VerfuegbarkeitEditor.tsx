@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { WOCHENTAGE, useVerfuegbarkeiten, useSaveVerfuegbarkeiten, type Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
@@ -87,18 +88,16 @@ export function VerfuegbarkeitEditor({ mitarbeiterId, disabled }: Verfuegbarkeit
                 ) : (
                   daySlots.map((slot) => (
                     <div key={slot.originalIndex} className="flex items-center gap-2">
-                      <Input
-                        type="time"
+                      <TimeInput
                         value={slot.von}
-                        onChange={(e) => updateSlot(slot.originalIndex, 'von', e.target.value)}
+                        onChange={(v) => updateSlot(slot.originalIndex, 'von', v)}
                         className="w-28 h-8 text-sm"
                         disabled={disabled}
                       />
                       <span className="text-xs text-muted-foreground">bis</span>
-                      <Input
-                        type="time"
+                      <TimeInput
                         value={slot.bis}
-                        onChange={(e) => updateSlot(slot.originalIndex, 'bis', e.target.value)}
+                        onChange={(v) => updateSlot(slot.originalIndex, 'bis', v)}
                         className="w-28 h-8 text-sm"
                         disabled={disabled}
                       />
