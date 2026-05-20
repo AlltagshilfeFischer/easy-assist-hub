@@ -740,14 +740,11 @@ const ScheduleBuilderModern = () => {
 
     if (hasAbsence) {
       const absentEmployee = employees.find(e => e.id === employeeId);
-      setAbsenceConfirm({
-        show: true,
-        appointmentId,
-        employeeId,
-        targetDate,
-        employeeName: absentEmployee?.name || 'Mitarbeiter',
+      toast({
+        title: 'Mitarbeiter abwesend',
+        description: `${absentEmployee?.name || 'Mitarbeiter'} ist abwesend — Termin bleibt offen.`,
       });
-      return; // Wait for user confirmation before proceeding
+      return;
     }
 
     const { overlaps, pauseViolations } = checkForConflicts(appointmentId, employeeId, targetDate);
@@ -877,15 +874,34 @@ const ScheduleBuilderModern = () => {
         }
       }
 
+      // Abwesenheits-Check: MA abwesend → als offenen Termin anlegen
+      let finalMitarbeiterId = payload.mitarbeiter_id ?? null;
+      if (finalMitarbeiterId) {
+        const appointmentDate = new Date(payload.start_at);
+        const maAbwesend = abwesenheiten.some(a => {
+          if (a.mitarbeiter_id !== finalMitarbeiterId) return false;
+          const match = (a.zeitraum as string)?.match(/[\[(](.+?),(.+?)[\])]/);
+          if (!match) return false;
+          const rangeStart = new Date(match[1].trim());
+          const rangeEnd = new Date(match[2].trim());
+          return appointmentDate >= rangeStart && appointmentDate < rangeEnd;
+        });
+        if (maAbwesend) {
+          finalMitarbeiterId = null;
+          const emp = employees.find(e => e.id === payload.mitarbeiter_id);
+          toast({ title: 'Mitarbeiter abwesend', description: `${emp?.name || 'Mitarbeiter'} ist abwesend — Termin wird als offen eingetragen.` });
+        }
+      }
+
       const { data: inserted, error } = await supabase
         .from('termine')
         .insert([{
           titel: payload.titel,
           kunden_id: payload.kunden_id ?? null,
-          mitarbeiter_id: payload.mitarbeiter_id ?? null,
+          mitarbeiter_id: finalMitarbeiterId,
           start_at: payload.start_at,
           end_at: payload.end_at,
-          status: payload.mitarbeiter_id ? 'scheduled' : 'unassigned',
+          status: finalMitarbeiterId ? 'scheduled' : 'unassigned',
           notizen: payload.notizen ?? null,
           kategorie: payload.kategorie ?? null,
           ausweichort_id: payload.ausweichort_id ?? null,
@@ -1102,6 +1118,49 @@ const ScheduleBuilderModern = () => {
         variant: 'destructive'
       });
       await loadData(); // Bei Fehler: Zustand synchronisieren
+      throw error;
+    }
+  };
+
+  const handleDeleteSeries = async (vorlageId: string, _mode: 'single' | 'all') => {
+    try {
+      const { data: betroffene, error: fetchError } = await supabase
+        .from('termine')
+        .select('id')
+        .eq('vorlage_id', vorlageId)
+        .gte('start_at', new Date().toISOString());
+      if (fetchError) throw fetchError;
+
+      if (betroffene && betroffene.length > 0) {
+        const ids = betroffene.map(t => t.id);
+        const { error: rpErr } = await supabase.from('rechnungspositionen').delete().in('termin_id', ids);
+        if (rpErr) throw rpErr;
+        const { error: taErr } = await supabase.from('termin_aenderungen').delete().in('termin_id', ids);
+        if (taErr) throw taErr;
+      }
+
+      const { error: vorlagenErr } = await supabase
+        .from('termin_vorlagen')
+        .update({ ist_aktiv: false })
+        .eq('id', vorlageId);
+      if (vorlagenErr) throw vorlagenErr;
+
+      const { error: termineErr } = await supabase
+        .from('termine')
+        .delete()
+        .eq('vorlage_id', vorlageId)
+        .gte('start_at', new Date().toISOString());
+      if (termineErr) throw termineErr;
+
+      setAppointments(prev => prev.filter(app =>
+        app.vorlage_id !== vorlageId || new Date(app.start_at) < new Date()
+      ));
+      queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+      toast({ title: 'Terminserie gelöscht' });
+    } catch (error) {
+      console.error('Error deleting series:', error);
+      toast({ title: 'Fehler', description: 'Fehler beim Löschen der Serie.', variant: 'destructive' });
+      await loadData();
       throw error;
     }
   };
@@ -1820,27 +1879,8 @@ const ScheduleBuilderModern = () => {
             }
           }}
           onDelete={handleDeleteAppointment}
+          onDeleteSeries={handleDeleteSeries}
         />
-
-        {/* G-14: Abwesenheits-Bestätigung */}
-        <AlertDialog open={absenceConfirm.show} onOpenChange={(open) => !open && setAbsenceConfirm(prev => ({ ...prev, show: false }))}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Mitarbeiter abwesend</AlertDialogTitle>
-              <AlertDialogDescription>
-                <strong>{absenceConfirm.employeeName}</strong> ist an{absenceConfirm.targetDate ? ` ${format(absenceConfirm.targetDate, 'EEEE, dd.MM.yyyy', { locale: de })}` : ' diesem Tag'} als abwesend eingetragen (Urlaub/Krankheit). Termin trotzdem zuweisen?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setAbsenceConfirm({ show: false, appointmentId: '', employeeId: '', targetDate: undefined, employeeName: '' })}>
-                Abbrechen
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleAbsenceConfirm}>
-                Trotzdem zuweisen
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         <ConflictWarningDialog
           isOpen={conflictWarning.show}
