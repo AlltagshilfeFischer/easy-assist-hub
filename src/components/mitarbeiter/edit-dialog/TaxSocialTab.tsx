@@ -2,6 +2,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import type { MitarbeiterFormValues } from './mitarbeiterFormSchema';
 
 interface TaxSocialTabProps {
@@ -10,6 +11,7 @@ interface TaxSocialTabProps {
 
 export function TaxSocialTab({ form }: TaxSocialTabProps) {
   const { register, formState: { errors }, setValue, watch } = form;
+  const isMinijob = watch('employment_type') === 'Minijob';
 
   return (
     <div className="space-y-6">
@@ -63,6 +65,22 @@ export function TaxSocialTab({ form }: TaxSocialTabProps) {
             <Input {...register('krankenkasse')} placeholder="AOK Niedersachsen" />
           </div>
         </div>
+
+        {isMinijob && (
+          <div className="flex items-center gap-3 rounded-md border bg-muted/40 px-3 py-2.5">
+            <Switch
+              id="rv_befreiung"
+              checked={watch('rv_befreiung') ?? false}
+              onCheckedChange={(checked) => setValue('rv_befreiung', checked)}
+            />
+            <div>
+              <Label htmlFor="rv_befreiung" className="cursor-pointer text-sm">
+                Befreiung von der RV-Pflicht
+              </Label>
+              <p className="text-xs text-muted-foreground">§ 6 Abs. 1b SGB VI — Antrag beim Arbeitgeber gestellt</p>
+            </div>
+          </div>
+        )}
       </fieldset>
     </div>
   );

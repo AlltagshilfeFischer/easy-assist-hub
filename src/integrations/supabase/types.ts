@@ -1225,6 +1225,7 @@ export type Database = {
           steuer_id: string | null
           steuerklasse: number | null
           strasse: string | null
+          rv_befreiung: boolean
           sv_rv_nummer: string | null
           telefon: string | null
           updated_at: string
@@ -1267,6 +1268,7 @@ export type Database = {
           steuer_id?: string | null
           steuerklasse?: number | null
           strasse?: string | null
+          rv_befreiung?: boolean
           sv_rv_nummer?: string | null
           telefon?: string | null
           updated_at?: string
@@ -1309,6 +1311,7 @@ export type Database = {
           steuer_id?: string | null
           steuerklasse?: number | null
           strasse?: string | null
+          rv_befreiung?: boolean
           sv_rv_nummer?: string | null
           telefon?: string | null
           updated_at?: string

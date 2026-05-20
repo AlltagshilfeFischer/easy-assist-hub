@@ -63,6 +63,7 @@ interface Mitarbeiter {
   kinderfreibetrag: number | null;
   sv_rv_nummer: string | null;
   krankenkasse: string | null;
+  rv_befreiung: boolean | null;
   // Reiter 3
   weitere_beschaeftigung: boolean | null;
   benutzer?: {
