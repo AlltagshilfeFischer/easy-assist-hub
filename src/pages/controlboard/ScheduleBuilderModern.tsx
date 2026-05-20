@@ -156,6 +156,28 @@ const ScheduleBuilderModern = () => {
     loadData();
   }, []);
 
+  // Load persisted employee order from localStorage after user is known
+  useEffect(() => {
+    if (!user?.id) return;
+    const stored = localStorage.getItem(`employeeOrder_${user.id}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as string[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEmployeeOrder(parsed);
+        }
+      } catch {
+        // ignore malformed data
+      }
+    }
+  }, [user?.id]);
+
+  // Persist employee order to localStorage whenever it changes
+  useEffect(() => {
+    if (!user?.id || employeeOrder.length === 0) return;
+    localStorage.setItem(`employeeOrder_${user.id}`, JSON.stringify(employeeOrder));
+  }, [employeeOrder, user?.id]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -267,8 +289,11 @@ const ScheduleBuilderModern = () => {
 
       setEmployees(transformedEmployees);
       
-      // Initialize employee order if not set
-      if (employeeOrder.length === 0) {
+      // Initialize employee order only if nothing is stored yet (localStorage wins)
+      const storedOrder = user?.id
+        ? localStorage.getItem(`employeeOrder_${user.id}`)
+        : null;
+      if (!storedOrder && employeeOrder.length === 0) {
         setEmployeeOrder(transformedEmployees.map(emp => emp.id));
       }
       
