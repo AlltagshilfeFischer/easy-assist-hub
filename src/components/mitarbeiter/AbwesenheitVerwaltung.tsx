@@ -40,9 +40,10 @@ function getTypLabel(t: string) {
 
 interface AbwesenheitVerwaltungProps {
   embedded?: boolean;
+  onAbwesenheitCreated?: () => void;
 }
 
-export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltungProps) {
+export function AbwesenheitVerwaltung({ embedded = false, onAbwesenheitCreated }: AbwesenheitVerwaltungProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -166,6 +167,7 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
       queryClient.invalidateQueries({ queryKey: ['termine'] });
       // Tab automatisch auf den passenden Zeitraum setzen, damit die neue Abwesenheit sichtbar ist
       setZeitraumFilter(bisDate < today ? 'vergangen' : 'aktuell');
+      onAbwesenheitCreated?.();
     },
     onError: (err) => {
       toast.error('Fehler', { description: err instanceof Error ? err.message : 'Unbekannt' });
