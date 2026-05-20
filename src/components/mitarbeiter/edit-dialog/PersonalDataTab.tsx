@@ -55,26 +55,6 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {isMinijob ? (
-            <div className="space-y-1.5">
-              <Label>Gehalt / Stunde (€)</Label>
-              <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
-              {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>Gehalt / Monat (€)</Label>
-              <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
-              {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label>Vertragsstunden / Monat</Label>
-            <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
-            {errors.vertragsstunden_pro_monat && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_monat.message}</p>}
-          </div>
-        </div>
       </fieldset>
 
       {/* ─── Kontakt ─────────────────────────────────── */}
@@ -173,6 +153,26 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
           <div className="space-y-1.5">
             <Label>Max. Termine/Tag</Label>
             <Input type="number" min="0" {...register('max_termine_pro_tag')} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {isMinijob ? (
+            <div className="space-y-1.5">
+              <Label>Gehalt / Stunde (€)</Label>
+              <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
+              {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Gehalt / Monat (€)</Label>
+              <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
+              {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label>Vertragsstunden / Monat</Label>
+            <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
+            {errors.vertragsstunden_pro_monat && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_monat.message}</p>}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">

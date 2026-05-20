@@ -276,7 +276,9 @@ export interface MitarbeiterNebenbeschaeftigung {
   art_beschaeftigung: string | null;
   arbeitszeit_stunden_woche: number | null;
   gehalt_monatlich: number | null;
+  gehalt_pro_stunde: number | null;
   sv_pflicht: boolean;
+  rv_pflicht: boolean | null;
 }
 
 // ─── Budget Manuelle Einträge ────────────────────────────────

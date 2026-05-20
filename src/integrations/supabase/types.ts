@@ -1407,8 +1407,10 @@ export type Database = {
           art_beschaeftigung: string | null
           created_at: string | null
           gehalt_monatlich: number | null
+          gehalt_pro_stunde: number | null
           id: string
           mitarbeiter_id: string
+          rv_pflicht: boolean | null
           sv_pflicht: boolean | null
           updated_at: string | null
         }
@@ -1418,8 +1420,10 @@ export type Database = {
           art_beschaeftigung?: string | null
           created_at?: string | null
           gehalt_monatlich?: number | null
+          gehalt_pro_stunde?: number | null
           id?: string
           mitarbeiter_id: string
+          rv_pflicht?: boolean | null
           sv_pflicht?: boolean | null
           updated_at?: string | null
         }
@@ -1429,8 +1433,10 @@ export type Database = {
           art_beschaeftigung?: string | null
           created_at?: string | null
           gehalt_monatlich?: number | null
+          gehalt_pro_stunde?: number | null
           id?: string
           mitarbeiter_id?: string
+          rv_pflicht?: boolean | null
           sv_pflicht?: boolean | null
           updated_at?: string | null
         }

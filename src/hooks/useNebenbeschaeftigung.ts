@@ -30,7 +30,9 @@ export function useCreateNebenbeschaeftigung() {
       art_beschaeftigung?: string | null;
       arbeitszeit_stunden_woche?: number | null;
       gehalt_monatlich?: number | null;
+      gehalt_pro_stunde?: number | null;
       sv_pflicht?: boolean;
+      rv_pflicht?: boolean | null;
     }) => {
       const { data, error } = await supabase
         .from('mitarbeiter_nebenbeschaeftigung')
@@ -56,7 +58,9 @@ export function useUpdateNebenbeschaeftigung() {
       art_beschaeftigung?: string | null;
       arbeitszeit_stunden_woche?: number | null;
       gehalt_monatlich?: number | null;
+      gehalt_pro_stunde?: number | null;
       sv_pflicht?: boolean;
+      rv_pflicht?: boolean | null;
     }) => {
       const { id, mitarbeiter_id, ...rest } = payload;
       const { data, error } = await supabase
