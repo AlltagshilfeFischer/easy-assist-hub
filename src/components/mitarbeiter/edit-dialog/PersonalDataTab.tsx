@@ -20,9 +20,9 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* ─── Pflichtfelder ────────────────────────────── */}
+      {/* ─── Name (einzige Pflichtfelder) ────────────── */}
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-foreground">Pflichtfelder</legend>
+        <legend className="text-sm font-semibold text-foreground">Name <span className="text-xs font-normal text-muted-foreground">(Pflichtfelder)</span></legend>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -39,17 +39,17 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
 
         <div className="grid grid-cols-[1fr_100px_1fr] gap-4">
           <div className="space-y-1.5">
-            <Label>Straße + Hausnr. *</Label>
+            <Label>Straße + Hausnr.</Label>
             <Input {...register('strasse')} placeholder="Musterstraße 1" />
             {errors.strasse && <p className="text-xs text-destructive">{errors.strasse.message}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label>PLZ *</Label>
+            <Label>PLZ</Label>
             <Input {...register('plz')} placeholder="30159" maxLength={5} />
             {errors.plz && <p className="text-xs text-destructive">{errors.plz.message}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label>Ort *</Label>
+            <Label>Ort</Label>
             <Input {...register('stadt')} placeholder="Hannover" />
             {errors.stadt && <p className="text-xs text-destructive">{errors.stadt.message}</p>}
           </div>
@@ -58,19 +58,19 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
         <div className="grid grid-cols-2 gap-4">
           {isMinijob ? (
             <div className="space-y-1.5">
-              <Label>Gehalt / Stunde (€) *</Label>
+              <Label>Gehalt / Stunde (€)</Label>
               <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
               {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label>Gehalt / Monat (€) *</Label>
+              <Label>Gehalt / Monat (€)</Label>
               <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
               {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
             </div>
           )}
           <div className="space-y-1.5">
-            <Label>Vertragsstunden / Monat *</Label>
+            <Label>Vertragsstunden / Monat</Label>
             <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
             {errors.vertragsstunden_pro_monat && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_monat.message}</p>}
           </div>

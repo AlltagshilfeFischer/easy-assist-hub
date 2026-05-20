@@ -1,12 +1,19 @@
 import { z } from 'zod';
 
+// Leere Strings und undefined/null werden für Zahlenfelder zu null konvertiert,
+// damit optionale Inputs nicht die Zod-Validierung (.positive) fehlschlagen lassen.
+function toNullableNum(val: unknown) {
+  if (val === '' || val == null) return null;
+  return val;
+}
+
 // ─── Reiter 1: Persoenliche Daten & Vertrag ─────────────────
 const personalDataSchema = z.object({
   vorname: z.string().min(1, 'Vorname ist erforderlich').trim(),
   nachname: z.string().min(1, 'Nachname ist erforderlich').trim(),
-  strasse: z.string().trim().min(1, 'Straße ist erforderlich'),
-  plz: z.string().regex(/^\d{5}$/, 'PLZ muss 5 Ziffern haben'),
-  stadt: z.string().trim().min(1, 'Ort ist erforderlich'),
+  strasse: z.string().trim().optional().or(z.literal('')),
+  plz: z.string().regex(/^\d{5}$/, 'PLZ muss 5 Ziffern haben').optional().or(z.literal('')),
+  stadt: z.string().trim().optional().or(z.literal('')),
   telefon: z.string().trim().optional().or(z.literal('')),
   email: z.string().email('Ungültige E-Mail-Adresse').optional().or(z.literal('')),
   geburtsdatum: z.string().optional().or(z.literal('')),
@@ -20,13 +27,13 @@ const personalDataSchema = z.object({
     .regex(/^([A-Z]{2}\d{2}[A-Z0-9]{4,30})?$/, 'Ungültiges IBAN-Format')
     .optional()
     .or(z.literal('')),
-  // Vertragsdaten
-  gehalt_pro_monat: z.coerce.number().positive('Gehalt muss positiv sein').nullable().optional(),
-  hourly_rate: z.coerce.number().positive('Stundenlohn muss positiv sein').nullable().optional(),
-  vertragsstunden_pro_monat: z.coerce.number().positive('Stunden müssen positiv sein').nullable().optional(),
+  // Vertragsdaten — preprocess verhindert Fehler bei leerem Input
+  gehalt_pro_monat: z.preprocess(toNullableNum, z.number().positive('Gehalt muss positiv sein').nullable().optional()),
+  hourly_rate: z.preprocess(toNullableNum, z.number().positive('Stundenlohn muss positiv sein').nullable().optional()),
+  vertragsstunden_pro_monat: z.preprocess(toNullableNum, z.number().positive('Stunden müssen positiv sein').nullable().optional()),
   employment_type: z.string().optional().or(z.literal('')),
-  soll_wochenstunden: z.coerce.number().min(0).nullable().optional(),
-  max_termine_pro_tag: z.coerce.number().int().min(0).nullable().optional(),
+  soll_wochenstunden: z.preprocess(toNullableNum, z.number().min(0).nullable().optional()),
+  max_termine_pro_tag: z.preprocess(toNullableNum, z.number().int().min(0).nullable().optional()),
   // Kalender / Standort
   farbe_kalender: z.string().default('#3B82F6'),
   standort: z.string().default('Hannover'),
@@ -39,8 +46,8 @@ const taxSocialSchema = z.object({
     .regex(/^(\d{11})?$/, 'Steuer-ID muss 11 Ziffern haben')
     .optional()
     .or(z.literal('')),
-  steuerklasse: z.coerce.number().int().min(1).max(6).nullable().optional(),
-  kinderfreibetrag: z.coerce.number().min(0).nullable().optional(),
+  steuerklasse: z.preprocess(toNullableNum, z.number().int().min(1).max(6).nullable().optional()),
+  kinderfreibetrag: z.preprocess(toNullableNum, z.number().min(0).nullable().optional()),
   sv_rv_nummer: z.string().trim().optional().or(z.literal('')),
   krankenkasse: z.string().trim().optional().or(z.literal('')),
   rv_befreiung: z.boolean().default(false),
