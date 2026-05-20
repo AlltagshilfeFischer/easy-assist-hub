@@ -327,7 +327,7 @@ export function AppointmentDetailDialog({
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0">
         {/* Header */}
         <div className="px-6 pt-6 pb-4">
           <DialogHeader>
