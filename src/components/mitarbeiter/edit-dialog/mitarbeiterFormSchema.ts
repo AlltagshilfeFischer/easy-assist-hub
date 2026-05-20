@@ -20,28 +20,15 @@ function nameRules(fieldLabel: string) {
     .min(1, `${fieldLabel} ist erforderlich`)
     .trim()
     .refine(v => !VERBOTENE_TITEL.test(v), {
-      message: `Kein Titel im ${fieldLabel} (Dr., Prof., Herr, Frau) — Titel im Feld "Titel/Präfix" eintragen`,
+      message: `Kein Titel im ${fieldLabel} (Dr., Prof., Herr, Frau) — nur den Namen eingeben`,
     })
     .refine(v => !BINDESTRICH_MIT_LEERZEICHEN.test(v), {
       message: 'Bindestrich ohne Leerzeichen schreiben (z.B. Müller-Schmidt)',
     });
 }
 
-export const MITARBEITER_TITEL = [
-  'Dr.',
-  'Dr. med.',
-  'Prof.',
-  'Prof. Dr.',
-  'Dipl.-Ing.',
-  'Dipl.-Kfm.',
-  'Mag.',
-  'M.Sc.',
-  'B.Sc.',
-] as const;
-
 // ─── Reiter 1: Persoenliche Daten & Vertrag ─────────────────
 const personalDataSchema = z.object({
-  titel: z.string().optional().or(z.literal('')),
   vorname: nameRules('Vorname'),
   nachname: nameRules('Nachname'),
   strasse: z.string().trim().optional().or(z.literal('')),

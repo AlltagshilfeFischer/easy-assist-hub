@@ -41,7 +41,7 @@ const monthToDate = (monthString: string) => {
 };
 
 const INITIAL_DATA = {
-  kategorie: 'Kunde', vorname: '', nachname: '', geburtsdatum: '', geschlecht: '',
+  kategorie: 'Kunde', titel: '', vorname: '', nachname: '', geburtsdatum: '', geschlecht: '',
   strasse: '', stadt: '', plz: '', stadtteil: '', telefonnr: '', email: '', kontaktweg: '',
   pflegekasse: '', versichertennummer: '', pflegegrad: '', kasse_privat: '',
   verhinderungspflege_status: '', kopie_lw: '',
@@ -113,6 +113,7 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
     setIsLoading(true);
     try {
       const insertData: KundenInsert = {
+        titel: customerData.titel || null,
         kategorie: customerData.kategorie, vorname: customerData.vorname, nachname: customerData.nachname,
         telefonnr: customerData.telefonnr || null, email: customerData.email || null,
         strasse: customerData.strasse || null, stadt: customerData.stadt || null,

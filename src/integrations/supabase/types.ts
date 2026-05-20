@@ -725,6 +725,7 @@ export type Database = {
           verhinderungspflege_genehmigt: boolean | null
           verhinderungspflege_genehmigt_am: string | null
           verhinderungspflege_status: string | null
+          titel: string | null
           versichertennummer: string | null
           vorname: string | null
         }
@@ -789,6 +790,7 @@ export type Database = {
           verhinderungspflege_genehmigt?: boolean | null
           verhinderungspflege_genehmigt_am?: string | null
           verhinderungspflege_status?: string | null
+          titel?: string | null
           versichertennummer?: string | null
           vorname?: string | null
         }
@@ -852,6 +854,7 @@ export type Database = {
           verhinderungspflege_budget?: number | null
           verhinderungspflege_genehmigt?: boolean | null
           verhinderungspflege_genehmigt_am?: string | null
+          titel?: string | null
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
           vorname?: string | null
@@ -1228,7 +1231,6 @@ export type Database = {
           rv_befreiung: boolean
           sv_rv_nummer: string | null
           telefon: string | null
-          titel: string | null
           updated_at: string
           vertragsstunden_pro_monat: number | null
           vorname: string | null
@@ -1272,7 +1274,6 @@ export type Database = {
           rv_befreiung?: boolean
           sv_rv_nummer?: string | null
           telefon?: string | null
-          titel?: string | null
           updated_at?: string
           vertragsstunden_pro_monat?: number | null
           vorname?: string | null
@@ -1316,7 +1317,6 @@ export type Database = {
           rv_befreiung?: boolean
           sv_rv_nummer?: string | null
           telefon?: string | null
-          titel?: string | null
           updated_at?: string
           vertragsstunden_pro_monat?: number | null
           vorname?: string | null

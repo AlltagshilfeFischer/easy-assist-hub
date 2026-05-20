@@ -20,7 +20,6 @@ import { mitarbeiterFormSchema, checkStammdatenVollstaendig, type MitarbeiterFor
 
 interface MitarbeiterData {
   id: string;
-  titel: string | null;
   vorname: string | null;
   nachname: string | null;
   telefon: string | null;
@@ -90,7 +89,6 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
     if (!mitarbeiter) return;
 
     const { error } = await supabase.from('mitarbeiter').update({
-      titel: values.titel || null,
       vorname: values.vorname,
       nachname: values.nachname,
       telefon: values.telefon || null,
@@ -252,7 +250,6 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
 
 function getDefaults(m: MitarbeiterData | null): MitarbeiterFormValues {
   return {
-    titel: m?.titel || '',
     vorname: m?.vorname || '',
     nachname: m?.nachname || '',
     telefon: m?.telefon || '',

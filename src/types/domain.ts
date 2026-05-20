@@ -57,6 +57,7 @@ export interface EmployeeSummary {
 // ─── Customer ───────────────────────────────────────────────
 export interface Customer {
   id: string;
+  titel?: string | null;
   name: string | null;
   vorname?: string | null;
   nachname?: string | null;

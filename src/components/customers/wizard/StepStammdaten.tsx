@@ -135,7 +135,24 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
       {/* Basis-Informationen */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Basis-Informationen</h3>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
+          <div>
+            <Label>Titel / Präfix</Label>
+            <Select value={customerData.titel || '__none__'} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, titel: v === '__none__' ? '' : v }))}>
+              <SelectTrigger><SelectValue placeholder="Kein Titel" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Kein Titel</SelectItem>
+                <SelectItem value="Dr.">Dr.</SelectItem>
+                <SelectItem value="Dr. med.">Dr. med.</SelectItem>
+                <SelectItem value="Prof.">Prof.</SelectItem>
+                <SelectItem value="Prof. Dr.">Prof. Dr.</SelectItem>
+                <SelectItem value="Dipl.-Ing.">Dipl.-Ing.</SelectItem>
+                <SelectItem value="Mag.">Mag.</SelectItem>
+                <SelectItem value="M.Sc.">M.Sc.</SelectItem>
+                <SelectItem value="B.Sc.">B.Sc.</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div><Label htmlFor="vorname">Vorname *</Label><Input id="vorname" value={customerData.vorname} onChange={(e) => setCustomerData((p: any) => ({ ...p, vorname: e.target.value }))} placeholder="Max" required /></div>
           <div><Label htmlFor="nachname">Nachname *</Label><Input id="nachname" value={customerData.nachname} onChange={(e) => setCustomerData((p: any) => ({ ...p, nachname: e.target.value }))} placeholder="Mustermann" required /></div>
           <div>

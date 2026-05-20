@@ -174,7 +174,7 @@ export function CustomerEditDialog({
               {/* Persönliche Daten */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Persönliche Daten</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="kategorie">Kategorie</Label>
                     <Select value={editingCustomer.kategorie || 'Kunde'} onValueChange={(value) => setEditingCustomer({ ...editingCustomer, kategorie: value })}>
@@ -186,6 +186,23 @@ export function CustomerEditDialog({
                     </Select>
                   </div>
                   <div>
+                    <Label>Titel / Präfix</Label>
+                    <Select value={editingCustomer.titel || '__none__'} onValueChange={(v) => setEditingCustomer({ ...editingCustomer, titel: v === '__none__' ? null : v })}>
+                      <SelectTrigger><SelectValue placeholder="Kein Titel" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Kein Titel</SelectItem>
+                        <SelectItem value="Dr.">Dr.</SelectItem>
+                        <SelectItem value="Dr. med.">Dr. med.</SelectItem>
+                        <SelectItem value="Prof.">Prof.</SelectItem>
+                        <SelectItem value="Prof. Dr.">Prof. Dr.</SelectItem>
+                        <SelectItem value="Dipl.-Ing.">Dipl.-Ing.</SelectItem>
+                        <SelectItem value="Mag.">Mag.</SelectItem>
+                        <SelectItem value="M.Sc.">M.Sc.</SelectItem>
+                        <SelectItem value="B.Sc.">B.Sc.</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label htmlFor="vorname">Vorname</Label>
                     <Input id="vorname" value={editingCustomer.vorname || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, vorname: e.target.value })} required />
                   </div>
@@ -193,6 +210,8 @@ export function CustomerEditDialog({
                     <Label htmlFor="nachname">Nachname</Label>
                     <Input id="nachname" value={editingCustomer.nachname || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, nachname: e.target.value })} required />
                   </div>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
                     <Input
@@ -211,7 +230,6 @@ export function CustomerEditDialog({
                       }}
                     />
                   </div>
-                  {/* Fix 2: Geschlecht */}
                   <div>
                     <Label htmlFor="geschlecht">Geschlecht</Label>
                     <Select
