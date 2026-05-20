@@ -465,6 +465,15 @@ const ScheduleBuilderModern = () => {
 
   const PAUSE_MINUTES = 15;
 
+  // Prüft anhand von `von`/`bis` (yyyy-MM-dd), ob ein MA an einem Datum abwesend ist.
+  // Robuster als zeitraum-Parsing (PostgreSQL TSTZRANGE enthält Anführungszeichen → Invalid Date).
+  const isEmployeeAbsent = (employeeId: string, date: Date): boolean =>
+    abwesenheiten.some(a => {
+      if (a.mitarbeiter_id !== employeeId || !a.von || !a.bis) return false;
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return dateStr >= a.von && dateStr <= a.bis;
+    });
+
   const checkForConflicts = (appointmentId: string, employeeId: string, targetDate?: Date) => {
     const appointment = appointments.find(app => app.id === appointmentId);
     if (!appointment) return { overlaps: [] as typeof appointments, pauseViolations: [] as typeof appointments };
@@ -728,15 +737,7 @@ const ScheduleBuilderModern = () => {
 
     // G-14: Check for employee absences on target date — show AlertDialog confirmation
     const effectiveDate = targetDate || new Date(appointment.start_at);
-    const hasAbsence = abwesenheiten.some(a => {
-      if (a.mitarbeiter_id !== employeeId) return false;
-      // zeitraum is a PostgreSQL TSTZRANGE stored as string "[start, end)"
-      const match = a.zeitraum?.match(/[\[(](.+?),(.+?)[\])]/);
-      if (!match) return false;
-      const rangeStart = new Date(match[1].trim());
-      const rangeEnd = new Date(match[2].trim());
-      return effectiveDate >= rangeStart && effectiveDate < rangeEnd;
-    });
+    const hasAbsence = isEmployeeAbsent(employeeId, effectiveDate);
 
     if (hasAbsence) {
       const absentEmployee = employees.find(e => e.id === employeeId);
@@ -877,15 +878,7 @@ const ScheduleBuilderModern = () => {
       // Abwesenheits-Check: MA abwesend → als offenen Termin anlegen
       let finalMitarbeiterId = payload.mitarbeiter_id ?? null;
       if (finalMitarbeiterId) {
-        const appointmentDate = new Date(payload.start_at);
-        const maAbwesend = abwesenheiten.some(a => {
-          if (a.mitarbeiter_id !== finalMitarbeiterId) return false;
-          const match = (a.zeitraum as string)?.match(/[\[(](.+?),(.+?)[\])]/);
-          if (!match) return false;
-          const rangeStart = new Date(match[1].trim());
-          const rangeEnd = new Date(match[2].trim());
-          return appointmentDate >= rangeStart && appointmentDate < rangeEnd;
-        });
+        const maAbwesend = isEmployeeAbsent(finalMitarbeiterId, new Date(payload.start_at));
         if (maAbwesend) {
           finalMitarbeiterId = null;
           const emp = employees.find(e => e.id === payload.mitarbeiter_id);
@@ -1928,14 +1921,7 @@ const ScheduleBuilderModern = () => {
                 onClick={async () => {
                   if (seriesMoveDialog) {
                     // G-14: Check for employee absences on target date before proceeding
-                    const singleAbsence = abwesenheiten.some(a => {
-                      if (a.mitarbeiter_id !== seriesMoveDialog.employeeId) return false;
-                      const match = a.zeitraum?.match(/[\[(](.+?),(.+?)[\])]/);
-                      if (!match) return false;
-                      const rangeStart = new Date(match[1].trim());
-                      const rangeEnd = new Date(match[2].trim());
-                      return seriesMoveDialog.targetDate >= rangeStart && seriesMoveDialog.targetDate < rangeEnd;
-                    });
+                    const singleAbsence = isEmployeeAbsent(seriesMoveDialog.employeeId, seriesMoveDialog.targetDate);
                     if (singleAbsence) {
                       const absentEmp = employees.find(e => e.id === seriesMoveDialog.employeeId);
                       setAbsenceConfirm({
@@ -1988,14 +1974,7 @@ const ScheduleBuilderModern = () => {
                   if (!vorlageId) return;
 
                   // G-14: Check for employee absences on the target date
-                  const seriesAbsence = abwesenheiten.some(a => {
-                    if (a.mitarbeiter_id !== employeeId) return false;
-                    const match = a.zeitraum?.match(/[\[(](.+?),(.+?)[\])]/);
-                    if (!match) return false;
-                    const rangeStart = new Date(match[1].trim());
-                    const rangeEnd = new Date(match[2].trim());
-                    return targetDate >= rangeStart && targetDate < rangeEnd;
-                  });
+                  const seriesAbsence = isEmployeeAbsent(employeeId, targetDate);
                   if (seriesAbsence) {
                     const absentEmp = employees.find(e => e.id === employeeId);
                     setAbsenceConfirm({
