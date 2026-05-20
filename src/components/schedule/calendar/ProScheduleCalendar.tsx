@@ -649,7 +649,7 @@ function UnassignedAppointmentWithSuggestions({
           />
         </div>
       </HoverCardTrigger>
-      <HoverCardContent side="right" align="start" className="w-60 p-3">
+      <HoverCardContent side="right" align="start" className="w-72 p-3">
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
           Verfügbare Mitarbeiter
         </p>
@@ -659,7 +659,7 @@ function UnassignedAppointmentWithSuggestions({
           </p>
         ) : (
           <div className="space-y-1.5">
-            {suggestions.map(({ employee, score, reason }) => (
+            {suggestions.map(({ employee, reason }) => (
               <div key={employee.id} className="flex items-center gap-2 rounded-md border bg-background p-1.5">
                 <div
                   className="w-2 h-2 rounded-full flex-shrink-0"
@@ -667,11 +667,8 @@ function UnassignedAppointmentWithSuggestions({
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate">{employee.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{reason}</p>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2">{reason}</p>
                 </div>
-                <Badge variant="outline" className="text-[10px] px-1 h-4 flex-shrink-0 font-mono">
-                  {score}
-                </Badge>
                 {onAssign && (
                   <Button
                     size="sm"
