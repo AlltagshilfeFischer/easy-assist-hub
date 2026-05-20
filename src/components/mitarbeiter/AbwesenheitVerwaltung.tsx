@@ -152,9 +152,9 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
         if (historyError) throw historyError;
       }
 
-      return overlapping?.length ?? 0;
+      return { movedCount: overlapping?.length ?? 0, bis };
     },
-    onSuccess: (movedCount) => {
+    onSuccess: ({ movedCount, bis: bisDate }) => {
       const msg =
         movedCount > 0
           ? `Abwesenheit eingetragen — ${movedCount} Termin${movedCount !== 1 ? 'e' : ''} freigegeben`
@@ -164,6 +164,8 @@ export function AbwesenheitVerwaltung({ embedded = false }: AbwesenheitVerwaltun
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['alle-abwesenheiten'] });
       queryClient.invalidateQueries({ queryKey: ['termine'] });
+      // Tab automatisch auf den passenden Zeitraum setzen, damit die neue Abwesenheit sichtbar ist
+      setZeitraumFilter(bisDate < today ? 'vergangen' : 'aktuell');
     },
     onError: (err) => {
       toast.error('Fehler', { description: err instanceof Error ? err.message : 'Unbekannt' });
