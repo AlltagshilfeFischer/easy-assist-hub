@@ -1152,11 +1152,9 @@ const ScheduleBuilderModern = () => {
         .gte('start_at', new Date().toISOString());
       if (termineErr) throw termineErr;
 
-      setAppointments(prev => prev.filter(app =>
-        app.vorlage_id !== vorlageId || new Date(app.start_at) < new Date()
-      ));
       queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
       toast({ title: 'Terminserie gelöscht' });
+      await loadData();
     } catch (error) {
       console.error('Error deleting series:', error);
       toast({ title: 'Fehler', description: 'Fehler beim Löschen der Serie.', variant: 'destructive' });
