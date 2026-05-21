@@ -248,10 +248,10 @@ export function SideEmploymentTab({ mitarbeiterId }: SideEmploymentTabProps) {
                     {isMinijob && (
                       <div className="flex items-center gap-2">
                         <Switch
-                          checked={entry.rv_pflicht ?? true}
-                          onCheckedChange={(checked) => handleUpdateField(entry, 'rv_pflicht', checked)}
+                          checked={!(entry.rv_pflicht ?? true)}
+                          onCheckedChange={(checked) => handleUpdateField(entry, 'rv_pflicht', !checked)}
                         />
-                        <Label className="text-xs">RV-Pflicht (beim anderen AG)</Label>
+                        <Label className="text-xs">Von RV-Pflicht befreit (§ 6 SGB VI)</Label>
                       </div>
                     )}
                   </div>
@@ -352,10 +352,10 @@ export function SideEmploymentTab({ mitarbeiterId }: SideEmploymentTabProps) {
                   {newEntry.art_beschaeftigung === 'minijob' && (
                     <div className="flex items-center gap-2">
                       <Switch
-                        checked={newEntry.rv_pflicht}
-                        onCheckedChange={(checked) => setNewEntry({ ...newEntry, rv_pflicht: checked })}
+                        checked={!newEntry.rv_pflicht}
+                        onCheckedChange={(checked) => setNewEntry({ ...newEntry, rv_pflicht: !checked })}
                       />
-                      <Label className="text-xs">RV-Pflicht (beim anderen AG)</Label>
+                      <Label className="text-xs">Von RV-Pflicht befreit (§ 6 SGB VI)</Label>
                     </div>
                   )}
                 </div>
