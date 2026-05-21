@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { generateUUID } from '@/lib/uuid';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,8 +95,23 @@ export default function BenutzerverwaltungNeu() {
   const { toast } = useToast();
   const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
   const { user } = useAuth();
-  
+  const [searchParams] = useSearchParams();
+  const deepLinkHandled = useRef(false);
+
   // GF hat direkt vollen Zugriff auf Rollenverwaltung
+
+  // Deep-Link aus Dienstplan: ?openMitarbeiter=<id> öffnet Edit-Dialog direkt
+  useEffect(() => {
+    if (deepLinkHandled.current || mitarbeiter.length === 0) return;
+    const openId = searchParams.get('openMitarbeiter');
+    if (!openId) return;
+    deepLinkHandled.current = true;
+    const target = mitarbeiter.find(m => m.id === openId);
+    if (target) {
+      setEditingMitarbeiter(target);
+      setEditDialogOpen(true);
+    }
+  }, [mitarbeiter, searchParams]);
 
   useEffect(() => {
     loadData();

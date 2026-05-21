@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, addMonths, subMonths, startOfMonth, endOfMonth, parseISO, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
@@ -56,6 +56,7 @@ type LocalAppointment = CalendarAppointment & {
 
 const ScheduleBuilderModern = () => {
   const { settings } = useSettings();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [currentWeek, setCurrentWeek] = useState(() => {
     const weekParam = searchParams.get('week');
@@ -1715,6 +1716,7 @@ const ScheduleBuilderModern = () => {
                   onAssignAppointment={(appointmentId, employeeId) =>
                     assignAppointment(appointmentId, employeeId)
                   }
+                  onEmployeeClick={(id) => navigate(`/dashboard/controlboard/admin?openMitarbeiter=${id}`)}
                 />
               )}
               {viewMode === 'month' && (

@@ -12,9 +12,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
 import { WOCHENTAGE } from '@/hooks/useVerfuegbarkeiten';
-import { User, Settings2 as SettingsIcon } from 'lucide-react';
-
-import { Settings2, GripVertical, Eye, EyeOff, UserX, Search, X } from 'lucide-react';
+import { User, Settings2 as SettingsIcon, GripVertical, Eye, EyeOff, UserX, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   DndContext,
@@ -268,6 +266,87 @@ function UnassignedDropCell({ id, children }: { id: string; children: React.Reac
       )}
       {children}
     </div>
+  );
+}
+
+interface EmployeeInfoCellProps {
+  employee: Employee;
+  initials: string;
+  weekHours: number;
+  sollStunden: number;
+  verfuegbarkeiten: Verfuegbarkeit[];
+  onEmployeeClick?: (employeeId: string) => void;
+}
+
+function EmployeeInfoCell({ employee, initials, weekHours, sollStunden, verfuegbarkeiten, onEmployeeClick }: EmployeeInfoCellProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div className="px-4 py-3 border-r border-border bg-card flex items-center gap-3 cursor-pointer hover:bg-muted/40 transition-colors select-none">
+          <Avatar className="h-10 w-10 shrink-0" style={{ boxShadow: `0 0 0 2px ${employee.farbe_kalender}` }}>
+            <AvatarImage src={employee.avatar_url || undefined} alt={employee.name} />
+            <AvatarFallback className="text-white font-semibold text-sm" style={{ backgroundColor: employee.farbe_kalender }}>
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-sm text-foreground truncate">{employee.name}</div>
+            <div className="flex items-center gap-1.5">
+              <span className={cn('text-xs font-medium', weekHours > sollStunden ? 'text-destructive' : 'text-primary')}>
+                {weekHours}/{sollStunden} Std.
+              </span>
+              {employee.rolle && employee.rolle !== 'mitarbeiter' && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                  {ROLE_LABELS[employee.rolle] || employee.rolle}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      </PopoverTrigger>
+      <PopoverContent className="w-60 p-0" align="start" sideOffset={4}>
+        <div className="flex items-center justify-between px-3 py-2.5 border-b bg-muted/30">
+          <div>
+            <p className="text-sm font-semibold leading-tight">{employee.name}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Wochentags-Verfügbarkeit</p>
+          </div>
+          {onEmployeeClick && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
+              title="Mitarbeiter-Einstellungen"
+              onClick={() => { setOpen(false); onEmployeeClick(employee.id); }}
+            >
+              <SettingsIcon className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+        <div className="px-3 py-2 space-y-0.5">
+          {WOCHENTAGE.map((tag, dayIndex) => {
+            const slots = verfuegbarkeiten.filter(v => v.wochentag === dayIndex);
+            return (
+              <div key={dayIndex} className="flex items-start gap-2 py-0.5">
+                <span className="text-[11px] font-medium text-muted-foreground w-7 shrink-0 pt-px">
+                  {tag.slice(0, 2)}
+                </span>
+                {slots.length === 0 ? (
+                  <span className="text-[11px] text-muted-foreground/50">—</span>
+                ) : (
+                  <div className="flex flex-col gap-0.5">
+                    {slots.map((s, i) => (
+                      <span key={i} className="text-[11px] font-medium tabular-nums">{s.von} – {s.bis}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
