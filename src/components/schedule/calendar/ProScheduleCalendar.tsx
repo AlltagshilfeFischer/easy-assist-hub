@@ -452,7 +452,7 @@ export function ProScheduleCalendar({
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
-                  <Settings2 className="h-3.5 w-3.5" />
+                  <SettingsIcon className="h-3.5 w-3.5" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-80 p-0" sideOffset={8}>
