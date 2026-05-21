@@ -1,18 +1,13 @@
 import { z } from 'zod';
 
-// Leere Strings und undefined/null werden für Zahlenfelder zu null konvertiert,
-// damit optionale Inputs nicht die Zod-Validierung (.positive) fehlschlagen lassen.
 function toNullableNum(val: unknown) {
   if (val === '' || val == null) return null;
   return val;
 }
 
-// Erkennt bekannte Titel im Namensfeld.
 // WICHTIG: \b (Word-Boundary) funktioniert nicht zuverlässig nach optionalen Sonderzeichen
-// wie dem Punkt (z.B. \bDr\.?\b matcht "Dr." NICHT, weil nach dem Punkt kein \w→\W-Übergang
-// mehr stattfindet). Deshalb: Lookahead auf Leerzeichen nach Titel.
+// wie dem Punkt (z.B. \bDr\.?\b matcht "Dr." NICHT). Deshalb: Lookahead auf Leerzeichen.
 const VERBOTENE_TITEL = /(?:^|\s)(?:Dr|Prof|Herr|Frau|Dipl|Mag|Ing)\.?\s/i;
-// Bindestrich mit Leerzeichen drumherum
 const BINDESTRICH_MIT_LEERZEICHEN = /\s-|-\s/;
 
 function nameRules(fieldLabel: string) {
@@ -27,7 +22,6 @@ function nameRules(fieldLabel: string) {
     });
 }
 
-// ─── Reiter 1: Persoenliche Daten & Vertrag ─────────────────
 const personalDataSchema = z.object({
   vorname: nameRules('Vorname'),
   nachname: nameRules('Nachname'),
@@ -48,20 +42,17 @@ const personalDataSchema = z.object({
     .regex(/^([A-Z]{2}\d{2}[A-Z0-9]{4,30})?$/, 'Ungültiges IBAN-Format')
     .optional()
     .or(z.literal('')),
-  // Vertragsdaten — preprocess verhindert Fehler bei leerem Input
   gehalt_pro_monat: z.preprocess(toNullableNum, z.number().positive('Gehalt muss positiv sein').nullable().optional()),
   hourly_rate: z.preprocess(toNullableNum, z.number().positive('Stundenlohn muss positiv sein').nullable().optional()),
   vertragsstunden_pro_monat: z.preprocess(toNullableNum, z.number().positive('Stunden müssen positiv sein').nullable().optional()),
   employment_type: z.string().optional().or(z.literal('')),
   soll_wochenstunden: z.preprocess(toNullableNum, z.number().min(0).nullable().optional()),
   max_termine_pro_tag: z.preprocess(toNullableNum, z.number().int().min(0).nullable().optional()),
-  // Kalender / Standort
   farbe_kalender: z.string().default('#3B82F6'),
   standort: z.string().default('Hannover'),
   zustaendigkeitsbereich: z.string().trim().optional().or(z.literal('')),
 });
 
-// ─── Reiter 2: Steuer & Sozialversicherung ──────────────────
 const taxSocialSchema = z.object({
   steuer_id: z.string()
     .regex(/^(\d{11})?$/, 'Steuer-ID muss 11 Ziffern haben')
@@ -74,19 +65,10 @@ const taxSocialSchema = z.object({
   rv_befreiung: z.boolean().default(false),
 });
 
-// ─── Reiter 3: Weitere Beschaeftigungsverhaeltnisse ─────────
-const sideEmploymentSchema = z.object({
-  weitere_beschaeftigung: z.boolean().default(false),
-});
-
-// ─── Kombiniertes Schema ────────────────────────────────────
-export const mitarbeiterFormSchema = personalDataSchema
-  .merge(taxSocialSchema)
-  .merge(sideEmploymentSchema);
+export const mitarbeiterFormSchema = personalDataSchema.merge(taxSocialSchema);
 
 export type MitarbeiterFormValues = z.infer<typeof mitarbeiterFormSchema>;
 
-// ─── Nebenbeschaeftigung-Eintrag ────────────────────────────
 export const nebenbeschaeftigungSchema = z.object({
   arbeitgeber: z.string().min(1, 'Arbeitgeber ist erforderlich').trim(),
   art_beschaeftigung: z.enum(['minijob', 'sv_pflichtig', 'kurzfristig', 'ehrenamt', '']).optional(),
@@ -97,17 +79,14 @@ export const nebenbeschaeftigungSchema = z.object({
 
 export type NebenbeschaeftigungFormValues = z.infer<typeof nebenbeschaeftigungSchema>;
 
-// ─── Pflichtfeld-Pruefung fuer Einsatzplanung ───────────────
 export function checkStammdatenVollstaendig(data: Partial<MitarbeiterFormValues>): boolean {
-  const isMinijob = data.employment_type === 'Minijob';
-  const hasGehalt = !!(data.hourly_rate || data.gehalt_pro_monat);
   return !!(
     data.vorname &&
     data.nachname &&
     data.strasse &&
     data.plz &&
     data.stadt &&
-    hasGehalt &&
+    (data.hourly_rate || data.gehalt_pro_monat) &&
     data.vertragsstunden_pro_monat
   );
 }

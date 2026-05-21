@@ -54,7 +54,6 @@ interface MitarbeiterData {
   sv_rv_nummer: string | null;
   krankenkasse: string | null;
   rv_befreiung: boolean | null;
-  weitere_beschaeftigung: boolean | null;
 }
 
 interface MitarbeiterEditDialogProps {
@@ -122,7 +121,6 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
       sv_rv_nummer: values.sv_rv_nummer || null,
       krankenkasse: values.krankenkasse || null,
       rv_befreiung: values.rv_befreiung ?? false,
-      weitere_beschaeftigung: values.weitere_beschaeftigung,
     }).eq('id', mitarbeiter.id);
 
     if (error) {
@@ -232,7 +230,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
             </TabsContent>
 
             <TabsContent value="side" className="mt-4">
-              <SideEmploymentTab form={form} mitarbeiterId={mitarbeiter.id} />
+              <SideEmploymentTab mitarbeiterId={mitarbeiter.id} />
             </TabsContent>
 
             <TabsContent value="dokumente" className="mt-4">
@@ -290,7 +288,6 @@ function getDefaults(m: MitarbeiterData | null): MitarbeiterFormValues {
     sv_rv_nummer: m?.sv_rv_nummer || '',
     krankenkasse: m?.krankenkasse || '',
     rv_befreiung: m?.rv_befreiung ?? false,
-    weitere_beschaeftigung: m?.weitere_beschaeftigung ?? false,
   };
 }
 

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -8,14 +7,12 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Trash2, Loader2, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import {
   useNebenbeschaeftigungen,
   useCreateNebenbeschaeftigung,
   useUpdateNebenbeschaeftigung,
   useDeleteNebenbeschaeftigung,
 } from '@/hooks/useNebenbeschaeftigung';
-import type { MitarbeiterFormValues } from './mitarbeiterFormSchema';
 import type { MitarbeiterNebenbeschaeftigung } from '@/types/domain';
 
 const ART_LABELS: Record<string, string> = {
@@ -32,20 +29,10 @@ function deriveGehaltsart(entry: MitarbeiterNebenbeschaeftigung): Gehaltsart {
 }
 
 interface SideEmploymentTabProps {
-  form: UseFormReturn<MitarbeiterFormValues>;
   mitarbeiterId: string;
 }
 
-async function syncWeitereFlag(mitarbeiterId: string, hasEntries: boolean) {
-  await supabase
-    .from('mitarbeiter')
-    .update({ weitere_beschaeftigung: hasEntries })
-    .eq('id', mitarbeiterId);
-}
-
-export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProps) {
-  const { setValue } = form;
-
+export function SideEmploymentTab({ mitarbeiterId }: SideEmploymentTabProps) {
   const { data: nebenbeschaeftigungen = [], isLoading } = useNebenbeschaeftigungen(mitarbeiterId);
   const createMutation = useCreateNebenbeschaeftigung();
   const updateMutation = useUpdateNebenbeschaeftigung();
@@ -54,20 +41,19 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
   const [addingNew, setAddingNew] = useState(false);
   const [newEntry, setNewEntry] = useState({
     arbeitgeber: '',
-    art_beschaeftigung: '' as string,
-    arbeitszeit_stunden_woche: '' as string,
+    art_beschaeftigung: '',
+    arbeitszeit_stunden_woche: '',
     gehaltsart: 'monatlich' as Gehaltsart,
-    gehalt_monatlich: '' as string,
-    gehalt_pro_stunde: '' as string,
+    gehalt_monatlich: '',
+    gehalt_pro_stunde: '',
     sv_pflicht: false,
     rv_pflicht: true,
   });
 
   const [editGehaltsart, setEditGehaltsart] = useState<Record<string, Gehaltsart>>({});
 
-  const getGehaltsartForEntry = (entry: MitarbeiterNebenbeschaeftigung): Gehaltsart => {
-    return editGehaltsart[entry.id] ?? deriveGehaltsart(entry);
-  };
+  const getGehaltsartForEntry = (entry: MitarbeiterNebenbeschaeftigung): Gehaltsart =>
+    editGehaltsart[entry.id] ?? deriveGehaltsart(entry);
 
   const handleAddEntry = async () => {
     if (!newEntry.arbeitgeber.trim()) {
@@ -86,29 +72,20 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
         sv_pflicht: newEntry.sv_pflicht,
         rv_pflicht: isMinijob ? newEntry.rv_pflicht : null,
       });
-      // Sync flag: mindestens ein Eintrag existiert jetzt
-      setValue('weitere_beschaeftigung', true);
-      await syncWeitereFlag(mitarbeiterId, true);
       toast.success('Nebenbeschäftigung hinzugefügt');
       setNewEntry({ arbeitgeber: '', art_beschaeftigung: '', arbeitszeit_stunden_woche: '', gehaltsart: 'monatlich', gehalt_monatlich: '', gehalt_pro_stunde: '', sv_pflicht: false, rv_pflicht: true });
       setAddingNew(false);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      toast.error('Fehler', { description: message });
+      toast.error('Fehler', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' });
     }
   };
 
   const handleDeleteEntry = async (entry: MitarbeiterNebenbeschaeftigung) => {
     try {
       await deleteMutation.mutateAsync({ id: entry.id, mitarbeiter_id: mitarbeiterId });
-      const remaining = nebenbeschaeftigungen.filter((e) => e.id !== entry.id);
-      // Sync flag: kein Eintrag mehr → false
-      setValue('weitere_beschaeftigung', remaining.length > 0);
-      await syncWeitereFlag(mitarbeiterId, remaining.length > 0);
       toast.success('Nebenbeschäftigung entfernt');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      toast.error('Fehler', { description: message });
+      toast.error('Fehler', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' });
     }
   };
 
@@ -118,24 +95,15 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
     value: string | number | boolean | null
   ) => {
     try {
-      await updateMutation.mutateAsync({
-        id: entry.id,
-        mitarbeiter_id: mitarbeiterId,
-        [field]: value,
-      });
+      await updateMutation.mutateAsync({ id: entry.id, mitarbeiter_id: mitarbeiterId, [field]: value });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      toast.error('Fehler beim Speichern', { description: message });
+      toast.error('Fehler beim Speichern', { description: error instanceof Error ? error.message : 'Unbekannter Fehler' });
     }
   };
 
   const handleGehaltsartSwitch = async (entry: MitarbeiterNebenbeschaeftigung, newArt: Gehaltsart) => {
     setEditGehaltsart((prev) => ({ ...prev, [entry.id]: newArt }));
-    if (newArt === 'monatlich') {
-      await handleUpdateField(entry, 'gehalt_pro_stunde', null);
-    } else {
-      await handleUpdateField(entry, 'gehalt_monatlich', null);
-    }
+    await handleUpdateField(entry, newArt === 'monatlich' ? 'gehalt_pro_stunde' : 'gehalt_monatlich', null);
   };
 
   return (
@@ -185,9 +153,8 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
                       <Input
                         defaultValue={entry.arbeitgeber}
                         onBlur={(e) => {
-                          if (e.target.value !== entry.arbeitgeber) {
+                          if (e.target.value !== entry.arbeitgeber)
                             handleUpdateField(entry, 'arbeitgeber', e.target.value);
-                          }
                         }}
                         className="h-8 text-sm"
                       />
@@ -216,16 +183,14 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
                         defaultValue={entry.arbeitszeit_stunden_woche ?? ''}
                         onBlur={(e) => {
                           const val = e.target.value ? parseFloat(e.target.value) : null;
-                          if (val !== entry.arbeitszeit_stunden_woche) {
+                          if (val !== entry.arbeitszeit_stunden_woche)
                             handleUpdateField(entry, 'arbeitszeit_stunden_woche', val);
-                          }
                         }}
                         className="h-8 text-sm"
                       />
                     </div>
                   </div>
 
-                  {/* Gehaltsart + Betrag */}
                   <div className="flex items-end gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Gehaltsart</Label>
@@ -247,30 +212,24 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
                       {gehaltsart === 'monatlich' ? (
                         <Input
                           key={`${entry.id}-monatlich`}
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="number" min="0" step="0.01"
                           defaultValue={entry.gehalt_monatlich ?? ''}
                           onBlur={(e) => {
                             const val = e.target.value ? parseFloat(e.target.value) : null;
-                            if (val !== entry.gehalt_monatlich) {
+                            if (val !== entry.gehalt_monatlich)
                               handleUpdateField(entry, 'gehalt_monatlich', val);
-                            }
                           }}
                           className="h-8 text-sm"
                         />
                       ) : (
                         <Input
                           key={`${entry.id}-stuendlich`}
-                          type="number"
-                          min="0"
-                          step="0.01"
+                          type="number" min="0" step="0.01"
                           defaultValue={entry.gehalt_pro_stunde ?? ''}
                           onBlur={(e) => {
                             const val = e.target.value ? parseFloat(e.target.value) : null;
-                            if (val !== entry.gehalt_pro_stunde) {
+                            if (val !== entry.gehalt_pro_stunde)
                               handleUpdateField(entry, 'gehalt_pro_stunde', val);
-                            }
                           }}
                           className="h-8 text-sm"
                         />
@@ -278,7 +237,6 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
                     </div>
                   </div>
 
-                  {/* SV-Pflicht + RV-Pflicht (nur Minijob-Nebenjob) */}
                   <div className="flex items-center gap-6 pt-1">
                     <div className="flex items-center gap-2">
                       <Switch
@@ -303,12 +261,9 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
           })}
 
           {nebenbeschaeftigungen.length === 0 && !addingNew && (
-            <p className="text-sm text-muted-foreground italic">
-              Keine Nebenbeschäftigungen eingetragen.
-            </p>
+            <p className="text-sm text-muted-foreground italic">Keine Nebenbeschäftigungen eingetragen.</p>
           )}
 
-          {/* Neue Nebenbeschaeftigung hinzufuegen */}
           {addingNew ? (
             <Card className="border-dashed">
               <CardContent className="pt-4 pb-3 space-y-3">
@@ -343,9 +298,7 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
                 <div className="space-y-1">
                   <Label className="text-xs">Arbeitszeit (Std./Woche)</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.5"
+                    type="number" min="0" step="0.5"
                     value={newEntry.arbeitszeit_stunden_woche}
                     onChange={(e) => setNewEntry({ ...newEntry, arbeitszeit_stunden_woche: e.target.value })}
                     className="h-8 text-sm max-w-xs"
@@ -372,18 +325,14 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
                     </Label>
                     {newEntry.gehaltsart === 'monatlich' ? (
                       <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="number" min="0" step="0.01"
                         value={newEntry.gehalt_monatlich}
                         onChange={(e) => setNewEntry({ ...newEntry, gehalt_monatlich: e.target.value })}
                         className="h-8 text-sm"
                       />
                     ) : (
                       <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="number" min="0" step="0.01"
                         value={newEntry.gehalt_pro_stunde}
                         onChange={(e) => setNewEntry({ ...newEntry, gehalt_pro_stunde: e.target.value })}
                         className="h-8 text-sm"
@@ -416,9 +365,7 @@ export function SideEmploymentTab({ form, mitarbeiterId }: SideEmploymentTabProp
                     {createMutation.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                     Hinzufügen
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setAddingNew(false)}>
-                    Abbrechen
-                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAddingNew(false)}>Abbrechen</Button>
                 </div>
               </CardContent>
             </Card>

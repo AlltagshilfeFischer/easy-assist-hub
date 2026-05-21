@@ -59,7 +59,6 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
       kinderfreibetrag: null,
       sv_rv_nummer: '',
       krankenkasse: '',
-      weitere_beschaeftigung: false,
     },
   });
 
@@ -101,8 +100,6 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         kinderfreibetrag: values.kinderfreibetrag ?? null,
         sv_rv_nummer: values.sv_rv_nummer || null,
         krankenkasse: values.krankenkasse || null,
-        // Reiter 3
-        weitere_beschaeftigung: values.weitere_beschaeftigung,
       }]).select('id').single();
 
       if (error) throw error;
