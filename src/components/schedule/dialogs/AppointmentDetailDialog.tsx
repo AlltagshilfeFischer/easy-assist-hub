@@ -689,8 +689,9 @@ export function AppointmentDetailDialog({
                 editedAppointment?.end_at ?? '',
                 allVerfuegbarkeiten,
               );
+              if (!check.hasEntries) return 'Für diesen Mitarbeiter sind keine Verfügbarkeiten hinterlegt.';
               return check.noEntryForDay
-                ? 'Der Mitarbeiter hat für diesen Wochentag keine Verfügbarkeit eingetragen.'
+                ? 'Der Mitarbeiter ist an diesem Wochentag laut Verfügbarkeit nicht verfügbar.'
                 : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
             })()} Trotzdem speichern?
           </AlertDialogDescription>

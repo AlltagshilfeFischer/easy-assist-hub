@@ -166,9 +166,11 @@ export function CreateAppointmentDialog({
     await doSubmit();
   };
 
-  const verfuegbarkeitHinweis = verfuegbarkeitWarning?.noEntryForDay
-    ? 'Der Mitarbeiter hat für diesen Wochentag keine Verfügbarkeit eingetragen.'
-    : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
+  const verfuegbarkeitHinweis = !verfuegbarkeitWarning?.hasEntries
+    ? 'Für diesen Mitarbeiter sind keine Verfügbarkeiten hinterlegt.'
+    : verfuegbarkeitWarning?.noEntryForDay
+      ? 'Der Mitarbeiter ist an diesem Wochentag laut Verfügbarkeit nicht verfügbar.'
+      : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
 
   return (
     <>

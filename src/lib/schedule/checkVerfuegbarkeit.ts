@@ -45,7 +45,7 @@ export function checkVerfuegbarkeit(
   if (!mitarbeiterId) return { outsideWindow: false, hasEntries: false, noEntryForDay: false };
 
   const empVerfueg = verfuegbarkeiten.filter(v => v.mitarbeiter_id === mitarbeiterId);
-  if (empVerfueg.length === 0) return { outsideWindow: false, hasEntries: false, noEntryForDay: false };
+  if (empVerfueg.length === 0) return { outsideWindow: true, hasEntries: false, noEntryForDay: true };
 
   const { weekday, minutes: startMinutes } = toBerlinWeekdayAndMinutes(startAt);
   const durationMs = new Date(endAt).getTime() - new Date(startAt).getTime();
