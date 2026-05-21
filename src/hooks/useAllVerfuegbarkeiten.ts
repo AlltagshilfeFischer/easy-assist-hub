@@ -15,7 +15,8 @@ export function useAllVerfuegbarkeiten() {
         .order('wochentag')
         .order('von');
       if (error) throw error;
-      return data ?? [];
+      // PostgreSQL TIME columns return "HH:MM:SS" — normalize to "HH:MM"
+      return (data ?? []).map(v => ({ ...v, von: v.von.slice(0, 5), bis: v.bis.slice(0, 5) }));
     },
   });
 }
