@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { CalendarIcon, Clock, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,7 @@ export function CreateAppointmentDialog({
   const [kategorie, setKategorie] = useState<string>('');
   const [notizen, setNotizen] = useState('');
   const [ausweichortId, setAusweichortId] = useState<string | null>(null);
+  const [showVerfuegbarkeitConfirm, setShowVerfuegbarkeitConfirm] = useState(false);
 
   const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
 
@@ -81,16 +83,12 @@ export function CreateAppointmentDialog({
     return checkVerfuegbarkeit(mitarbeiterId, startAt.toISOString(), endAt.toISOString(), allVerfuegbarkeiten);
   }, [date, startTime, dauerMinuten, mitarbeiterId, allVerfuegbarkeiten]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSubmit = async () => {
     if (!date) return;
-    if (isNewInteressent && !newInteressentName.trim()) return;
-
     setLoading(true);
     try {
       let finalKundenId: string | null = isInternTermin ? null : (kundenId || null);
 
-      // If creating new Interessent, create them first
       if (!isInternTermin && isNewInteressent && newInteressentName.trim()) {
         const { supabase } = await import('@/integrations/supabase/client');
 
@@ -100,12 +98,7 @@ export function CreateAppointmentDialog({
 
         const { data: newKunde, error: kundeError } = await supabase
           .from('kunden')
-          .insert([{
-            vorname: vorname,
-            nachname: nachname,
-            kategorie: 'Interessent',
-            aktiv: true
-          }])
+          .insert([{ vorname, nachname, kategorie: 'Interessent', aktiv: true }])
           .select()
           .single();
 
@@ -139,7 +132,6 @@ export function CreateAppointmentDialog({
         ausweichort_id: ausweichortId || null,
       });
 
-      // Reset form
       setKundenId('');
       setMitarbeiterId('unassigned');
       setDate(undefined);
@@ -161,7 +153,42 @@ export function CreateAppointmentDialog({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date) return;
+    if (isNewInteressent && !newInteressentName.trim()) return;
+
+    if (verfuegbarkeitWarning?.outsideWindow) {
+      setShowVerfuegbarkeitConfirm(true);
+      return;
+    }
+
+    await doSubmit();
+  };
+
+  const verfuegbarkeitHinweis = verfuegbarkeitWarning?.noEntryForDay
+    ? 'Der Mitarbeiter hat für diesen Wochentag keine Verfügbarkeit eingetragen.'
+    : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
+
   return (
+    <>
+    <AlertDialog open={showVerfuegbarkeitConfirm} onOpenChange={setShowVerfuegbarkeitConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Außerhalb der Verfügbarkeit</AlertDialogTitle>
+          <AlertDialogDescription>
+            {verfuegbarkeitHinweis} Trotzdem speichern?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={() => { setShowVerfuegbarkeitConfirm(false); doSubmit(); }}>
+            Trotzdem speichern
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl z-[201]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
@@ -264,17 +291,6 @@ export function CreateAppointmentDialog({
                     ))}
                 </SelectContent>
               </Select>
-              {verfuegbarkeitWarning?.outsideWindow && (
-                <div className="flex items-start gap-2 p-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>
-                    {verfuegbarkeitWarning.noEntryForDay
-                      ? 'Mitarbeiter ist laut Verfügbarkeit an diesem Wochentag nicht verfügbar.'
-                      : 'Termin liegt außerhalb der eingetragenen Verfügbarkeit des Mitarbeiters.'}
-                    {' '}Termin kann trotzdem gespeichert werden.
-                  </span>
-                </div>
-              )}
             </div>
 
           <div className="space-y-2">
@@ -372,5 +388,6 @@ export function CreateAppointmentDialog({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

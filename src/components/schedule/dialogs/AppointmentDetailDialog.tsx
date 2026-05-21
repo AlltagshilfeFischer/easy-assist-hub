@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -80,6 +80,7 @@ export function AppointmentDetailDialog({
   const [customerFaultNote, setCustomerFaultNote] = useState('');
   const [showKundenDetail, setShowKundenDetail] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showVerfuegbarkeitConfirm, setShowVerfuegbarkeitConfirm] = useState(false);
   const { toast } = useToast();
   const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
   const queryClient = useQueryClient();
@@ -93,13 +94,6 @@ export function AppointmentDetailDialog({
   }, [appointment]);
 
   if (!appointment || !editedAppointment) return null;
-
-  const verfuegbarkeitWarning = checkVerfuegbarkeit(
-    editedAppointment.mitarbeiter_id ?? null,
-    editedAppointment.start_at,
-    editedAppointment.end_at,
-    allVerfuegbarkeiten,
-  );
 
   const updateField = (updates: Partial<Appointment>) => {
     setEditedAppointment((prev) => prev ? { ...prev, ...updates } : prev);
@@ -144,13 +138,28 @@ export function AppointmentDetailDialog({
   };
 
   // Save
-  const handleSave = async () => {
+  const proceedWithSave = async () => {
     if (!editedAppointment) return;
     if (editedAppointment.vorlage_id && !editedAppointment.ist_ausnahme) {
       setShowSeriesDialog(true);
       return;
     }
     await performSave();
+  };
+
+  const handleSave = async () => {
+    if (!editedAppointment) return;
+    const check = checkVerfuegbarkeit(
+      editedAppointment.mitarbeiter_id ?? null,
+      editedAppointment.start_at,
+      editedAppointment.end_at,
+      allVerfuegbarkeiten,
+    );
+    if (check.outsideWindow) {
+      setShowVerfuegbarkeitConfirm(true);
+      return;
+    }
+    await proceedWithSave();
   };
 
   const performSave = async () => {
@@ -363,17 +372,6 @@ export function AppointmentDetailDialog({
               <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                 {employee.telefon && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{employee.telefon}</span>}
                 {employee.benutzer?.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{employee.benutzer.email}</span>}
-              </div>
-            )}
-            {verfuegbarkeitWarning.outsideWindow && (
-              <div className="flex items-start gap-2 mt-1.5 p-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>
-                  {verfuegbarkeitWarning.noEntryForDay
-                    ? 'Mitarbeiter ist laut Verfügbarkeit an diesem Wochentag nicht verfügbar.'
-                    : 'Termin liegt außerhalb der eingetragenen Verfügbarkeit des Mitarbeiters.'}
-                  {' '}Kann trotzdem gespeichert werden.
-                </span>
               </div>
             )}
           </div>
@@ -677,6 +675,34 @@ export function AppointmentDetailDialog({
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+
+    {/* Verfügbarkeits-Bestätigung */}
+    <AlertDialog open={showVerfuegbarkeitConfirm} onOpenChange={setShowVerfuegbarkeitConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Außerhalb der Verfügbarkeit</AlertDialogTitle>
+          <AlertDialogDescription>
+            {(() => {
+              const check = checkVerfuegbarkeit(
+                editedAppointment?.mitarbeiter_id ?? null,
+                editedAppointment?.start_at ?? '',
+                editedAppointment?.end_at ?? '',
+                allVerfuegbarkeiten,
+              );
+              return check.noEntryForDay
+                ? 'Der Mitarbeiter hat für diesen Wochentag keine Verfügbarkeit eingetragen.'
+                : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
+            })()} Trotzdem speichern?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={() => { setShowVerfuegbarkeitConfirm(false); proceedWithSave(); }}>
+            Trotzdem speichern
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <KundenDetailDialog isOpen={showKundenDetail} onClose={() => setShowKundenDetail(false)} kundenId={editedAppointment?.kunden_id || null} />
     </>
