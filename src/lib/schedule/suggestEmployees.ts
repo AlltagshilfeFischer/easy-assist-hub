@@ -5,7 +5,7 @@
 
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
 import type { Employee, CalendarAppointment } from '@/types/domain';
-import { APP_TIMEZONE } from '@/lib/timezone';
+import { toBerlinWeekdayAndMinutes } from '@/lib/timezone';
 
 interface Abwesenheit {
   mitarbeiter_id: string;
@@ -24,36 +24,9 @@ function timeToMinutes(time: string): number {
   return hh * 60 + (mm ?? 0);
 }
 
-/**
- * Convert a UTC ISO string to a Date object representing the local Berlin time.
- * Uses Intl.DateTimeFormat to determine the correct offset.
- */
 function toBerlinParts(isoUtc: string): { date: Date; weekdayIso: number; minutesSinceMidnight: number } {
-  const utcDate = new Date(isoUtc);
-
-  // Intl gives us the local parts in Berlin timezone
-  const parts = new Intl.DateTimeFormat('de-DE', {
-    timeZone: APP_TIMEZONE,
-    hour: 'numeric',
-    minute: 'numeric',
-    weekday: 'short',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour12: false,
-  }).formatToParts(utcDate);
-
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '0';
-
-  const hours = parseInt(get('hour'), 10);
-  const minutes = parseInt(get('minute'), 10);
-  const minutesSinceMidnight = hours * 60 + minutes;
-
-  // weekday short in de-DE: 'Mo.' or 'Mo' depending on CLDR version — strip trailing period
-  const weekdayMap: Record<string, number> = { Mo: 0, Di: 1, Mi: 2, Do: 3, Fr: 4, Sa: 5, So: 6 };
-  const weekdayIso = weekdayMap[get('weekday').replace('.', '')] ?? 0;
-
-  return { date: utcDate, weekdayIso, minutesSinceMidnight };
+  const { weekday, minutes } = toBerlinWeekdayAndMinutes(isoUtc);
+  return { date: new Date(isoUtc), weekdayIso: weekday, minutesSinceMidnight: minutes };
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -1,29 +1,9 @@
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
-import { APP_TIMEZONE } from '@/lib/timezone';
+import { toBerlinWeekdayAndMinutes } from '@/lib/timezone';
 
 function timeToMinutes(time: string): number {
   const [hh, mm] = time.split(':').map(Number);
   return hh * 60 + (mm ?? 0);
-}
-
-function toBerlinWeekdayAndMinutes(isoUtc: string): { weekday: number; minutes: number } {
-  const utcDate = new Date(isoUtc);
-  const parts = new Intl.DateTimeFormat('de-DE', {
-    timeZone: APP_TIMEZONE,
-    hour: 'numeric',
-    minute: 'numeric',
-    weekday: 'short',
-    hour12: false,
-  }).formatToParts(utcDate);
-
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '0';
-  const hours = parseInt(get('hour'), 10);
-  const minutes = parseInt(get('minute'), 10);
-
-  const weekdayMap: Record<string, number> = { Mo: 0, Di: 1, Mi: 2, Do: 3, Fr: 4, Sa: 5, So: 6 };
-  const weekday = weekdayMap[get('weekday').replace('.', '')] ?? 0;
-
-  return { weekday, minutes: hours * 60 + minutes };
 }
 
 export interface VerfuegbarkeitCheckResult {
@@ -34,7 +14,7 @@ export interface VerfuegbarkeitCheckResult {
 
 /**
  * Prüft ob ein Termin innerhalb der eingetragenen Verfügbarkeit des MAs liegt.
- * Gibt outsideWindow=false zurück wenn keine Verfügbarkeiten hinterlegt (keine Restriktion).
+ * Keine Einträge = unverfügbar (outsideWindow: true).
  */
 export function checkVerfuegbarkeit(
   mitarbeiterId: string | null,
