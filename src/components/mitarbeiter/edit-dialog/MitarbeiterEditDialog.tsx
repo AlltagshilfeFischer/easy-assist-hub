@@ -42,6 +42,7 @@ interface MitarbeiterData {
   geburtsname: string | null;
   geburtsort: string | null;
   geburtsland: string | null;
+  staatsangehoerigkeit: string | null;
   geschlecht: string | null;
   konfession: string | null;
   email: string | null;
@@ -109,6 +110,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
       geburtsname: values.geburtsname || null,
       geburtsort: values.geburtsort || null,
       geburtsland: values.geburtsland || null,
+      staatsangehoerigkeit: values.staatsangehoerigkeit || null,
       geschlecht: values.geschlecht || null,
       konfession: values.konfession || null,
       email: values.email || null,
@@ -268,6 +270,7 @@ function getDefaults(m: MitarbeiterData | null): MitarbeiterFormValues {
     geburtsname: m?.geburtsname || '',
     geburtsort: m?.geburtsort || '',
     geburtsland: m?.geburtsland || '',
+    staatsangehoerigkeit: m?.staatsangehoerigkeit || '',
     geschlecht: (m?.geschlecht as 'm' | 'w' | 'd' | '') || '',
     konfession: m?.konfession || '',
     bank_institut: m?.bank_institut || '',

@@ -16,7 +16,6 @@ interface PersonalDataTabProps {
 export function PersonalDataTab({ form }: PersonalDataTabProps) {
   const { register, formState: { errors }, setValue, watch } = form;
   const selectedColor = watch('farbe_kalender');
-  const isMinijob = watch('employment_type') === 'Minijob';
 
   return (
     <div className="space-y-6">
@@ -107,6 +106,10 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
             <Input {...register('geburtsland')} placeholder="Deutschland" />
           </div>
         </div>
+        <div className="space-y-1.5 max-w-xs">
+          <Label>Staatsangehörigkeit</Label>
+          <Input {...register('staatsangehoerigkeit')} placeholder="Deutsch" />
+        </div>
         <div className="space-y-1.5">
           <Label>Konfession</Label>
           <Input {...register('konfession')} placeholder="z.B. evangelisch" />
@@ -155,20 +158,17 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
             <Input type="number" min="0" {...register('max_termine_pro_tag')} />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          {isMinijob ? (
-            <div className="space-y-1.5">
-              <Label>Gehalt / Stunde (€)</Label>
-              <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
-              {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>Gehalt / Monat (€)</Label>
-              <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
-              {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
-            </div>
-          )}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label>Gehalt / Monat (€)</Label>
+            <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
+            {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Gehalt / Stunde (€)</Label>
+            <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
+            {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
+          </div>
           <div className="space-y-1.5">
             <Label>Vertragsstunden / Monat</Label>
             <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />

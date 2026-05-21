@@ -42,6 +42,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
       geburtsname: '',
       geburtsort: '',
       geburtsland: '',
+      staatsangehoerigkeit: '',
       geschlecht: '',
       konfession: '',
       bank_institut: '',
@@ -63,8 +64,6 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
   });
 
   const selectedColor = watch('farbe_kalender');
-  const isMinijob = watch('employment_type') === 'Minijob';
-
   const onSubmit = async (values: MitarbeiterFormValues) => {
     setSaving(true);
     try {
@@ -85,6 +84,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         geburtsname: values.geburtsname || null,
         geburtsort: values.geburtsort || null,
         geburtsland: values.geburtsland || null,
+        staatsangehoerigkeit: values.staatsangehoerigkeit || null,
         geschlecht: values.geschlecht || null,
         konfession: values.konfession || null,
         bank_institut: values.bank_institut || null,
@@ -197,20 +197,17 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
               </div>
 
               {/* Vertragsdaten (Pflicht) */}
-              <div className="grid grid-cols-2 gap-4">
-                {isMinijob ? (
-                  <div className="space-y-1.5">
-                    <Label>Gehalt / Stunde (€) *</Label>
-                    <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
-                    {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <Label>Gehalt / Monat (€) *</Label>
-                    <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
-                    {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
-                  </div>
-                )}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Gehalt / Monat (€)</Label>
+                  <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
+                  {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Gehalt / Stunde (€)</Label>
+                  <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
+                  {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
+                </div>
                 <div className="space-y-1.5">
                   <Label>Vertragsstunden / Monat *</Label>
                   <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
@@ -250,7 +247,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="space-y-1.5">
                   <Label>Geburtsname</Label>
                   <Input {...register('geburtsname')} />
@@ -262,6 +259,10 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
                 <div className="space-y-1.5">
                   <Label>Geburtsland</Label>
                   <Input {...register('geburtsland')} placeholder="Deutschland" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Staatsangehörigkeit</Label>
+                  <Input {...register('staatsangehoerigkeit')} placeholder="Deutsch" />
                 </div>
               </div>
 

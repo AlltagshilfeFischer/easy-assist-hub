@@ -40,6 +40,7 @@ const personalDataSchema = z.object({
   geburtsname: z.string().trim().optional().or(z.literal('')),
   geburtsort: z.string().trim().optional().or(z.literal('')),
   geburtsland: z.string().trim().optional().or(z.literal('')),
+  staatsangehoerigkeit: z.string().trim().optional().or(z.literal('')),
   geschlecht: z.enum(['m', 'w', 'd', '']).optional(),
   konfession: z.string().trim().optional().or(z.literal('')),
   bank_institut: z.string().trim().optional().or(z.literal('')),
@@ -99,7 +100,7 @@ export type NebenbeschaeftigungFormValues = z.infer<typeof nebenbeschaeftigungSc
 // ─── Pflichtfeld-Pruefung fuer Einsatzplanung ───────────────
 export function checkStammdatenVollstaendig(data: Partial<MitarbeiterFormValues>): boolean {
   const isMinijob = data.employment_type === 'Minijob';
-  const hasGehalt = isMinijob ? !!data.hourly_rate : !!data.gehalt_pro_monat;
+  const hasGehalt = !!(data.hourly_rate || data.gehalt_pro_monat);
   return !!(
     data.vorname &&
     data.nachname &&
