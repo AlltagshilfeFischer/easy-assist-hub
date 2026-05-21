@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AvatarUpload } from '@/components/mitarbeiter/AvatarUpload';
 import { QualifikationenPicker } from '@/components/mitarbeiter/QualifikationenPicker';
-import { VerfuegbarkeitEditor } from '@/components/mitarbeiter/VerfuegbarkeitEditor';
+import { VerfuegbarkeitEditor, type VerfuegbarkeitEditorRef } from '@/components/mitarbeiter/VerfuegbarkeitEditor';
 import { useMitarbeiterQualifikationen, useSaveMitarbeiterQualifikationen } from '@/hooks/useQualifikationen';
 import { PersonalDataTab } from './PersonalDataTab';
 import { TaxSocialTab } from './TaxSocialTab';
@@ -66,6 +66,7 @@ interface MitarbeiterEditDialogProps {
 export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSuccess }: MitarbeiterEditDialogProps) {
   const { data: currentQualifikationIds = [] } = useMitarbeiterQualifikationen(mitarbeiter?.id ?? null);
   const saveQualifikationen = useSaveMitarbeiterQualifikationen();
+  const verfuegbarkeitRef = useRef<VerfuegbarkeitEditorRef>(null);
 
   const form = useForm<MitarbeiterFormValues>({
     resolver: zodResolver(mitarbeiterFormSchema),
@@ -132,7 +133,6 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
         mitarbeiterId: mitarbeiter.id,
         qualifikationIds: qualifikationState.ids,
       });
-      toast.success('Mitarbeiter-Daten wurden aktualisiert');
     } catch (qualError: unknown) {
       const message = qualError instanceof Error ? qualError.message : 'Unbekannter Fehler';
       toast.warning('Stammdaten gespeichert – Qualifikationen konnten nicht aktualisiert werden', {
@@ -140,6 +140,13 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
       });
     }
 
+    try {
+      await verfuegbarkeitRef.current?.saveIfDirty();
+    } catch {
+      toast.warning('Stammdaten gespeichert – Verfügbarkeiten konnten nicht aktualisiert werden');
+    }
+
+    toast.success('Mitarbeiter-Daten wurden aktualisiert');
     onOpenChange(false);
     onSuccess();
   };
@@ -214,7 +221,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
 
               {/* Verfuegbarkeit */}
               <div className="border-t pt-4">
-                <VerfuegbarkeitEditor mitarbeiterId={mitarbeiter.id} />
+                <VerfuegbarkeitEditor ref={verfuegbarkeitRef} mitarbeiterId={mitarbeiter.id} />
               </div>
             </TabsContent>
 
