@@ -1109,18 +1109,13 @@ const ScheduleBuilderModern = () => {
 
   const handleDeleteAppointment = async (appointmentId: string) => {
     try {
-      // FK-Constraints: rechnungspositionen und termin_aenderungen zuerst löschen
+      // rechnungspositionen hat ON DELETE RESTRICT → muss vor termine gelöscht werden
+      // termin_aenderungen hat ON DELETE CASCADE → wird von DB automatisch gelöscht
       const { error: rpError } = await supabase
         .from('rechnungspositionen')
         .delete()
         .eq('termin_id', appointmentId);
       if (rpError) throw rpError;
-
-      const { error: taError } = await supabase
-        .from('termin_aenderungen')
-        .delete()
-        .eq('termin_id', appointmentId);
-      if (taError) throw taError;
 
       const { error } = await supabase
         .from('termine')
@@ -1164,10 +1159,9 @@ const ScheduleBuilderModern = () => {
 
       if (betroffene && betroffene.length > 0) {
         const ids = betroffene.map(t => t.id);
+        // rechnungspositionen hat ON DELETE RESTRICT → muss vor termine gelöscht werden
         const { error: rpErr } = await supabase.from('rechnungspositionen').delete().in('termin_id', ids);
         if (rpErr) throw rpErr;
-        const { error: taErr } = await supabase.from('termin_aenderungen').delete().in('termin_id', ids);
-        if (taErr) throw taErr;
       }
 
       const { error: vorlagenErr } = await supabase
