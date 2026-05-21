@@ -11,7 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
-import { User } from 'lucide-react';
+import { WOCHENTAGE } from '@/hooks/useVerfuegbarkeiten';
+import { User, Settings2 as SettingsIcon } from 'lucide-react';
 
 import { Settings2, GripVertical, Eye, EyeOff, UserX, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -79,6 +80,7 @@ interface ProScheduleCalendarProps {
   onReorderEmployees?: (orderedIds: string[]) => void;
   verfuegbarkeiten?: Verfuegbarkeit[];
   onAssignAppointment?: (appointmentId: string, employeeId: string) => void;
+  onEmployeeClick?: (employeeId: string) => void;
 }
 
 // Inline sortable item for the popover
@@ -287,6 +289,7 @@ export function ProScheduleCalendar({
   onReorderEmployees,
   verfuegbarkeiten = [],
   onAssignAppointment,
+  onEmployeeClick,
 }: ProScheduleCalendarProps) {
 
   const popoverSensors = useSensors(
@@ -504,40 +507,15 @@ export function ProScheduleCalendar({
               style={{ gridTemplateColumns: '220px repeat(7, 1fr)' }}
             >
               {/* Employee Info Column */}
-              <div className="px-4 py-3 border-r border-border bg-card flex items-center gap-3">
-                <div 
-                  className="relative"
-                  style={{ '--ring-color': employee.farbe_kalender } as React.CSSProperties}
-                >
-                  <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-offset-background" style={{ boxShadow: `0 0 0 2px ${employee.farbe_kalender}` }}>
-                    <AvatarImage src={employee.avatar_url || undefined} alt={employee.name} />
-                    <AvatarFallback 
-                      className="text-white font-semibold text-sm"
-                      style={{ backgroundColor: employee.farbe_kalender }}
-                    >
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-foreground truncate">
-                    {employee.name}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className={cn(
-                      "text-xs font-medium",
-                      weekHours > sollStunden ? "text-destructive" : "text-primary"
-                    )}>
-                      {weekHours}/{sollStunden} Std.
-                    </span>
-                    {employee.rolle && employee.rolle !== 'mitarbeiter' && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal">
-                        {ROLE_LABELS[employee.rolle] || employee.rolle}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <EmployeeInfoCell
+                employee={employee}
+                initials={initials}
+                weekHours={weekHours}
+                sollStunden={sollStunden}
+                hasAbsenceThisWeek={hasAbsenceThisWeek}
+                verfuegbarkeiten={verfuegbarkeiten.filter(v => v.mitarbeiter_id === employee.id)}
+                onEmployeeClick={onEmployeeClick}
+              />
 
               {/* Day Cells */}
               {weekDates.map((date) => {
@@ -601,6 +579,48 @@ export function ProScheduleCalendar({
 
 // ─── Unassigned card with hover suggestions ───────────────────────────────────
 
+function SuggestionRow({
+  employee,
+  reason,
+  appointmentId,
+  onAssign,
+}: {
+  employee: Employee;
+  reason: string;
+  appointmentId: string;
+  onAssign?: (appointmentId: string, employeeId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="flex items-start gap-2 rounded-md border bg-background p-1.5">
+      <div
+        className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
+        style={{ backgroundColor: employee.farbe_kalender }}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">{employee.name}</p>
+        <p
+          className={cn('text-[10px] text-muted-foreground cursor-pointer select-none', !expanded && 'line-clamp-1')}
+          onClick={() => setExpanded(v => !v)}
+        >
+          {reason}
+        </p>
+      </div>
+      {onAssign && (
+        <Button
+          size="sm"
+          variant="default"
+          className="h-6 w-6 p-0 flex-shrink-0"
+          title={`${employee.name} zuweisen`}
+          onClick={() => onAssign(appointmentId, employee.id)}
+        >
+          <User className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 interface UnassignedAppointmentWithSuggestionsProps {
   appointment: CalendarAppointment;
   allAppointments: CalendarAppointment[];
@@ -660,27 +680,13 @@ function UnassignedAppointmentWithSuggestions({
         ) : (
           <div className="space-y-1.5">
             {suggestions.map(({ employee, reason }) => (
-              <div key={employee.id} className="flex items-center gap-2 rounded-md border bg-background p-1.5">
-                <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: employee.farbe_kalender }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{employee.name}</p>
-                  <p className="text-[10px] text-muted-foreground line-clamp-2">{reason}</p>
-                </div>
-                {onAssign && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="h-6 w-6 p-0 flex-shrink-0"
-                    title={`${employee.name} zuweisen`}
-                    onClick={() => onAssign(appointment.id, employee.id)}
-                  >
-                    <User className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
+              <SuggestionRow
+                key={employee.id}
+                employee={employee}
+                reason={reason}
+                appointmentId={appointment.id}
+                onAssign={onAssign}
+              />
             ))}
           </div>
         )}
