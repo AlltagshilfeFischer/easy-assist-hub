@@ -68,7 +68,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
   const onSubmit = async (values: MitarbeiterFormValues) => {
     setSaving(true);
     try {
-      const { error } = await supabase.from('mitarbeiter').insert([{
+      const { data: newMA, error } = await supabase.from('mitarbeiter').insert([{
         vorname: values.vorname,
         nachname: values.nachname,
         telefon: values.telefon || null,
@@ -103,9 +103,21 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         krankenkasse: values.krankenkasse || null,
         // Reiter 3
         weitere_beschaeftigung: values.weitere_beschaeftigung,
-      }]);
+      }]).select('id').single();
 
       if (error) throw error;
+
+      // Standard-Verfügbarkeit Mo–Fr 08:00–17:00 automatisch setzen
+      if (newMA?.id) {
+        await supabase.from('mitarbeiter_verfuegbarkeit').insert(
+          [0, 1, 2, 3, 4].map((wochentag) => ({
+            mitarbeiter_id: newMA.id,
+            wochentag,
+            von: '08:00',
+            bis: '17:00',
+          }))
+        );
+      }
 
       toast.success('Mitarbeiter erfolgreich angelegt', {
         description: `${values.vorname} ${values.nachname} wurde hinzugefügt.`,
