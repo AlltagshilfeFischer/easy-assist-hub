@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, addMonths, subMonths, startOfMonth, endOfMonth, parseISO, isSameDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, subDays, addMonths, subMonths, startOfMonth, endOfMonth, parseISO, isSameDay, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1152,11 +1152,14 @@ const ScheduleBuilderModern = () => {
 
   const handleDeleteSeries = async (vorlageId: string, _mode: 'single' | 'all') => {
     try {
+      // Use start of today so appointments earlier today are also included
+      const todayStart = startOfDay(new Date()).toISOString();
+
       const { data: betroffene, error: fetchError } = await supabase
         .from('termine')
         .select('id')
         .eq('vorlage_id', vorlageId)
-        .gte('start_at', new Date().toISOString());
+        .gte('start_at', todayStart);
       if (fetchError) throw fetchError;
 
       if (betroffene && betroffene.length > 0) {
@@ -1177,7 +1180,7 @@ const ScheduleBuilderModern = () => {
         .from('termine')
         .delete()
         .eq('vorlage_id', vorlageId)
-        .gte('start_at', new Date().toISOString());
+        .gte('start_at', todayStart);
       if (termineErr) throw termineErr;
 
       queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
