@@ -307,22 +307,9 @@ function EmployeeInfoCell({ employee, initials, weekHours, sollStunden, verfuegb
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-60 p-0" align="start" sideOffset={4}>
-        <div className="flex items-center justify-between px-3 py-2.5 border-b bg-muted/30">
-          <div>
-            <p className="text-sm font-semibold leading-tight">{employee.name}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Wochentags-Verfügbarkeit</p>
-          </div>
-          {onEmployeeClick && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
-              title="Mitarbeiter-Einstellungen"
-              onClick={() => { setOpen(false); onEmployeeClick(employee.id); }}
-            >
-              <SettingsIcon className="h-3.5 w-3.5" />
-            </Button>
-          )}
+        <div className="px-3 py-2.5 border-b bg-muted/30">
+          <p className="text-sm font-semibold leading-tight">{employee.name}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Wochentags-Verfügbarkeit (Ansicht)</p>
         </div>
         <div className="px-3 py-2 space-y-0.5">
           {WOCHENTAGE.map((tag, dayIndex) => {
@@ -345,6 +332,19 @@ function EmployeeInfoCell({ employee, initials, weekHours, sollStunden, verfuegb
             );
           })}
         </div>
+        {onEmployeeClick && (
+          <div className="px-3 py-2 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-7 text-xs gap-1.5"
+              onClick={() => { setOpen(false); onEmployeeClick(employee.id); }}
+            >
+              <SettingsIcon className="h-3 w-3" />
+              Verfügbarkeiten bearbeiten
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
