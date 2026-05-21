@@ -466,14 +466,29 @@ const ScheduleBuilderModern = () => {
 
   const PAUSE_MINUTES = 15;
 
-  // Prüft anhand von `von`/`bis` (yyyy-MM-dd), ob ein MA an einem Datum abwesend ist.
-  // Robuster als zeitraum-Parsing (PostgreSQL TSTZRANGE enthält Anführungszeichen → Invalid Date).
-  const isEmployeeAbsent = (employeeId: string, date: Date): boolean =>
-    abwesenheiten.some(a => {
+  // Lokale Prüfung via State (für Drag&Drop — State ist dort aktuell genug).
+  const isEmployeeAbsent = (employeeId: string, date: Date): boolean => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return abwesenheiten.some(a => {
       if (a.mitarbeiter_id !== employeeId || !a.von || !a.bis) return false;
-      const dateStr = format(date, 'yyyy-MM-dd');
       return dateStr >= a.von && dateStr <= a.bis;
     });
+  };
+
+  // DB-Abfrage für Abwesenheitsprüfung — zuverlässig, unabhängig vom State.
+  // Nutzt DATE-Spalten von/bis direkt in SQL (kein Timezone-Problem).
+  const queryMaAbwesend = async (employeeId: string, dateStr: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from('mitarbeiter_abwesenheiten')
+      .select('id')
+      .eq('mitarbeiter_id', employeeId)
+      .eq('status', 'approved')
+      .lte('von', dateStr)
+      .gte('bis', dateStr)
+      .limit(1)
+      .maybeSingle();
+    return !!data;
+  };
 
   const checkForConflicts = (appointmentId: string, employeeId: string, targetDate?: Date) => {
     const appointment = appointments.find(app => app.id === appointmentId);
@@ -876,10 +891,11 @@ const ScheduleBuilderModern = () => {
         }
       }
 
-      // Abwesenheits-Check: MA abwesend → als offenen Termin anlegen
+      // Abwesenheits-Check via DB (zuverlässig, unabhängig vom lokalen State)
       let finalMitarbeiterId = payload.mitarbeiter_id ?? null;
       if (finalMitarbeiterId) {
-        const maAbwesend = isEmployeeAbsent(finalMitarbeiterId, new Date(payload.start_at));
+        const apptDateStr = format(new Date(payload.start_at), 'yyyy-MM-dd');
+        const maAbwesend = await queryMaAbwesend(finalMitarbeiterId, apptDateStr);
         if (maAbwesend) {
           finalMitarbeiterId = null;
           const emp = employees.find(e => e.id === payload.mitarbeiter_id);
@@ -1006,20 +1022,38 @@ const ScheduleBuilderModern = () => {
         const [hh, mm] = String(data.start_zeit || '09:00').split(':').map((n: string) => parseInt(n, 10));
         const duration = Number(data.dauer_minuten || 60);
 
+        // Abwesenheiten für den MA im Zeitraum vorab laden (ein Query für alle Instanzen)
+        let maAbwesenheiten: { von: string; bis: string }[] = [];
+        if (data.mitarbeiter_id) {
+          const { data: absData } = await supabase
+            .from('mitarbeiter_abwesenheiten')
+            .select('von, bis')
+            .eq('mitarbeiter_id', data.mitarbeiter_id)
+            .eq('status', 'approved')
+            .lte('von', toDate)
+            .gte('bis', fromDate);
+          maAbwesenheiten = (absData ?? []).filter(a => a.von && a.bis);
+        }
+
+        const isAbsentOn = (dateStr: string) =>
+          maAbwesenheiten.some(a => dateStr >= a.von && dateStr <= a.bis);
+
         const rows: any[] = [];
         let d = new Date(first);
         while (d <= end) {
           const startAt = new Date(d);
           startAt.setHours(hh, mm, 0, 0);
           const endAt = new Date(startAt.getTime() + duration * 60_000);
+          const dateStr = format(startAt, 'yyyy-MM-dd');
+          const absent = isAbsentOn(dateStr);
 
           rows.push({
             titel: data.titel,
             kunden_id: data.kunden_id,
-            mitarbeiter_id: data.mitarbeiter_id ?? null,
+            mitarbeiter_id: absent ? null : (data.mitarbeiter_id ?? null),
             start_at: startAt.toISOString(),
             end_at: endAt.toISOString(),
-            status: data.mitarbeiter_id ? 'scheduled' : 'unassigned',
+            status: (data.mitarbeiter_id && !absent) ? 'scheduled' : 'unassigned',
             vorlage_id: template?.id ?? null,
             notizen: data.notizen ?? null,
             ausweichort_id: data.ausweichort_id ?? null,
