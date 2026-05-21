@@ -22,6 +22,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { checkPauseConflict } from '@/lib/schedule/validatePause';
+import { checkVerfuegbarkeit } from '@/lib/schedule/checkVerfuegbarkeit';
 import { ProScheduleCalendar } from '@/components/schedule/calendar/ProScheduleCalendar';
 // DayView entfernt — nur Wochen- und Monatsansicht
 import { MonthView } from '@/components/schedule/calendar/MonthView';
@@ -117,6 +118,18 @@ const ScheduleBuilderModern = () => {
     employeeName: string;
   }>({ show: false, appointmentId: '', employeeId: '', targetDate: undefined, employeeName: '' });
   const [pendingUpdateAppointment, setPendingUpdateAppointment] = useState<any | null>(null);
+  const [verfuegbarkeitPending, setVerfuegbarkeitPending] = useState<{
+    type: 'drag';
+    appointmentId: string;
+    employeeId: string;
+    targetDate?: Date;
+    hinweis: string;
+  } | {
+    type: 'paste';
+    employeeId: string | null;
+    targetDate: Date;
+    hinweis: string;
+  } | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -764,6 +777,27 @@ const ScheduleBuilderModern = () => {
       return;
     }
 
+    // Verfügbarkeits-Check: Termin außerhalb des eingetragenen Zeitfensters?
+    {
+      const origStart = new Date(appointment.start_at);
+      const origEnd = new Date(appointment.end_at);
+      const durationMs = origEnd.getTime() - origStart.getTime();
+      const checkStart = targetDate
+        ? (() => { const ns = new Date(targetDate); ns.setHours(origStart.getHours(), origStart.getMinutes(), origStart.getSeconds(), origStart.getMilliseconds()); return ns; })()
+        : origStart;
+      const checkEnd = new Date(checkStart.getTime() + durationMs);
+      const verfResult = checkVerfuegbarkeit(employeeId, checkStart.toISOString(), checkEnd.toISOString(), allVerfuegbarkeiten);
+      if (verfResult.outsideWindow) {
+        const hinweis = !verfResult.hasEntries
+          ? 'Für diesen Mitarbeiter sind keine Verfügbarkeiten hinterlegt.'
+          : verfResult.noEntryForDay
+            ? 'Der Mitarbeiter ist an diesem Wochentag laut Verfügbarkeit nicht verfügbar.'
+            : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
+        setVerfuegbarkeitPending({ type: 'drag', appointmentId, employeeId, targetDate, hinweis });
+        return;
+      }
+    }
+
     const { overlaps, pauseViolations } = checkForConflicts(appointmentId, employeeId, targetDate);
 
     if (overlaps.length > 0 || pauseViolations.length > 0) {
@@ -1209,7 +1243,7 @@ const ScheduleBuilderModern = () => {
     });
   };
 
-  const handlePasteAppointment = async (employeeId: string | null, targetDate: Date) => {
+  const handlePasteAppointment = async (employeeId: string | null, targetDate: Date, skipVerfuegbarkeitCheck = false) => {
     if (!cutAppointment) return;
 
     try {
@@ -1222,6 +1256,20 @@ const ScheduleBuilderModern = () => {
 
       const newEnd = new Date(targetDate);
       newEnd.setHours(originalEnd.getHours(), originalEnd.getMinutes(), 0, 0);
+
+      // Verfügbarkeits-Check
+      if (employeeId && !skipVerfuegbarkeitCheck) {
+        const verfResult = checkVerfuegbarkeit(employeeId, newStart.toISOString(), newEnd.toISOString(), allVerfuegbarkeiten);
+        if (verfResult.outsideWindow) {
+          const hinweis = !verfResult.hasEntries
+            ? 'Für diesen Mitarbeiter sind keine Verfügbarkeiten hinterlegt.'
+            : verfResult.noEntryForDay
+              ? 'Der Mitarbeiter ist an diesem Wochentag laut Verfügbarkeit nicht verfügbar.'
+              : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
+          setVerfuegbarkeitPending({ type: 'paste', employeeId, targetDate, hinweis });
+          return;
+        }
+      }
 
       const employee = employeeId ? employees.find(emp => emp.id === employeeId) : null;
 
@@ -1342,6 +1390,30 @@ const ScheduleBuilderModern = () => {
       });
     } else {
       await assignAppointment(appointmentId, employeeId, targetDate);
+    }
+  };
+
+  const handleVerfuegbarkeitConfirm = async () => {
+    if (!verfuegbarkeitPending) return;
+    const pending = verfuegbarkeitPending;
+    setVerfuegbarkeitPending(null);
+
+    if (pending.type === 'drag') {
+      const { overlaps, pauseViolations } = checkForConflicts(pending.appointmentId, pending.employeeId, pending.targetDate);
+      if (overlaps.length > 0 || pauseViolations.length > 0) {
+        setConflictWarning({
+          show: true,
+          appointmentId: pending.appointmentId,
+          employeeId: pending.employeeId,
+          conflicts: overlaps,
+          pauseViolations,
+          targetDate: pending.targetDate,
+        });
+      } else {
+        await assignAppointment(pending.appointmentId, pending.employeeId, pending.targetDate);
+      }
+    } else {
+      await handlePasteAppointment(pending.employeeId, pending.targetDate, true);
     }
   };
 
@@ -2125,6 +2197,24 @@ const ScheduleBuilderModern = () => {
                 }}
               >
                 Alle zukünftigen Termine
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Verfügbarkeits-Warnung: Drag & Drop / Copy-Paste außerhalb des Zeitfensters */}
+        <AlertDialog open={!!verfuegbarkeitPending} onOpenChange={(open) => !open && setVerfuegbarkeitPending(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Außerhalb der Verfügbarkeit</AlertDialogTitle>
+              <AlertDialogDescription>
+                {verfuegbarkeitPending?.hinweis} Trotzdem zuweisen?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction onClick={handleVerfuegbarkeitConfirm}>
+                Trotzdem zuweisen
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
