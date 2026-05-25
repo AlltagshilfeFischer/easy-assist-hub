@@ -42,15 +42,22 @@ function validateRecord(record: MappedCustomerRecord): ValidationError[] {
   }
 
   if (record.geburtsdatum) {
-    const match = record.geburtsdatum.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (!match) {
-      errors.push({ field: 'geburtsdatum', message: 'Datum muss im Format TT.MM.JJJJ sein' });
-    } else {
-      const [, day, month, year] = match;
+    const deMatch = record.geburtsdatum.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    const isoMatch = record.geburtsdatum.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (deMatch) {
+      const [, day, month, year] = deMatch;
       const date = new Date(`${year}-${month}-${day}`);
       if (isNaN(date.getTime()) || date.getDate() !== parseInt(day, 10)) {
         errors.push({ field: 'geburtsdatum', message: 'Ungültiges Datum (z.B. 31.02. existiert nicht)' });
       }
+    } else if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      const date = new Date(`${year}-${month}-${day}`);
+      if (isNaN(date.getTime()) || date.getDate() !== parseInt(day, 10)) {
+        errors.push({ field: 'geburtsdatum', message: 'Ungültiges Datum' });
+      }
+    } else {
+      errors.push({ field: 'geburtsdatum', message: 'Datum muss im Format TT.MM.JJJJ oder JJJJ-MM-TT sein' });
     }
   }
 

@@ -45,8 +45,11 @@ function recordToSupabaseInsert(
 
   // Verhinderungspflege: Ja / Nein / Beantragt
   const verhNorm = r.verhinderungspflege?.trim().toLowerCase();
-  const verhAktiv = verhNorm === 'ja' ? true : null;
-  const verhBeantragt = verhNorm === 'beantragt' ? true : null;
+  let verhAktiv: boolean | null = null;
+  let verhBeantragt: boolean | null = null;
+  if (verhNorm === 'ja')         { verhAktiv = true;  verhBeantragt = false; }
+  else if (verhNorm === 'nein')  { verhAktiv = false; verhBeantragt = false; }
+  else if (verhNorm === 'beantragt') { verhAktiv = false; verhBeantragt = true; }
 
   // Status: Aktiv (default) / Inaktiv — überschreibt kategorie-basierte Logik
   const statusNorm = r.aktiv_status?.trim().toLowerCase();
@@ -132,7 +135,22 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
   const { validatedRows } = useCsvImportValidation(mergedRecords);
 
   const rowsForDuplicateCheck = validatedRows.filter(r => r.isValid || skipInvalidRows);
-  const { duplicateInfos, actions, setAction, setAllDuplicatesAction: setAllAction } = useCsvDuplicateCheck(rowsForDuplicateCheck);
+  const { duplicateInfos, actions, setAction, setAllDuplicatesAction: setAllAction, isLoading: isDuplicateCheckLoading } = useCsvDuplicateCheck(rowsForDuplicateCheck);
+
+  const importSummary = useMemo(() => {
+    if (currentStep !== 3) return null;
+    let toImport = 0, toUpdate = 0, toSkip = 0;
+    for (const row of rowsForDuplicateCheck) {
+      const dupInfo = duplicateInfos.get(row.record._rowIndex);
+      if (dupInfo?.status === 'potential') {
+        const action = actions.get(row.record._rowIndex) ?? 'skip';
+        if (action === 'skip') { toSkip++; continue; }
+        if (action === 'update_existing') { toUpdate++; continue; }
+      }
+      toImport++;
+    }
+    return { toImport, toUpdate, toSkip };
+  }, [currentStep, rowsForDuplicateCheck, duplicateInfos, actions]);
 
   const resetState = () => {
     setCurrentStep(1);
@@ -221,6 +239,7 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
       }
 
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers-for-duplicate-check'] });
 
       const importedMsg = rowsToImport.length > 0
         ? `${rowsToImport.length} Kunden importiert`
@@ -304,6 +323,7 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
               actions={actions}
               onSetAction={setAction}
               onSetAllAction={setAllAction}
+              isLoading={isDuplicateCheckLoading}
             />
           )}
           </div>
@@ -335,16 +355,36 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
                 Weiter zu Duplikaten
               </Button>
             ) : currentStep === 3 ? (
-              <Button onClick={handleImport} disabled={isImporting}>
-                {isImporting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Importiere...
-                  </>
-                ) : (
-                  'Jetzt importieren'
+              <div className="flex items-center gap-4">
+                {importSummary && !isDuplicateCheckLoading && (
+                  <p className="text-sm text-muted-foreground">
+                    {importSummary.toImport > 0 && (
+                      <span className="text-green-700 font-medium">{importSummary.toImport} neu</span>
+                    )}
+                    {importSummary.toUpdate > 0 && (
+                      <span className="text-blue-700 font-medium">{importSummary.toImport > 0 ? ', ' : ''}{importSummary.toUpdate} aktualisiert</span>
+                    )}
+                    {importSummary.toSkip > 0 && (
+                      <span className="text-muted-foreground">{(importSummary.toImport + importSummary.toUpdate) > 0 ? ', ' : ''}{importSummary.toSkip} übersprungen</span>
+                    )}
+                  </p>
                 )}
-              </Button>
+                <Button onClick={handleImport} disabled={isImporting || isDuplicateCheckLoading}>
+                  {isImporting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importiere...
+                    </>
+                  ) : isDuplicateCheckLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Prüfe Duplikate...
+                    </>
+                  ) : (
+                    'Jetzt importieren'
+                  )}
+                </Button>
+              </div>
             ) : null}
           </div>
         </div>

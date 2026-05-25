@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import type { ValidatedRow } from '@/hooks/useCsvImportValidation';
 import type { DuplicateInfo, DuplicateAction } from '@/hooks/useCsvDuplicateCheck';
 
@@ -9,6 +9,7 @@ interface CsvImportStepDuplicatesProps {
   actions: Map<number, DuplicateAction>;
   onSetAction: (rowIndex: number, action: DuplicateAction) => void;
   onSetAllAction: (action: DuplicateAction) => void;
+  isLoading?: boolean;
 }
 
 const ACTION_LABELS: Record<DuplicateAction, string> = {
@@ -23,7 +24,17 @@ export function CsvImportStepDuplicates({
   actions,
   onSetAction,
   onSetAllAction,
+  isLoading,
 }: CsvImportStepDuplicatesProps) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Prüfe auf Duplikate...
+      </div>
+    );
+  }
+
   const duplicateRows = validatedRows.filter(row => {
     const info = duplicateInfos.get(row.record._rowIndex);
     return info?.status === 'potential';

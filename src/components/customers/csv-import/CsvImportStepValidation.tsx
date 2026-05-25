@@ -48,6 +48,11 @@ const FIELD_LABELS: Record<RecordField, string> = {
   eintritt: 'Eintritt',
   austritt: 'Austritt',
   kassen_privat: 'Kasse/Privat',
+  mitarbeiter_name: 'Mitarbeiter',
+  verhinderungspflege: 'VP',
+  kopie_lw: 'Kopie LW',
+  aktiv_status: 'Status',
+  tage: 'Tage',
 };
 
 // Preferred column order
@@ -55,7 +60,8 @@ const FIELD_ORDER: RecordField[] = [
   'nachname', 'vorname', 'pflegegrad', 'adresse', 'strasse', 'plz', 'stadt',
   'stadtteil', 'telefonnr', 'email', 'geburtsdatum', 'pflegekasse',
   'versichertennummer', 'kassen_privat', 'stunden_kontingent_monat',
-  'eintritt', 'austritt', 'kategorie', 'angehoerige_ansprechpartner', 'sonstiges',
+  'eintritt', 'austritt', 'kategorie', 'mitarbeiter_name', 'verhinderungspflege',
+  'tage', 'kopie_lw', 'aktiv_status', 'angehoerige_ansprechpartner', 'sonstiges',
 ];
 
 export function CsvImportStepValidation({

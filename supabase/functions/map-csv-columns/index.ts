@@ -29,7 +29,11 @@ DB-Felder der kunden-Tabelle:
 - eintritt (Eintrittsdatum)
 - austritt (Austrittsdatum)
 - kassen_privat (Kasse oder Privat)
-- mitarbeiter_name (Name des zuständigen Mitarbeiters, NICHT direkt importierbar)
+- mitarbeiter_name (Name des zuständigen Mitarbeiters)
+- verhinderungspflege (Verhinderungspflege-Status: Ja / Nein / Beantragt)
+- kopie_lw (Kopie Leistungsnachweis: Ja / Nein)
+- tage (Besuchstage, z.B. "Mo, Mi, Fr")
+- aktiv_status (Aktiv oder Inaktiv)
 
 Bekannte CSV-Spalten in dieser Anwendung (aus Excel-Export):
 - "Kundennr" → null (wird nicht importiert, nur interne Nummer)
@@ -49,10 +53,10 @@ Bekannte CSV-Spalten in dieser Anwendung (aus Excel-Export):
 - "Eintritt" → eintritt
 - "Austritt" → austritt
 - "Sonstiges", "Bemerkung", "Notizen" → sonstiges
-- "Status" → null (wird als aktiv/inaktiv interpretiert, aber nicht direkt importiert)
-- "Verhinderungspflege", "VP", "Kombileistung" → null (werden nicht importiert)
-- "Kopie LW" → null
-- "Tage" → null
+- "Status", "Aktivstatus" → aktiv_status (Werte: "Aktiv" oder "Inaktiv")
+- "Verhinderungspflege", "VP" → verhinderungspflege (Ja/Nein/Beantragt)
+- "Kopie LW", "Kopie Leistungsnachweis" → kopie_lw
+- "Tage", "Besuchstage" → tage
 - "Column1" → null
 - "Begründung" → sonstiges
 

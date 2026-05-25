@@ -44,10 +44,13 @@ export function useCsvDuplicateCheck(validRows: ValidatedRow[]) {
     queryFn: async (): Promise<ExistingCustomer[]> => {
       const { data, error } = await supabase
         .from('kunden')
-        .select('id, vorname, nachname, geburtsdatum, strasse, telefonnr');
+        .select('id, vorname, nachname, geburtsdatum, strasse, telefonnr')
+        .eq('aktiv', true);
       if (error) throw error;
       return data ?? [];
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const duplicateInfos: Map<number, DuplicateInfo> = useMemo(() => {
