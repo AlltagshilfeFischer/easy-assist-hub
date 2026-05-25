@@ -30,7 +30,7 @@ DB-Felder der kunden-Tabelle:
 - austritt (Austrittsdatum)
 - kassen_privat (Kasse oder Privat)
 - mitarbeiter_name (Name des zuständigen Mitarbeiters)
-- verhinderungspflege (Verhinderungspflege-Status: Ja / Nein / Beantragt)
+- verhinderungspflege (Verhinderungspflege-Status: Ja / Nein)
 - kopie_lw (Kopie Leistungsnachweis: Ja / Nein)
 - tage (Besuchstage, z.B. "Mo, Mi, Fr")
 - aktiv_status (Aktiv oder Inaktiv)

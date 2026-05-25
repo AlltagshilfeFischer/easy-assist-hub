@@ -47,9 +47,8 @@ function recordToSupabaseInsert(
   const verhNorm = r.verhinderungspflege?.trim().toLowerCase();
   let verhAktiv: boolean | null = null;
   let verhBeantragt: boolean | null = null;
-  if (verhNorm === 'ja')         { verhAktiv = true;  verhBeantragt = false; }
-  else if (verhNorm === 'nein')  { verhAktiv = false; verhBeantragt = false; }
-  else if (verhNorm === 'beantragt') { verhAktiv = false; verhBeantragt = true; }
+  if (verhNorm === 'ja')        { verhAktiv = true;  verhBeantragt = false; }
+  else if (verhNorm === 'nein') { verhAktiv = false; verhBeantragt = false; }
 
   // Status: Aktiv (default) / Inaktiv — überschreibt kategorie-basierte Logik
   const statusNorm = r.aktiv_status?.trim().toLowerCase();

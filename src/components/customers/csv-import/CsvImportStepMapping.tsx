@@ -26,7 +26,7 @@ const DB_FIELD_OPTIONS = [
   { value: 'geburtsdatum', label: 'Geburtsdatum (TT.MM.JJJJ)' },
   { value: 'pflegekasse', label: 'Pflegekasse' },
   { value: 'versichertennummer', label: 'Versichertennummer' },
-  { value: 'verhinderungspflege', label: 'Verhinderungspflege (Ja/Nein/Beantragt)' },
+  { value: 'verhinderungspflege', label: 'Verhinderungspflege (Ja/Nein)' },
   { value: 'telefonnr', label: 'Telefon' },
   { value: 'kassen_privat', label: 'Kasse/Privat' },
   { value: 'kopie_lw', label: 'Kopie LW (Ja/Nein)' },
