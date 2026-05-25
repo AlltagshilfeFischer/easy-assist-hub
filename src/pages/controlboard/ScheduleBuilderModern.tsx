@@ -170,6 +170,22 @@ const ScheduleBuilderModern = () => {
     loadData();
   }, []);
 
+  // Supabase Realtime: reload when termine table changes on any client
+  useEffect(() => {
+    let reloadTimeout: ReturnType<typeof setTimeout> | null = null;
+    const channel = supabase
+      .channel('realtime-termine-schedule')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'termine' }, () => {
+        if (reloadTimeout) clearTimeout(reloadTimeout);
+        reloadTimeout = setTimeout(() => loadData(), 500);
+      })
+      .subscribe();
+    return () => {
+      if (reloadTimeout) clearTimeout(reloadTimeout);
+      supabase.removeChannel(channel);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Load persisted employee order from localStorage after user is known
   useEffect(() => {
     if (!user?.id) return;

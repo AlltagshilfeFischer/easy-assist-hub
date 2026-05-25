@@ -83,6 +83,23 @@ export default function MitarbeiterDashboard() {
     loadData();
   }, [mitarbeiterId]);
 
+  // Supabase Realtime: reload when termine table changes on any client
+  useEffect(() => {
+    if (!mitarbeiterId) return;
+    let reloadTimeout: ReturnType<typeof setTimeout> | null = null;
+    const channel = supabase
+      .channel('realtime-termine-mitarbeiter')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'termine' }, () => {
+        if (reloadTimeout) clearTimeout(reloadTimeout);
+        reloadTimeout = setTimeout(() => loadData(), 500);
+      })
+      .subscribe();
+    return () => {
+      if (reloadTimeout) clearTimeout(reloadTimeout);
+      supabase.removeChannel(channel);
+    };
+  }, [mitarbeiterId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
 
   if (loading) {
