@@ -39,6 +39,9 @@ const DB_FIELD_OPTIONS = [
   { value: 'austritt', label: 'Austrittsdatum' },
   { value: 'email', label: 'E-Mail' },
   { value: 'kategorie', label: 'Kategorie (Kunde/Interessent)' },
+  { value: 'initial_budget_entlastung', label: 'Vorjahresrest §45b (€)' },
+  { value: 'initial_budget_verhinderung', label: 'VP-Budget Rest §39 (€)' },
+  { value: 'verhinderungspflege_budget', label: 'VP-Jahresbudget §39 (€)' },
 ] as const;
 
 const FUZZY_MAP: Record<string, string> = {
@@ -149,6 +152,19 @@ const FUZZY_MAP: Record<string, string> = {
   'kommentare': 'sonstiges',
   'kontaktiert': 'sonstiges',
   'kontaktstatus': 'sonstiges',
+  // Budget-Felder
+  'vorjahresrest': 'initial_budget_entlastung',
+  'vorjahresrest eb': 'initial_budget_entlastung',
+  'vorjahresrest §45b': 'initial_budget_entlastung',
+  'angesparter betrag': 'initial_budget_entlastung',
+  'eb vorjahresrest': 'initial_budget_entlastung',
+  'vp budget': 'initial_budget_verhinderung',
+  'vp-budget': 'initial_budget_verhinderung',
+  'verhinderungspflege budget': 'initial_budget_verhinderung',
+  'vp rest': 'initial_budget_verhinderung',
+  'vp jahresbudget': 'verhinderungspflege_budget',
+  'vp-jahresbudget': 'verhinderungspflege_budget',
+  'verhinderungspflege jahresbudget': 'verhinderungspflege_budget',
   // Angehörige/Ansprechpartner (verschiedene Schreibweisen)
   'angehörige/ansprechpartner': 'angehoerige_ansprechpartner',
   'angehöriger/ansprechpartner': 'angehoerige_ansprechpartner',

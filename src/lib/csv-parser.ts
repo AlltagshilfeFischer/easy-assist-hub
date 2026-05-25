@@ -35,6 +35,10 @@ export interface MappedCustomerRecord {
   kopie_lw?: string;
   aktiv_status?: string;
   tage?: string;
+  // Budget-Felder (Anfangsbestand bei Migration)
+  initial_budget_entlastung?: string;
+  initial_budget_verhinderung?: string;
+  verhinderungspflege_budget?: string;
   _rowIndex: number;
 }
 
@@ -315,6 +319,7 @@ const ALLOWED_DB_FIELDS = new Set<keyof Omit<MappedCustomerRecord, '_rowIndex'>>
   'versichertennummer', 'kategorie', 'stunden_kontingent_monat', 'sonstiges',
   'angehoerige_ansprechpartner', 'eintritt', 'austritt', 'kassen_privat',
   'mitarbeiter_name', 'verhinderungspflege', 'kopie_lw', 'aktiv_status', 'tage',
+  'initial_budget_entlastung', 'initial_budget_verhinderung', 'verhinderungspflege_budget',
 ]);
 
 // Werte die als "leer" behandelt werden sollen (Excel-Platzhalter)

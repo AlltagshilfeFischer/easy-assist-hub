@@ -53,6 +53,9 @@ const FIELD_LABELS: Record<RecordField, string> = {
   kopie_lw: 'Kopie LW',
   aktiv_status: 'Status',
   tage: 'Tage',
+  initial_budget_entlastung: 'Vorjahresrest EB',
+  initial_budget_verhinderung: 'VP-Budget Rest',
+  verhinderungspflege_budget: 'VP-Jahresbudget',
 };
 
 // Preferred column order
@@ -61,7 +64,9 @@ const FIELD_ORDER: RecordField[] = [
   'stadtteil', 'telefonnr', 'email', 'geburtsdatum', 'pflegekasse',
   'versichertennummer', 'kassen_privat', 'stunden_kontingent_monat',
   'eintritt', 'austritt', 'kategorie', 'mitarbeiter_name', 'verhinderungspflege',
-  'tage', 'kopie_lw', 'aktiv_status', 'angehoerige_ansprechpartner', 'sonstiges',
+  'tage', 'kopie_lw', 'aktiv_status', 'initial_budget_entlastung',
+  'initial_budget_verhinderung', 'verhinderungspflege_budget',
+  'angehoerige_ansprechpartner', 'sonstiges',
 ];
 
 export function CsvImportStepValidation({

@@ -58,7 +58,7 @@ export function CsvImportStepDuplicates({
         <p className="text-sm font-medium text-amber-700">
           {duplicateRows.length} mögliche{duplicateRows.length !== 1 ? ' Duplikate' : 's Duplikat'} gefunden
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -69,9 +69,17 @@ export function CsvImportStepDuplicates({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => onSetAllAction('update_existing')}
+            className="text-blue-700 border-blue-300 hover:bg-blue-50"
+          >
+            Alle aktualisieren
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => onSetAllAction('import_anyway')}
           >
-            Alle trotzdem importieren
+            Alle neu importieren
           </Button>
         </div>
       </div>

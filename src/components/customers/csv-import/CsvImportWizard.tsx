@@ -55,8 +55,13 @@ function recordToSupabaseInsert(
   const statusNorm = r.aktiv_status?.trim().toLowerCase();
   const aktiv = statusNorm ? statusNorm !== 'inaktiv' : (!r.kategorie || r.kategorie === 'Kunde');
 
-  // Stunden: deutsches Komma → Punkt
+  // Stunden + Budget-Beträge: deutsches Komma → Punkt
   const stundenRaw = r.stunden_kontingent_monat?.replace(',', '.');
+  const toEuro = (s?: string): number | null => {
+    if (!s?.trim()) return null;
+    const num = parseFloat(s.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
+    return isNaN(num) ? null : num;
+  };
 
   // Adresse (kombiniert) splitten: "Musterstraße 5, 30159 Hannover"
   let strasse = r.strasse?.trim() || null;
@@ -103,6 +108,9 @@ function recordToSupabaseInsert(
     kategorie: r.kategorie || 'Kunde',
     email: r.email?.trim() || null,
     farbe_kalender: '#10B981',
+    initial_budget_entlastung: toEuro(r.initial_budget_entlastung),
+    initial_budget_verhinderung: toEuro(r.initial_budget_verhinderung),
+    verhinderungspflege_budget: toEuro(r.verhinderungspflege_budget),
   };
 }
 

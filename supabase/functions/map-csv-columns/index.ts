@@ -34,6 +34,9 @@ DB-Felder der kunden-Tabelle:
 - kopie_lw (Kopie Leistungsnachweis: Ja / Nein)
 - tage (Besuchstage, z.B. "Mo, Mi, Fr")
 - aktiv_status (Aktiv oder Inaktiv)
+- initial_budget_entlastung (Vorjahresrest §45b Entlastungsbetrag in €, z.B. 524.50)
+- initial_budget_verhinderung (verfügbares VP-Budget-Rest §39 in €, z.B. 2100)
+- verhinderungspflege_budget (VP-Jahresbudget §39 in €, Standard 3539)
 
 Bekannte CSV-Spalten in dieser Anwendung (aus Excel-Export):
 - "Kundennr" → null (wird nicht importiert, nur interne Nummer)
@@ -59,6 +62,9 @@ Bekannte CSV-Spalten in dieser Anwendung (aus Excel-Export):
 - "Tage", "Besuchstage" → tage
 - "Column1" → null
 - "Begründung" → sonstiges
+- "Vorjahresrest", "Vorjahresrest EB", "Angesparter Betrag" → initial_budget_entlastung
+- "VP Budget", "VP-Budget", "VP Rest" → initial_budget_verhinderung
+- "VP Jahresbudget", "VP-Jahresbudget" → verhinderungspflege_budget
 
 Antworte NUR mit einem validen JSON-Objekt. Kein Markdown, keine Erklärungen.
 Format: { "csvSpalte1": "dbFeld1", "csvSpalte2": null, ... }
