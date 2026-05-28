@@ -236,6 +236,7 @@ export default function Leistungsnachweise() {
       const { data, error } = await supabase
         .from('termine')
         .select('id, kunden_id, iststunden, start_at, end_at, status, mitarbeiter_id')
+        .not('kunden_id', 'is', null)
         .gte('start_at', von)
         .lte('start_at', bis);
       if (error) throw error;
@@ -249,7 +250,7 @@ export default function Leistungsnachweise() {
     if (!termine) return [];
     const now = new Date();
     return termine
-      .filter(t => !['cancelled', 'abgesagt_rechtzeitig'].includes(t.status))
+      .filter(t => t.status !== 'abgesagt_rechtzeitig')
       .map(t => {
         if (t.status === 'scheduled' && new Date(t.end_at) < now) {
           return { ...t, status: 'completed' as typeof t.status };
@@ -300,7 +301,7 @@ export default function Leistungsnachweise() {
   const [autoGenDone, setAutoGenDone] = useState<string | null>(null);
   useEffect(() => {
     if (allTermineQuery.data === undefined || nachweise === undefined) return;
-    const kundenMitTerminen = [...new Set(allTermineQuery.data.map(t => t.kunden_id))];
+    const kundenMitTerminen = [...new Set(allTermineQuery.data.map(t => t.kunden_id))].filter(Boolean) as string[];
     const key = `${selectedMonth}-${selectedYear}-${kundenMitTerminen.sort().join(',')}`;
     if (autoGenDone !== key) {
       setAutoGenDone(key);
@@ -333,7 +334,7 @@ export default function Leistungsnachweise() {
 
   // Helper: calculate hours from termine
   const calculateHoursFromTermine = (terminList: Termin[]) => {
-    const relevant = terminList.filter(t => !['cancelled', 'abgesagt_rechtzeitig'].includes(t.status));
+    const relevant = terminList.filter(t => t.status !== 'abgesagt_rechtzeitig');
     const now = new Date();
     const effective = relevant.map(t =>
       t.status === 'scheduled' && new Date(t.end_at) < now ? { ...t, status: 'completed' } : t
