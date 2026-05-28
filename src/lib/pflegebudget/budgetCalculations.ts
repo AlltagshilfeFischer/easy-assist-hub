@@ -114,13 +114,15 @@ export function calculateKombiBudget(
   kombileistungGenehmigt: boolean | null | undefined,
   careLevels: CareLevel[],
   consumedKombiMonth: number,
+  customBudget?: number | null,
 ): { monthlyMax: number; available: number } {
   if (!kombileistungGenehmigt || pflegegrad < 2) {
     return { monthlyMax: 0, available: 0 };
   }
 
   const careLevel = careLevels.find((cl) => cl.pflegegrad === pflegegrad);
-  const monthlyMax = careLevel?.kombi_max_40_prozent_monat ?? 0;
+  // Kundenspezifischer Override hat Vorrang vor Standard-care_levels-Wert
+  const monthlyMax = customBudget ?? careLevel?.kombi_max_40_prozent_monat ?? 0;
   const available = Math.max(0, monthlyMax - consumedKombiMonth);
 
   return { monthlyMax, available };
@@ -172,6 +174,7 @@ type KundeForBudget = {
   entlastung_genehmigt?: boolean | null;
   verhinderungspflege_genehmigt?: boolean | null;
   pflegesachleistung_genehmigt?: boolean | null; // = kombileistung
+  pflegesachleistung_budget?: number | null; // manueller Override für Kombi-Betrag
   initial_budget_entlastung?: number | null;
   budget_prioritaet?: string[] | null;
 };
@@ -675,6 +678,7 @@ export function buildAvailability(
     kunde.pflegesachleistung_genehmigt,
     careLevels,
     consumedKombiThisMonth,
+    kunde.pflegesachleistung_budget,
   );
 
   const vp = calculateVPBudget(

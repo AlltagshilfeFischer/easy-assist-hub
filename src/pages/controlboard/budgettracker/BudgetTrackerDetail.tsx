@@ -448,6 +448,7 @@ type KundeForKonfig = {
   entlastung_genehmigt?: boolean | null;
   initial_budget_entlastung?: number | null;
   pflegesachleistung_genehmigt?: boolean | null;
+  pflegesachleistung_budget?: number | null;
   verhinderungspflege_genehmigt?: boolean | null;
 };
 
@@ -456,6 +457,7 @@ type KonfigForm = {
   entlastung: boolean;
   vorjahresrest: string;
   kombi: boolean;
+  kombiBudget: string;
   vp: boolean;
 };
 
@@ -484,6 +486,7 @@ function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
     entlastung: kunde.entlastung_genehmigt ?? false,
     vorjahresrest: String(kunde.initial_budget_entlastung ?? ''),
     kombi: kunde.pflegesachleistung_genehmigt ?? false,
+    kombiBudget: String(kunde.pflegesachleistung_budget ?? ''),
     vp: kunde.verhinderungspflege_genehmigt ?? false,
   });
 
@@ -495,6 +498,7 @@ function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
         entlastung: kunde.entlastung_genehmigt ?? false,
         vorjahresrest: String(kunde.initial_budget_entlastung ?? ''),
         kombi: kunde.pflegesachleistung_genehmigt ?? false,
+        kombiBudget: String(kunde.pflegesachleistung_budget ?? ''),
         vp: kunde.verhinderungspflege_genehmigt ?? false,
       });
     }
@@ -506,12 +510,14 @@ function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
       pflegegrad: pg,
       entlastung: pg >= 1 ? prev.entlastung : false,
       kombi: pg >= 2 ? prev.kombi : false,
+      kombiBudget: pg >= 2 ? prev.kombiBudget : '',
       vp: pg >= 2 ? prev.vp : false,
     }));
   };
 
   const handleSave = () => {
     const vorjahresrestNum = form.vorjahresrest ? parseFloat(form.vorjahresrest) : null;
+    const kombiBudgetNum = form.kombiBudget ? parseFloat(form.kombiBudget) : null;
     update.mutate(
       {
         kundenId: kunde.id,
@@ -519,6 +525,7 @@ function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
         entlastung_genehmigt: form.entlastung,
         initial_budget_entlastung: form.entlastung && vorjahresrestNum ? vorjahresrestNum : null,
         pflegesachleistung_genehmigt: form.kombi,
+        pflegesachleistung_budget: form.kombi && kombiBudgetNum ? kombiBudgetNum : null,
         verhinderungspflege_genehmigt: form.vp,
       },
       { onSuccess: () => setEditing(false) },
@@ -641,17 +648,39 @@ function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
             </div>
 
             {/* § 45a Kombinationsleistung */}
-            <div className={`flex items-center gap-4 ${form.pflegegrad < 2 ? 'pointer-events-none opacity-40' : ''}`}>
-              <Switch
-                id="kombi"
-                checked={form.kombi}
-                onCheckedChange={(v) => setForm((p) => ({ ...p, kombi: v }))}
-                disabled={form.pflegegrad < 2}
-              />
-              <Label htmlFor="kombi" className="cursor-pointer leading-tight">
-                § 45a Kombinationsleistung{' '}
-                <span className="font-normal text-muted-foreground">— monatlich, PG-abhängig, ab PG 2</span>
-              </Label>
+            <div className={`space-y-3 ${form.pflegegrad < 2 ? 'pointer-events-none opacity-40' : ''}`}>
+              <div className="flex items-center gap-4">
+                <Switch
+                  id="kombi"
+                  checked={form.kombi}
+                  onCheckedChange={(v) => setForm((p) => ({ ...p, kombi: v }))}
+                  disabled={form.pflegegrad < 2}
+                />
+                <Label htmlFor="kombi" className="cursor-pointer leading-tight">
+                  § 45a Kombinationsleistung{' '}
+                  <span className="font-normal text-muted-foreground">— monatlich, PG-abhängig, ab PG 2</span>
+                </Label>
+              </div>
+              {form.kombi && form.pflegegrad >= 2 && (
+                <div className="flex items-center gap-4 pl-10">
+                  <Label htmlFor="kombiBudget" className="w-36 shrink-0 text-sm text-muted-foreground">
+                    Betrag (€/Monat)
+                  </Label>
+                  <Input
+                    id="kombiBudget"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.kombiBudget}
+                    onChange={(e) => setForm((p) => ({ ...p, kombiBudget: e.target.value }))}
+                    placeholder="Standard (PG-abhängig)"
+                    className="w-40"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    Standard: PG2 318,40 € · PG3 598,80 € · PG4 743,60 € · PG5 916,60 €
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* § 39 Verhinderungspflege */}
@@ -708,6 +737,7 @@ export default function BudgetTrackerDetail() {
     entlastung_genehmigt?: boolean | null;
     verhinderungspflege_genehmigt?: boolean | null;
     pflegesachleistung_genehmigt?: boolean | null;
+    pflegesachleistung_budget?: number | null;
     initial_budget_entlastung?: number | null;
   };
 

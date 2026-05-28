@@ -8,6 +8,7 @@ interface BudgetUpdate {
   entlastung_genehmigt: boolean;
   initial_budget_entlastung: number | null;
   pflegesachleistung_genehmigt: boolean;
+  pflegesachleistung_budget: number | null;
   verhinderungspflege_genehmigt: boolean;
 }
 
