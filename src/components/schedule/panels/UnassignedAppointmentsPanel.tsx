@@ -10,7 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { CalendarClock, User, Clock, CheckCircle2 } from 'lucide-react';
+import { CalendarClock, User, Clock, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
@@ -46,7 +46,6 @@ export function UnassignedAppointmentsPanel({
   const { isGeschaeftsfuehrer, isGlobalAdmin } = useUserRole();
   const canAssign = isGeschaeftsfuehrer || isGlobalAdmin;
 
-  // Sort unassigned appointments chronologically
   const sortedUnassigned = useMemo(
     () =>
       [...unassignedAppointments].sort(
@@ -66,7 +65,6 @@ export function UnassignedAppointmentsPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b flex-shrink-0">
         <CalendarClock className="h-4 w-4 text-amber-500 flex-shrink-0" />
         <span className="text-sm font-medium flex-1">Offene Termine</span>
@@ -77,15 +75,12 @@ export function UnassignedAppointmentsPanel({
         )}
       </div>
 
-      {/* Content */}
       <ScrollArea className="flex-1">
         {sortedUnassigned.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
             <CheckCircle2 className="h-8 w-8 text-green-500" />
             <p className="text-sm font-medium">Alle Termine zugewiesen</p>
-            <p className="text-xs text-center px-4">
-              Keine offenen Termine vorhanden.
-            </p>
+            <p className="text-xs text-center px-4">Keine offenen Termine vorhanden.</p>
           </div>
         ) : (
           <Accordion type="multiple" className="px-2 py-1">
@@ -137,9 +132,12 @@ function AppointmentAccordionItem({
         employees,
         verfuegbarkeiten,
         abwesenheiten,
-      }).slice(0, 3),
+      }).slice(0, 4),
     [appointment, allAppointments, employees, verfuegbarkeiten, abwesenheiten],
   );
+
+  const hasFallback = suggestions.some(s => s.isFallback);
+  const allFallback = suggestions.length > 0 && suggestions.every(s => s.isFallback);
 
   const customerName = appointment.customer?.name ?? appointment.titel ?? 'Unbekannter Kunde';
   const startDate = new Date(appointment.start_at);
@@ -172,13 +170,28 @@ function AppointmentAccordionItem({
           </p>
         ) : (
           <div className="space-y-1.5 mt-2">
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
-              Vorschläge
-            </p>
-            {suggestions.map(({ employee, score, reason }) => (
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                Vorschläge
+              </p>
+              {allFallback && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 h-4 border-amber-400 text-amber-600 gap-1"
+                >
+                  <ShieldAlert className="h-2.5 w-2.5" />
+                  GF-Fallback
+                </Badge>
+              )}
+            </div>
+            {suggestions.map(({ employee, score, reason, isFallback }) => (
               <div
                 key={employee.id}
-                className="flex items-center gap-2 rounded-md border bg-card p-2"
+                className={`flex items-center gap-2 rounded-md border p-2 ${
+                  isFallback
+                    ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800'
+                    : 'bg-card'
+                }`}
               >
                 <div
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -190,15 +203,21 @@ function AppointmentAccordionItem({
                 </div>
                 <Badge
                   variant="outline"
-                  className="text-[10px] px-1.5 h-4 flex-shrink-0 font-mono"
+                  className={`text-[10px] px-1.5 h-4 flex-shrink-0 font-mono ${
+                    isFallback ? 'border-amber-400 text-amber-600' : ''
+                  }`}
                 >
                   {score}
                 </Badge>
                 {canAssign && (
                   <Button
                     size="sm"
-                    variant="default"
-                    className="h-6 text-[10px] px-2 flex-shrink-0"
+                    variant={isFallback ? 'outline' : 'default'}
+                    className={`h-6 text-[10px] px-2 flex-shrink-0 ${
+                      isFallback
+                        ? 'border-amber-400 text-amber-700 hover:bg-amber-50'
+                        : ''
+                    }`}
                     onClick={() => onAssign(appointment.id, employee.id)}
                   >
                     <User className="h-3 w-3 mr-1" />
@@ -207,6 +226,12 @@ function AppointmentAccordionItem({
                 )}
               </div>
             ))}
+            {hasFallback && !allFallback && (
+              <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+                <ShieldAlert className="h-3 w-3" />
+                Amber = GF-Fallback (kein Pool-MA verfügbar)
+              </p>
+            )}
           </div>
         )}
       </AccordionContent>

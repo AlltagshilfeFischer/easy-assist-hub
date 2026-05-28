@@ -30,6 +30,7 @@ export interface Employee {
   qualification?: string | null;
   employment_type?: string | null;
   is_bookable?: boolean;
+  in_scheduling_pool?: boolean;
   hourly_rate?: number | null;
   avatar_url?: string | null;
   benutzer_id?: string | null;

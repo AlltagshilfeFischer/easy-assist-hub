@@ -1,6 +1,10 @@
 /**
  * Clientseitiger Algorithmus für MA-Vorschläge bei offenen Terminen.
  * Keine React-Abhängigkeit — reine Funktion.
+ *
+ * Zwei Stufen:
+ *  1. Pool-MAs (in_scheduling_pool !== false): vollständige Prüfung
+ *  2. GF-Fallback (rolle GF/GA oder pool=false): nur Konflikt + Abwesenheit
  */
 
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
@@ -14,11 +18,11 @@ interface Abwesenheit {
   bis?: string | null;
   status: string;
 }
+
 const PAUSE_MINUTES = 15;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Parse "HH:MM" or "HH:MM:SS" into total minutes since midnight */
 function timeToMinutes(time: string): number {
   const [hh, mm] = time.split(':').map(Number);
   return hh * 60 + (mm ?? 0);
@@ -27,6 +31,10 @@ function timeToMinutes(time: string): number {
 function toBerlinParts(isoUtc: string): { date: Date; weekdayIso: number; minutesSinceMidnight: number } {
   const { weekday, minutes } = toBerlinWeekdayAndMinutes(isoUtc);
   return { date: new Date(isoUtc), weekdayIso: weekday, minutesSinceMidnight: minutes };
+}
+
+function isGfRole(employee: Employee): boolean {
+  return employee.rolle === 'geschaeftsfuehrer' || employee.rolle === 'globaladmin';
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,26 +52,23 @@ export interface ScoredEmployee {
   score: number;
   reason: string;
   hasConflict: boolean;
+  isFallback: boolean;
 }
 
-// ─── Main function ────────────────────────────────────────────────────────────
+// ─── Absence check ────────────────────────────────────────────────────────────
 
-/** Returns true if the given date falls within an approved absence */
 function isEmployeeAbsent(abwesenheiten: Abwesenheit[], employeeId: string, date: Date): boolean {
   return abwesenheiten.some(a => {
     if (a.mitarbeiter_id !== employeeId) return false;
-    // Primary: parse PostgreSQL TSTZRANGE "[start, end)"
     const match = (a.zeitraum as string)?.match(/[\[(](.+?),(.+?)[\])]/);
     if (match) {
       const rangeStart = new Date(match[1].trim());
       const rangeEnd = new Date(match[2].trim());
       return date >= rangeStart && date < rangeEnd;
     }
-    // Fallback: date-only von/bis columns
     if (a.von && a.bis) {
       const von = new Date(a.von);
       const bis = new Date(a.bis);
-      // bis is inclusive for date-only ranges
       bis.setHours(23, 59, 59, 999);
       return date >= von && date <= bis;
     }
@@ -71,36 +76,39 @@ function isEmployeeAbsent(abwesenheiten: Abwesenheit[], employeeId: string, date
   });
 }
 
-export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
-  const { appointment, allAppointments, employees, verfuegbarkeiten, abwesenheiten = [] } = input;
+// ─── Core matcher ─────────────────────────────────────────────────────────────
 
+function matchCandidates(
+  candidates: Employee[],
+  appointment: CalendarAppointment,
+  allAppointments: CalendarAppointment[],
+  verfuegbarkeiten: Verfuegbarkeit[],
+  abwesenheiten: Abwesenheit[],
+  isFallback: boolean,
+): ScoredEmployee[] {
   const apptStart = new Date(appointment.start_at);
   const apptEnd = new Date(appointment.end_at);
   const { weekdayIso: apptWeekday, minutesSinceMidnight: apptStartMinutes } = toBerlinParts(appointment.start_at);
   const apptEndMinutes = apptStartMinutes + Math.round((apptEnd.getTime() - apptStart.getTime()) / 60000);
-
   const pauseMs = PAUSE_MINUTES * 60 * 1000;
 
   const results: ScoredEmployee[] = [];
 
-  for (const employee of employees) {
+  for (const employee of candidates) {
     if (!employee.ist_aktiv) continue;
 
-    // ── Disqualification: employee is absent (Urlaub/Krankheit) on the appointment date ──
     if (isEmployeeAbsent(abwesenheiten, employee.id, apptStart)) continue;
 
-    // ── Appointments for this employee on the same day ─────────────────────
     const empAppts = allAppointments.filter(
       a => a.mitarbeiter_id === employee.id && a.id !== appointment.id,
     );
 
-    // Same-day appointments (Berlin weekday)
     const sameDayAppts = empAppts.filter(a => {
       const { weekdayIso } = toBerlinParts(a.start_at);
       return weekdayIso === apptWeekday;
     });
 
-    // ── Disqualification: time overlap ─────────────────────────────────────
+    // Hard block: time overlap
     const hasOverlap = empAppts.some(a => {
       const aStart = new Date(a.start_at);
       const aEnd = new Date(a.end_at);
@@ -108,11 +116,10 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
     });
     if (hasOverlap) continue;
 
-    // ── Disqualification: 15-min pause violation (same-day only) ───────────
+    // Hard block: 15-min pause violation
     const hasPauseViolation = sameDayAppts.some(a => {
       const aStart = new Date(a.start_at);
       const aEnd = new Date(a.end_at);
-      // Skip if overlap (already caught above)
       if (aStart < apptEnd && aEnd > apptStart) return false;
       const gapBefore = apptStart.getTime() - aEnd.getTime();
       const gapAfter = aStart.getTime() - apptEnd.getTime();
@@ -120,29 +127,26 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
     });
     if (hasPauseViolation) continue;
 
-    // ── Disqualification: employee not available on this weekday/time ──────
-    const empVerfueg = verfuegbarkeiten.filter(v => v.mitarbeiter_id === employee.id);
-    const hasAnyVerfueg = empVerfueg.length > 0;
+    // For pool employees: check availability windows (GF fallback skips this)
+    if (!isFallback) {
+      const empVerfueg = verfuegbarkeiten.filter(v => v.mitarbeiter_id === employee.id);
+      const hasAnyVerfueg = empVerfueg.length > 0;
+      const weekdayVerfueg = empVerfueg.filter(v => v.wochentag === apptWeekday);
+      if (hasAnyVerfueg && weekdayVerfueg.length === 0) continue;
+      const withinWindow = weekdayVerfueg.length === 0
+        ? true
+        : weekdayVerfueg.some(v => {
+            const vStart = timeToMinutes(v.von);
+            const vEnd = timeToMinutes(v.bis);
+            return apptStartMinutes >= vStart && apptEndMinutes <= vEnd;
+          });
+      if (!withinWindow) continue;
+    }
 
-    // No entries on this weekday → disqualify
-    const weekdayVerfueg = empVerfueg.filter(v => v.wochentag === apptWeekday);
-    if (hasAnyVerfueg && weekdayVerfueg.length === 0) continue;
-
-    // Has entries for this weekday but appointment falls outside every window → disqualify
-    const withinWindow = weekdayVerfueg.length === 0
-      ? true // no window data → don't disqualify on time
-      : weekdayVerfueg.some(v => {
-          const vStart = timeToMinutes(v.von);
-          const vEnd = timeToMinutes(v.bis);
-          return apptStartMinutes >= vStart && apptEndMinutes <= vEnd;
-        });
-    if (!withinWindow) continue;
-
-    // ── Scoring ────────────────────────────────────────────────────────────
+    // Scoring
     let score = 0;
     const reasonParts: string[] = [];
 
-    // Workload scoring
     const maxPerDay = employee.max_termine_pro_tag ?? 8;
     const todayCount = sameDayAppts.length;
     const workloadPct = (todayCount / maxPerDay) * 100;
@@ -154,13 +158,12 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
       score += 10;
       reasonParts.push('Mittlere Auslastung');
     }
-    // >= 80% no workload bonus
 
-    // Within availability window — already confirmed above
-    score += 15;
-    reasonParts.push('Im Verfügbarkeitsfenster');
+    if (!isFallback) {
+      score += 15;
+      reasonParts.push('Im Verfügbarkeitsfenster');
+    }
 
-    // 15-min buffer after last appointment on this day
     const lastEndMs = sameDayAppts.reduce((max, a) => {
       const t = new Date(a.end_at).getTime();
       return t > max ? t : max;
@@ -172,11 +175,13 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
         score += 5;
         reasonParts.push('Ausreichend Pause');
       }
-      // < pauseMs is already disqualified above
     } else {
-      // No appointments today — small bonus
       score += 5;
       reasonParts.push('Noch keine Termine heute');
+    }
+
+    if (isFallback) {
+      reasonParts.push('GF-Einsatz');
     }
 
     const countLabel = `${todayCount} Termin${todayCount !== 1 ? 'e' : ''} heute`;
@@ -188,11 +193,37 @@ export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
         ? `${reasonParts.join(', ')} (${countLabel})`
         : countLabel,
       hasConflict: false,
+      isFallback,
     });
   }
 
-  // Sort by score descending
   results.sort((a, b) => b.score - a.score);
-
   return results;
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export function suggestEmployees(input: SuggestionInput): ScoredEmployee[] {
+  const { appointment, allAppointments, employees, verfuegbarkeiten, abwesenheiten = [] } = input;
+
+  // Pool-MAs: explizit nicht als Fallback markiert
+  const poolEmployees = employees.filter(e =>
+    e.ist_aktiv && e.in_scheduling_pool !== false && !isGfRole(e),
+  );
+
+  // GF-Kandidaten: Rolle ist GF/GA, oder in_scheduling_pool=false
+  const gfEmployees = employees.filter(e =>
+    e.ist_aktiv && (isGfRole(e) || e.in_scheduling_pool === false),
+  );
+
+  const poolResults = matchCandidates(
+    poolEmployees, appointment, allAppointments, verfuegbarkeiten, abwesenheiten, false,
+  );
+
+  if (poolResults.length > 0) return poolResults;
+
+  // Kein Pool-MA verfügbar → GF-Fallback (ohne strenge Verfügbarkeitsfenster-Prüfung)
+  return matchCandidates(
+    gfEmployees, appointment, allAppointments, verfuegbarkeiten, abwesenheiten, true,
+  );
 }

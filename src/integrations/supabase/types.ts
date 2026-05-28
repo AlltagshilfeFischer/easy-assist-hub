@@ -728,6 +728,7 @@ export type Database = {
           titel: string | null
           versichertennummer: string | null
           vorname: string | null
+          zone_farbe: string | null
         }
         Insert: {
           adresse?: string | null
@@ -793,6 +794,7 @@ export type Database = {
           titel?: string | null
           versichertennummer?: string | null
           vorname?: string | null
+          zone_farbe?: string | null
         }
         Update: {
           adresse?: string | null
@@ -858,6 +860,7 @@ export type Database = {
           verhinderungspflege_status?: string | null
           versichertennummer?: string | null
           vorname?: string | null
+          zone_farbe?: string | null
         }
         Relationships: [
           {
@@ -1213,6 +1216,7 @@ export type Database = {
           hourly_rate: number | null
           iban: string | null
           id: string
+          in_scheduling_pool: boolean
           is_bookable: boolean
           ist_aktiv: boolean
           kinderfreibetrag: number | null
@@ -1256,6 +1260,7 @@ export type Database = {
           hourly_rate?: number | null
           iban?: string | null
           id?: string
+          in_scheduling_pool?: boolean
           is_bookable?: boolean
           ist_aktiv?: boolean
           kinderfreibetrag?: number | null
@@ -1299,6 +1304,7 @@ export type Database = {
           hourly_rate?: number | null
           iban?: string | null
           id?: string
+          in_scheduling_pool?: boolean
           is_bookable?: boolean
           ist_aktiv?: boolean
           kinderfreibetrag?: number | null

@@ -45,6 +45,7 @@ import { AIAppointmentCreator } from '@/components/schedule/ai/AIAppointmentCrea
 import { useSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { ConflictsNavigationCard } from '@/components/schedule/panels/ConflictsNavigationCard';
+import { UnassignedAppointmentsPanel } from '@/components/schedule/panels/UnassignedAppointmentsPanel';
 import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 
@@ -103,6 +104,7 @@ const ScheduleBuilderModern = () => {
     targetDate: undefined
   });
   const [abwesenheiten, setAbwesenheiten] = useState<any[]>([]);
+  const [showUnassignedPanel, setShowUnassignedPanel] = useState(true);
   const [cutAppointment, setCutAppointment] = useState<LocalAppointment | null>(null);
   const [copyMode, setCopyMode] = useState(false);
   const [highlightedAppointmentId, setHighlightedAppointmentId] = useState<string | null>(null);
@@ -1967,6 +1969,40 @@ const ScheduleBuilderModern = () => {
             {/* Legend Footer */}
             <ProCalendarLegend />
           </div>
+
+          {/* Offene Termine Panel (rechte Sidebar) */}
+          {viewMode === 'week' && (
+            <div className={`flex-shrink-0 flex flex-col border border-border rounded-lg bg-card shadow-sm overflow-hidden transition-all duration-200 ${showUnassignedPanel ? 'w-64' : 'w-8'}`}>
+              {showUnassignedPanel ? (
+                <>
+                  <UnassignedAppointmentsPanel
+                    unassignedAppointments={unassignedAppointments}
+                    allAppointments={appointments}
+                    employees={employees.filter(e => e.ist_aktiv)}
+                    verfuegbarkeiten={allVerfuegbarkeiten}
+                    abwesenheiten={abwesenheiten}
+                    onAssignAppointment={(apptId, empId) => assignAppointment(apptId, empId)}
+                  />
+                  <button
+                    className="flex-shrink-0 flex items-center justify-center py-1 border-t text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                    onClick={() => setShowUnassignedPanel(false)}
+                    title="Panel schließen"
+                  >
+                    ‹ Einklappen
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="flex-1 flex items-center justify-center writing-mode-vertical text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                  onClick={() => setShowUnassignedPanel(true)}
+                  title="Offene Termine anzeigen"
+                  style={{ writingMode: 'vertical-rl', letterSpacing: '0.05em' }}
+                >
+                  Offene Termine {unassignedAppointments.length > 0 ? `(${unassignedAppointments.length})` : ''}
+                </button>
+              )}
+            </div>
+          )}
 
         </div>
 
