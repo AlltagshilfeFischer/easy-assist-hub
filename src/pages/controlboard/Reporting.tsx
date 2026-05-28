@@ -336,9 +336,9 @@ export default function Reporting() {
                       {hasTabFilter ? 'Keine Termine entsprechen dem Filter.' : 'Keine Termine im gewählten Zeitraum gefunden.'}
                     </p>
                   ) : (
-                    <ScrollArea className="max-h-[500px]">
+                    <div className="overflow-y-auto max-h-[60vh]">
                       <Table>
-                        <TableHeader>
+                        <TableHeader className="sticky top-0 z-10 bg-background border-b">
                           <TableRow>
                             <TableHead>Datum</TableHead>
                             <TableHead>Zeit</TableHead>
@@ -378,7 +378,7 @@ export default function Reporting() {
                           ))}
                         </TableBody>
                       </Table>
-                    </ScrollArea>
+                    </div>
                   )}
                 </CardContent>
               </Card>
