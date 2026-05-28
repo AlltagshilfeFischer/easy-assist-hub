@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useHaushaltshilfeVerordnungen } from '@/hooks/useHaushaltshilfeVerordnungen';
+import { useBudgetTransactionsByClientMonth } from '@/hooks/useBudgetTransactions';
 import { format, startOfWeek } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -206,6 +207,13 @@ export default function Leistungsnachweise() {
     const lastDay = `${lastDayDate.getFullYear()}-${String(lastDayDate.getMonth() + 1).padStart(2, '0')}-${String(lastDayDate.getDate()).padStart(2, '0')}`;
     return hhVerordnungen.some(v => v.gueltig_von <= lastDay && v.gueltig_bis >= firstDay);
   }, [selectedLN?.id, hhVerordnungen]);
+
+  // Budget-Transaktionen für den aktuell geöffneten LN (Kunde + Monat)
+  const { data: lnBudgetTransactions = [] } = useBudgetTransactionsByClientMonth(
+    selectedLN?.kunden_id,
+    selectedLN?.jahr ?? selectedYear,
+    selectedLN?.monat ?? selectedMonth,
+  );
 
   // Fetch termine for selected LN
   const { data: termine } = useQuery({
@@ -650,7 +658,10 @@ export default function Leistungsnachweise() {
   }, [nachweise]);
 
 
-  // Pre-fill billing checkboxes from customer data when opening a new LN
+  // Pre-fill billing checkboxes when opening a new LN.
+  // Priority: derive from actual budget_transactions of that month.
+  // If no transactions exist yet (billing not run), fall back to nothing —
+  // only Haushaltshilfe (§38) and Privat are set structurally regardless.
   useEffect(() => {
     if (!showDetail || !selectedLN || !kunden) return;
     const noneSet = !selectedLN.cb_kombinationsleistung && !selectedLN.cb_entlastungsleistung &&
@@ -662,16 +673,23 @@ export default function Leistungsnachweise() {
     if (!kunde) return;
 
     const updates: Partial<LeistungsnachweisRow> = {};
-    if (kunde.verhinderungspflege_aktiv) updates.cb_verhinderungspflege = true;
-    if (kunde.pflegesachleistung_aktiv) updates.cb_kombinationsleistung = true;
-    if (kunde.kasse_privat === 'Privat') updates.ist_privat = true;
+
+    if (lnBudgetTransactions.length > 0) {
+      // Derive checkboxes from the service_types actually billed this month
+      const usedTypes = new Set(lnBudgetTransactions.map(t => t.service_type));
+      if (usedTypes.has('ENTLASTUNG')) updates.cb_entlastungsleistung = true;
+      if (usedTypes.has('KOMBI')) updates.cb_kombinationsleistung = true;
+      if (usedTypes.has('VERHINDERUNG')) updates.cb_verhinderungspflege = true;
+    }
+    // Haushaltshilfe and Privat are structural — set regardless of transactions
     if (hasActiveHHForSelectedLN) updates.cb_haushaltshilfe = true;
+    if (kunde.kasse_privat === 'Privat') updates.ist_privat = true;
 
     if (Object.keys(updates).length > 0) {
       setSelectedLN(prev => prev ? { ...prev, ...updates } : null);
       updateMutation.mutate(updates);
     }
-  }, [showDetail, selectedLN?.id, hasActiveHHForSelectedLN]);
+  }, [showDetail, selectedLN?.id, hasActiveHHForSelectedLN, lnBudgetTransactions]);
 
   // Dienstplan link with week param based on first termin date
   const getDienstplanLink = () => {
