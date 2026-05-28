@@ -357,9 +357,11 @@ export function CreateAppointmentFromSlotDialog({
                 </SelectTrigger>
                 <SelectContent className="z-[202]">
                   <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
-                  ))}
+                  {employees
+                    .filter((emp) => singleKategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin')
+                    .map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -487,9 +489,11 @@ export function CreateAppointmentFromSlotDialog({
               <Select value={recurringMitarbeiterId} onValueChange={setRecurringMitarbeiterId}>
                 <SelectTrigger id="recurring-mitarbeiter"><SelectValue placeholder="Mitarbeiter auswählen" /></SelectTrigger>
                 <SelectContent className="z-[202]">
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
-                  ))}
+                  {employees
+                    .filter((emp) => recurringKategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin')
+                    .map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

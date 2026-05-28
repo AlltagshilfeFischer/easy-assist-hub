@@ -52,6 +52,7 @@ export interface EmployeeSummary {
   farbe_kalender: string;
   vorname?: string | null;
   nachname?: string | null;
+  rolle?: string;
 }
 
 // ─── Customer ───────────────────────────────────────────────

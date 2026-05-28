@@ -285,7 +285,7 @@ export function CreateAppointmentDialog({
                 <SelectContent className="z-[202]">
                   <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
                   {employees
-                    .filter((emp) => emp)
+                    .filter((emp) => emp && (kategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin'))
                     .map((employee) => (
                       <SelectItem key={employee.id} value={employee.id}>
                         {employee.vorname} {employee.nachname}

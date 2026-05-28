@@ -358,14 +358,16 @@ export function AppointmentDetailDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                {employees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: emp.farbe_kalender }} />
-                      {emp.name}
-                    </div>
-                  </SelectItem>
-                ))}
+                {employees
+                  .filter((emp) => editedAppointment.kategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin')
+                  .map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: emp.farbe_kalender }} />
+                        {emp.name}
+                      </div>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             {employee && (
