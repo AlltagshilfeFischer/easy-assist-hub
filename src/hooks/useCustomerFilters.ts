@@ -176,7 +176,7 @@ export function useCustomerFilters(customers: any[] | undefined) {
       if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter, dateFromFilter, dateToFilter, nameFilter, telefonFilter, emailFilter, pflegegradFilter, strasseFilter, plzFilter, stadtFilter]);
+  }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter, dateFromFilter, dateToFilter, nameFilter, telefonFilter, emailFilter, pflegegradFilter, pflegekasseFilter, strasseFilter, plzFilter, stadtFilter]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
