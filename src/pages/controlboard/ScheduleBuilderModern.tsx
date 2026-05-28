@@ -988,15 +988,15 @@ const ScheduleBuilderModern = () => {
         }
       }
 
-      // Abwesenheits-Check via DB (zuverlässig, unabhängig vom lokalen State)
-      let finalMitarbeiterId = payload.mitarbeiter_id ?? null;
+      // Abwesenheits-Check — harter Blocker (kein Fallback auf "offen")
+      const finalMitarbeiterId = payload.mitarbeiter_id ?? null;
       if (finalMitarbeiterId) {
         const apptDateStr = format(new Date(payload.start_at), 'yyyy-MM-dd');
         const maAbwesend = await queryMaAbwesend(finalMitarbeiterId, apptDateStr);
         if (maAbwesend) {
-          finalMitarbeiterId = null;
           const emp = employees.find(e => e.id === payload.mitarbeiter_id);
-          toast({ title: 'Mitarbeiter abwesend', description: `${emp?.name || 'Mitarbeiter'} ist abwesend — Termin wird als offen eingetragen.` });
+          toast({ title: 'Mitarbeiter abwesend', description: `${emp?.name || 'Mitarbeiter'} ist an diesem Tag abwesend. Bitte anderen Mitarbeiter wählen.`, variant: 'destructive' });
+          return;
         }
       }
 
@@ -1319,6 +1319,16 @@ const ScheduleBuilderModern = () => {
 
       const newEnd = new Date(targetDate);
       newEnd.setHours(originalEnd.getHours(), originalEnd.getMinutes(), 0, 0);
+
+      // Abwesenheits-Check — harter Blocker
+      if (employeeId) {
+        const hasAbsence = isEmployeeAbsent(employeeId, targetDate);
+        if (hasAbsence) {
+          const emp = employees.find(e => e.id === employeeId);
+          toast({ title: 'Mitarbeiter abwesend', description: `${emp?.name || 'Mitarbeiter'} ist an diesem Tag abwesend — Termin kann nicht eingefügt werden.`, variant: 'destructive' });
+          return;
+        }
+      }
 
       // Verfügbarkeits-Check
       if (employeeId && !skipVerfuegbarkeitCheck) {

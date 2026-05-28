@@ -21,6 +21,8 @@ import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { checkVerfuegbarkeit } from '@/lib/schedule/checkVerfuegbarkeit';
 import { useAllKundenZeitfenster } from '@/hooks/useAllKundenZeitfenster';
 import { checkKundenZeitfenster } from '@/lib/schedule/checkKundenZeitfenster';
+import { useAllAbwesenheiten } from '@/hooks/useAllAbwesenheiten';
+import { checkAbwesenheit } from '@/lib/schedule/checkAbwesenheit';
 
 const KATEGORIE_OPTIONS: { value: TerminKategorie; label: string }[] = [
   { value: 'Kundentermin', label: 'Kundentermin' },
@@ -76,10 +78,19 @@ export function CreateAppointmentDialog({
 
   const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
   const { data: allKundenZeitfenster = [] } = useAllKundenZeitfenster();
+  const { data: allAbwesenheiten = [] } = useAllAbwesenheiten();
 
   const erstgespraechRoleConflict =
     kategorie === 'Erstgespräch' &&
     employees.find((e) => e.id === mitarbeiterId)?.rolle === 'mitarbeiter';
+
+  const abwesenheitBlocked = useMemo(() => {
+    if (!date || mitarbeiterId === 'unassigned' || !mitarbeiterId) return false;
+    const [h, m] = startTime.split(':').map(Number);
+    const startAt = new Date(date);
+    startAt.setHours(h, m, 0, 0);
+    return checkAbwesenheit(mitarbeiterId, startAt.toISOString(), allAbwesenheiten);
+  }, [date, startTime, mitarbeiterId, allAbwesenheiten]);
 
   const verfuegbarkeitWarning = useMemo(() => {
     if (!date || mitarbeiterId === 'unassigned' || !mitarbeiterId) return null;
@@ -173,6 +184,8 @@ export function CreateAppointmentDialog({
     e.preventDefault();
     if (!date) return;
     if (isNewInteressent && !newInteressentName.trim()) return;
+
+    if (abwesenheitBlocked) return;
 
     if (verfuegbarkeitWarning?.outsideWindow) {
       setShowVerfuegbarkeitConfirm(true);
@@ -307,6 +320,12 @@ export function CreateAppointmentDialog({
                     ))}
                 </SelectContent>
               </Select>
+              {abwesenheitBlocked && (
+                <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Dieser Mitarbeiter ist an diesem Tag abwesend. Bitte wähle einen anderen Mitarbeiter oder ein anderes Datum.
+                </p>
+              )}
               {erstgespraechRoleConflict && (
                 <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -411,7 +430,7 @@ export function CreateAppointmentDialog({
             </Button>
             <Button
               type="submit"
-              disabled={loading || !date || (isNewInteressent && !newInteressentName.trim()) || erstgespraechRoleConflict}
+              disabled={loading || !date || (isNewInteressent && !newInteressentName.trim()) || erstgespraechRoleConflict || abwesenheitBlocked}
             >
               {loading ? 'Erstelle...' : isInternTermin ? 'Internen Termin erstellen' : isNewInteressent ? 'Interessent & Termin erstellen' : 'Termin erstellen'}
             </Button>

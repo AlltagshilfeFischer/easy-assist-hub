@@ -28,6 +28,8 @@ import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { checkVerfuegbarkeit } from '@/lib/schedule/checkVerfuegbarkeit';
 import { useAllKundenZeitfenster } from '@/hooks/useAllKundenZeitfenster';
 import { checkKundenZeitfenster } from '@/lib/schedule/checkKundenZeitfenster';
+import { useAllAbwesenheiten } from '@/hooks/useAllAbwesenheiten';
+import { checkAbwesenheit } from '@/lib/schedule/checkAbwesenheit';
 
 interface AppointmentDetailDialogProps {
   isOpen: boolean;
@@ -86,6 +88,7 @@ export function AppointmentDetailDialog({
   const queryClient = useQueryClient();
   const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
   const { data: allKundenZeitfenster = [] } = useAllKundenZeitfenster();
+  const { data: allAbwesenheiten = [] } = useAllAbwesenheiten();
 
   React.useEffect(() => {
     if (appointment) {
@@ -164,6 +167,21 @@ export function AppointmentDetailDialog({
 
   const handleSave = async () => {
     if (!editedAppointment) return;
+
+    if (editedAppointment.mitarbeiter_id) {
+      const isAbsent = checkAbwesenheit(
+        editedAppointment.mitarbeiter_id,
+        editedAppointment.start_at,
+        allAbwesenheiten,
+      );
+      if (isAbsent) {
+        const emp = employees.find(e => e.id === editedAppointment.mitarbeiter_id);
+        const name = emp?.name || 'Der Mitarbeiter';
+        toast({ title: 'Mitarbeiter abwesend', description: `${name} ist an diesem Tag abwesend. Bitte wähle einen anderen Mitarbeiter.`, variant: 'destructive' });
+        return;
+      }
+    }
+
     const check = checkVerfuegbarkeit(
       editedAppointment.mitarbeiter_id ?? null,
       editedAppointment.start_at,

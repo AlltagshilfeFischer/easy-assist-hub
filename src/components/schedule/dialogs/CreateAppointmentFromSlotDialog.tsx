@@ -19,6 +19,8 @@ import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminKategorie } from '@/types/domain';
 import { useAllKundenZeitfenster } from '@/hooks/useAllKundenZeitfenster';
 import { checkKundenZeitfenster } from '@/lib/schedule/checkKundenZeitfenster';
+import { useAllAbwesenheiten } from '@/hooks/useAllAbwesenheiten';
+import { checkAbwesenheit } from '@/lib/schedule/checkAbwesenheit';
 
 interface CreateAppointmentFromSlotDialogProps {
   open: boolean;
@@ -116,6 +118,15 @@ export function CreateAppointmentFromSlotDialog({
     employees.find((e) => e.id === recurringMitarbeiterId)?.rolle === 'mitarbeiter';
 
   const { data: allKundenZeitfenster = [] } = useAllKundenZeitfenster();
+  const { data: allAbwesenheiten = [] } = useAllAbwesenheiten();
+
+  const abwesenheitBlocked = useMemo(() => {
+    if (!date || mitarbeiterId === 'unassigned' || !mitarbeiterId) return false;
+    const [h, m] = startTime.split(':').map(Number);
+    const startAt = new Date(date);
+    startAt.setHours(h, m, 0, 0);
+    return checkAbwesenheit(mitarbeiterId, startAt.toISOString(), allAbwesenheiten);
+  }, [date, startTime, mitarbeiterId, allAbwesenheiten]);
 
   const kundenZeitfensterCheck = useMemo(() => {
     if (!kundenId || !date) return null;
@@ -169,6 +180,7 @@ export function CreateAppointmentFromSlotDialog({
   const handleSubmitSingle = async () => {
     if (!date) return;
     if (!isInternTermin && isNewInteressent && !newInteressentName.trim()) return;
+    if (abwesenheitBlocked) return;
 
     setLoading(true);
     try {
@@ -383,6 +395,12 @@ export function CreateAppointmentFromSlotDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {abwesenheitBlocked && (
+                <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Dieser Mitarbeiter ist an diesem Tag abwesend. Bitte wähle einen anderen Mitarbeiter oder ein anderes Datum.
+                </p>
+              )}
               {singleErstgespraechConflict && (
                 <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -458,7 +476,7 @@ export function CreateAppointmentFromSlotDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-              <Button onClick={handleSubmitSingle} disabled={loading || !date || (!isInternTermin && isNewInteressent && !newInteressentName.trim()) || singleErstgespraechConflict}>
+              <Button onClick={handleSubmitSingle} disabled={loading || !date || (!isInternTermin && isNewInteressent && !newInteressentName.trim()) || singleErstgespraechConflict || abwesenheitBlocked}>
                 {loading ? 'Erstelle...' : isInternTermin ? 'Internen Termin erstellen' : 'Einzeltermin erstellen'}
               </Button>
             </DialogFooter>
