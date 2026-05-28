@@ -79,6 +79,8 @@ const ScheduleBuilderModern = () => {
   const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(new Set());
   const [searchEmployee, setSearchEmployee] = useState('');
   const [filterKundenId, setFilterKundenId] = useState<string | null>(null);
+  const [filterKategorie, setFilterKategorie] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
   const [showCreateRecurring, setShowCreateRecurring] = useState(false);
@@ -412,11 +414,18 @@ const ScheduleBuilderModern = () => {
     });
   }, [employees, searchEmployee, hiddenEmployeeIds, employeeOrder]);
 
-  // Filter appointments by selected customer
+  // Filter appointments by selected criteria
   const displayedAppointments = useMemo(() => {
-    if (!filterKundenId) return appointments;
-    return appointments.filter(a => a.kunden_id === filterKundenId);
-  }, [appointments, filterKundenId]);
+    let result = appointments;
+    if (filterKundenId) result = result.filter(a => a.kunden_id === filterKundenId);
+    if (filterKategorie) result = result.filter(a => a.kategorie === filterKategorie);
+    if (filterStatus === 'abgesagt') {
+      result = result.filter(a => ['cancelled', 'abgesagt_rechtzeitig', 'nicht_angetroffen'].includes(a.status ?? ''));
+    } else if (filterStatus) {
+      result = result.filter(a => a.status === filterStatus);
+    }
+    return result;
+  }, [appointments, filterKundenId, filterKategorie, filterStatus]);
 
   const handleReorderEmployees = (reorderedEmployees: Employee[]) => {
     const newOrder = reorderedEmployees.map(emp => emp.id);
@@ -1719,14 +1728,16 @@ const ScheduleBuilderModern = () => {
           onViewChange={setViewMode}
         />
 
-        {/* Kundenfilter */}
+        {/* Filter-Zeile */}
         <div className="flex items-center gap-2 px-1 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+
+          {/* Kundenfilter */}
           <Select
             value={filterKundenId ?? '__all__'}
             onValueChange={(v) => setFilterKundenId(v === '__all__' ? null : v)}
           >
-            <SelectTrigger className="w-40 sm:w-56 h-8 text-xs sm:text-sm">
+            <SelectTrigger className="w-36 sm:w-48 h-8 text-xs sm:text-sm">
               <SelectValue placeholder="Alle Kunden" />
             </SelectTrigger>
             <SelectContent>
@@ -1740,9 +1751,62 @@ const ScheduleBuilderModern = () => {
                 ))}
             </SelectContent>
           </Select>
-          {filterKundenId && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setFilterKundenId(null)}>
-              <X className="h-3.5 w-3.5" />
+
+          {/* Kategoriefilter */}
+          <Select
+            value={filterKategorie ?? '__all__'}
+            onValueChange={(v) => setFilterKategorie(v === '__all__' ? null : v)}
+          >
+            <SelectTrigger className="w-32 sm:w-40 h-8 text-xs sm:text-sm">
+              <SelectValue placeholder="Alle Labels" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Alle Labels</SelectItem>
+              <SelectItem value="Kundentermin">Kundentermin</SelectItem>
+              <SelectItem value="Erstgespräch">Erstgespräch</SelectItem>
+              <SelectItem value="Regelbesuch">Regelbesuch</SelectItem>
+              <SelectItem value="Schulung">Schulung</SelectItem>
+              <SelectItem value="Meeting">Meeting</SelectItem>
+              <SelectItem value="Bewerbungsgespräch">Bewerbungsgespräch</SelectItem>
+              <SelectItem value="Intern">Intern</SelectItem>
+              <SelectItem value="Blocker">Blocker</SelectItem>
+              <SelectItem value="Sonstiges">Sonstiges</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Statusfilter */}
+          <Select
+            value={filterStatus ?? '__all__'}
+            onValueChange={(v) => setFilterStatus(v === '__all__' ? null : v)}
+          >
+            <SelectTrigger className="w-32 sm:w-40 h-8 text-xs sm:text-sm">
+              <SelectValue placeholder="Alle Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Alle Status</SelectItem>
+              <SelectItem value="unassigned">Offen</SelectItem>
+              <SelectItem value="scheduled">Geplant</SelectItem>
+              <SelectItem value="in_progress">In Bearbeitung</SelectItem>
+              <SelectItem value="completed">Abgeschlossen</SelectItem>
+              <SelectItem value="abgesagt">Abgesagt (alle)</SelectItem>
+              <SelectItem value="cancelled">Kurzfristig abgesagt</SelectItem>
+              <SelectItem value="abgesagt_rechtzeitig">Rechtzeitig abgesagt</SelectItem>
+              <SelectItem value="nicht_angetroffen">Nicht angetroffen</SelectItem>
+              <SelectItem value="abgerechnet">Abgerechnet</SelectItem>
+              <SelectItem value="bezahlt">Bezahlt</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Reset-Button wenn irgendein Filter aktiv */}
+          {(filterKundenId || filterKategorie || filterStatus) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+              onClick={() => { setFilterKundenId(null); setFilterKategorie(null); setFilterStatus(null); }}
+            >
+              <X className="h-3 w-3" />
+              Filter zurücksetzen
             </Button>
           )}
         </div>
