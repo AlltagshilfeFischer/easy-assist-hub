@@ -304,6 +304,7 @@ const ScheduleBuilderModern = () => {
           kategorie: app.kategorie,
           absage_datum: app.absage_datum ?? null,
           absage_kanal: app.absage_kanal ?? null,
+          ma_kommentar: app.ma_kommentar ?? null,
           customer: app.customer ? {
             ...app.customer,
             farbe_kalender: app.customer.farbe_kalender || '#10B981'
