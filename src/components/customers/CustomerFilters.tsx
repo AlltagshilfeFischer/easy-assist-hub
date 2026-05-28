@@ -28,6 +28,12 @@ interface CustomerFiltersProps {
   setDateFromFilter: (v: string) => void;
   dateToFilter: string;
   setDateToFilter: (v: string) => void;
+  strasseFilter: string;
+  setStrasseFilter: (v: string) => void;
+  plzFilter: string;
+  setPlzFilter: (v: string) => void;
+  stadtFilter: string;
+  setStadtFilter: (v: string) => void;
 }
 
 export function CustomerFilters({
@@ -41,6 +47,9 @@ export function CustomerFilters({
   eintrittsdatumFilter, setEintrittsdatumFilter,
   dateFromFilter, setDateFromFilter,
   dateToFilter, setDateToFilter,
+  strasseFilter, setStrasseFilter,
+  plzFilter, setPlzFilter,
+  stadtFilter, setStadtFilter,
 }: CustomerFiltersProps) {
   return (
     <div className="mb-4 space-y-3">
@@ -110,6 +119,34 @@ export function CustomerFilters({
         </div>
         {(dateFromFilter || dateToFilter) && (
           <Button variant="ghost" size="sm" onClick={() => { setDateFromFilter(''); setDateToFilter(''); }}>
+            Zurücksetzen
+          </Button>
+        )}
+      </div>
+
+      {/* Adresse Filter */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center">
+        <Label className="text-sm font-medium whitespace-nowrap">Adresse:</Label>
+        <Input
+          placeholder="Straße..."
+          value={strasseFilter}
+          onChange={(e) => setStrasseFilter(e.target.value)}
+          className="w-full sm:w-[220px] text-sm"
+        />
+        <Input
+          placeholder="PLZ..."
+          value={plzFilter}
+          onChange={(e) => setPlzFilter(e.target.value)}
+          className="w-full sm:w-[100px] text-sm"
+        />
+        <Input
+          placeholder="Stadt..."
+          value={stadtFilter}
+          onChange={(e) => setStadtFilter(e.target.value)}
+          className="w-full sm:w-[160px] text-sm"
+        />
+        {(strasseFilter || plzFilter || stadtFilter) && (
+          <Button variant="ghost" size="sm" onClick={() => { setStrasseFilter(''); setPlzFilter(''); setStadtFilter(''); }}>
             Zurücksetzen
           </Button>
         )}

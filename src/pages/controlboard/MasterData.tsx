@@ -64,7 +64,7 @@ export default function MasterData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kunden')
-        .select(`*, hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname)`)
+        .select(`*, hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname), notfallkontakte(id, name, bezug, telefon)`)
         .order('nachname', { nullsFirst: false })
         .order('vorname', { nullsFirst: false });
       if (error) throw error;
@@ -225,6 +225,9 @@ export default function MasterData() {
             eintrittsdatumFilter={filters.eintrittsdatumFilter} setEintrittsdatumFilter={filters.setEintrittsdatumFilter}
             dateFromFilter={filters.dateFromFilter} setDateFromFilter={filters.setDateFromFilter}
             dateToFilter={filters.dateToFilter} setDateToFilter={filters.setDateToFilter}
+            strasseFilter={filters.strasseFilter} setStrasseFilter={filters.setStrasseFilter}
+            plzFilter={filters.plzFilter} setPlzFilter={filters.setPlzFilter}
+            stadtFilter={filters.stadtFilter} setStadtFilter={filters.setStadtFilter}
           />
 
           <div className="flex items-center justify-between mb-3">

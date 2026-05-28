@@ -59,12 +59,17 @@ export function useCustomerFilters(customers: any[] | undefined) {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((customer: any) => {
-        const searchableFields = [
+        const staticFields = [
           customer.name, customer.vorname, customer.nachname,
           customer.telefonnr, customer.email, customer.strasse,
           customer.stadt, customer.plz, customer.stadtteil, customer.pflegekasse,
-        ].filter(Boolean).map((f) => f.toLowerCase());
-        return searchableFields.some((field) => field.includes(query));
+          customer.angehoerige_ansprechpartner,
+        ].filter(Boolean).map((f: string) => f.toLowerCase());
+        if (staticFields.some((field) => field.includes(query))) return true;
+        const kontaktFelder = (customer.notfallkontakte ?? []).flatMap((k: any) =>
+          [k.name, k.bezug, k.telefon].filter(Boolean).map((f: string) => f.toLowerCase())
+        );
+        return kontaktFelder.some((field: string) => field.includes(query));
       });
     }
 
