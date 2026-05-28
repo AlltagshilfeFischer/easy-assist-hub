@@ -773,6 +773,19 @@ const ScheduleBuilderModern = () => {
       return;
     }
 
+    // Erstgespräch darf nicht per Drag & Drop an einen Mitarbeiter zugewiesen werden
+    if (appointment.kategorie === 'Erstgespräch') {
+      const targetEmployee = employees.find(emp => emp.id === employeeId);
+      if (targetEmployee?.rolle === 'mitarbeiter') {
+        toast({
+          title: 'Erstgespräch nicht möglich',
+          description: `${targetEmployee.name} ist Mitarbeiter. Erstgespräche dürfen nur von der Geschäftsführung durchgeführt werden.`,
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     // Check if this is a recurring appointment that hasn't been marked as exception (appointment already defined at function start)
     if (appointment.vorlage_id && !appointment.ist_ausnahme) {
       // Show dialog to ask if user wants to move just this appointment or the series
