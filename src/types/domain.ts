@@ -161,6 +161,8 @@ export interface CalendarAppointment {
   ist_ausnahme?: boolean | null;
   ausnahme_grund?: string | null;
   ma_kommentar?: string | null;
+  absage_datum?: string | null;
+  absage_kanal?: AbsageKanal | null;
 }
 
 /** Full appointment with all fields */
@@ -170,8 +172,6 @@ export interface Appointment extends CalendarAppointment {
   employee?: EmployeeSummary & Partial<Employee>;
   notizen?: string | null;
   iststunden?: number | null;
-  absage_datum?: string | null;
-  absage_kanal?: AbsageKanal | null;
 }
 
 // ─── Notfall Contact ────────────────────────────────────────

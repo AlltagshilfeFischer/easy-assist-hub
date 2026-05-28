@@ -90,7 +90,7 @@ const terminStatusLabel: Record<string, { label: string; color: string }> = {
   completed: { label: 'Erfolgt', color: 'text-success bg-success/10' },
   scheduled: { label: 'Geplant', color: 'text-primary bg-primary/10' },
   in_progress: { label: 'Offen', color: 'text-warning bg-warning/10' },
-  nicht_angetroffen: { label: 'Nicht rechtzeitig abgesagt', color: 'text-warning bg-warning/10' },
+  nicht_angetroffen: { label: 'Nicht angetroffen', color: 'text-warning bg-warning/10' },
   abgesagt_rechtzeitig: { label: 'Rechtzeitig abgesagt', color: 'text-muted-foreground bg-muted' },
   cancelled: { label: 'Abgesagt', color: 'text-destructive bg-destructive/10' },
   unassigned: { label: 'Nicht zugewiesen', color: 'text-muted-foreground bg-muted' },

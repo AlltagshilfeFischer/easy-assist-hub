@@ -51,9 +51,9 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   scheduled: { label: 'Geplant', color: 'bg-blue-100 text-blue-800 border-blue-200' },
   in_progress: { label: 'In Bearbeitung', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   completed: { label: 'Durchgeführt', color: 'bg-green-100 text-green-800 border-green-200' },
-  cancelled: { label: 'Abgesagt (kurzfr.)', color: 'bg-red-100 text-red-800 border-red-200' },
+  cancelled: { label: 'Abgesagt', color: 'bg-red-100 text-red-800 border-red-200' },
   nicht_angetroffen: { label: 'Nicht angetroffen', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  abgesagt_rechtzeitig: { label: 'Rechtzeitig abgesagt', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+  abgesagt_rechtzeitig: { label: 'Abgesagt', color: 'bg-slate-100 text-slate-700 border-slate-200' },
   abgerechnet: { label: 'Abgerechnet', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   bezahlt: { label: 'Bezahlt', color: 'bg-teal-100 text-teal-800 border-teal-200' },
 };
@@ -374,7 +374,7 @@ export function AppointmentDetailDialog({
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</Label>
               <Select
                 value={editedAppointment.status}
-                disabled={['abgerechnet', 'bezahlt'].includes(editedAppointment.status)}
+                disabled={['abgerechnet', 'bezahlt', 'cancelled', 'abgesagt_rechtzeitig'].includes(editedAppointment.status)}
                 onValueChange={(v: any) => {
                   const updates: any = { status: v };
                   if (v === 'unassigned') updates.mitarbeiter_id = null;
@@ -387,13 +387,19 @@ export function AppointmentDetailDialog({
                   <SelectItem value="scheduled">Geplant</SelectItem>
                   <SelectItem value="in_progress">In Bearbeitung</SelectItem>
                   <SelectItem value="completed">Durchgeführt</SelectItem>
-                  <SelectItem value="cancelled">Abgesagt (kurzfr.)</SelectItem>
                   <SelectItem value="nicht_angetroffen">Nicht angetroffen</SelectItem>
-                  <SelectItem value="abgesagt_rechtzeitig">Rechtzeitig abgesagt</SelectItem>
+                  {/* Absage-Statuse nur zur Anzeige — werden ausschließlich über den Absagen-Dialog gesetzt */}
+                  <SelectItem value="cancelled" disabled>Abgesagt (kurzfristig)</SelectItem>
+                  <SelectItem value="abgesagt_rechtzeitig" disabled>Abgesagt (rechtzeitig)</SelectItem>
+                  <SelectItem value="abgerechnet" disabled>Abgerechnet</SelectItem>
+                  <SelectItem value="bezahlt" disabled>Bezahlt</SelectItem>
                 </SelectContent>
               </Select>
               {['abgerechnet', 'bezahlt'].includes(editedAppointment.status) && (
                 <p className="text-xs text-muted-foreground mt-1">Status gesperrt — Termin ist bereits abgerechnet.</p>
+              )}
+              {['cancelled', 'abgesagt_rechtzeitig'].includes(editedAppointment.status) && (
+                <p className="text-xs text-muted-foreground mt-1">Absage über „Absagen"-Button setzen.</p>
               )}
             </div>
             <div>
@@ -469,6 +475,32 @@ export function AppointmentDetailDialog({
               className="mt-1.5 min-h-[60px] resize-y text-sm"
             />
           </div>
+
+          {/* Absage-Details (read-only, nur bei abgesagten Terminen) */}
+          {['cancelled', 'abgesagt_rechtzeitig'].includes(editedAppointment.status) && (
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Absage-Details</Label>
+              <div className="mt-1.5 p-2.5 rounded-md bg-muted/50 text-xs space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span>
+                    {editedAppointment.absage_datum
+                      ? format(new Date(editedAppointment.absage_datum), 'dd.MM.yyyy HH:mm') + ' Uhr'
+                      : 'Zeitpunkt nicht dokumentiert'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span>{editedAppointment.absage_kanal || 'Kanal nicht dokumentiert'}</span>
+                </div>
+                <div className={`font-medium ${editedAppointment.status === 'cancelled' ? 'text-red-700' : 'text-slate-600'}`}>
+                  {editedAppointment.status === 'cancelled'
+                    ? 'Kurzfristige Absage — abrechenbar'
+                    : 'Rechtzeitige Absage — nicht abrechenbar'}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* MA-Kommentar (read-only, nur sichtbar wenn vorhanden) */}
           {editedAppointment.ma_kommentar && (
