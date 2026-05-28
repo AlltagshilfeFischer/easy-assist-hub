@@ -23,9 +23,11 @@ import { AppointmentHistorySection } from '@/components/schedule/AppointmentHist
 import { KundenDetailDialog } from '@/components/customers/KundenDetailDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 import { CustomerSearchCombobox } from '@/components/schedule/CustomerSearchCombobox';
-import type { Employee, Customer, Appointment, CustomerTimeWindow } from '@/types/domain';
+import type { Employee, Customer, Appointment } from '@/types/domain';
 import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { checkVerfuegbarkeit } from '@/lib/schedule/checkVerfuegbarkeit';
+import { useAllKundenZeitfenster } from '@/hooks/useAllKundenZeitfenster';
+import { checkKundenZeitfenster } from '@/lib/schedule/checkKundenZeitfenster';
 
 interface AppointmentDetailDialogProps {
   isOpen: boolean;
@@ -38,7 +40,6 @@ interface AppointmentDetailDialogProps {
   onDeleteSeries?: (vorlageId: string, mode: 'single' | 'all') => Promise<void>;
   onDuplicate?: (appointment: Appointment) => Promise<void>;
   isConflicting?: boolean;
-  customerTimeWindows?: CustomerTimeWindow[];
 }
 
 const KATEGORIE_OPTIONS = [
@@ -60,7 +61,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 export function AppointmentDetailDialog({
   isOpen, onClose, appointment, employees, customers,
-  onUpdate, onDelete, onDeleteSeries, onDuplicate, isConflicting = false, customerTimeWindows = []
+  onUpdate, onDelete, onDeleteSeries, onDuplicate, isConflicting = false,
 }: AppointmentDetailDialogProps) {
   const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(false);
@@ -84,6 +85,7 @@ export function AppointmentDetailDialog({
   const { isGeschaeftsfuehrer, isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
+  const { data: allKundenZeitfenster = [] } = useAllKundenZeitfenster();
 
   React.useEffect(() => {
     if (appointment) {
@@ -91,6 +93,16 @@ export function AppointmentDetailDialog({
       setHasChanges(false);
     }
   }, [appointment]);
+
+  const kundenZeitfensterCheck = React.useMemo(() => {
+    if (!editedAppointment) return null;
+    return checkKundenZeitfenster(
+      editedAppointment.kunden_id ?? null,
+      editedAppointment.start_at,
+      editedAppointment.end_at,
+      allKundenZeitfenster,
+    );
+  }, [editedAppointment?.kunden_id, editedAppointment?.start_at, editedAppointment?.end_at, allKundenZeitfenster]);
 
   if (!appointment || !editedAppointment) return null;
 
@@ -330,6 +342,14 @@ export function AppointmentDetailDialog({
             <p className="text-xs text-muted-foreground mt-1">
               {format(startDate, 'EEEE', { locale: de })} · {durationMin} Min ({(durationMin / 60).toFixed(1)} Std.)
             </p>
+            {kundenZeitfensterCheck?.outsideWindow && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-1">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                {kundenZeitfensterCheck.noEntryForDay
+                  ? 'Dieser Wochentag liegt außerhalb der Kundenpräferenz.'
+                  : 'Die Uhrzeit liegt außerhalb des bevorzugten Zeitfensters des Kunden.'}
+              </div>
+            )}
           </div>
 
           {/* Mitarbeiter */}

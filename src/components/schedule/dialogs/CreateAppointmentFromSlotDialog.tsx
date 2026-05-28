@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { CustomerSearchCombobox } from '../CustomerSearchCombobox';
 import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminKategorie } from '@/types/domain';
+import { useAllKundenZeitfenster } from '@/hooks/useAllKundenZeitfenster';
+import { checkKundenZeitfenster } from '@/lib/schedule/checkKundenZeitfenster';
 
 interface CreateAppointmentFromSlotDialogProps {
   open: boolean;
@@ -112,6 +114,17 @@ export function CreateAppointmentFromSlotDialog({
   const recurringErstgespraechConflict =
     recurringKategorie === 'Erstgespräch' &&
     employees.find((e) => e.id === recurringMitarbeiterId)?.rolle === 'mitarbeiter';
+
+  const { data: allKundenZeitfenster = [] } = useAllKundenZeitfenster();
+
+  const kundenZeitfensterCheck = useMemo(() => {
+    if (!kundenId || !date) return null;
+    const [startHours, startMins] = startTime.split(':').map(Number);
+    const startAt = new Date(date);
+    startAt.setHours(startHours, startMins, 0, 0);
+    const endAt = new Date(startAt.getTime() + dauerMinuten * 60000);
+    return checkKundenZeitfenster(kundenId, startAt.toISOString(), endAt.toISOString(), allKundenZeitfenster);
+  }, [kundenId, date, startTime, dauerMinuten, allKundenZeitfenster]);
 
   useEffect(() => {
     if (prefilledData) {
@@ -422,6 +435,15 @@ export function CreateAppointmentFromSlotDialog({
                 </Select>
               </div>
             </div>
+
+            {kundenZeitfensterCheck?.outsideWindow && (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                {kundenZeitfensterCheck.noEntryForDay
+                  ? 'Dieser Wochentag liegt außerhalb der Kundenpräferenz.'
+                  : 'Die Uhrzeit liegt außerhalb des bevorzugten Zeitfensters des Kunden.'}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="single-notizen">Notizen (optional)</Label>

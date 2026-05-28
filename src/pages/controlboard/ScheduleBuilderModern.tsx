@@ -74,7 +74,7 @@ const ScheduleBuilderModern = () => {
   const [employeeOrder, setEmployeeOrder] = useState<string[]>([]);
   const [appointments, setAppointments] = useState<LocalAppointment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerTimeWindows, setCustomerTimeWindows] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(new Set());
   const [searchEmployee, setSearchEmployee] = useState('');
@@ -1997,7 +1997,6 @@ const ScheduleBuilderModern = () => {
           appointment={editingAppointment}
           employees={employees}
           customers={customers}
-          customerTimeWindows={editingAppointment ? customerTimeWindows.filter(tw => tw.kunden_id === editingAppointment.kunden_id) : []}
           onDuplicate={async (appt) => { await handleDuplicateAppointment(appt as LocalAppointment); }}
           onUpdate={async (appointment) => {
             try {

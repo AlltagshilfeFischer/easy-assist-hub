@@ -19,6 +19,8 @@ import { TIME_SLOTS, DURATION_OPTIONS, addMinutesToTime } from '../timeSlots';
 import type { CustomerSummary, EmployeeSummary, TerminKategorie } from '@/types/domain';
 import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { checkVerfuegbarkeit } from '@/lib/schedule/checkVerfuegbarkeit';
+import { useAllKundenZeitfenster } from '@/hooks/useAllKundenZeitfenster';
+import { checkKundenZeitfenster } from '@/lib/schedule/checkKundenZeitfenster';
 
 const KATEGORIE_OPTIONS: { value: TerminKategorie; label: string }[] = [
   { value: 'Kundentermin', label: 'Kundentermin' },
@@ -73,6 +75,7 @@ export function CreateAppointmentDialog({
   const [showVerfuegbarkeitConfirm, setShowVerfuegbarkeitConfirm] = useState(false);
 
   const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
+  const { data: allKundenZeitfenster = [] } = useAllKundenZeitfenster();
 
   const erstgespraechRoleConflict =
     kategorie === 'Erstgespräch' &&
@@ -86,6 +89,15 @@ export function CreateAppointmentDialog({
     const endAt = new Date(startAt.getTime() + dauerMinuten * 60000);
     return checkVerfuegbarkeit(mitarbeiterId, startAt.toISOString(), endAt.toISOString(), allVerfuegbarkeiten);
   }, [date, startTime, dauerMinuten, mitarbeiterId, allVerfuegbarkeiten]);
+
+  const kundenZeitfensterCheck = useMemo(() => {
+    if (!kundenId || !date) return null;
+    const [startHours, startMins] = startTime.split(':').map(Number);
+    const startAt = new Date(date);
+    startAt.setHours(startHours, startMins, 0, 0);
+    const endAt = new Date(startAt.getTime() + dauerMinuten * 60000);
+    return checkKundenZeitfenster(kundenId, startAt.toISOString(), endAt.toISOString(), allKundenZeitfenster);
+  }, [kundenId, date, startTime, dauerMinuten, allKundenZeitfenster]);
 
   const doSubmit = async () => {
     if (!date) return;
@@ -362,6 +374,15 @@ export function CreateAppointmentDialog({
               </Select>
             </div>
           </div>
+
+          {kundenZeitfensterCheck?.outsideWindow && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              {kundenZeitfensterCheck.noEntryForDay
+                ? 'Dieser Wochentag liegt außerhalb der Kundenpräferenz.'
+                : 'Die Uhrzeit liegt außerhalb des bevorzugten Zeitfensters des Kunden.'}
+            </div>
+          )}
 
           {/* Ort */}
           <div className="space-y-2">
