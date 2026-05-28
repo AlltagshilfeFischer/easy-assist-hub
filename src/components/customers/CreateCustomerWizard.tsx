@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -80,14 +80,7 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
     setValidationErrors({});
   };
 
-  // Bei Kategorie-Wechsel zu Interessent: Tab zuruecksetzen
-  useEffect(() => {
-    if (customerData.kategorie === 'Interessent' && activeTab !== 'stammdaten') {
-      setActiveTab('stammdaten');
-    }
-  }, [customerData.kategorie]);
-
-  const handleClose = () => {
+const handleClose = () => {
     // Kunde wurde bereits angelegt aber Dialog wird vorzeitig geschlossen (z.B. im MA-Matching-Step)
     if (createdCustomerId) onSuccess();
     resetWizard();
@@ -229,14 +222,10 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
         {step === 'customer' && (
           <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-4">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className={`grid w-full ${customerData.kategorie === 'Kunde' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="stammdaten">Persönliche Daten</TabsTrigger>
-                {customerData.kategorie === 'Kunde' && (
-                  <>
-                    <TabsTrigger value="abrechnung"><Euro className="h-4 w-4 mr-1" />Abrechnung</TabsTrigger>
-                    <TabsTrigger value="dokumente"><FileText className="h-4 w-4 mr-1" />Dokumente</TabsTrigger>
-                  </>
-                )}
+                <TabsTrigger value="abrechnung"><Euro className="h-4 w-4 mr-1" />Abrechnung</TabsTrigger>
+                <TabsTrigger value="dokumente"><FileText className="h-4 w-4 mr-1" />Dokumente</TabsTrigger>
               </TabsList>
               <TabsContent value="stammdaten">
                 <StepStammdaten customerData={customerData} setCustomerData={setCustomerData} employees={employees} />
@@ -266,7 +255,7 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
             <div className="flex justify-end gap-2 border-t pt-4">
               <Button type="button" variant="outline" onClick={handleClose}>Abbrechen</Button>
               <Button type="button" onClick={handleSaveCustomerAndTimeWindows} disabled={isLoading}>
-                {isLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Speichern...</>) : customerData.has_regular_appointments && customerData.zeitfenster.length > 0 ? (<>Weiter zum Mitarbeiter-Matching<ArrowRight className="h-4 w-4 ml-2" /></>) : 'Kunden anlegen'}
+                {isLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Speichern...</>) : customerData.has_regular_appointments && customerData.zeitfenster.length > 0 ? (<>Weiter zum Mitarbeiter-Matching<ArrowRight className="h-4 w-4 ml-2" /></>) : customerData.kategorie === 'Interessent' ? 'Interessent anlegen' : 'Kunden anlegen'}
               </Button>
             </div>
           </form>
