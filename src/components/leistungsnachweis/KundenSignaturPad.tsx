@@ -164,7 +164,7 @@ export default function KundenSignaturPad({
   return (
     // Vollbild-Overlay, fixed über alles
     <div
-      className="fixed inset-0 z-[100] bg-white flex flex-col"
+      className="fixed inset-0 z-[300] bg-white flex flex-col"
       style={{ touchAction: 'none' }}
     >
       {/* Header */}
