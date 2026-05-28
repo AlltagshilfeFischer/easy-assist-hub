@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { BudgetTransaction, ServiceType } from '@/types/domain';
+import type { TerminBudgetAllocation } from '@/lib/pflegebudget/budgetCalculations';
 import { toast } from 'sonner';
 
 type BudgetTransactionInsert = Omit<BudgetTransaction, 'id' | 'created_at'>;
@@ -202,6 +203,70 @@ export function useCloseBillingMonth() {
     onError: (error) => {
       console.error('Fehler beim Abschließen des Monats:', error);
       toast.error('Fehler beim Abschließen');
+    },
+  });
+}
+
+// ─── Mutation: Monat aus BudgetTracker abschließen ────────────
+// Schreibt budget_transactions (Kassentöpfe) und setzt Termine auf abgerechnet.
+// Haushaltshilfe-Allokationen werden nicht in budget_transactions geschrieben
+// (§38 geht zur Krankenkasse), aber die Termine werden trotzdem auf abgerechnet gesetzt.
+
+export function useAbschliessenMonth() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      kundenId,
+      allocations,
+    }: {
+      kundenId: string;
+      allocations: TerminBudgetAllocation[];
+    }) => {
+      // 1. budget_transactions für Kassentöpfe (kein HH)
+      const txInserts = allocations
+        .filter((a) => a.serviceType !== 'HAUSHALTSHILFE')
+        .map((a) => ({
+          client_id: kundenId,
+          service_date: a.serviceDate,
+          hours: a.hours,
+          visits: 1,
+          service_type: a.serviceType,
+          hourly_rate: a.hourlyRate,
+          travel_flat_total: a.travelFlatTotal,
+          total_amount: a.totalAmount,
+          allocation_type: 'AUTO' as const,
+          source: 'MANUAL' as const,
+          billed: true,
+        }));
+
+      if (txInserts.length > 0) {
+        const { error } = await supabase
+          .from('budget_transactions' as never)
+          .insert(txInserts as never[]);
+        if (error) throw error;
+      }
+
+      // 2. Alle Termine (inkl. HH) auf abgerechnet setzen
+      const terminIds = allocations.map((a) => a.terminId);
+      if (terminIds.length > 0) {
+        const { error } = await supabase
+          .from('termine')
+          .update({ status: 'abgerechnet' })
+          .in('id', terminIds);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, { kundenId }) => {
+      queryClient.invalidateQueries({ queryKey: ['termine_budget', kundenId] });
+      queryClient.invalidateQueries({ queryKey: ['termine_budget_all'] });
+      queryClient.invalidateQueries({ queryKey: ['budget_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['termine'] });
+      toast.success('Monat erfolgreich abgeschlossen');
+    },
+    onError: (error) => {
+      console.error('Fehler beim Abschließen des Monats:', error);
+      toast.error('Fehler beim Abschließen des Monats');
     },
   });
 }

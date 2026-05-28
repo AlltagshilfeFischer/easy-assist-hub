@@ -39,6 +39,7 @@ import {
   useUpdateBudgetManuellerEintrag,
   useDeleteBudgetManuellerEintrag,
 } from '@/hooks/useBudgetManuelleEintraege';
+import { useAbschliessenMonth } from '@/hooks/useBudgetTransactions';
 import {
   formatCurrency,
   isPrivateInsured,
@@ -146,7 +147,17 @@ interface MonthData {
   hasOpen: boolean;
 }
 
-function MonthRow({ data }: { data: MonthData }) {
+function MonthRow({
+  data,
+  canClose,
+  isClosing,
+  onClose,
+}: {
+  data: MonthData;
+  canClose: boolean;
+  isClosing: boolean;
+  onClose: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const hasData = data.allocations.length > 0;
 
@@ -189,9 +200,29 @@ function MonthRow({ data }: { data: MonthData }) {
         </TableCell>
         <TableCell className="text-center">
           {hasData && (
-            <div className="flex items-center justify-center gap-1">
-              {data.hasBilled && <span className="text-xs text-green-600">✓</span>}
-              {data.hasOpen && <span className="text-xs text-yellow-600">○</span>}
+            <div className="flex items-center justify-center gap-1.5 flex-wrap">
+              {data.hasBilled && !data.hasOpen ? (
+                <span className="text-xs text-green-600 font-medium whitespace-nowrap">✓ Abg.</span>
+              ) : (
+                <>
+                  {data.hasBilled && <span className="text-xs text-green-600">✓</span>}
+                  {data.hasOpen && <span className="text-xs text-yellow-600">○</span>}
+                  {canClose && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs whitespace-nowrap"
+                      disabled={isClosing}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClose();
+                      }}
+                    >
+                      {isClosing ? '…' : 'Abschließen'}
+                    </Button>
+                  )}
+                </>
+              )}
             </div>
           )}
         </TableCell>
@@ -725,6 +756,8 @@ export default function BudgetTrackerDetail() {
   const now = new Date();
   const currentYear = getYear(now);
   const currentMonth = getMonth(now) + 1;
+  const [closingMonthIdx, setClosingMonthIdx] = useState<number | null>(null);
+  const abschliessenMutation = useAbschliessenMonth();
 
   const { data: customers = [] } = useCustomers({ onlyActive: true });
   const { data: termine = [], isLoading: termineLoading } = useTermineForBudget(kundenId, currentYear);
@@ -795,7 +828,7 @@ export default function BudgetTrackerDetail() {
       privatConsumed: privat,
       expiryWarning: expiry,
     };
-  }, [kundeExtended, termine, tariffs, careLevels, currentMonth, currentYear]);
+  }, [kundeExtended, termine, tariffs, careLevels, currentMonth, currentYear, haushaltshilfeVerordnungen]);
 
   // ─── Monatstabelle aufbauen ──────────────────────────────
 
@@ -990,13 +1023,31 @@ export default function BudgetTrackerDetail() {
                   <TableHead className="text-right">VP</TableHead>
                   <TableHead className="text-right">Privat</TableHead>
                   <TableHead className="text-right text-amber-700">HH §38</TableHead>
-                  <TableHead className="text-center w-20">Status</TableHead>
+                  <TableHead className="text-center w-36">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {monthData.map((data) => (
-                  <MonthRow key={data.month} data={data} />
-                ))}
+                {monthData.map((data) => {
+                  const openAllocs = data.allocations.filter((a) => !BILLED_STATUSES.has(a.status));
+                  return (
+                    <MonthRow
+                      key={data.month}
+                      data={data}
+                      canClose={openAllocs.length > 0 && data.month <= currentMonth}
+                      isClosing={closingMonthIdx === data.month && abschliessenMutation.isPending}
+                      onClose={() => {
+                        if (!window.confirm(
+                          `${MONTH_NAMES[data.month - 1]} ${currentYear} abschließen?\n\n${openAllocs.length} Termin(e) werden auf „abgerechnet" gesetzt und in budget_transactions gespeichert.`,
+                        )) return;
+                        setClosingMonthIdx(data.month);
+                        abschliessenMutation.mutate(
+                          { kundenId: kundenId!, allocations: openAllocs },
+                          { onSettled: () => setClosingMonthIdx(null) },
+                        );
+                      }}
+                    />
+                  );
+                })}
               </TableBody>
             </Table>
           )}

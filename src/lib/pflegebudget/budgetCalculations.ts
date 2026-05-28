@@ -518,7 +518,7 @@ export function computeYearBudgetAllocations(
       const date = t.start_at.split('T')[0];
       const verordnung = verordnungen.find((v) => v.gueltig_von <= date && v.gueltig_bis >= date)!;
       const diffHours = (new Date(t.end_at).getTime() - new Date(t.start_at).getTime()) / (1000 * 60 * 60);
-      const rawHours = Math.max(0, t.iststunden ?? diffHours);
+      const rawHours = Math.max(0, (t.iststunden != null && t.iststunden > 0) ? t.iststunden : diffHours);
       // Stunden auf max_dauer_stunden kappen (wie in budget-allocation.ts)
       const hours = Math.round(Math.min(rawHours, verordnung.max_dauer_stunden) * 100) / 100;
       const { hourlyRate, travelFlatTotal, totalAmount } = calculateTransactionAmount(hours, 1, 'ENTLASTUNG', tariffs);
@@ -548,7 +548,7 @@ export function computeYearBudgetAllocations(
 
     const pseudoTx: BudgetTransaction[] = regularTermine.map((t) => {
       const diffHours = (new Date(t.end_at).getTime() - new Date(t.start_at).getTime()) / (1000 * 60 * 60);
-      const hours = Math.round(Math.max(0, t.iststunden ?? diffHours) * 100) / 100;
+      const hours = Math.round(Math.max(0, (t.iststunden != null && t.iststunden > 0) ? t.iststunden : diffHours) * 100) / 100;
       return {
         id: t.id,
         client_id: '',
