@@ -194,14 +194,32 @@ export default function Reporting() {
     dateTo,
     mitarbeiterIds: selectedMitarbeiter,
     kundenIds: selectedKunden,
-    statusFilter: selectedStatus,
-    kategorieFilter: selectedKategorie,
+    statusFilter: [] as string[],
+    kategorieFilter: [] as string[],
   };
   const { data: reportData, isLoading: reportLoading, isError } = useReportingData(filters);
   const { data: auslastungData, isLoading: auslastungLoading } = useMitarbeiterAuslastung(filters);
   const { data: kundenStatistik, isLoading: kundenLoading2 } = useKundenStatistik();
 
-  // Chart data
+  // Tab-lokale Filter-Optionen für "Termine & Stunden"
+  const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([id, name]) => ({ id, name }));
+  const KATEGORIE_OPTIONS = [
+    'Kundentermin', 'Erstgespräch', 'Regelbesuch', 'Schulung',
+    'Meeting', 'Bewerbungsgespräch', 'Intern', 'Blocker', 'Sonstiges',
+  ].map((k) => ({ id: k, name: k }));
+
+  // Gefilterte Termine für Detailliste (Frontend-seitig)
+  const filteredTermine = useMemo(() => {
+    if (!reportData) return [];
+    let result = reportData.termine;
+    if (selectedStatus.length > 0) result = result.filter(t => selectedStatus.includes(t.status));
+    if (selectedKategorie.length > 0) result = result.filter(t => t.kategorie != null && selectedKategorie.includes(t.kategorie));
+    return result;
+  }, [reportData, selectedStatus, selectedKategorie]);
+
+  const hasTabFilter = selectedStatus.length > 0 || selectedKategorie.length > 0;
+
+  // Chart data (zeigt Gesamtbild, unabhängig von Tab-Filtern)
   const chartData = useMemo(() => {
     if (!reportData) return [];
     return reportData.mitarbeiterStunden.map((ms) => ({
@@ -215,8 +233,8 @@ export default function Reporting() {
 
   // CSV Export
   const handleCsvExport = useCallback(() => {
-    if (!reportData?.termine.length) return;
-    const csvRows = reportData.termine.map((t: ReportingTermin) => ({
+    if (!filteredTermine.length) return;
+    const csvRows = filteredTermine.map((t: ReportingTermin) => ({
       Datum: format(new Date(t.startAt), 'dd.MM.yyyy', { locale: de }),
       Von: format(new Date(t.startAt), 'HH:mm', { locale: de }),
       Bis: format(new Date(t.endAt), 'HH:mm', { locale: de }),
@@ -235,18 +253,10 @@ export default function Reporting() {
     link.download = `bericht_${format(dateFrom, 'yyyy-MM-dd')}_${format(dateTo, 'yyyy-MM-dd')}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [reportData, dateFrom, dateTo]);
+  }, [filteredTermine, dateFrom, dateTo]);
 
   const summary = reportData?.summary;
-  const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([id, name]) => ({ id, name }));
-  const KATEGORIE_OPTIONS = [
-    'Kundentermin', 'Erstgespräch', 'Regelbesuch', 'Schulung',
-    'Meeting', 'Bewerbungsgespräch', 'Intern', 'Blocker', 'Sonstiges',
-  ].map((k) => ({ id: k, name: k }));
-
-  const hasActiveFilters =
-    selectedMitarbeiter.length > 0 || selectedKunden.length > 0 ||
-    selectedStatus.length > 0 || selectedKategorie.length > 0;
+  const hasActiveFilters = selectedMitarbeiter.length > 0 || selectedKunden.length > 0;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -269,10 +279,8 @@ export default function Reporting() {
             <Separator orientation="vertical" className="h-8 hidden md:block" />
             <MultiFilter label="Mitarbeiter" options={mitarbeiterOptions ?? []} selected={selectedMitarbeiter} onSelectionChange={setSelectedMitarbeiter} isLoading={mitarbeiterLoading} />
             <MultiFilter label="Kunden" options={kundenOptions ?? []} selected={selectedKunden} onSelectionChange={setSelectedKunden} isLoading={kundenLoading} />
-            <MultiFilter label="Status" options={STATUS_OPTIONS} selected={selectedStatus} onSelectionChange={setSelectedStatus} />
-            <MultiFilter label="Label" options={KATEGORIE_OPTIONS} selected={selectedKategorie} onSelectionChange={setSelectedKategorie} />
             {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={() => { setSelectedMitarbeiter([]); setSelectedKunden([]); setSelectedStatus([]); setSelectedKategorie([]); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedMitarbeiter([]); setSelectedKunden([]); }}>
                 <X className="mr-1 h-3 w-3" />Filter zurücksetzen
               </Button>
             )}
@@ -295,42 +303,38 @@ export default function Reporting() {
           {isError && <Card><CardContent className="pt-6"><p className="text-destructive">Fehler beim Laden der Daten.</p></CardContent></Card>}
           {reportData && !reportLoading && (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <SummaryCard title="Gesamt-Termine" value={summary?.gesamtTermine ?? 0} subtitle="im gewählten Zeitraum" icon={CalendarDays} />
-                <SummaryCard title="Gesamt-Stunden" value={summary?.gesamtStunden ?? 0} subtitle="ohne stornierte Termine" icon={Clock} />
-                <SummaryCard title="Durchschnitt / MA" value={`${summary?.durchschnittProMitarbeiter ?? 0} h`} subtitle="Stunden pro Mitarbeiter" icon={Users} />
-                <SummaryCard title="Stornoquote" value={`${summary?.stornoquote ?? 0}%`} subtitle="storniert / abgesagt" icon={TrendingDown} />
-              </div>
-
-              {chartData.length > 0 && (
-                <Card>
-                  <CardHeader><CardTitle>Stunden pro Mitarbeiter</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="h-[350px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="mitarbeiterName" tick={{ fontSize: 12 }} angle={-35} textAnchor="end" interval={0} className="fill-muted-foreground" />
-                          <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" label={{ value: 'Stunden', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }} />
-                          <Tooltip content={<EmployeeChartTooltip />} />
-                          <Bar dataKey="gesamtStunden" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
+              {/* ── Termintabelle mit Tab-eigenen Filtern ── */}
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Detailliste</CardTitle>
-                  <Button variant="outline" size="sm" onClick={handleCsvExport} disabled={!reportData.termine.length}>
-                    <Download className="mr-2 h-4 w-4" />CSV Export
-                  </Button>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <CardTitle>Termine</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {filteredTermine.length} von {reportData.termine.length} Terminen
+                        {hasTabFilter && ' (gefiltert)'}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleCsvExport} disabled={!filteredTermine.length}>
+                      <Download className="mr-2 h-4 w-4" />CSV Export
+                    </Button>
+                  </div>
+                  {/* Tab-Filter: Label + Status */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <MultiFilter label="Label" options={KATEGORIE_OPTIONS} selected={selectedKategorie} onSelectionChange={setSelectedKategorie} />
+                    <MultiFilter label="Status" options={STATUS_OPTIONS} selected={selectedStatus} onSelectionChange={setSelectedStatus} />
+                    {hasTabFilter && (
+                      <Button variant="ghost" size="sm" onClick={() => { setSelectedStatus([]); setSelectedKategorie([]); }}>
+                        <X className="mr-1 h-3 w-3" />Filter zurücksetzen
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  {reportData.termine.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">Keine Termine im gewählten Zeitraum gefunden.</p>
+                <CardContent className="p-0">
+                  {filteredTermine.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      {hasTabFilter ? 'Keine Termine entsprechen dem Filter.' : 'Keine Termine im gewählten Zeitraum gefunden.'}
+                    </p>
                   ) : (
                     <ScrollArea className="max-h-[500px]">
                       <Table>
@@ -347,7 +351,7 @@ export default function Reporting() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {reportData.termine.map((t) => (
+                          {filteredTermine.map((t) => (
                             <TableRow key={t.id}>
                               <TableCell className="whitespace-nowrap">{format(new Date(t.startAt), 'dd.MM.yyyy', { locale: de })}</TableCell>
                               <TableCell className="whitespace-nowrap">{format(new Date(t.startAt), 'HH:mm')} &ndash; {format(new Date(t.endAt), 'HH:mm')}</TableCell>
@@ -378,6 +382,33 @@ export default function Reporting() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* ── Zusammenfassung + Diagramm ── */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <SummaryCard title="Gesamt-Termine" value={summary?.gesamtTermine ?? 0} subtitle="im gewählten Zeitraum" icon={CalendarDays} />
+                <SummaryCard title="Gesamt-Stunden" value={summary?.gesamtStunden ?? 0} subtitle="ohne stornierte Termine" icon={Clock} />
+                <SummaryCard title="Durchschnitt / MA" value={`${summary?.durchschnittProMitarbeiter ?? 0} h`} subtitle="Stunden pro Mitarbeiter" icon={Users} />
+                <SummaryCard title="Stornoquote" value={`${summary?.stornoquote ?? 0}%`} subtitle="storniert / abgesagt" icon={TrendingDown} />
+              </div>
+
+              {chartData.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle>Stunden pro Mitarbeiter</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[350px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis dataKey="mitarbeiterName" tick={{ fontSize: 12 }} angle={-35} textAnchor="end" interval={0} className="fill-muted-foreground" />
+                          <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" label={{ value: 'Stunden', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }} />
+                          <Tooltip content={<EmployeeChartTooltip />} />
+                          <Bar dataKey="gesamtStunden" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
         </TabsContent>
