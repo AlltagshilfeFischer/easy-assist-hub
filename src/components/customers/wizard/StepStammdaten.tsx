@@ -16,6 +16,7 @@ import AITimeWindowsCreator from '@/components/schedule/ai/AITimeWindowsCreator'
 import { useSettings } from '@/hooks/useSettings';
 import { PflegekasseCombobox } from '@/components/customers/PflegekasseCombobox';
 import { WeekMatrixPicker } from '@/components/customers/WeekMatrixPicker';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useState, useMemo } from 'react';
 
 interface TimeWindow {
@@ -33,9 +34,25 @@ interface NotfallKontakt {
 const WEEKDAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 const SHIFT_BLOCKS = [
-  { label: 'Vormittag', key: 'vormittag', von: '08:00', bis: '12:00' },
-  { label: 'Mittag', key: 'mittag', von: '12:00', bis: '15:00' },
-  { label: 'Nachmittag', key: 'nachmittag', von: '15:00', bis: '18:00' },
+  { label: 'Früh',       key: 'frueh',       von: '07:00', bis: '08:30' },
+  { label: 'Vormittag',  key: 'vormittag',   von: '09:00', bis: '10:30' },
+  { label: 'Mittag',     key: 'mittag',      von: '11:00', bis: '12:30' },
+  { label: 'Nachmittag', key: 'nachmittag',  von: '14:00', bis: '15:30' },
+  { label: 'Abend',      key: 'abend',       von: '16:00', bis: '17:30' },
+];
+
+const FREQUENZ_PRO_MONAT: Record<string, number> = {
+  '14_taegig': 2,
+  'woechentlich': 4.3,
+  '2x_woechentlich': 8.6,
+  '3x_woechentlich': 13,
+  '4x_woechentlich': 17.3,
+  '5x_woechentlich': 21.7,
+};
+
+const MONATSNAMEN = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
 ];
 
 interface StepStammdatenProps {
@@ -47,6 +64,15 @@ interface StepStammdatenProps {
 export function StepStammdaten({ customerData, setCustomerData, employees }: StepStammdatenProps) {
   const { settings } = useSettings();
   const [showAITimeWindows, setShowAITimeWindows] = useState(false);
+
+  const aiAvailable = !!settings.openAiApiKey;
+
+  const berechnetesKontingent = useMemo(() => {
+    const pro = FREQUENZ_PRO_MONAT[customerData.terminfrequenz];
+    const dauer = parseFloat(customerData.termindauer_stunden);
+    if (!pro || !dauer || isNaN(dauer)) return '';
+    return (pro * dauer).toFixed(1);
+  }, [customerData.terminfrequenz, customerData.termindauer_stunden]);
 
   // weekMatrix abgeleitet aus zeitfenster (bidirektionale Synchronisation)
   const weekMatrix = useMemo(() => {
@@ -283,12 +309,72 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Termindauer (Std.)</Label><Input type="number" step="0.5" value={customerData.termindauer_stunden} onChange={(e) => setCustomerData((p: any) => ({ ...p, termindauer_stunden: e.target.value }))} /></div>
-          <div><Label>Stundenkontingent/Monat</Label><Input type="number" step="0.5" value={customerData.stunden_kontingent_monat} onChange={(e) => setCustomerData((p: any) => ({ ...p, stunden_kontingent_monat: e.target.value }))} /></div>
+          <div>
+            <Label>Termindauer (Std.)</Label>
+            <Input type="number" step="0.5" value={customerData.termindauer_stunden} onChange={(e) => setCustomerData((p: any) => ({ ...p, termindauer_stunden: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Stunden/Monat <span className="text-xs text-muted-foreground">(berechnet)</span></Label>
+            <Input
+              readOnly
+              value={berechnetesKontingent || customerData.stunden_kontingent_monat || ''}
+              className="bg-muted cursor-default"
+              placeholder="— wird aus Frequenz × Dauer berechnet"
+            />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Eintrittsmonat</Label><Input type="month" value={customerData.eintritt} onChange={(e) => setCustomerData((p: any) => ({ ...p, eintritt: e.target.value }))} /></div>
-          <div><Label>Startdatum</Label><Input type="date" value={customerData.startdatum} onChange={(e) => setCustomerData((p: any) => ({ ...p, startdatum: e.target.value }))} /></div>
+          <div>
+            <Label>Eintrittsmonat</Label>
+            <div className="flex gap-2">
+              <Select
+                value={customerData.eintritt?.split('-')[1] ?? ''}
+                onValueChange={(m) => {
+                  const y = customerData.eintritt?.split('-')[0] || new Date().getFullYear().toString();
+                  setCustomerData((p: any) => ({ ...p, eintritt: `${y}-${m}` }));
+                }}
+              >
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Monat" /></SelectTrigger>
+                <SelectContent>
+                  {MONATSNAMEN.map((name, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1).padStart(2, '0')}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                className="w-20"
+                placeholder="Jahr"
+                value={customerData.eintritt?.split('-')[0] ?? ''}
+                onChange={(e) => {
+                  const m = customerData.eintritt?.split('-')[1] || String(new Date().getMonth() + 1).padStart(2, '0');
+                  setCustomerData((p: any) => ({ ...p, eintritt: `${e.target.value}-${m}` }));
+                }}
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Startdatum <span className="text-xs text-muted-foreground">(TT.MM.JJJJ)</span></Label>
+            <Input
+              placeholder="TT.MM.JJJJ"
+              value={customerData.startdatum
+                ? (() => {
+                    const parts = customerData.startdatum.split('-');
+                    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : customerData.startdatum;
+                  })()
+                : ''}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const match = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                if (match) {
+                  const [, d, m, y] = match;
+                  setCustomerData((p: any) => ({ ...p, startdatum: `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` }));
+                } else {
+                  setCustomerData((p: any) => ({ ...p, startdatum: raw }));
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
       )}
@@ -304,12 +390,29 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">Oder: Individuelle Zeiten</p>
           <div className="flex gap-2">
-            {settings.aiModeEnabled && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowAITimeWindows(true)}>
-                <Sparkles className="h-4 w-4 mr-1" />KI-Zeitfenster
-              </Button>
-            )}
-            <Button type="button" variant="outline" size="sm" onClick={() => setCustomerData((p: any) => ({ ...p, zeitfenster: [...p.zeitfenster, { wochentag: 1, von: '08:00', bis: '12:00' }] }))}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!aiAvailable}
+                      onClick={() => setShowAITimeWindows(true)}
+                    >
+                      <Sparkles className="h-4 w-4 mr-1" />KI-Zeitfenster
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!aiAvailable && (
+                  <TooltipContent>
+                    <p>OpenAI API-Schlüssel fehlt — in den Einstellungen hinterlegen</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+            <Button type="button" variant="outline" size="sm" onClick={() => setCustomerData((p: any) => ({ ...p, zeitfenster: [...p.zeitfenster, { wochentag: 1, von: '09:00', bis: '10:30' }] }))}>
               <Plus className="h-4 w-4 mr-1" />Manuell hinzufügen
             </Button>
           </div>

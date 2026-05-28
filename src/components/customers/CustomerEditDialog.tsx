@@ -67,6 +67,36 @@ const dateToMonth = (dateString: string | null) => {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
+const MONATSNAMEN = [
+  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+];
+
+function MonthYearPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parts = value.split('-');
+  const year = parts[0] ?? '';
+  const month = parts[1] ?? '';
+  return (
+    <div className="flex gap-2">
+      <Select value={month} onValueChange={(m) => onChange(`${year || new Date().getFullYear()}-${m}`)}>
+        <SelectTrigger className="flex-1"><SelectValue placeholder="Monat" /></SelectTrigger>
+        <SelectContent>
+          {MONATSNAMEN.map((name, i) => (
+            <SelectItem key={i + 1} value={String(i + 1).padStart(2, '0')}>{name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        type="number"
+        className="w-20"
+        placeholder="Jahr"
+        value={year}
+        onChange={(e) => onChange(`${e.target.value}-${month || String(new Date().getMonth() + 1).padStart(2, '0')}`)}
+      />
+    </div>
+  );
+}
+
 export function CustomerEditDialog({
   open,
   onOpenChange,
@@ -448,8 +478,20 @@ export function CustomerEditDialog({
                 <div className="space-y-4 border-t pt-4">
                   <h3 className="text-lg font-semibold">Ein- und Austrittsdaten</h3>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><Label htmlFor="eintritt">Eintrittsmonat</Label><Input id="eintritt" type="month" value={dateToMonth(editingCustomer.eintritt) || getCurrentMonth()} onChange={(e) => setEditingCustomer({ ...editingCustomer, eintritt: e.target.value })} /></div>
-                    <div><Label htmlFor="austritt">Austrittsmonat</Label><Input id="austritt" type="month" value={dateToMonth(editingCustomer.austritt) || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, austritt: e.target.value })} /></div>
+                    <div>
+                      <Label htmlFor="eintritt">Eintrittsmonat</Label>
+                      <MonthYearPicker
+                        value={dateToMonth(editingCustomer.eintritt) || getCurrentMonth()}
+                        onChange={(v) => setEditingCustomer({ ...editingCustomer, eintritt: v })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="austritt">Austrittsmonat</Label>
+                      <MonthYearPicker
+                        value={dateToMonth(editingCustomer.austritt) || ''}
+                        onChange={(v) => setEditingCustomer({ ...editingCustomer, austritt: v })}
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>

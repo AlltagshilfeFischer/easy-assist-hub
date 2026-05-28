@@ -12,9 +12,11 @@ const DAYS = [
 ];
 
 const SHIFTS = [
-  { key: 'vormittag', label: 'Vormittag', time: '08–12' },
-  { key: 'mittag', label: 'Mittag', time: '12–15' },
-  { key: 'nachmittag', label: 'Nachmittag', time: '15–18' },
+  { key: 'frueh',       label: 'Früh',       time: '07–08:30' },
+  { key: 'vormittag',   label: 'Vormittag',  time: '09–10:30' },
+  { key: 'mittag',      label: 'Mittag',     time: '11–12:30' },
+  { key: 'nachmittag',  label: 'Nachmittag', time: '14–15:30' },
+  { key: 'abend',       label: 'Abend',      time: '16–17:30' },
 ];
 
 interface WeekMatrixPickerProps {
@@ -24,7 +26,7 @@ interface WeekMatrixPickerProps {
 
 export function WeekMatrixPicker({ matrix, onToggle }: WeekMatrixPickerProps) {
   return (
-    <div className="grid grid-cols-[auto,1fr,1fr,1fr] gap-1">
+    <div className="grid grid-cols-[auto,1fr,1fr,1fr,1fr,1fr] gap-1">
       {/* Header */}
       <div />
       {SHIFTS.map((shift) => (
