@@ -101,6 +101,7 @@ export function AbwesenheitGenehmigung() {
       toast.success('Abwesenheit genehmigt – betroffene Termine wurden freigegeben');
       queryClient.invalidateQueries({ queryKey: ['pending-absence-requests'] });
       queryClient.invalidateQueries({ queryKey: ['termine'] });
+      queryClient.invalidateQueries({ queryKey: ['alle-abwesenheiten'] });
     },
     onError: () => toast.error('Fehler beim Genehmigen'),
   });

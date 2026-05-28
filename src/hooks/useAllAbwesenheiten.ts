@@ -5,7 +5,7 @@ import type { AbwesenheitEntry } from '@/lib/schedule/checkAbwesenheit';
 /** Fetch all approved absences for all employees (cached 2 min). */
 export function useAllAbwesenheiten() {
   return useQuery({
-    queryKey: ['abwesenheiten-all'],
+    queryKey: ['alle-abwesenheiten'],
     staleTime: 2 * 60 * 1000,
     queryFn: async (): Promise<AbwesenheitEntry[]> => {
       const { data, error } = await supabase

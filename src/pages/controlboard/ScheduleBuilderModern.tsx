@@ -989,15 +989,14 @@ const ScheduleBuilderModern = () => {
         }
       }
 
-      // Abwesenheits-Check — harter Blocker (kein Fallback auf "offen")
+      // Abwesenheits-Check — harter Blocker; throw damit der aufrufende Dialog offen bleibt
       const finalMitarbeiterId = payload.mitarbeiter_id ?? null;
       if (finalMitarbeiterId) {
         const apptDateStr = format(new Date(payload.start_at), 'yyyy-MM-dd');
         const maAbwesend = await queryMaAbwesend(finalMitarbeiterId, apptDateStr);
         if (maAbwesend) {
           const emp = employees.find(e => e.id === payload.mitarbeiter_id);
-          toast({ title: 'Mitarbeiter abwesend', description: `${emp?.name || 'Mitarbeiter'} ist an diesem Tag abwesend. Bitte anderen Mitarbeiter wählen.`, variant: 'destructive' });
-          return;
+          throw new Error(`${emp?.name || 'Mitarbeiter'} ist an diesem Tag abwesend. Bitte einen anderen Mitarbeiter wählen.`);
         }
       }
 

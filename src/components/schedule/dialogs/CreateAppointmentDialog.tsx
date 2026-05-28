@@ -174,7 +174,7 @@ export function CreateAppointmentDialog({
     } catch (error: unknown) {
       console.error('Error creating appointment:', error);
       const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
-      toast.error(`Fehler beim Erstellen: ${message}`);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
