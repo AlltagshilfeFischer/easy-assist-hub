@@ -12,7 +12,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
 import { WOCHENTAGE } from '@/hooks/useVerfuegbarkeiten';
-import { User, Settings2 as SettingsIcon, GripVertical, Eye, EyeOff, UserX, Search, X } from 'lucide-react';
+import { User, Settings2 as SettingsIcon, GripVertical, Eye, EyeOff, UserX, Search, X, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   DndContext,
@@ -304,6 +304,7 @@ function EmployeeInfoCell({ employee, initials, weekHours, sollStunden, verfuegb
               )}
             </div>
           </div>
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-60 p-0" align="start" sideOffset={4}>
@@ -678,12 +679,15 @@ function SuggestionRow({
       />
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate">{employee.name}</p>
-        <p
-          className={cn('text-[10px] text-muted-foreground cursor-pointer select-none', !expanded && 'line-clamp-1')}
+        <div
+          className="flex items-start gap-0.5 cursor-pointer select-none"
           onClick={() => setExpanded(v => !v)}
         >
-          {reason}
-        </p>
+          <p className={cn('text-[10px] text-muted-foreground flex-1', !expanded && 'line-clamp-1')}>
+            {reason}
+          </p>
+          <ChevronDown className={cn('h-3 w-3 text-muted-foreground/50 shrink-0 mt-px transition-transform duration-150', expanded && 'rotate-180')} />
+        </div>
       </div>
       {onAssign && (
         <Button
