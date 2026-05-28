@@ -92,6 +92,7 @@ Detailwissen wird ueber Rules und Skills bereitgestellt — NICHT hier duplizier
 | Rollen | `.claude/rules/business/rollen.md` | — |
 | Dienstplan | `.claude/rules/business/dienstplan.md` | `/dienstplan` |
 | Abrechnung | `.claude/rules/business/abrechnung.md` | `/abrechnung` |
+| **Entscheidungen** | **`.claude/rules/entscheidungen.md`** | **—** |
 | DB-Schema | — | `/db-schema` (auto) |
 | Reporting | — | `/reporting` (auto) |
 
