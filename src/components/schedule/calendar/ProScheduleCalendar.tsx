@@ -792,46 +792,118 @@ function AdvancedAnalysis({
   }
 
   if (!result || result.suggestions.length === 0) {
-    return <p className="text-xs text-muted-foreground text-center py-1">Keine erweiterten Vorschläge</p>;
+    return (
+      <div className="text-center py-2 space-y-1">
+        <p className="text-xs text-muted-foreground">Keine Vorschläge für diese Zone</p>
+        <p className="text-[10px] text-muted-foreground/70">{result?.zone_name}</p>
+      </div>
+    );
   }
 
+  const normalSuggestions = result.suggestions.filter(s => !s.is_fallback);
+  const fallbackSuggestions = result.suggestions.filter(s => s.is_fallback);
+
   return (
-    <div className="space-y-1.5">
-      <p className="text-[9px] text-muted-foreground">Zone: {result.zone_name}</p>
-      {result.suggestions.map((s) => (
-        <div
-          key={s.id}
-          className={`flex items-center gap-2 rounded-md border p-1.5 ${
-            s.is_fallback
-              ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800'
-              : 'bg-background'
-          }`}
-        >
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.farbe_kalender }} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium truncate">{s.name}</p>
-            <p className="text-[10px] text-muted-foreground truncate">
-              {s.reasons.join(' · ')}
-              {s.today_appointments > 0 && ` · ${s.today_appointments} Termine`}
-            </p>
-          </div>
-          {s.is_fallback && <ShieldAlert className="h-3 w-3 text-amber-500 flex-shrink-0" title="GF-Fallback" />}
-          <span className={`text-[10px] font-mono px-1 rounded flex-shrink-0 ${
-            s.zone_match ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'
-          }`}>
-            {s.score}
-          </span>
-          {onAssign && (
-            <Button size="sm" variant={s.is_fallback ? 'outline' : 'default'}
-              className="h-6 w-6 p-0 flex-shrink-0"
-              title={`${s.name} zuweisen`}
-              onClick={() => onAssign(appointmentId, s.id)}
-            >
-              <User className="h-3 w-3" />
-            </Button>
-          )}
+    <div className="space-y-2">
+      {/* Zieladresse Zone */}
+      <div className="flex items-center gap-1.5 px-1">
+        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+        <span className="text-[10px] text-muted-foreground">
+          Zielzone: <span className="font-medium text-foreground">{result.zone_name}</span>
+        </span>
+      </div>
+
+      {/* Pool-MAs (zone_score >= 100) */}
+      {normalSuggestions.length > 0 && (
+        <div className="space-y-1.5">
+          {normalSuggestions.map((s) => (
+            <AdvancedSuggestionRow key={s.id} s={s} appointmentId={appointmentId} onAssign={onAssign} />
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* GF-Fallback — nur wenn keine Pool-MAs */}
+      {fallbackSuggestions.length > 0 && (
+        <>
+          {normalSuggestions.length > 0 && <div className="border-t border-dashed" />}
+          <p className="text-[9px] text-amber-600 font-medium flex items-center gap-1 px-0.5">
+            <ShieldAlert className="h-3 w-3" />
+            {normalSuggestions.length === 0 ? 'Kein Pool-MA verfügbar — GF-Einsatz' : 'GF-Fallback'}
+          </p>
+          <div className="space-y-1.5">
+            {fallbackSuggestions.map((s) => (
+              <AdvancedSuggestionRow key={s.id} s={s} appointmentId={appointmentId} onAssign={onAssign} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AdvancedSuggestionRow({
+  s,
+  appointmentId,
+  onAssign,
+}: {
+  s: AdvancedSuggestion;
+  appointmentId: string;
+  onAssign?: (appointmentId: string, employeeId: string) => void;
+}) {
+  const zoneIcon = s.zone_match ? '✓' : s.reasons.some(r => r.includes('Vertraute')) ? '≈' : '↗';
+  const zoneColor = s.zone_match
+    ? 'text-green-600'
+    : s.reasons.some(r => r.includes('Vertraute'))
+    ? 'text-blue-500'
+    : 'text-muted-foreground';
+
+  return (
+    <div className={cn(
+      'rounded-md border p-2 space-y-1',
+      s.is_fallback
+        ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800'
+        : s.zone_match
+        ? 'bg-green-50/50 border-green-200 dark:bg-green-950/10 dark:border-green-900'
+        : 'bg-background',
+    )}>
+      {/* Kopfzeile: Name + Score + Zuweisen */}
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.farbe_kalender }} />
+        <p className="text-xs font-medium flex-1 truncate">{s.name}</p>
+        <span className={cn(
+          'text-[10px] font-bold px-1.5 py-0.5 rounded',
+          s.zone_match ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground',
+        )}>
+          {s.score > 0 ? `+${s.score}` : s.score}
+        </span>
+        {onAssign && (
+          <Button
+            size="sm"
+            variant={s.is_fallback ? 'outline' : 'default'}
+            className="h-6 w-6 p-0 flex-shrink-0"
+            title={`${s.name} zuweisen`}
+            onClick={() => onAssign(appointmentId, s.id)}
+          >
+            <User className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+
+      {/* Begründung — jeder Grund als eigene Zeile */}
+      <div className="space-y-0.5 pl-4">
+        {s.reasons.map((r, i) => (
+          <p key={i} className={cn('text-[10px] flex items-center gap-1', i === 0 ? zoneColor : 'text-muted-foreground')}>
+            {i === 0 && <span className="font-bold">{zoneIcon}</span>}
+            {i > 0 && <span className="text-muted-foreground/50">·</span>}
+            {r}
+          </p>
+        ))}
+        {s.today_appointments > 0 && (
+          <p className="text-[10px] text-muted-foreground">
+            · {s.today_appointments} Termin{s.today_appointments !== 1 ? 'e' : ''} heute
+          </p>
+        )}
+      </div>
     </div>
   );
 }
