@@ -55,7 +55,7 @@ const monthNames = [
   'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
 ];
 
-const SKIP_STATUS = ['cancelled', 'abgesagt_rechtzeitig'];
+const SKIP_STATUS = ['abgesagt_rechtzeitig'];
 
 export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: Props) {
   const { stempelUrl } = useGfStempelUrl();

@@ -140,8 +140,8 @@ export interface Ausweichort {
 // ─── Appointment / Termin ───────────────────────────────────
 
 /** Minimal appointment fields used by calendar/grid components */
-export type TerminKategorie = 'Kundentermin' | 'Erstgespräch' | 'Schulung' | 'Meeting' | 'Bewerbungsgespräch' | 'Blocker' | 'Intern' | 'Regelbesuch' | 'Ausfall (abrechenbar)' | 'Ausfall (nicht abrechenbar)' | 'Sonstiges';
-export type AbsageKanal = 'Telefonisch' | 'E-Mail' | 'Persönlich' | 'WhatsApp' | 'Sonstiges';
+export type TerminKategorie = 'Kundentermin' | 'Erstgespräch' | 'Schulung' | 'Meeting' | 'Bewerbungsgespräch' | 'Blocker' | 'Intern' | 'Regelbesuch' | 'Sonstiges';
+export type AbsageKanal = 'Anruf MA' | 'Anruf Büro' | 'Email' | 'WhatsApp' | 'Sonstiges';
 
 export interface CalendarAppointment {
   id: string;

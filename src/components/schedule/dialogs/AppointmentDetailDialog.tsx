@@ -43,8 +43,7 @@ interface AppointmentDetailDialogProps {
 
 const KATEGORIE_OPTIONS = [
   'Kundentermin', 'Erstgespräch', 'Regelbesuch', 'Schulung', 'Meeting',
-  'Bewerbungsgespräch', 'Blocker', 'Intern',
-  'Ausfall (abrechenbar)', 'Ausfall (nicht abrechenbar)', 'Sonstiges',
+  'Bewerbungsgespräch', 'Blocker', 'Intern', 'Sonstiges',
 ] as const;
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -219,13 +218,17 @@ export function AppointmentDetailDialog({
     if (!editedAppointment) return;
     setLoading(true);
     try {
-      let cancelStatus: string = 'cancelled';
-      if (cancelAbsageDatum && editedAppointment.start_at) {
-        // T12:00:00 vermeidet UTC-Mitternacht → Berlin-Lokalzeit-Fehler bei Grenzfällen
-        const diffDays = (new Date(editedAppointment.start_at).getTime() - new Date(cancelAbsageDatum + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24);
-        if (diffDays >= 2) cancelStatus = 'abgesagt_rechtzeitig';
+      if (!cancelAbsageDatum) {
+        toast({ title: 'Bitte Absagezeitpunkt angeben', variant: 'destructive' });
+        return;
       }
-      await onUpdate({ ...editedAppointment, status: cancelStatus, absage_datum: cancelAbsageDatum || null, absage_kanal: cancelAbsageKanal || null, ausnahme_grund: cancelGrund || null } as any);
+      if (!cancelAbsageKanal) {
+        toast({ title: 'Bitte Absagekanal angeben', variant: 'destructive' });
+        return;
+      }
+      const diffDays = (new Date(editedAppointment.start_at).getTime() - new Date(cancelAbsageDatum).getTime()) / (1000 * 60 * 60 * 24);
+      const cancelStatus: string = diffDays >= 2 ? 'abgesagt_rechtzeitig' : 'cancelled';
+      await onUpdate({ ...editedAppointment, status: cancelStatus, absage_datum: cancelAbsageDatum, absage_kanal: cancelAbsageKanal || null, ausnahme_grund: cancelGrund || null } as any);
       toast({ title: cancelStatus === 'abgesagt_rechtzeitig' ? 'Rechtzeitig abgesagt (nicht abrechenbar)' : 'Kurzfristig abgesagt (abrechenbar)' });
       setShowCancelDialog(false);
       setCancelAbsageDatum(''); setCancelAbsageKanal(''); setCancelGrund('');
@@ -245,27 +248,6 @@ export function AppointmentDetailDialog({
     finally { setLoading(false); }
   };
 
-  const handleTimelyCancel = async () => {
-    if (!editedAppointment) return;
-    // Prüfen ob Termin tatsächlich >= 2 Tage in der Zukunft liegt
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-    const diffDays = (new Date(editedAppointment.start_at).getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-    if (diffDays < 2) {
-      toast({
-        title: 'Nicht möglich',
-        description: 'Der Termin liegt weniger als 2 Tage entfernt — bitte als "Kurzfristig abgesagt" markieren.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setLoading(true);
-    try {
-      await onUpdate({ ...editedAppointment, status: 'abgesagt_rechtzeitig' as any });
-      toast({ title: 'Rechtzeitig abgesagt (nicht abrechenbar)' }); onClose();
-    } catch { toast({ title: 'Fehler', variant: 'destructive' }); }
-    finally { setLoading(false); }
-  };
 
   const handleEditTemplate = async () => {
     if (!editedAppointment?.vorlage_id) return;
@@ -521,10 +503,6 @@ export function AppointmentDetailDialog({
               className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-50">
               <AlertTriangle className="h-3 w-3 mr-1" />Nicht angetroffen
             </Button>
-            <Button size="sm" variant="outline" onClick={handleTimelyCancel} disabled={loading || isTerminated}
-              className="h-7 text-xs">
-              <AlertCircle className="h-3 w-3 mr-1" />Rechtzeitig abgesagt
-            </Button>
             {editedAppointment.vorlage_id && !editedAppointment.ist_ausnahme && (
               <Button size="sm" variant="outline" onClick={handleEditTemplate} disabled={loading}
                 className="h-7 text-xs">
@@ -642,13 +620,16 @@ export function AppointmentDetailDialog({
           </AlertDialogHeader>
           <div className="space-y-3 py-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Absagedatum</Label><Input type="date" value={cancelAbsageDatum} onChange={(e) => setCancelAbsageDatum(e.target.value)} className="mt-1" /></div>
               <div>
-                <Label className="text-xs">Absagekanal</Label>
+                <Label className="text-xs">Absagezeitpunkt <span className="text-destructive">*</span></Label>
+                <Input type="datetime-local" value={cancelAbsageDatum} onChange={(e) => setCancelAbsageDatum(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Absagekanal <span className="text-destructive">*</span></Label>
                 <Select value={cancelAbsageKanal} onValueChange={setCancelAbsageKanal}>
                   <SelectTrigger className="mt-1"><SelectValue placeholder="Wählen..." /></SelectTrigger>
                   <SelectContent>
-                    {['Telefonisch', 'E-Mail', 'Persönlich', 'WhatsApp', 'Sonstiges'].map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                    {['Anruf MA', 'Anruf Büro', 'Email', 'WhatsApp', 'Sonstiges'].map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
