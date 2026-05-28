@@ -153,7 +153,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
               </SelectContent>
             </Select>
           </div>
-          <div><Label htmlFor="vorname">Vorname *</Label><Input id="vorname" value={customerData.vorname} onChange={(e) => setCustomerData((p: any) => ({ ...p, vorname: e.target.value }))} placeholder="Max" required /></div>
+          <div><Label htmlFor="vorname">Vorname{isKunde ? ' *' : ''}</Label><Input id="vorname" value={customerData.vorname} onChange={(e) => setCustomerData((p: any) => ({ ...p, vorname: e.target.value }))} placeholder="Max" required={isKunde} /></div>
           <div><Label htmlFor="nachname">Nachname *</Label><Input id="nachname" value={customerData.nachname} onChange={(e) => setCustomerData((p: any) => ({ ...p, nachname: e.target.value }))} placeholder="Mustermann" required /></div>
           <div>
             <Label htmlFor="geburtsdatum">Geburtsdatum</Label>
@@ -196,7 +196,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         </div>
         <div className="grid grid-cols-4 gap-4">
           <div><Label htmlFor="stadtteil">Stadtteil</Label><Input id="stadtteil" value={customerData.stadtteil} onChange={(e) => setCustomerData((p: any) => ({ ...p, stadtteil: e.target.value }))} placeholder="z.B. Linden, Mitte" /></div>
-          <div><Label htmlFor="telefonnr">Telefon *</Label><Input id="telefonnr" value={customerData.telefonnr} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setCustomerData((p: any) => ({ ...p, telefonnr: val })); }} placeholder="0511 123456" inputMode="tel" required /></div>
+          <div><Label htmlFor="telefonnr">Telefon{isKunde ? ' *' : ''}</Label><Input id="telefonnr" value={customerData.telefonnr} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setCustomerData((p: any) => ({ ...p, telefonnr: val })); }} placeholder="0511 123456" inputMode="tel" required={isKunde} /></div>
           <div><Label htmlFor="email">E-Mail</Label><Input id="email" type="email" value={customerData.email} onChange={(e) => setCustomerData((p: any) => ({ ...p, email: e.target.value }))} placeholder="kunde@email.de" /></div>
           <div>
             <Label>Bevorzugter Kontaktweg</Label>
@@ -208,24 +208,24 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         </div>
       </div>
 
-      {/* Pflege-Informationen — nur fuer Kunden */}
-      {isKunde && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Pflege-Informationen</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div><Label>Pflegekasse</Label><PflegekasseCombobox value={customerData.pflegekasse} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegekasse: v }))} /></div>
-            <div><Label htmlFor="versichertennummer">Versichertennummer</Label><Input id="versichertennummer" value={customerData.versichertennummer} onChange={(e) => setCustomerData((p: any) => ({ ...p, versichertennummer: e.target.value }))} /></div>
-            <div>
-              <Label htmlFor="pflegegrad">Pflegegrad</Label>
-              <Select value={customerData.pflegegrad} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegegrad: v }))}>
-                <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nicht_vorhanden">Nicht vorhanden</SelectItem>
-                  {[0,1,2,3,4,5].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Pflege-Informationen */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Pflege-Informationen{!isKunde && <span className="text-sm font-normal text-muted-foreground ml-2">(optional)</span>}</h3>
+        <div className="grid grid-cols-3 gap-4">
+          <div><Label>Pflegekasse</Label><PflegekasseCombobox value={customerData.pflegekasse} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegekasse: v }))} /></div>
+          {isKunde && <div><Label htmlFor="versichertennummer">Versichertennummer</Label><Input id="versichertennummer" value={customerData.versichertennummer} onChange={(e) => setCustomerData((p: any) => ({ ...p, versichertennummer: e.target.value }))} /></div>}
+          <div>
+            <Label htmlFor="pflegegrad">Pflegegrad</Label>
+            <Select value={customerData.pflegegrad} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegegrad: v }))}>
+              <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nicht_vorhanden">Nicht vorhanden</SelectItem>
+                {[0,1,2,3,4,5].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
+        </div>
+        {isKunde && (
           <div className="grid grid-cols-2 gap-4">
             <div><Label htmlFor="verhinderungspflege_status">Verhinderungspflege</Label><Input id="verhinderungspflege_status" value={customerData.verhinderungspflege_status} onChange={(e) => setCustomerData((p: any) => ({ ...p, verhinderungspflege_status: e.target.value }))} /></div>
             <div>
@@ -236,8 +236,8 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
               </Select>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Rechnungskopie — nur fuer Kunden */}
       {isKunde && (

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const customerBaseSchema = z.object({
   kategorie: z.enum(['Interessent', 'Kunde']).default('Kunde'),
-  vorname: z.string().min(1, 'Vorname ist erforderlich').trim(),
+  vorname: z.string().trim().optional().or(z.literal('')),
   nachname: z.string().min(1, 'Nachname ist erforderlich').trim(),
   // Adress- und Kontaktfelder: Pflicht für Kunden, optional für Interessenten (via superRefine)
   strasse: z.string().trim().optional().or(z.literal('')),
@@ -48,6 +48,9 @@ export const customerBaseSchema = z.object({
   has_regular_appointments: z.boolean().default(false),
 }).superRefine((data, ctx) => {
   if (data.kategorie === 'Kunde') {
+    if (!data.vorname?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vorname ist erforderlich', path: ['vorname'] });
+    }
     if (!data.strasse?.trim()) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Straße ist erforderlich', path: ['strasse'] });
     }

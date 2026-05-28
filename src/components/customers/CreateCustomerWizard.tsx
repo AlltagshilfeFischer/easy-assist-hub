@@ -227,7 +227,7 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
         </div>
 
         {step === 'customer' && (
-          <div className="space-y-4">
+          <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-4">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className={`grid w-full ${customerData.kategorie === 'Kunde' ? 'grid-cols-3' : 'grid-cols-1'}`}>
                 <TabsTrigger value="stammdaten">Persönliche Daten</TabsTrigger>
@@ -265,11 +265,11 @@ export default function CreateCustomerWizard({ open, onOpenChange, employees, on
 
             <div className="flex justify-end gap-2 border-t pt-4">
               <Button type="button" variant="outline" onClick={handleClose}>Abbrechen</Button>
-              <Button onClick={handleSaveCustomerAndTimeWindows} disabled={isLoading}>
+              <Button type="button" onClick={handleSaveCustomerAndTimeWindows} disabled={isLoading}>
                 {isLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Speichern...</>) : customerData.has_regular_appointments && customerData.zeitfenster.length > 0 ? (<>Weiter zum Mitarbeiter-Matching<ArrowRight className="h-4 w-4 ml-2" /></>) : 'Kunden anlegen'}
               </Button>
             </div>
-          </div>
+          </form>
         )}
 
         {step === 'employees' && createdCustomerId && (
