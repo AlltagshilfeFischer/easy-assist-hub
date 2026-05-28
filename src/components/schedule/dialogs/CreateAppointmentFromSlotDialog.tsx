@@ -105,6 +105,14 @@ export function CreateAppointmentFromSlotDialog({
   const [gueltigBis, setGueltigBis] = useState<Date | undefined>();
   const [notizen, setNotizen] = useState('');
 
+  const singleErstgespraechConflict =
+    singleKategorie === 'Erstgespräch' &&
+    employees.find((e) => e.id === mitarbeiterId)?.rolle === 'mitarbeiter';
+
+  const recurringErstgespraechConflict =
+    recurringKategorie === 'Erstgespräch' &&
+    employees.find((e) => e.id === recurringMitarbeiterId)?.rolle === 'mitarbeiter';
+
   useEffect(() => {
     if (prefilledData) {
       setMitarbeiterId(prefilledData.employeeId);
@@ -362,7 +370,7 @@ export function CreateAppointmentFromSlotDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {singleKategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter' && (
+              {singleErstgespraechConflict && (
                 <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
@@ -428,7 +436,7 @@ export function CreateAppointmentFromSlotDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-              <Button onClick={handleSubmitSingle} disabled={loading || !date || (!isInternTermin && isNewInteressent && !newInteressentName.trim()) || (singleKategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter')}>
+              <Button onClick={handleSubmitSingle} disabled={loading || !date || (!isInternTermin && isNewInteressent && !newInteressentName.trim()) || singleErstgespraechConflict}>
                 {loading ? 'Erstelle...' : isInternTermin ? 'Internen Termin erstellen' : 'Einzeltermin erstellen'}
               </Button>
             </DialogFooter>
@@ -498,7 +506,7 @@ export function CreateAppointmentFromSlotDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {recurringKategorie === 'Erstgespräch' && employees.find(e => e.id === recurringMitarbeiterId)?.rolle === 'mitarbeiter' && (
+              {recurringErstgespraechConflict && (
                 <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
@@ -599,7 +607,7 @@ export function CreateAppointmentFromSlotDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-              <Button onClick={handleSubmitRecurring} disabled={loading || !gueltigVon || (!recurringIsIntern && !recurringKundenId) || (recurringKategorie === 'Erstgespräch' && employees.find(e => e.id === recurringMitarbeiterId)?.rolle === 'mitarbeiter')}>
+              <Button onClick={handleSubmitRecurring} disabled={loading || !gueltigVon || (!recurringIsIntern && !recurringKundenId) || recurringErstgespraechConflict}>
                 {loading ? 'Erstelle...' : recurringIsIntern ? 'Interne Serie erstellen' : 'Terminserie erstellen'}
               </Button>
             </DialogFooter>

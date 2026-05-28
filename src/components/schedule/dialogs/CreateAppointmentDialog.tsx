@@ -74,6 +74,10 @@ export function CreateAppointmentDialog({
 
   const { data: allVerfuegbarkeiten = [] } = useAllVerfuegbarkeiten();
 
+  const erstgespraechRoleConflict =
+    kategorie === 'Erstgespräch' &&
+    employees.find((e) => e.id === mitarbeiterId)?.rolle === 'mitarbeiter';
+
   const verfuegbarkeitWarning = useMemo(() => {
     if (!date || mitarbeiterId === 'unassigned' || !mitarbeiterId) return null;
     const [startHours, startMins] = startTime.split(':').map(Number);
@@ -284,16 +288,14 @@ export function CreateAppointmentDialog({
                 </SelectTrigger>
                 <SelectContent className="z-[202]">
                   <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                  {employees
-                    .filter((emp) => emp)
-                    .map((employee) => (
+                  {employees.map((employee) => (
                       <SelectItem key={employee.id} value={employee.id}>
                         {employee.vorname} {employee.nachname}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
-              {kategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter' && (
+              {erstgespraechRoleConflict && (
                 <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
@@ -388,7 +390,7 @@ export function CreateAppointmentDialog({
             </Button>
             <Button
               type="submit"
-              disabled={loading || !date || (isNewInteressent && !newInteressentName.trim()) || (kategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter')}
+              disabled={loading || !date || (isNewInteressent && !newInteressentName.trim()) || erstgespraechRoleConflict}
             >
               {loading ? 'Erstelle...' : isInternTermin ? 'Internen Termin erstellen' : isNewInteressent ? 'Interessent & Termin erstellen' : 'Termin erstellen'}
             </Button>

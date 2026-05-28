@@ -100,6 +100,10 @@ export function AppointmentDetailDialog({
     setHasChanges(true);
   };
 
+  const erstgespraechRoleConflict =
+    editedAppointment.kategorie === 'Erstgespräch' &&
+    employees.find((e) => e.id === editedAppointment.mitarbeiter_id)?.rolle === 'mitarbeiter';
+
   const startDate = new Date(editedAppointment.start_at);
   const endDate = new Date(editedAppointment.end_at);
   const durationMin = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60));
@@ -368,7 +372,7 @@ export function AppointmentDetailDialog({
                   ))}
               </SelectContent>
             </Select>
-            {editedAppointment.kategorie === 'Erstgespräch' && employees.find(e => e.id === editedAppointment.mitarbeiter_id)?.rolle === 'mitarbeiter' && (
+            {erstgespraechRoleConflict && (
               <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
@@ -547,7 +551,7 @@ export function AppointmentDetailDialog({
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onClose} className="h-8">Schließen</Button>
             {hasChanges && (
-              <Button size="sm" onClick={handleSave} disabled={loading || (editedAppointment.kategorie === 'Erstgespräch' && employees.find(e => e.id === editedAppointment.mitarbeiter_id)?.rolle === 'mitarbeiter')} className="h-8">
+              <Button size="sm" onClick={handleSave} disabled={loading || erstgespraechRoleConflict} className="h-8">
                 <Save className="h-3.5 w-3.5 mr-1.5" />{loading ? 'Speichert...' : 'Speichern'}
               </Button>
             )}
