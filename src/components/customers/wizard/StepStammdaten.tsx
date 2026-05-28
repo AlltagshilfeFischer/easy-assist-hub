@@ -17,7 +17,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { PflegekasseCombobox } from '@/components/customers/PflegekasseCombobox';
 import { WeekMatrixPicker } from '@/components/customers/WeekMatrixPicker';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 interface TimeWindow {
   wochentag: number;
@@ -73,6 +73,19 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
     if (!pro || !dauer || isNaN(dauer)) return '';
     return (pro * dauer).toFixed(1);
   }, [customerData.terminfrequenz, customerData.termindauer_stunden]);
+
+  // Bug-Fix: berechneten Wert in customerData schreiben damit der Insert ihn nutzt
+  useEffect(() => {
+    if (berechnetesKontingent) {
+      setCustomerData((p: any) => ({ ...p, stunden_kontingent_monat: berechnetesKontingent }));
+    }
+  }, [berechnetesKontingent, setCustomerData]);
+
+  const [startdatumDisplay, setStartdatumDisplay] = useState(() => {
+    if (!customerData.startdatum) return '';
+    const parts = (customerData.startdatum as string).split('-');
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : '';
+  });
 
   // weekMatrix abgeleitet aus zeitfenster (bidirektionale Synchronisation)
   const weekMatrix = useMemo(() => {
@@ -357,21 +370,18 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
             <Label>Startdatum <span className="text-xs text-muted-foreground">(TT.MM.JJJJ)</span></Label>
             <Input
               placeholder="TT.MM.JJJJ"
-              value={customerData.startdatum
-                ? (() => {
-                    const parts = customerData.startdatum.split('-');
-                    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : customerData.startdatum;
-                  })()
-                : ''}
+              value={startdatumDisplay}
               onChange={(e) => {
                 const raw = e.target.value;
-                const match = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                setStartdatumDisplay(raw);
+                const match = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
                 if (match) {
                   const [, d, m, y] = match;
-                  setCustomerData((p: any) => ({ ...p, startdatum: `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` }));
-                } else {
-                  setCustomerData((p: any) => ({ ...p, startdatum: raw }));
+                  setCustomerData((p: any) => ({ ...p, startdatum: `${y}-${m}-${d}` }));
+                } else if (!raw) {
+                  setCustomerData((p: any) => ({ ...p, startdatum: '' }));
                 }
+                // Partial input: state wird erst geschrieben wenn Format komplett ist
               }}
             />
           </div>

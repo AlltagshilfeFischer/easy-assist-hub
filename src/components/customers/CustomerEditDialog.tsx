@@ -76,9 +76,19 @@ function MonthYearPicker({ value, onChange }: { value: string; onChange: (v: str
   const parts = value.split('-');
   const year = parts[0] ?? '';
   const month = parts[1] ?? '';
+
+  const emit = (y: string, m: string) => {
+    if (/^\d{4}$/.test(y) && /^\d{2}$/.test(m)) {
+      onChange(`${y}-${m}`);
+    } else if (!y) {
+      onChange(''); // Jahr geleert → gesamten Wert leeren
+    }
+    // Unvollständige Eingabe (z.B. "2026-") wird nicht emittiert
+  };
+
   return (
     <div className="flex gap-2">
-      <Select value={month} onValueChange={(m) => onChange(`${year || new Date().getFullYear()}-${m}`)}>
+      <Select value={month} onValueChange={(m) => emit(year, m)}>
         <SelectTrigger className="flex-1"><SelectValue placeholder="Monat" /></SelectTrigger>
         <SelectContent>
           {MONATSNAMEN.map((name, i) => (
@@ -91,7 +101,7 @@ function MonthYearPicker({ value, onChange }: { value: string; onChange: (v: str
         className="w-20"
         placeholder="Jahr"
         value={year}
-        onChange={(e) => onChange(`${e.target.value}-${month || String(new Date().getMonth() + 1).padStart(2, '0')}`)}
+        onChange={(e) => emit(e.target.value, month)}
       />
     </div>
   );
