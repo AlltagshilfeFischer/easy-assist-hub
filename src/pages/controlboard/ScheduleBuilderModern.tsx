@@ -181,7 +181,7 @@ const ScheduleBuilderModern = () => {
       .channel('realtime-termine-schedule')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'termine' }, () => {
         if (reloadTimeout) clearTimeout(reloadTimeout);
-        reloadTimeout = setTimeout(() => loadData(), 500);
+        reloadTimeout = setTimeout(() => loadData(true), 500);
       })
       .subscribe();
     return () => {
@@ -212,8 +212,8 @@ const ScheduleBuilderModern = () => {
     localStorage.setItem(`employeeOrder_${user.id}`, JSON.stringify(employeeOrder));
   }, [employeeOrder, user?.id]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       // Fetch employees and their roles in parallel
       const [employeesResult, rolesResult] = await Promise.all([
@@ -376,7 +376,7 @@ const ScheduleBuilderModern = () => {
         variant: 'destructive'
       });
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

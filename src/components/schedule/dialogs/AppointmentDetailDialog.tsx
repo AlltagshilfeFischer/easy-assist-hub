@@ -358,9 +358,7 @@ export function AppointmentDetailDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                {employees
-                  .filter((emp) => editedAppointment.kategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin')
-                  .map((emp) => (
+                {employees.map((emp) => (
                     <SelectItem key={emp.id} value={emp.id}>
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: emp.farbe_kalender }} />
@@ -370,6 +368,12 @@ export function AppointmentDetailDialog({
                   ))}
               </SelectContent>
             </Select>
+            {editedAppointment.kategorie === 'Erstgespräch' && employees.find(e => e.id === editedAppointment.mitarbeiter_id)?.rolle === 'mitarbeiter' && (
+              <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
+              </p>
+            )}
             {employee && (
               <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                 {employee.telefon && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{employee.telefon}</span>}
@@ -543,7 +547,7 @@ export function AppointmentDetailDialog({
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onClose} className="h-8">Schließen</Button>
             {hasChanges && (
-              <Button size="sm" onClick={handleSave} disabled={loading} className="h-8">
+              <Button size="sm" onClick={handleSave} disabled={loading || (editedAppointment.kategorie === 'Erstgespräch' && employees.find(e => e.id === editedAppointment.mitarbeiter_id)?.rolle === 'mitarbeiter')} className="h-8">
                 <Save className="h-3.5 w-3.5 mr-1.5" />{loading ? 'Speichert...' : 'Speichern'}
               </Button>
             )}

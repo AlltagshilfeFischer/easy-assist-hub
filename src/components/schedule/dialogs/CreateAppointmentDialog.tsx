@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -285,7 +285,7 @@ export function CreateAppointmentDialog({
                 <SelectContent className="z-[202]">
                   <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
                   {employees
-                    .filter((emp) => emp && (kategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin'))
+                    .filter((emp) => emp)
                     .map((employee) => (
                       <SelectItem key={employee.id} value={employee.id}>
                         {employee.vorname} {employee.nachname}
@@ -293,6 +293,12 @@ export function CreateAppointmentDialog({
                     ))}
                 </SelectContent>
               </Select>
+              {kategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter' && (
+                <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
+                </p>
+              )}
             </div>
 
           <div className="space-y-2">
@@ -382,7 +388,7 @@ export function CreateAppointmentDialog({
             </Button>
             <Button
               type="submit"
-              disabled={loading || !date || (isNewInteressent && !newInteressentName.trim())}
+              disabled={loading || !date || (isNewInteressent && !newInteressentName.trim()) || (kategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter')}
             >
               {loading ? 'Erstelle...' : isInternTermin ? 'Internen Termin erstellen' : isNewInteressent ? 'Interessent & Termin erstellen' : 'Termin erstellen'}
             </Button>

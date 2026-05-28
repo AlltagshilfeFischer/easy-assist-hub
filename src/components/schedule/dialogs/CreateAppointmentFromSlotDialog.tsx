@@ -357,13 +357,17 @@ export function CreateAppointmentFromSlotDialog({
                 </SelectTrigger>
                 <SelectContent className="z-[202]">
                   <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                  {employees
-                    .filter((emp) => singleKategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin')
-                    .map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
-                    ))}
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {singleKategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter' && (
+                <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -424,7 +428,7 @@ export function CreateAppointmentFromSlotDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-              <Button onClick={handleSubmitSingle} disabled={loading || !date || (!isInternTermin && isNewInteressent && !newInteressentName.trim())}>
+              <Button onClick={handleSubmitSingle} disabled={loading || !date || (!isInternTermin && isNewInteressent && !newInteressentName.trim()) || (singleKategorie === 'Erstgespräch' && employees.find(e => e.id === mitarbeiterId)?.rolle === 'mitarbeiter')}>
                 {loading ? 'Erstelle...' : isInternTermin ? 'Internen Termin erstellen' : 'Einzeltermin erstellen'}
               </Button>
             </DialogFooter>
@@ -489,13 +493,17 @@ export function CreateAppointmentFromSlotDialog({
               <Select value={recurringMitarbeiterId} onValueChange={setRecurringMitarbeiterId}>
                 <SelectTrigger id="recurring-mitarbeiter"><SelectValue placeholder="Mitarbeiter auswählen" /></SelectTrigger>
                 <SelectContent className="z-[202]">
-                  {employees
-                    .filter((emp) => recurringKategorie !== 'Erstgespräch' || emp.rolle === 'geschaeftsfuehrer' || emp.rolle === 'globaladmin')
-                    .map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
-                    ))}
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {recurringKategorie === 'Erstgespräch' && employees.find(e => e.id === recurringMitarbeiterId)?.rolle === 'mitarbeiter' && (
+                <p className="text-sm text-destructive flex items-center gap-1.5 mt-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Erstgespräche können nur von der Geschäftsführung durchgeführt werden. Bitte wähle eine andere Kategorie oder einen anderen Mitarbeiter.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -591,7 +599,7 @@ export function CreateAppointmentFromSlotDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-              <Button onClick={handleSubmitRecurring} disabled={loading || !gueltigVon || (!recurringIsIntern && !recurringKundenId)}>
+              <Button onClick={handleSubmitRecurring} disabled={loading || !gueltigVon || (!recurringIsIntern && !recurringKundenId) || (recurringKategorie === 'Erstgespräch' && employees.find(e => e.id === recurringMitarbeiterId)?.rolle === 'mitarbeiter')}>
                 {loading ? 'Erstelle...' : recurringIsIntern ? 'Interne Serie erstellen' : 'Terminserie erstellen'}
               </Button>
             </DialogFooter>
