@@ -39,14 +39,14 @@ const dashboardItems: SidebarItem[] = [
 ];
 
 const controlboardItems: SidebarItem[] = [
-  { title: 'Dienstplan', url: '/dashboard/controlboard/schedule-builder', icon: Calendar, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
-  { title: 'Kunden/Neukunden', url: '/dashboard/controlboard/master-data', icon: Users, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
-  { title: 'Mitarbeiter', url: '/dashboard/controlboard/admin', icon: UserCog, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
-  { title: 'Dokumentenverwaltung', url: '/dashboard/controlboard/dokumentenverwaltung', icon: FolderOpen, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
-  { title: 'Leistungsnachweise', url: '/dashboard/controlboard/leistungsnachweise', icon: ClipboardCheck, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
-{ title: 'Budgettracker', url: '/dashboard/controlboard/budgettracker', icon: TrendingUp, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
-  { title: 'Berichte', url: '/dashboard/controlboard/reporting', icon: BarChart3, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
-  { title: 'Aktivitätslog', url: '/dashboard/controlboard/aktivitaetslog', icon: ScrollText, requiredRoles: ['globaladmin'] },
+  { title: 'Dienstplan', url: '/dashboard/schedule-builder', icon: Calendar, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
+  { title: 'Kunden/Neukunden', url: '/dashboard/master-data', icon: Users, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
+  { title: 'Mitarbeiter', url: '/dashboard/admin', icon: UserCog, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
+  { title: 'Dokumentenverwaltung', url: '/dashboard/dokumentenverwaltung', icon: FolderOpen, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
+  { title: 'Leistungsnachweise', url: '/dashboard/leistungsnachweise', icon: ClipboardCheck, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
+{ title: 'Budgettracker', url: '/dashboard/budgettracker', icon: TrendingUp, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
+  { title: 'Berichte', url: '/dashboard/reporting', icon: BarChart3, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
+  { title: 'Aktivitätslog', url: '/dashboard/aktivitaetslog', icon: ScrollText, requiredRoles: ['globaladmin'] },
 ];
 
 const systemItems: SidebarItem[] = [

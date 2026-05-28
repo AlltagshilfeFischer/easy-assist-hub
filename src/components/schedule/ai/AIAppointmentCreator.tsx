@@ -192,7 +192,7 @@ export function AIAppointmentCreator({ onAppointmentCreated }: AIAppointmentCrea
         const appointmentDate = new Date(firstAppointment.start_at);
         const weekStart = startOfWeek(appointmentDate, { weekStartsOn: 1 }); // Monday
         const weekParam = format(weekStart, 'yyyy-MM-dd');
-        navigate(`/dashboard/controlboard/schedule-builder?week=${weekParam}`);
+        navigate(`/dashboard/schedule-builder?week=${weekParam}`);
       }
 
       setPrompt('');

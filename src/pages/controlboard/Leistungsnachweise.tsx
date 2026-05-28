@@ -697,7 +697,7 @@ export default function Leistungsnachweise() {
       ? new Date(filteredTermine[0].start_at)
       : new Date(selectedYear, selectedMonth - 1, 1);
     const weekStart = startOfWeek(firstTerminDate, { weekStartsOn: 1 });
-    return `/dashboard/controlboard/schedule-builder?week=${format(weekStart, 'yyyy-MM-dd')}`;
+    return `/dashboard/schedule-builder?week=${format(weekStart, 'yyyy-MM-dd')}`;
   };
 
   // Can sign when no signature exists yet and the LN is not abgeschlossen

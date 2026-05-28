@@ -565,7 +565,7 @@ function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
                   size="sm"
                   className="gap-1 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() =>
-                    navigate(`/dashboard/controlboard/master-data?openKunde=${kunde.id}&tab=abrechnung`)
+                    navigate(`/dashboard/master-data?openKunde=${kunde.id}&tab=abrechnung`)
                   }
                 >
                   Vollständige Stammdaten
@@ -703,7 +703,7 @@ function BudgetKonfiguration({ kunde }: { kunde: KundeForKonfig }) {
                 size="sm"
                 className="gap-1 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() =>
-                  navigate(`/dashboard/controlboard/master-data?openKunde=${kunde.id}&tab=abrechnung`)
+                  navigate(`/dashboard/master-data?openKunde=${kunde.id}&tab=abrechnung`)
                 }
               >
                 Vollständige Stammdaten öffnen
@@ -838,7 +838,7 @@ export default function BudgetTrackerDetail() {
   if (!kunde) {
     return (
       <div className="p-6 space-y-4">
-        <Button variant="ghost" onClick={() => navigate('/dashboard/controlboard/budgettracker')}>
+        <Button variant="ghost" onClick={() => navigate('/dashboard/budgettracker')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Zurück
         </Button>
@@ -854,7 +854,7 @@ export default function BudgetTrackerDetail() {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/controlboard/budgettracker')}>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard/budgettracker')}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Budgettracker
         </Button>

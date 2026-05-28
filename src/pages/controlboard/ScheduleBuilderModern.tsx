@@ -1939,7 +1939,7 @@ const ScheduleBuilderModern = () => {
                   onAssignAppointment={(appointmentId, employeeId) =>
                     assignAppointment(appointmentId, employeeId)
                   }
-                  onEmployeeClick={(id) => navigate(`/dashboard/controlboard/admin?openMitarbeiter=${id}`)}
+                  onEmployeeClick={(id) => navigate(`/dashboard/admin?openMitarbeiter=${id}`)}
                 />
               )}
               {viewMode === 'month' && (

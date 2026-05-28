@@ -348,7 +348,7 @@ export default function BudgetTracker() {
                       key={row.kundenId}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() =>
-                        navigate(`/dashboard/controlboard/budgettracker/${row.kundenId}`)
+                        navigate(`/dashboard/budgettracker/${row.kundenId}`)
                       }
                     >
                       <TableCell className="font-medium">
@@ -420,7 +420,7 @@ export default function BudgetTracker() {
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(
-                                `/dashboard/controlboard/master-data?openKunde=${row.kundenId}&tab=abrechnung`,
+                                `/dashboard/master-data?openKunde=${row.kundenId}&tab=abrechnung`,
                               );
                             }}
                           >

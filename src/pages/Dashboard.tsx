@@ -68,12 +68,12 @@ export default function Dashboard() {
       <DashboardLayout>
         <Routes>
           <Route path="/" element={<DashboardHome />} />
-          <Route path="/controlboard/master-data" element={<MasterData />} />
-          <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
-          <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
-          <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
-          <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
-          <Route path="/controlboard/reporting" element={<Reporting />} />
+          <Route path="/master-data" element={<MasterData />} />
+          <Route path="/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
+          <Route path="/leistungsnachweise" element={<Leistungsnachweise />} />
+          <Route path="/budgettracker" element={<BudgetTracker />} />
+          <Route path="/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
+          <Route path="/reporting" element={<Reporting />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </DashboardLayout>
@@ -86,16 +86,16 @@ export default function Dashboard() {
       <Routes>
         <Route path="/" element={<DashboardHome />} />
         <Route path="/mein-bereich" element={<MitarbeiterDashboard />} />
-        <Route path="/controlboard/schedule-builder" element={<ScheduleBuilderModern />} />
-        <Route path="/controlboard/master-data" element={<MasterData />} />
-        <Route path="/controlboard/new-entries" element={<NewEntries />} />
-        <Route path="/controlboard/admin" element={<BenutzerverwaltungNeu />} />
-        <Route path="/controlboard/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
-        <Route path="/controlboard/leistungsnachweise" element={<Leistungsnachweise />} />
-        <Route path="/controlboard/budgettracker" element={<BudgetTracker />} />
-        <Route path="/controlboard/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
-        <Route path="/controlboard/aktivitaetslog" element={role === 'globaladmin' ? <AktivitaetsLog /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/controlboard/reporting" element={<Reporting />} />
+        <Route path="/schedule-builder" element={<ScheduleBuilderModern />} />
+        <Route path="/master-data" element={<MasterData />} />
+        <Route path="/new-entries" element={<NewEntries />} />
+        <Route path="/admin" element={<BenutzerverwaltungNeu />} />
+        <Route path="/dokumentenverwaltung" element={<Dokumentenverwaltung />} />
+        <Route path="/leistungsnachweise" element={<Leistungsnachweise />} />
+        <Route path="/budgettracker" element={<BudgetTracker />} />
+        <Route path="/budgettracker/:kundenId" element={<BudgetTrackerDetail />} />
+        <Route path="/aktivitaetslog" element={role === 'globaladmin' ? <AktivitaetsLog /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/reporting" element={<Reporting />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

@@ -113,7 +113,7 @@ export default function NewEntries() {
         setStep('timewindows');
       } else {
         toast({ title: "Kunde erfolgreich angelegt" });
-        navigate('/dashboard/controlboard/master-data');
+        navigate('/dashboard/master-data');
       }
     },
     onError: (error: any) => {
@@ -201,7 +201,7 @@ export default function NewEntries() {
         has_regular_appointments: false,
         mitarbeiter: ''
       });
-      navigate('/dashboard/controlboard/master-data');
+      navigate('/dashboard/master-data');
     } catch (error: any) {
       toast({
         title: "Fehler beim Zuweisen des Mitarbeiters",
@@ -229,7 +229,7 @@ export default function NewEntries() {
         </div>
         <AITimeWindowsCreator
           onConfirm={handleTimeWindowsConfirm}
-          onCancel={() => navigate('/dashboard/controlboard/master-data')}
+          onCancel={() => navigate('/dashboard/master-data')}
         />
       </div>
     );
@@ -251,7 +251,7 @@ export default function NewEntries() {
           customerPlz={newCustomer.plz}
           onConfirm={handleEmployeeConfirm}
           onBack={() => setStep('timewindows')}
-          onCancel={() => navigate('/dashboard/controlboard/master-data')}
+          onCancel={() => navigate('/dashboard/master-data')}
         />
       </div>
     );
@@ -267,7 +267,7 @@ export default function NewEntries() {
             Erfassen Sie alle Kundendaten - danach folgt die KI-gestützte Zeitfenster- und Mitarbeiter-Konfiguration
           </p>
         </div>
-        <Button onClick={() => navigate('/dashboard/controlboard/master-data')} variant="outline" className="gap-2">
+        <Button onClick={() => navigate('/dashboard/master-data')} variant="outline" className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Zurück
         </Button>
