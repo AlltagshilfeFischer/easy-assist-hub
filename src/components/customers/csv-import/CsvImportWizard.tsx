@@ -43,12 +43,43 @@ function recordToSupabaseInsert(
   const maKey = r.mitarbeiter_name?.trim().toLowerCase();
   const mitarbeiterId = maKey && employeeNameMap ? (employeeNameMap.get(maKey) ?? null) : null;
 
-  // Verhinderungspflege: Ja / Nein / Beantragt
+  // Verhinderungspflege: Ja / Nein
   const verhNorm = r.verhinderungspflege?.trim().toLowerCase();
   let verhAktiv: boolean | null = null;
   let verhBeantragt: boolean | null = null;
-  if (verhNorm === 'ja')        { verhAktiv = true;  verhBeantragt = false; }
+  if (verhNorm === 'ja')        { verhAktiv = true;  verhBeantragt = true; }
   else if (verhNorm === 'nein') { verhAktiv = false; verhBeantragt = false; }
+
+  // VP genehmigt: explizit oder von VP-Aktiv ableiten
+  const vpGenNorm = r.verhinderungspflege_genehmigt?.trim().toLowerCase();
+  let vpGenehmigt: boolean | null = null;
+  if (vpGenNorm === 'ja')        { vpGenehmigt = true; }
+  else if (vpGenNorm === 'nein') { vpGenehmigt = false; }
+  else if (verhAktiv === true)   { vpGenehmigt = true; }   // VP aktiv → implizit genehmigt
+  else if (verhAktiv === false)  { vpGenehmigt = false; }
+
+  // Kombileistung §45a: Ja / Nein
+  const kombiNorm = r.kombileistung?.trim().toLowerCase();
+  let kombiAktiv: boolean | null = null;
+  let kombiBeantragt: boolean | null = null;
+  let kombiGenehmigt: boolean | null = null;
+  if (kombiNorm === 'ja')        { kombiAktiv = true;  kombiBeantragt = true;  kombiGenehmigt = true; }
+  else if (kombiNorm === 'nein') { kombiAktiv = false; kombiBeantragt = false; kombiGenehmigt = false; }
+
+  // Entlastungsbetrag §45b genehmigt: default true (Bestandskunden)
+  const ebGenNorm = r.entlastung_genehmigt?.trim().toLowerCase();
+  const entlastungGenehmigt: boolean = ebGenNorm === 'nein' ? false : true;
+
+  // Geschlecht normalisieren: Herr/Frau/m/w → DB-Werte
+  const gNorm = r.geschlecht?.trim().toLowerCase();
+  let geschlecht: string | null = null;
+  if (gNorm) {
+    if (['herr', 'männlich', 'maennlich', 'm', 'male', 'mann'].includes(gNorm))      geschlecht = 'maennlich';
+    else if (['frau', 'weiblich', 'w', 'f', 'female', 'dame'].includes(gNorm))       geschlecht = 'weiblich';
+    else if (['divers', 'd', 'non-binary', 'nonbinary'].includes(gNorm))              geschlecht = 'divers';
+    else if (['keine_angabe', 'keine angabe', 'k.a.', 'unbekannt', '-'].includes(gNorm)) geschlecht = 'keine_angabe';
+    else geschlecht = gNorm; // pass-through für unbekannte Werte
+  }
 
   // Status: Aktiv (default) / Inaktiv — überschreibt kategorie-basierte Logik
   const statusNorm = r.aktiv_status?.trim().toLowerCase();
@@ -110,6 +141,14 @@ function recordToSupabaseInsert(
     initial_budget_entlastung: toEuro(r.initial_budget_entlastung),
     initial_budget_verhinderung: toEuro(r.initial_budget_verhinderung),
     verhinderungspflege_budget: toEuro(r.verhinderungspflege_budget),
+    verhinderungspflege_genehmigt: vpGenehmigt,
+    pflegesachleistung_aktiv: kombiAktiv,
+    pflegesachleistung_beantragt: kombiBeantragt,
+    pflegesachleistung_genehmigt: kombiGenehmigt,
+    pflegesachleistung_budget: toEuro(r.pflegesachleistung_budget),
+    entlastung_genehmigt: entlastungGenehmigt,
+    geschlecht,
+    titel: r.titel?.trim() || null,
   };
 }
 

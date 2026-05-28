@@ -9,62 +9,58 @@ const SYSTEM_PROMPT = `Du bist ein Spalten-Mapper für Kunden-Importe eines deut
 Du erhältst eine Liste von CSV-Spaltenköpfen und sollst sie den Datenbankfeldern der kunden-Tabelle zuordnen.
 
 DB-Felder der kunden-Tabelle:
-- vorname (Vorname des Kunden)
-- nachname (Nachname des Kunden)
-- telefonnr (Telefonnummer)
-- email (E-Mail-Adresse)
-- strasse (Straße und Hausnummer)
-- plz (Postleitzahl)
-- stadt (Stadt/Ort)
-- stadtteil (Stadtteil)
-- adresse (kombinierte Adresse)
-- geburtsdatum (Geburtsdatum, Format TT.MM.JJJJ)
-- pflegegrad (Pflegegrad 0-5)
-- pflegekasse (Krankenkasse/Pflegekasse)
-- versichertennummer (Versichertennummer)
-- kategorie (Kunde oder Interessent)
-- stunden_kontingent_monat (Stunden pro Monat)
-- sonstiges (Sonstige Informationen)
-- angehoerige_ansprechpartner (Angehörige/Ansprechpartner)
-- eintritt (Eintrittsdatum)
-- austritt (Austrittsdatum)
-- kassen_privat (Kasse oder Privat)
-- mitarbeiter_name (Name des zuständigen Mitarbeiters)
-- verhinderungspflege (Verhinderungspflege-Status: Ja / Nein)
-- kopie_lw (Kopie Leistungsnachweis: Ja / Nein)
-- tage (Besuchstage, z.B. "Mo, Mi, Fr")
-- aktiv_status (Aktiv oder Inaktiv)
-- initial_budget_entlastung (Vorjahresrest §45b Entlastungsbetrag in €, z.B. 524.50)
-- initial_budget_verhinderung (verfügbares VP-Budget-Rest §39 in €, z.B. 2100)
-- verhinderungspflege_budget (VP-Jahresbudget §39 in €, Standard 3539)
+Stammdaten:
+- vorname, nachname, titel (Dr./Prof./…), geschlecht (maennlich/weiblich/divers/keine_angabe)
+- telefonnr, email
+- strasse, plz, stadt, stadtteil, adresse (kombiniert)
+- geburtsdatum (TT.MM.JJJJ), pflegegrad (0-5)
+- pflegekasse, versichertennummer
+- kategorie (Kunde/Interessent), aktiv_status (Aktiv/Inaktiv)
+- kassen_privat, kopie_lw (Ja/Nein), tage, stunden_kontingent_monat
+- mitarbeiter_name, eintritt, austritt, sonstiges, angehoerige_ansprechpartner
 
-Bekannte CSV-Spalten in dieser Anwendung (aus Excel-Export):
-- "Kundennr" → null (wird nicht importiert, nur interne Nummer)
+Budgets & Leistungen (alle Geldbeträge in €):
+- verhinderungspflege (§39 VP aktiv: Ja/Nein)
+- verhinderungspflege_genehmigt (§39 VP von Kasse genehmigt: Ja/Nein)
+- verhinderungspflege_budget (§39 Jahresbudget, Standard 3539)
+- initial_budget_verhinderung (§39 noch verfügbarer Rest in €)
+- kombileistung (§45a Kombileistung/Pflegesachleistung aktiv: Ja/Nein)
+- pflegesachleistung_budget (§45a Kombi-Budget in €)
+- entlastung_genehmigt (§45b EB von Kasse genehmigt: Ja/Nein, Standard Ja)
+- initial_budget_entlastung (§45b Vorjahresrest/angesparter EB in €)
+
+Bekannte CSV-Spalten in dieser Anwendung:
+- "Kundennr", "KundenNr", "Nr." → null
+- "Column1" → null
 - "Nachname" → nachname
 - "Vorname" → vorname
-- "Mitarbeiter" → mitarbeiter_name
+- "Anrede" → geschlecht  ("Herr" = maennlich, "Frau" = weiblich)
+- "Titel" → titel
+- "Mitarbeiter", "Betreuer" → mitarbeiter_name
 - "PfG", "Pflegegrad", "PG" → pflegegrad
-- "Adresse" → strasse (oder adresse wenn komplett)
+- "Adresse", "Straße" → strasse
 - "Stadtteil" → stadtteil
-- "Telefon", "Tel.", "Tel" → telefonnr
-- "Geburtsdatum", "geb.", "Geb" → geburtsdatum
+- "Telefon", "Tel.", "Tel", "Mobil" → telefonnr
+- "Geburtsdatum", "Geb.", "Geb" → geburtsdatum
 - "Pflegekasse", "Kasse" → pflegekasse
-- "Versichertennnummer", "Versichertennummer", "Vers.Nr." → versichertennummer
-- "Kasse/Privat", "Kasse_Privat" → kassen_privat
+- "Versichertennummer", "Vers.Nr." → versichertennummer
+- "Kasse/Privat" → kassen_privat
 - "Stunden", "Std" → stunden_kontingent_monat
-- "Angehöriger/Ansprechpartner", "Angehoerige" → angehoerige_ansprechpartner
-- "Eintritt" → eintritt
-- "Austritt" → austritt
-- "Sonstiges", "Bemerkung", "Notizen" → sonstiges
-- "Status", "Aktivstatus" → aktiv_status (Werte: "Aktiv" oder "Inaktiv")
-- "Verhinderungspflege", "VP" → verhinderungspflege (Ja/Nein/Beantragt)
-- "Kopie LW", "Kopie Leistungsnachweis" → kopie_lw
 - "Tage", "Besuchstage" → tage
-- "Column1" → null
-- "Begründung" → sonstiges
-- "Vorjahresrest", "Vorjahresrest EB", "Angesparter Betrag" → initial_budget_entlastung
+- "Angehöriger/Ansprechpartner", "Angehörige" → angehoerige_ansprechpartner
+- "Eintritt", "Eintrittsdatum", "Beginn" → eintritt
+- "Austritt", "Austrittsdatum" → austritt
+- "Sonstiges", "Bemerkung", "Notizen", "Begründung" → sonstiges
+- "Status", "Aktivstatus" → aktiv_status
+- "Verhinderungspflege", "VP" → verhinderungspflege
+- "VP genehmigt" → verhinderungspflege_genehmigt
 - "VP Budget", "VP-Budget", "VP Rest" → initial_budget_verhinderung
-- "VP Jahresbudget", "VP-Jahresbudget" → verhinderungspflege_budget
+- "VP Jahresbudget" → verhinderungspflege_budget
+- "Kombileistung", "Kombi", "§45a", "Pflegesachleistung" → kombileistung
+- "Kombi Budget", "§45a Budget" → pflegesachleistung_budget
+- "EB genehmigt", "Entlastung genehmigt" → entlastung_genehmigt
+- "Vorjahresrest", "Vorjahresrest EB", "Angesparter Betrag" → initial_budget_entlastung
+- "Kopie LW", "Kopie Leistungsnachweis" → kopie_lw
 
 Antworte NUR mit einem validen JSON-Objekt. Kein Markdown, keine Erklärungen.
 Format: { "csvSpalte1": "dbFeld1", "csvSpalte2": null, ... }

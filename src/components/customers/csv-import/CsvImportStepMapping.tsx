@@ -42,6 +42,12 @@ const DB_FIELD_OPTIONS = [
   { value: 'initial_budget_entlastung', label: 'Vorjahresrest §45b (€)' },
   { value: 'initial_budget_verhinderung', label: 'VP-Budget Rest §39 (€)' },
   { value: 'verhinderungspflege_budget', label: 'VP-Jahresbudget §39 (€)' },
+  { value: 'kombileistung', label: 'Kombileistung §45a (Ja/Nein)' },
+  { value: 'pflegesachleistung_budget', label: 'Kombileistung-Budget §45a (€)' },
+  { value: 'entlastung_genehmigt', label: 'EB genehmigt §45b (Ja/Nein)' },
+  { value: 'verhinderungspflege_genehmigt', label: 'VP genehmigt §39 (Ja/Nein)' },
+  { value: 'geschlecht', label: 'Geschlecht (maennlich/weiblich/divers)' },
+  { value: 'titel', label: 'Akadem. Titel (Dr./Prof./…)' },
 ] as const;
 
 const FUZZY_MAP: Record<string, string> = {
@@ -152,6 +158,31 @@ const FUZZY_MAP: Record<string, string> = {
   'kommentare': 'sonstiges',
   'kontaktiert': 'sonstiges',
   'kontaktstatus': 'sonstiges',
+  // Persönliche Angaben
+  'geschlecht': 'geschlecht',
+  'gender': 'geschlecht',
+  'anrede': 'geschlecht',   // "Herr"/"Frau" → wird in Logic normalisiert
+  'titel': 'titel',
+  'academic title': 'titel',
+  'akademischer titel': 'titel',
+  // Genehmigungen
+  'entlastung genehmigt': 'entlastung_genehmigt',
+  'eb genehmigt': 'entlastung_genehmigt',
+  '§45b genehmigt': 'entlastung_genehmigt',
+  'entlastungsbetrag genehmigt': 'entlastung_genehmigt',
+  'vp genehmigt': 'verhinderungspflege_genehmigt',
+  'verhinderungspflege genehmigt': 'verhinderungspflege_genehmigt',
+  '§39 genehmigt': 'verhinderungspflege_genehmigt',
+  // Kombileistung
+  'kombileistung': 'kombileistung',
+  'kombi': 'kombileistung',
+  '§45a': 'kombileistung',
+  'kombileistung §45a': 'kombileistung',
+  'kombinationsleistung': 'kombileistung',
+  'pflegesachleistung': 'kombileistung',
+  'kombileistung budget': 'pflegesachleistung_budget',
+  'kombi budget': 'pflegesachleistung_budget',
+  '§45a budget': 'pflegesachleistung_budget',
   // Budget-Felder
   'vorjahresrest': 'initial_budget_entlastung',
   'vorjahresrest eb': 'initial_budget_entlastung',

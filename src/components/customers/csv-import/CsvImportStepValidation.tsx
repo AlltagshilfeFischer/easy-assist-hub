@@ -56,6 +56,12 @@ const FIELD_LABELS: Record<RecordField, string> = {
   initial_budget_entlastung: 'Vorjahresrest EB',
   initial_budget_verhinderung: 'VP-Budget Rest',
   verhinderungspflege_budget: 'VP-Jahresbudget',
+  kombileistung: 'Kombileistung',
+  pflegesachleistung_budget: 'Kombi-Budget',
+  entlastung_genehmigt: 'EB genehmigt',
+  verhinderungspflege_genehmigt: 'VP genehmigt',
+  geschlecht: 'Geschlecht',
+  titel: 'Titel',
 };
 
 // Preferred column order
@@ -63,9 +69,12 @@ const FIELD_ORDER: RecordField[] = [
   'nachname', 'vorname', 'pflegegrad', 'adresse', 'strasse', 'plz', 'stadt',
   'stadtteil', 'telefonnr', 'email', 'geburtsdatum', 'pflegekasse',
   'versichertennummer', 'kassen_privat', 'stunden_kontingent_monat',
-  'eintritt', 'austritt', 'kategorie', 'mitarbeiter_name', 'verhinderungspflege',
-  'tage', 'kopie_lw', 'aktiv_status', 'initial_budget_entlastung',
+  'titel', 'geschlecht', 'eintritt', 'austritt', 'kategorie',
+  'mitarbeiter_name', 'verhinderungspflege', 'verhinderungspflege_genehmigt',
   'initial_budget_verhinderung', 'verhinderungspflege_budget',
+  'kombileistung', 'pflegesachleistung_budget',
+  'entlastung_genehmigt', 'initial_budget_entlastung',
+  'tage', 'kopie_lw', 'aktiv_status', 'kassen_privat',
   'angehoerige_ansprechpartner', 'sonstiges',
 ];
 

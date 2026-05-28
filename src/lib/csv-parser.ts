@@ -39,6 +39,15 @@ export interface MappedCustomerRecord {
   initial_budget_entlastung?: string;
   initial_budget_verhinderung?: string;
   verhinderungspflege_budget?: string;
+  // Kombileistung (§45a)
+  kombileistung?: string;           // Ja / Nein
+  pflegesachleistung_budget?: string;
+  // Genehmigungen
+  entlastung_genehmigt?: string;    // Ja / Nein (default: Ja)
+  verhinderungspflege_genehmigt?: string; // Ja / Nein
+  // Persönlich
+  geschlecht?: string;              // maennlich / weiblich / divers
+  titel?: string;                   // Dr. / Prof. / etc.
   _rowIndex: number;
 }
 
@@ -320,6 +329,9 @@ const ALLOWED_DB_FIELDS = new Set<keyof Omit<MappedCustomerRecord, '_rowIndex'>>
   'angehoerige_ansprechpartner', 'eintritt', 'austritt', 'kassen_privat',
   'mitarbeiter_name', 'verhinderungspflege', 'kopie_lw', 'aktiv_status', 'tage',
   'initial_budget_entlastung', 'initial_budget_verhinderung', 'verhinderungspflege_budget',
+  'kombileistung', 'pflegesachleistung_budget',
+  'entlastung_genehmigt', 'verhinderungspflege_genehmigt',
+  'geschlecht', 'titel',
 ]);
 
 // Werte die als "leer" behandelt werden sollen (Excel-Platzhalter)
