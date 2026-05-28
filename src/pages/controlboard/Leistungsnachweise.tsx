@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -267,6 +268,23 @@ export default function Leistungsnachweise() {
       });
   }, [termine]);
 
+  // Setzt alle vergangenen Termine eines Kunden für den LN-Monat auf abgerechnet.
+  // Wird beim LN-Abschluss aufgerufen damit der Budget Tracker sie als abgerechnet zeigt.
+  const markTermineAbgerechnet = async (kundenId: string, monat: number, jahr: number) => {
+    const von = new Date(jahr, monat - 1, 1).toISOString();
+    const bis = new Date(jahr, monat, 0, 23, 59, 59).toISOString();
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('termine')
+      .update({ status: 'abgerechnet' })
+      .eq('kunden_id', kundenId)
+      .gte('start_at', von)
+      .lte('start_at', bis)
+      .lt('end_at', now)
+      .in('status', ['completed', 'cancelled', 'nicht_angetroffen', 'scheduled', 'in_progress']);
+    if (error) console.error('[LN] Termine abgerechnet markieren fehlgeschlagen:', error.message);
+  };
+
   // Erstellt LNs ausschließlich für Kunden, die in diesem Monat Termine haben.
   // Doppelt abgesichert: Frontend filtert bereits, DB-Trigger (check_ln_has_termine)
   // blockt zusätzlich jeden Insert ohne zugehörigen Termin.
@@ -431,10 +449,14 @@ export default function Leistungsnachweise() {
       toast.error('Fehler beim Speichern der GF-Unterschrift', { description: error.message });
       return;
     }
+    await markTermineAbgerechnet(selectedLN.kunden_id, selectedLN.monat, selectedLN.jahr);
     toast.success('GF-Unterschrift gespeichert — LN abgeschlossen');
     setShowGfSignatur(false);
     setSelectedLN(data as LeistungsnachweisRow);
     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+    queryClient.invalidateQueries({ queryKey: ['termine_budget_all'] });
+    queryClient.invalidateQueries({ queryKey: ['termine_budget'] });
+    queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
   };
 
   // GF bestätigt (wenn MA bereits unterschrieben hat) → nur abschließen, kein Canvas
@@ -450,24 +472,35 @@ export default function Leistungsnachweise() {
       toast.error('Fehler', { description: error.message });
       return;
     }
+    await markTermineAbgerechnet(selectedLN.kunden_id, selectedLN.monat, selectedLN.jahr);
     toast.success('Leistungsnachweis abgeschlossen');
     setSelectedLN(data as LeistungsnachweisRow);
     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+    queryClient.invalidateQueries({ queryKey: ['termine_budget_all'] });
+    queryClient.invalidateQueries({ queryKey: ['termine_budget'] });
+    queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
   };
 
-  // Bulk close mutation: set selected LNs to abgeschlossen
+  // Bulk close mutation: set selected LNs to abgeschlossen + update termine
   const bulkCloseMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
+    mutationFn: async (lns: Pick<LeistungsnachweisRow, 'id' | 'kunden_id' | 'monat' | 'jahr'>[]) => {
+      const ids = lns.map((ln) => ln.id);
       const { error } = await supabase
         .from('leistungsnachweise')
         .update({ status: 'abgeschlossen' })
         .in('id', ids);
       if (error) throw error;
+      for (const ln of lns) {
+        await markTermineAbgerechnet(ln.kunden_id, ln.monat, ln.jahr);
+      }
     },
-    onSuccess: () => {
-      toast.success(`${selectedIds.size} Leistungsnachweise abgeschlossen`);
+    onSuccess: (_, lns) => {
+      toast.success(`${lns.length} Leistungsnachweise abgeschlossen`);
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
+      queryClient.invalidateQueries({ queryKey: ['termine_budget_all'] });
+      queryClient.invalidateQueries({ queryKey: ['termine_budget'] });
+      queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
     },
     onError: (err) => {
       toast.error('Fehler', { description: err instanceof Error ? err.message : 'Unbekannt' });
@@ -745,7 +778,12 @@ export default function Leistungsnachweise() {
             <Button
               variant="default"
               size="sm"
-              onClick={() => bulkCloseMutation.mutate([...selectedIds])}
+              onClick={() => {
+                const lns = (nachweise || [])
+                  .filter(ln => selectedIds.has(ln.id))
+                  .map(ln => ({ id: ln.id, kunden_id: ln.kunden_id, monat: ln.monat, jahr: ln.jahr }));
+                bulkCloseMutation.mutate(lns);
+              }}
               disabled={bulkCloseMutation.isPending}
             >
               {bulkCloseMutation.isPending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Lock className="h-4 w-4 mr-1.5" />}
@@ -1582,8 +1620,8 @@ export default function Leistungsnachweise() {
         ) : null;
       })()}
 
-      {/* Kunden-Unterschrift Vollbild-Overlay */}
-      {showKundenSignatur && selectedLN && (
+      {/* Kunden-Unterschrift Vollbild-Overlay — via Portal damit kein Stacking-Context-Problem */}
+      {showKundenSignatur && selectedLN && createPortal(
         <KundenSignaturPad
           kundeName={getKundeName(selectedLN.kunden_id)}
           monat={selectedLN.monat}
@@ -1594,11 +1632,12 @@ export default function Leistungsnachweise() {
           onConfirm={handleKundenSignatur}
           onCancel={() => setShowKundenSignatur(false)}
           showHinweis
-        />
+        />,
+        document.body
       )}
 
-      {/* GF-Unterschrift Vollbild-Overlay */}
-      {showGfSignatur && selectedLN && (
+      {/* GF-Unterschrift Vollbild-Overlay — via Portal damit kein Stacking-Context-Problem */}
+      {showGfSignatur && selectedLN && createPortal(
         <KundenSignaturPad
           kundeName={getKundeName(selectedLN.kunden_id)}
           monat={selectedLN.monat}
@@ -1609,7 +1648,8 @@ export default function Leistungsnachweise() {
           onConfirm={handleGfSignatur}
           onCancel={() => setShowGfSignatur(false)}
           headerTitle={`GF-Unterschrift: ${getKundeName(selectedLN.kunden_id)} — ${monthNames[selectedLN.monat - 1]} ${selectedLN.jahr}`}
-        />
+        />,
+        document.body
       )}
     </div>
   );
