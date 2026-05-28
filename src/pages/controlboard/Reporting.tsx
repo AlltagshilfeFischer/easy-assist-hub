@@ -26,7 +26,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   CalendarIcon, Download, Clock, Users, TrendingDown, TrendingUp,
   CalendarDays, Loader2, X, Filter, ChevronDown,
-  UserCheck, UserX, Heart,
+  UserCheck, UserX, Heart, MessageSquare,
 } from 'lucide-react';
 
 import {
@@ -183,11 +183,20 @@ export default function Reporting() {
   const [dateTo, setDateTo] = useState<Date>(() => endOfMonth(now));
   const [selectedMitarbeiter, setSelectedMitarbeiter] = useState<string[]>([]);
   const [selectedKunden, setSelectedKunden] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
+  const [selectedKategorie, setSelectedKategorie] = useState<string[]>([]);
 
   const { data: mitarbeiterOptions, isLoading: mitarbeiterLoading } = useMitarbeiterList();
   const { data: kundenOptions, isLoading: kundenLoading } = useKundenList();
 
-  const filters = { dateFrom, dateTo, mitarbeiterIds: selectedMitarbeiter, kundenIds: selectedKunden };
+  const filters = {
+    dateFrom,
+    dateTo,
+    mitarbeiterIds: selectedMitarbeiter,
+    kundenIds: selectedKunden,
+    statusFilter: selectedStatus,
+    kategorieFilter: selectedKategorie,
+  };
   const { data: reportData, isLoading: reportLoading, isError } = useReportingData(filters);
   const { data: auslastungData, isLoading: auslastungLoading } = useMitarbeiterAuslastung(filters);
   const { data: kundenStatistik, isLoading: kundenLoading2 } = useKundenStatistik();
@@ -213,8 +222,10 @@ export default function Reporting() {
       Bis: format(new Date(t.endAt), 'HH:mm', { locale: de }),
       Kunde: t.kundenName,
       Mitarbeiter: t.mitarbeiterName,
+      Label: t.kategorie ?? '',
       'Dauer (h)': t.dauerStunden.toFixed(2),
       Status: STATUS_LABELS[t.status] ?? t.status,
+      Notizen: t.notizen ?? '',
     }));
     const csv = Papa.unparse(csvRows, { delimiter: ';' });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -227,7 +238,15 @@ export default function Reporting() {
   }, [reportData, dateFrom, dateTo]);
 
   const summary = reportData?.summary;
-  const hasActiveFilters = selectedMitarbeiter.length > 0 || selectedKunden.length > 0;
+  const STATUS_OPTIONS = Object.entries(STATUS_LABELS).map(([id, name]) => ({ id, name }));
+  const KATEGORIE_OPTIONS = [
+    'Kundentermin', 'Erstgespräch', 'Regelbesuch', 'Schulung',
+    'Meeting', 'Bewerbungsgespräch', 'Intern', 'Blocker', 'Sonstiges',
+  ].map((k) => ({ id: k, name: k }));
+
+  const hasActiveFilters =
+    selectedMitarbeiter.length > 0 || selectedKunden.length > 0 ||
+    selectedStatus.length > 0 || selectedKategorie.length > 0;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -250,8 +269,10 @@ export default function Reporting() {
             <Separator orientation="vertical" className="h-8 hidden md:block" />
             <MultiFilter label="Mitarbeiter" options={mitarbeiterOptions ?? []} selected={selectedMitarbeiter} onSelectionChange={setSelectedMitarbeiter} isLoading={mitarbeiterLoading} />
             <MultiFilter label="Kunden" options={kundenOptions ?? []} selected={selectedKunden} onSelectionChange={setSelectedKunden} isLoading={kundenLoading} />
+            <MultiFilter label="Status" options={STATUS_OPTIONS} selected={selectedStatus} onSelectionChange={setSelectedStatus} />
+            <MultiFilter label="Label" options={KATEGORIE_OPTIONS} selected={selectedKategorie} onSelectionChange={setSelectedKategorie} />
             {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={() => { setSelectedMitarbeiter([]); setSelectedKunden([]); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedMitarbeiter([]); setSelectedKunden([]); setSelectedStatus([]); setSelectedKategorie([]); }}>
                 <X className="mr-1 h-3 w-3" />Filter zurücksetzen
               </Button>
             )}
@@ -319,8 +340,10 @@ export default function Reporting() {
                             <TableHead>Zeit</TableHead>
                             <TableHead>Kunde</TableHead>
                             <TableHead>Mitarbeiter</TableHead>
+                            <TableHead>Label</TableHead>
                             <TableHead className="text-right">Dauer (h)</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="w-8"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -330,8 +353,23 @@ export default function Reporting() {
                               <TableCell className="whitespace-nowrap">{format(new Date(t.startAt), 'HH:mm')} &ndash; {format(new Date(t.endAt), 'HH:mm')}</TableCell>
                               <TableCell>{t.kundenName}</TableCell>
                               <TableCell>{t.mitarbeiterName}</TableCell>
+                              <TableCell>
+                                {t.kategorie ? (
+                                  <Badge variant="outline" className="text-xs whitespace-nowrap">{t.kategorie}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">–</span>
+                                )}
+                              </TableCell>
                               <TableCell className="text-right font-mono">{t.dauerStunden.toFixed(2)}</TableCell>
                               <TableCell><Badge variant={STATUS_VARIANTS[t.status] ?? 'outline'}>{STATUS_LABELS[t.status] ?? t.status}</Badge></TableCell>
+                              <TableCell>
+                                {t.notizen && (
+                                  <MessageSquare
+                                    className="h-3.5 w-3.5 text-amber-500 cursor-help"
+                                    title={t.notizen}
+                                  />
+                                )}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

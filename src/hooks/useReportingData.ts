@@ -10,6 +10,8 @@ export interface ReportingFilters {
   dateTo: Date;
   mitarbeiterIds: string[];
   kundenIds: string[];
+  statusFilter: string[];
+  kategorieFilter: string[];
 }
 
 interface RawTerminRow {
@@ -21,6 +23,10 @@ interface RawTerminRow {
   iststunden: number | null;
   kunden_id: string;
   mitarbeiter_id: string | null;
+  kategorie: string | null;
+  notizen: string | null;
+  absage_datum: string | null;
+  absage_kanal: string | null;
   customer: { id: string; name: string | null; vorname: string | null; nachname: string | null; stadtteil: string | null } | null;
   employee: { id: string; vorname: string | null; nachname: string | null; farbe_kalender: string | null } | null;
 }
@@ -37,6 +43,10 @@ export interface ReportingTermin {
   kundenStadtteil: string;
   mitarbeiterId: string | null;
   mitarbeiterName: string;
+  kategorie: string | null;
+  notizen: string | null;
+  absageDatum: string | null;
+  absageKanal: string | null;
 }
 
 export interface MitarbeiterStunden {
@@ -86,7 +96,7 @@ function buildCustomerName(cust: { name: string | null; vorname: string | null; 
 // ─── Hook ───────────────────────────────────────────────────
 
 export function useReportingData(filters: ReportingFilters) {
-  const { dateFrom, dateTo, mitarbeiterIds, kundenIds } = filters;
+  const { dateFrom, dateTo, mitarbeiterIds, kundenIds, statusFilter, kategorieFilter } = filters;
 
   return useQuery<ReportingData>({
     queryKey: [
@@ -95,12 +105,15 @@ export function useReportingData(filters: ReportingFilters) {
       dateTo.toISOString(),
       mitarbeiterIds,
       kundenIds,
+      statusFilter,
+      kategorieFilter,
     ],
     queryFn: async () => {
       let query = supabase
         .from('termine')
         .select(`
           id, titel, start_at, end_at, status, iststunden, kunden_id, mitarbeiter_id,
+          kategorie, notizen, absage_datum, absage_kanal,
           customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, stadtteil),
           employee:mitarbeiter!termine_mitarbeiter_id_fkey(id, vorname, nachname, farbe_kalender)
         `)
@@ -114,6 +127,14 @@ export function useReportingData(filters: ReportingFilters) {
 
       if (kundenIds.length > 0) {
         query = query.in('kunden_id', kundenIds);
+      }
+
+      if (statusFilter.length > 0) {
+        query = query.in('status', statusFilter as TerminStatus[]);
+      }
+
+      if (kategorieFilter.length > 0) {
+        query = query.in('kategorie', kategorieFilter);
       }
 
       const { data, error } = await query;
@@ -134,6 +155,10 @@ export function useReportingData(filters: ReportingFilters) {
         kundenStadtteil: row.customer?.stadtteil || 'Unbekannt',
         mitarbeiterId: row.mitarbeiter_id,
         mitarbeiterName: buildEmployeeName(row.employee),
+        kategorie: row.kategorie ?? null,
+        notizen: row.notizen ?? null,
+        absageDatum: row.absage_datum ?? null,
+        absageKanal: row.absage_kanal ?? null,
       }));
 
       // Aggregate per employee (exclude cancelled)
