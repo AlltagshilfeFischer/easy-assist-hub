@@ -213,13 +213,58 @@ async function handleEmployees(): Promise<Response> {
   return jsonResponse({ data: result });
 }
 
+// ─── PLZ → Zonen-Farbe (Option B: PLZ-basiertes Matching) ────────────────────
+// Ableitung aus zone-mapping.json des Aplano-Schedulers.
+// Bei mehrfach belegten PLZ gilt: erste/primäre Zone gewinnt.
+
+const PLZ_TO_ZONE_COLOR: Record<string, string> = {
+  // Langenhagen / Nordosten
+  '30916': '#35afe2', '30855': '#35afe2', '30659': '#35afe2',
+  // Ricklingen / Hemmingen
+  '30459': '#cdcdce', '30457': '#cdcdce', '30966': '#cdcdce',
+  // Vahrenwald-List / Herrenhausen
+  '30419': '#ffaade', '30163': '#ffaade', '30165': '#ffaade',
+  // Buchholz-Kleefeld / Oststadt
+  '30627': '#41b955', '30655': '#41b955', '30625': '#41b955',
+  // Linden / Ahlem-Davenstedt
+  '30453': '#d746a4', '30455': '#d746a4', '30449': '#d746a4',
+  // Hannover-Innenstadt / Südstadt
+  '30519': '#373133', '30173': '#373133', '30880': '#373133',
+  // Hildesheim
+  '31134': '#12aca4', '31139': '#12aca4', '31141': '#12aca4',
+  // Lehrte
+  '31275': '#993497', '31319': '#993497', '31249': '#993497',
+  // Garbsen
+  '30823': '#ffc7cd', '30926': '#ffc7cd',
+  // Vahrenwald-List West
+  '30177': '#2c7dc1', '30161': '#2c7dc1',
+  // Misburg-Anderten
+  '30629': '#9ae6a4', '30559': '#9ae6a4',
+  // Ronnenberg / Gehrden
+  '30952': '#e8e5e5', '30989': '#e8e5e5',
+  // Kirchrode-Bemerode
+  '30539': '#f8972c',
+  // Vahrenwald-List / Burgdorf
+  '30167': '#eeabd7', '31303': '#eeabd7',
+  // Garbsen / Gemischt
+  '30179': '#f3989f', '30827': '#f3989f',
+  // Hannover-Südstadt
+  '30175': '#ccf586',
+};
+
+function plzToZoneColor(plz: string | null | undefined): string {
+  if (!plz) return '#aad1ff'; // Sonstige / Intern
+  const clean = plz.trim().slice(0, 5);
+  return PLZ_TO_ZONE_COLOR[clean] ?? '#aad1ff';
+}
+
 // ─── K4: /addresses ───────────────────────────────────────────────────────────
 
 async function handleAddresses(): Promise<Response> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('kunden')
-    .select('id, name, vorname, nachname, aktiv, zone_farbe, farbe_kalender');
+    .select('id, name, vorname, nachname, aktiv, plz');
 
   if (error) {
     console.error('[K4 addresses] DB error:', error);
@@ -230,14 +275,11 @@ async function handleAddresses(): Promise<Response> {
     const displayName =
       (row.name as string | null) ??
       [row.nachname, row.vorname].filter(Boolean).join(', ');
-    const color =
-      (row.zone_farbe as string | null) ??
-      (row.farbe_kalender as string | null) ??
-      '#aad1ff';
     return {
       id: row.id,
       name: displayName,
-      color,
+      color: plzToZoneColor(row.plz as string | null),
+      postal_code: (row.plz as string | null) ?? null,
       isInactive: !(row.aktiv as boolean),
     };
   });
