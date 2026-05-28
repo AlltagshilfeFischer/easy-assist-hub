@@ -129,6 +129,10 @@ const ScheduleBuilderModern = () => {
     employeeId: string | null;
     targetDate: Date;
     hinweis: string;
+  } | {
+    type: 'create';
+    createData: Record<string, unknown>;
+    hinweis: string;
   } | null>(null);
 
   const { toast } = useToast();
@@ -903,6 +907,25 @@ const ScheduleBuilderModern = () => {
 
       const payload = parsed.data;
 
+      // Verfügbarkeits-Check VOR dem Erstellen (nur wenn MA zugewiesen)
+      if (payload.mitarbeiter_id && !data._skipVerfuegbarkeitCheck) {
+        const verfResult = checkVerfuegbarkeit(
+          payload.mitarbeiter_id,
+          payload.start_at,
+          payload.end_at,
+          allVerfuegbarkeiten
+        );
+        if (verfResult.outsideWindow) {
+          const hinweis = !verfResult.hasEntries
+            ? 'Für diesen Mitarbeiter sind keine Verfügbarkeiten hinterlegt.'
+            : verfResult.noEntryForDay
+              ? 'Der Mitarbeiter ist an diesem Wochentag laut Verfügbarkeit nicht verfügbar.'
+              : 'Der Termin liegt außerhalb der eingetragenen Verfügbarkeitszeit des Mitarbeiters.';
+          setVerfuegbarkeitPending({ type: 'create', createData: data as Record<string, unknown>, hinweis });
+          return;
+        }
+      }
+
       // Konflikt-Prüfung VOR dem Erstellen (nur wenn MA zugewiesen)
       if (payload.mitarbeiter_id && !data._skipConflictCheck) {
         const newStart = new Date(payload.start_at);
@@ -1428,6 +1451,8 @@ const ScheduleBuilderModern = () => {
       } else {
         await assignAppointment(pending.appointmentId, pending.employeeId, pending.targetDate);
       }
+    } else if (pending.type === 'create') {
+      await handleCreateAppointment({ ...pending.createData, _skipVerfuegbarkeitCheck: true });
     } else {
       await handlePasteAppointment(pending.employeeId, pending.targetDate, true);
     }
