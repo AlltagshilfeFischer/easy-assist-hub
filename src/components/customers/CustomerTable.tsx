@@ -22,9 +22,11 @@ interface CustomerTableProps {
   onToggleStatus: (params: { kundenId: string; currentStatus: boolean }) => void;
   onDelete: (id: string) => void;
   onConvert: (id: string) => void;
+  onRevert: (id: string) => void;
   onViewDetail?: (customerId: string) => void;
   togglePending: boolean;
   convertPending: boolean;
+  revertPending: boolean;
   // Selection
   selectedIds: Set<string>;
   onToggleSelection: (id: string) => void;
@@ -82,9 +84,11 @@ export function CustomerTable({
   onToggleStatus,
   onDelete,
   onConvert,
+  onRevert,
   onViewDetail,
   togglePending,
   convertPending,
+  revertPending,
   selectedIds,
   onToggleSelection,
   onToggleAll,
@@ -214,6 +218,11 @@ export function CustomerTable({
                   {customer.kategorie === 'Interessent' && (
                     <Button variant="default" size="sm" onClick={() => onConvert(customer.id)} disabled={convertPending} className="text-xs h-6 px-1.5">
                       Kunde
+                    </Button>
+                  )}
+                  {customer.kategorie === 'Kunde' && (
+                    <Button variant="outline" size="sm" onClick={() => onRevert(customer.id)} disabled={revertPending} className="text-xs h-6 px-1.5" title="Zurück zu Interessent">
+                      Interessent
                     </Button>
                   )}
                 </div>

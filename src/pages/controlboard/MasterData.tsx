@@ -82,7 +82,7 @@ export default function MasterData() {
   });
 
   const filters = useCustomerFilters(customers);
-  const { updateCustomerMutation, convertToCustomerMutation, toggleCustomerStatusMutation, deleteCustomerMutation, bulkDeleteCustomersMutation } = useCustomerMutations();
+  const { updateCustomerMutation, convertToCustomerMutation, convertToInteressentMutation, toggleCustomerStatusMutation, deleteCustomerMutation, bulkDeleteCustomersMutation } = useCustomerMutations();
 
   // Deep-Link aus BudgetTracker: ?openKunde=<id>&tab=abrechnung
   useEffect(() => {
@@ -253,9 +253,11 @@ export default function MasterData() {
               onToggleStatus={(p) => toggleCustomerStatusMutation.mutate(p)}
               onDelete={(id) => setDeleteCustomerId(id)}
               onConvert={(id) => convertToCustomerMutation.mutate(id)}
+              onRevert={(id) => convertToInteressentMutation.mutate(id)}
               onViewDetail={(id) => setDetailKundenId(id)}
               togglePending={toggleCustomerStatusMutation.isPending}
               convertPending={convertToCustomerMutation.isPending}
+              revertPending={convertToInteressentMutation.isPending}
               selectedIds={selectedCustomerIds}
               onToggleSelection={handleToggleSelection}
               onToggleAll={handleToggleAll}

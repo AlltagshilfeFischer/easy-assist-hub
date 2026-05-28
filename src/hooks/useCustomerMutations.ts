@@ -108,6 +108,20 @@ export function useCustomerMutations() {
     },
   });
 
+  const convertToInteressentMutation = useMutation({
+    mutationFn: async (kundenId: string) => {
+      const { error } = await supabase.from('kunden').update({ kategorie: 'Interessent' }).eq('id', kundenId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast.success('Kunde wurde zu Interessent zurückgesetzt');
+    },
+    onError: () => {
+      toast.error('Zurücksetzen fehlgeschlagen');
+    },
+  });
+
   const toggleCustomerStatusMutation = useMutation({
     mutationFn: async ({ kundenId, currentStatus }: { kundenId: string; currentStatus: boolean }) => {
       const { error } = await supabase.from('kunden').update({ aktiv: !currentStatus }).eq('id', kundenId);
@@ -302,6 +316,7 @@ export function useCustomerMutations() {
   return {
     updateCustomerMutation,
     convertToCustomerMutation,
+    convertToInteressentMutation,
     toggleCustomerStatusMutation,
     deleteCustomerMutation,
     bulkDeleteCustomersMutation,
