@@ -12,7 +12,8 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { suggestEmployees } from '@/lib/schedule/suggestEmployees';
 import type { Verfuegbarkeit } from '@/hooks/useVerfuegbarkeiten';
 import { WOCHENTAGE } from '@/hooks/useVerfuegbarkeiten';
-import { User, Settings2 as SettingsIcon, GripVertical, Eye, EyeOff, UserX, Search, X, ChevronDown } from 'lucide-react';
+import { User, Settings2 as SettingsIcon, GripVertical, Eye, EyeOff, UserX, Search, X, ChevronDown, Loader2, MapPin, ShieldAlert } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import {
   DndContext,
@@ -662,11 +663,13 @@ export function ProScheduleCalendar({
 function SuggestionRow({
   employee,
   reason,
+  isFallback = false,
   appointmentId,
   onAssign,
 }: {
   employee: Employee;
   reason: string;
+  isFallback?: boolean;
   appointmentId: string;
   onAssign?: (appointmentId: string, employeeId: string) => void;
 }) {
@@ -718,6 +721,123 @@ interface UnassignedAppointmentWithSuggestionsProps {
   onAssign?: (appointmentId: string, employeeId: string) => void;
 }
 
+// ─── Erweiterte Analyse (zone-basiert, API-Call) ──────────────────────────────
+
+interface AdvancedSuggestion {
+  id: string;
+  name: string;
+  farbe_kalender: string;
+  score: number;
+  zone_match: boolean;
+  today_appointments: number;
+  reasons: string[];
+  is_fallback: boolean;
+}
+
+function AdvancedAnalysis({
+  appointmentId,
+  onAssign,
+}: {
+  appointmentId: string;
+  onAssign?: (appointmentId: string, employeeId: string) => void;
+}) {
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [result, setResult] = useState<{ zone_name: string; suggestions: AdvancedSuggestion[] } | null>(null);
+
+  const run = async () => {
+    setState('loading');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(`${supabaseUrl}/functions/v1/suggest-employees-advanced`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ termin_id: appointmentId }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      setResult(json);
+      setState('done');
+    } catch {
+      setState('error');
+    }
+  };
+
+  if (state === 'idle') {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full h-7 text-[11px] mt-1 gap-1.5"
+        onClick={run}
+      >
+        <MapPin className="h-3 w-3" />
+        Erweiterte Analyse starten
+      </Button>
+    );
+  }
+
+  if (state === 'loading') {
+    return (
+      <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Analysiere Zonen &amp; History…
+      </div>
+    );
+  }
+
+  if (state === 'error') {
+    return <p className="text-xs text-destructive text-center py-1">Fehler bei der Analyse</p>;
+  }
+
+  if (!result || result.suggestions.length === 0) {
+    return <p className="text-xs text-muted-foreground text-center py-1">Keine erweiterten Vorschläge</p>;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[9px] text-muted-foreground">Zone: {result.zone_name}</p>
+      {result.suggestions.map((s) => (
+        <div
+          key={s.id}
+          className={`flex items-center gap-2 rounded-md border p-1.5 ${
+            s.is_fallback
+              ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800'
+              : 'bg-background'
+          }`}
+        >
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.farbe_kalender }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium truncate">{s.name}</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {s.reasons.join(' · ')}
+              {s.today_appointments > 0 && ` · ${s.today_appointments} Termine`}
+            </p>
+          </div>
+          {s.is_fallback && <ShieldAlert className="h-3 w-3 text-amber-500 flex-shrink-0" title="GF-Fallback" />}
+          <span className={`text-[10px] font-mono px-1 rounded flex-shrink-0 ${
+            s.zone_match ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'
+          }`}>
+            {s.score}
+          </span>
+          {onAssign && (
+            <Button size="sm" variant={s.is_fallback ? 'outline' : 'default'}
+              className="h-6 w-6 p-0 flex-shrink-0"
+              title={`${s.name} zuweisen`}
+              onClick={() => onAssign(appointmentId, s.id)}
+            >
+              <User className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Hover-Card mit beiden Abschnitten ────────────────────────────────────────
+
 function UnassignedAppointmentWithSuggestions({
   appointment,
   allAppointments,
@@ -752,27 +872,44 @@ function UnassignedAppointmentWithSuggestions({
           />
         </div>
       </HoverCardTrigger>
-      <HoverCardContent side="right" align="start" className="w-72 p-3">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Verfügbare Mitarbeiter
-        </p>
-        {suggestions.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-1">
-            Keine verfügbaren Mitarbeiter
+      <HoverCardContent side="right" align="start" className="w-72 p-3 space-y-3">
+
+        {/* Abschnitt 1: Schnelle Vorschläge (lokal, sofort) */}
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Schnelle Vorschläge
           </p>
-        ) : (
-          <div className="space-y-1.5">
-            {suggestions.map(({ employee, reason }) => (
-              <SuggestionRow
-                key={employee.id}
-                employee={employee}
-                reason={reason}
-                appointmentId={appointment.id}
-                onAssign={onAssign}
-              />
-            ))}
-          </div>
-        )}
+          {suggestions.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-1">
+              Keine verfügbaren Mitarbeiter
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {suggestions.map(({ employee, reason, isFallback }) => (
+                <SuggestionRow
+                  key={employee.id}
+                  employee={employee}
+                  reason={reason}
+                  isFallback={isFallback}
+                  appointmentId={appointment.id}
+                  onAssign={onAssign}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Trennlinie */}
+        <div className="border-t" />
+
+        {/* Abschnitt 2: Erweiterte Analyse (Zonen + History, API-Call) */}
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Erweiterte Zuordnung
+          </p>
+          <AdvancedAnalysis appointmentId={appointment.id} onAssign={onAssign} />
+        </div>
+
       </HoverCardContent>
     </HoverCard>
   );
