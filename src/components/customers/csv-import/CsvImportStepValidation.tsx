@@ -74,7 +74,7 @@ const FIELD_ORDER: RecordField[] = [
   'initial_budget_verhinderung', 'verhinderungspflege_budget',
   'kombileistung', 'pflegesachleistung_budget',
   'entlastung_genehmigt', 'initial_budget_entlastung',
-  'tage', 'kopie_lw', 'aktiv_status', 'kassen_privat',
+  'tage', 'kopie_lw', 'aktiv_status',
   'angehoerige_ansprechpartner', 'sonstiges',
 ];
 
