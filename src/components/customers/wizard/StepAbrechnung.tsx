@@ -191,20 +191,6 @@ export function StepAbrechnung({
                 onChange={(e) => setCustomerData(p => ({ ...p, verhinderungspflege_budget: e.target.value }))}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Beantragt bei Pflegekasse</Label>
-              <Switch
-                checked={!!customerData.verhinderungspflege_beantragt}
-                onCheckedChange={(checked) => setCustomerData(p => ({ ...p, verhinderungspflege_beantragt: checked }))}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Genehmigt durch Pflegekasse</Label>
-              <Switch
-                checked={!!customerData.verhinderungspflege_genehmigt}
-                onCheckedChange={(checked) => setCustomerData(p => ({ ...p, verhinderungspflege_genehmigt: checked }))}
-              />
-            </div>
             <p className="text-xs text-muted-foreground">Jährliche Neubeantragung zum 01.01. – System erinnert automatisch.</p>
           </CardContent>
         )}
@@ -255,20 +241,6 @@ export function StepAbrechnung({
                 <Info className="h-3 w-3" />
                 40% des Sachleistungsbetrags (PG2: 318,40 €, PG3: 598,80 €, PG4: 743,60 €, PG5: 916,60 €)
               </p>
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Beantragt bei Pflegekasse</Label>
-              <Switch
-                checked={!!customerData.pflegesachleistung_beantragt}
-                onCheckedChange={(checked) => setCustomerData(p => ({ ...p, pflegesachleistung_beantragt: checked }))}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Genehmigt durch Pflegekasse</Label>
-              <Switch
-                checked={!!customerData.pflegesachleistung_genehmigt}
-                onCheckedChange={(checked) => setCustomerData(p => ({ ...p, pflegesachleistung_genehmigt: checked }))}
-              />
             </div>
           </CardContent>
         )}

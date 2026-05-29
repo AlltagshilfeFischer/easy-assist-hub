@@ -239,10 +239,8 @@ export function KundenDetailDialog({ isOpen, onClose, kundenId }: KundenDetailDi
                       {kunde.verhinderungspflege_aktiv ? 'Aktiv' : 'Inaktiv'}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                    <span>Beantragt: {kunde.verhinderungspflege_beantragt ? '✓' : '✗'}</span>
-                    <span>Genehmigt: {kunde.verhinderungspflege_genehmigt ? '✓' : '✗'}</span>
-                    <span>Budget: {kunde.verhinderungspflege_budget ? `${Number(kunde.verhinderungspflege_budget).toLocaleString('de-DE')} €` : '-'}</span>
+                  <div className="text-xs text-muted-foreground">
+                    Budget: {kunde.verhinderungspflege_budget ? `${Number(kunde.verhinderungspflege_budget).toLocaleString('de-DE')} €` : '-'}
                   </div>
                 </div>
 
@@ -253,10 +251,6 @@ export function KundenDetailDialog({ isOpen, onClose, kundenId }: KundenDetailDi
                     <Badge variant={kunde.pflegesachleistung_aktiv ? 'default' : 'secondary'}>
                       {kunde.pflegesachleistung_aktiv ? 'Aktiv' : 'Inaktiv'}
                     </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <span>Beantragt: {kunde.pflegesachleistung_beantragt ? '✓' : '✗'}</span>
-                    <span>Genehmigt: {kunde.pflegesachleistung_genehmigt ? '✓' : '✗'}</span>
                   </div>
                 </div>
 
