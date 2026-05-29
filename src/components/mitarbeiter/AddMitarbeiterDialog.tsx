@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Loader2, User, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { mitarbeiterFormSchema, type MitarbeiterFormValues } from './edit-dialog/mitarbeiterFormSchema';
@@ -59,10 +60,12 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
       kinderfreibetrag: null,
       sv_rv_nummer: '',
       krankenkasse: '',
+      rv_befreiung: false,
     },
   });
 
   const selectedColor = watch('farbe_kalender');
+  const isMinijob = watch('employment_type') === 'Minijob';
   const onSubmit = async (values: MitarbeiterFormValues) => {
     setSaving(true);
     try {
@@ -100,6 +103,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         kinderfreibetrag: values.kinderfreibetrag ?? null,
         sv_rv_nummer: values.sv_rv_nummer || null,
         krankenkasse: values.krankenkasse || null,
+        rv_befreiung: values.rv_befreiung ?? false,
       }]).select('id').single();
 
       if (error) throw error;
@@ -393,6 +397,22 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
                   <Input {...register('krankenkasse')} placeholder="AOK Niedersachsen" />
                 </div>
               </div>
+
+              {isMinijob && (
+                <div className="flex items-center gap-3 rounded-md border bg-muted/40 px-3 py-2.5">
+                  <Switch
+                    id="add_rv_befreiung"
+                    checked={watch('rv_befreiung') ?? false}
+                    onCheckedChange={(checked) => setValue('rv_befreiung', checked)}
+                  />
+                  <div>
+                    <Label htmlFor="add_rv_befreiung" className="cursor-pointer text-sm">
+                      Befreiung von der RV-Pflicht
+                    </Label>
+                    <p className="text-xs text-muted-foreground">§ 6 Abs. 1b SGB VI — Antrag beim Arbeitgeber gestellt</p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
 
