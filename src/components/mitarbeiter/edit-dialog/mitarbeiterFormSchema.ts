@@ -42,6 +42,7 @@ const personalDataSchema = z.object({
     .regex(/^([A-Z]{2}\d{2}[A-Z0-9]{4,30})?$/, 'Ungültiges IBAN-Format')
     .optional()
     .or(z.literal('')),
+  lohnart: z.enum(['stundenlohn', 'festgehalt']).default('stundenlohn'),
   gehalt_pro_monat: z.preprocess(toNullableNum, z.number().positive('Gehalt muss positiv sein').nullable().optional()),
   hourly_rate: z.preprocess(toNullableNum, z.number().positive('Stundenlohn muss positiv sein').nullable().optional()),
   vertragsstunden_pro_monat: z.preprocess(toNullableNum, z.number().positive('Stunden müssen positiv sein').nullable().optional()),

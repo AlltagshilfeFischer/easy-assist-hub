@@ -16,6 +16,7 @@ interface PersonalDataTabProps {
 export function PersonalDataTab({ form }: PersonalDataTabProps) {
   const { register, formState: { errors }, setValue, watch } = form;
   const selectedColor = watch('farbe_kalender');
+  const lohnart = watch('lohnart');
 
   return (
     <div className="space-y-6">
@@ -150,29 +151,51 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Soll-Wochenstunden</Label>
-            <Input type="number" min="0" step="0.5" {...register('soll_wochenstunden')} />
-          </div>
-          <div className="space-y-1.5">
             <Label>Max. Termine/Tag</Label>
             <Input type="number" min="0" {...register('max_termine_pro_tag')} />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Gehalt / Monat (€)</Label>
-            <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
-            {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
+            <Label>Lohnart</Label>
+            <div className="flex rounded-md border overflow-hidden w-fit text-sm">
+              <button
+                type="button"
+                className={`px-4 py-1.5 ${lohnart === 'stundenlohn' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                onClick={() => { setValue('lohnart', 'stundenlohn'); setValue('gehalt_pro_monat', null); }}
+              >
+                Stundenlohn
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-1.5 border-l ${lohnart === 'festgehalt' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'}`}
+                onClick={() => { setValue('lohnart', 'festgehalt'); setValue('hourly_rate', null); }}
+              >
+                Festgehalt
+              </button>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Gehalt / Stunde (€)</Label>
-            <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
-            {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label>Vertragsstunden / Monat</Label>
-            <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
-            {errors.vertragsstunden_pro_monat && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_monat.message}</p>}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              {lohnart === 'stundenlohn' ? (
+                <>
+                  <Label>Stundenlohn (€)</Label>
+                  <Input type="number" step="0.01" min="0" {...register('hourly_rate')} placeholder="0.00" />
+                  {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
+                </>
+              ) : (
+                <>
+                  <Label>Gehalt / Monat (€)</Label>
+                  <Input type="number" step="0.01" min="0" {...register('gehalt_pro_monat')} placeholder="0.00" />
+                  {errors.gehalt_pro_monat && <p className="text-xs text-destructive">{errors.gehalt_pro_monat.message}</p>}
+                </>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Vertragsstunden / Monat</Label>
+              <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
+              {errors.vertragsstunden_pro_monat && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_monat.message}</p>}
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
