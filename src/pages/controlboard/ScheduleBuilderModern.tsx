@@ -1242,7 +1242,7 @@ const ScheduleBuilderModern = () => {
     }
   };
 
-  const handleDeleteSeries = async (vorlageId: string, _mode: 'single' | 'all') => {
+  const handleDeleteSeries = async (vorlageId: string, _mode: 'single' | 'all', clickedAppointmentId?: string) => {
     try {
       // Use start of today so appointments earlier today are also included
       const todayStart = startOfDay(new Date()).toISOString();
@@ -1254,10 +1254,16 @@ const ScheduleBuilderModern = () => {
         .gte('start_at', todayStart);
       if (fetchError) throw fetchError;
 
-      if (betroffene && betroffene.length > 0) {
-        const ids = betroffene.map(t => t.id);
+      const futureIds = betroffene?.map(t => t.id) ?? [];
+      // Include the clicked appointment even if it's in the past
+      const isClickedInFuture = clickedAppointmentId && futureIds.includes(clickedAppointmentId);
+      const rpIds = clickedAppointmentId && !isClickedInFuture
+        ? [...futureIds, clickedAppointmentId]
+        : futureIds;
+
+      if (rpIds.length > 0) {
         // rechnungspositionen hat ON DELETE RESTRICT → muss vor termine gelöscht werden
-        const { error: rpErr } = await supabase.from('rechnungspositionen').delete().in('termin_id', ids);
+        const { error: rpErr } = await supabase.from('rechnungspositionen').delete().in('termin_id', rpIds);
         if (rpErr) throw rpErr;
       }
 
@@ -1273,6 +1279,15 @@ const ScheduleBuilderModern = () => {
         .eq('vorlage_id', vorlageId)
         .gte('start_at', todayStart);
       if (termineErr) throw termineErr;
+
+      // Delete the clicked appointment separately if it was before todayStart
+      if (clickedAppointmentId && !isClickedInFuture) {
+        const { error: clickedErr } = await supabase
+          .from('termine')
+          .delete()
+          .eq('id', clickedAppointmentId);
+        if (clickedErr) throw clickedErr;
+      }
 
       queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
       toast({ title: 'Terminserie gelöscht' });

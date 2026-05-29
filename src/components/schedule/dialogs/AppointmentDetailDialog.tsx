@@ -39,7 +39,7 @@ interface AppointmentDetailDialogProps {
   customers: Customer[];
   onUpdate: (appointment: Appointment) => Promise<void>;
   onDelete: (appointmentId: string) => Promise<void>;
-  onDeleteSeries?: (vorlageId: string, mode: 'single' | 'all') => Promise<void>;
+  onDeleteSeries?: (vorlageId: string, mode: 'single' | 'all', appointmentId?: string) => Promise<void>;
   onDuplicate?: (appointment: Appointment) => Promise<void>;
   isConflicting?: boolean;
 }
@@ -234,7 +234,7 @@ export function AppointmentDetailDialog({
       if (deleteSeriesAction === 'single') {
         await onDelete(appointment.id);
       } else if (appointment.vorlage_id && onDeleteSeries) {
-        await onDeleteSeries(appointment.vorlage_id, 'all');
+        await onDeleteSeries(appointment.vorlage_id, 'all', appointment.id);
       }
       setShowDeleteSeriesDialog(false);
       onClose();
