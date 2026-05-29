@@ -287,12 +287,6 @@ export function CustomerEditDialog({
                   </div>
                 </div>
 
-                {editingCustomer.kategorie === 'Interessent' && (
-                  <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-                    Als Interessent werden nur Basis-Daten erfasst.
-                    Weitere Felder werden sichtbar nach Umwandlung zu Kunde.
-                  </div>
-                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="hauptbetreuer">Hauptbetreuer</Label>
@@ -422,9 +416,8 @@ export function CustomerEditDialog({
                 </div>
               )}
 
-              {/* Fix 6 + Fix 1: Pflegedaten — nur für Nicht-Interessenten */}
-              {editingCustomer.kategorie !== 'Interessent' && (
-                <div className="space-y-4 border-t pt-4">
+              {/* Pflegedaten */}
+              <div className="space-y-4 border-t pt-4">
                   <h3 className="text-lg font-semibold">Pflegedaten</h3>
                   <div className="grid grid-cols-2 gap-4">
                     {/* Fix 1: Pflegegrad als Select */}
@@ -462,7 +455,6 @@ export function CustomerEditDialog({
                     <div><Label htmlFor="versichertennummer">Versichertennummer</Label><Input id="versichertennummer" value={editingCustomer.versichertennummer || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, versichertennummer: e.target.value })} /></div>
                   </div>
                 </div>
-              )}
 
               {/* Status */}
               <div className="space-y-4 border-t pt-4">
@@ -483,10 +475,9 @@ export function CustomerEditDialog({
                 </div>
               </div>
 
-              {/* Fix 6: Ein- und Austrittsdaten — nur für Nicht-Interessenten */}
-              {editingCustomer.kategorie !== 'Interessent' && (
-                <div className="space-y-4 border-t pt-4">
-                  <h3 className="text-lg font-semibold">Ein- und Austrittsdaten</h3>
+              {/* Ein- und Austrittsdaten */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="text-lg font-semibold">Ein- und Austrittsdaten</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="eintritt">Eintrittsmonat</Label>
@@ -518,11 +509,9 @@ export function CustomerEditDialog({
                   </div>
                   <div><Label htmlFor="angehoerige_ansprechpartner">Angehörige/Ansprechpartner</Label><Input id="angehoerige_ansprechpartner" value={editingCustomer.angehoerige_ansprechpartner || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, angehoerige_ansprechpartner: e.target.value })} /></div>
                   <div><Label htmlFor="sonstiges">Sonstiges</Label><Textarea id="sonstiges" value={editingCustomer.sonstiges || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, sonstiges: e.target.value })} rows={3} /></div>
-                </div>
-              )}
+              </div>
 
-              {/* Fix 6: Zeitfenster — nur für Nicht-Interessenten */}
-              {editingCustomer.kategorie !== 'Interessent' && (
+              {/* Zeitfenster */}
               <div className="space-y-3 border-t pt-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-lg font-semibold">Zeitfenster</Label>
@@ -601,7 +590,6 @@ export function CustomerEditDialog({
                   />
                 )}
               </div>
-              )}
 
               {/* Notfallkontakte */}
               <div className="space-y-3 border-t pt-4">

@@ -163,12 +163,6 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
             </button>
           ))}
         </div>
-        {!isKunde && (
-          <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-            <p>Als Interessent werden nur die wichtigsten Daten erfasst.</p>
-            <p>Weitere Felder werden verfügbar, wenn der Interessent zum Kunden konvertiert wird.</p>
-          </div>
-        )}
       </div>
 
       {/* Basis-Informationen */}
@@ -252,7 +246,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         <h3 className="text-lg font-semibold">Pflege-Informationen{!isKunde && <span className="text-sm font-normal text-muted-foreground ml-2">(optional)</span>}</h3>
         <div className="grid grid-cols-3 gap-4">
           <div><Label>Pflegekasse</Label><PflegekasseCombobox value={customerData.pflegekasse} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegekasse: v }))} /></div>
-          {isKunde && <div><Label htmlFor="versichertennummer">Versichertennummer</Label><Input id="versichertennummer" value={customerData.versichertennummer} onChange={(e) => setCustomerData((p: any) => ({ ...p, versichertennummer: e.target.value }))} /></div>}
+          <div><Label htmlFor="versichertennummer">Versichertennummer</Label><Input id="versichertennummer" value={customerData.versichertennummer} onChange={(e) => setCustomerData((p: any) => ({ ...p, versichertennummer: e.target.value }))} /></div>
           <div>
             <Label htmlFor="pflegegrad">Pflegegrad</Label>
             <Select value={customerData.pflegegrad} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, pflegegrad: v }))}>
@@ -264,18 +258,16 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
             </Select>
           </div>
         </div>
-        {isKunde && (
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label htmlFor="verhinderungspflege_status">Verhinderungspflege</Label><Input id="verhinderungspflege_status" value={customerData.verhinderungspflege_status} onChange={(e) => setCustomerData((p: any) => ({ ...p, verhinderungspflege_status: e.target.value }))} /></div>
-            <div>
-              <Label>Kopie LW</Label>
-              <Select value={customerData.kopie_lw} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, kopie_lw: v }))}>
-                <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
-                <SelectContent><SelectItem value="Ja">Ja</SelectItem><SelectItem value="Nein">Nein</SelectItem></SelectContent>
-              </Select>
-            </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><Label htmlFor="verhinderungspflege_status">Verhinderungspflege</Label><Input id="verhinderungspflege_status" value={customerData.verhinderungspflege_status} onChange={(e) => setCustomerData((p: any) => ({ ...p, verhinderungspflege_status: e.target.value }))} /></div>
+          <div>
+            <Label>Kopie LW</Label>
+            <Select value={customerData.kopie_lw} onValueChange={(v) => setCustomerData((p: any) => ({ ...p, kopie_lw: v }))}>
+              <SelectTrigger><SelectValue placeholder="Auswählen" /></SelectTrigger>
+              <SelectContent><SelectItem value="Ja">Ja</SelectItem><SelectItem value="Nein">Nein</SelectItem></SelectContent>
+            </Select>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Rechnungskopie — nur fuer Kunden */}
@@ -305,8 +297,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
       </div>
       )}
 
-      {/* Terminplanung — nur fuer Kunden */}
-      {isKunde && (
+      {/* Terminplanung */}
       <div className="space-y-4 border-t pt-4">
         <h3 className="text-lg font-semibold">Terminplanung</h3>
         <div className="grid grid-cols-3 gap-4">
@@ -387,10 +378,8 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
           </div>
         </div>
       </div>
-      )}
 
-      {/* Zeitfenster — nur fuer Kunden */}
-      {isKunde && (
+      {/* Zeitfenster */}
       <div className="space-y-3 border-t pt-4">
         <h3 className="text-lg font-semibold">Zeitfenster</h3>
         <div className="space-y-2">
@@ -455,10 +444,8 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
           />
         )}
       </div>
-      )}
 
-      {/* Notfallkontakte — nur fuer Kunden */}
-      {isKunde && (
+      {/* Notfallkontakte */}
       <div className="space-y-3 border-t pt-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Notfallkontakte</h3>
@@ -475,7 +462,6 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
           </div>
         ))}
       </div>
-      )}
 
       {/* Sonstiges */}
       <div className="space-y-3 border-t pt-4">
@@ -483,15 +469,13 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
         <Textarea value={customerData.sonstiges} onChange={(e) => setCustomerData((p: any) => ({ ...p, sonstiges: e.target.value }))} placeholder="Weitere Notizen, Hinweise, Kommentare..." className="min-h-[80px]" />
       </div>
 
-      {/* Betreuung — nur fuer Kunden */}
-      {isKunde && (
+      {/* Betreuung */}
       <div className="space-y-4 border-t pt-4">
         <div className="flex items-center space-x-2">
           <Checkbox id="has_regular_appointments" checked={customerData.has_regular_appointments} onCheckedChange={(checked) => setCustomerData((p: any) => ({ ...p, has_regular_appointments: checked as boolean }))} />
-          <Label htmlFor="has_regular_appointments" className="cursor-pointer">Kunde hat regelmäßige Termine → Mitarbeiter-Matching starten</Label>
+          <Label htmlFor="has_regular_appointments" className="cursor-pointer">Hat regelmäßige Termine → Mitarbeiter-Matching starten</Label>
         </div>
       </div>
-      )}
     </div>
   );
 }
