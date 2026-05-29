@@ -663,7 +663,7 @@ const ScheduleBuilderModern = () => {
         description: errorMsg,
         variant: 'destructive'
       });
-      await loadData(); // Nur bei Fehler: Zustand synchronisieren
+      await loadData(true); // Nur bei Fehler: Zustand synchronisieren
     }
   };
 
@@ -745,7 +745,7 @@ const ScheduleBuilderModern = () => {
           description: 'Fehler beim Entfernen der Zuordnung.',
           variant: 'destructive'
         });
-        await loadData();
+        await loadData(true);
       }
       return;
     }
@@ -1182,7 +1182,7 @@ const ScheduleBuilderModern = () => {
       setCurrentWeek(new Date(fromDate));
 
       queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
-      await loadData();
+      await loadData(true);
       setShowCreateRecurring(false);
     } catch (error: any) {
       console.error('Error creating recurring appointment:', error);
@@ -1237,7 +1237,7 @@ const ScheduleBuilderModern = () => {
         description: 'Fehler beim Löschen des Termins.',
         variant: 'destructive'
       });
-      await loadData(); // Bei Fehler: Zustand synchronisieren
+      await loadData(true); // Bei Fehler: Zustand synchronisieren
       throw error;
     }
   };
@@ -1276,11 +1276,11 @@ const ScheduleBuilderModern = () => {
 
       queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
       toast({ title: 'Terminserie gelöscht' });
-      await loadData();
+      await loadData(true);
     } catch (error) {
       console.error('Error deleting series:', error);
       toast({ title: 'Fehler', description: 'Fehler beim Löschen der Serie.', variant: 'destructive' });
-      await loadData();
+      await loadData(true);
       throw error;
     }
   };
@@ -1656,7 +1656,7 @@ const ScheduleBuilderModern = () => {
         description: 'Fehler beim Aktualisieren.',
         variant: 'destructive'
       });
-      await loadData(); // Bei Fehler: synchronisieren
+      await loadData(true); // Bei Fehler: synchronisieren
     }
   };
 
@@ -2100,7 +2100,7 @@ const ScheduleBuilderModern = () => {
                 description: 'Fehler beim Aktualisieren.',
                 variant: 'destructive'
               });
-              await loadData(); // Bei Fehler: synchronisieren
+              await loadData(true); // Bei Fehler: synchronisieren
             }
           }}
           onDelete={handleDeleteAppointment}
@@ -2312,7 +2312,7 @@ const ScheduleBuilderModern = () => {
                     });
 
                     queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
-                    await loadData();
+                    await loadData(true);
                   } catch (err: any) {
                     console.error('Fehler beim Verschieben der Serie:', err);
                     toast({
