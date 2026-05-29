@@ -43,8 +43,8 @@ export const BUDGET_BUCKETS: BudgetBucketMeta[] = [
   {
     key: 'privat',
     label: 'Privat',
-    description: 'Fallback – unbegrenzt, ggf. 19 % MwSt.',
-    alwaysEnabled: true,
+    description: 'Fallback – unbegrenzt',
+    alwaysEnabled: false,
   },
 ];
 
@@ -65,25 +65,17 @@ export const DEFAULT_BUDGET_ORDER: BudgetBucketKey[] = [
 export function normalizeBudgetOrder(raw: string[] | null | undefined): BudgetBucketKey[] {
   if (!raw || raw.length === 0) return [...DEFAULT_BUDGET_ORDER];
 
-  // Legacy-Format: enthält 'pflegesachleistung', aber nicht 'kombileistung'
-  const isLegacy = raw.some((k) => k === 'pflegesachleistung') && !raw.some((k) => k === 'kombileistung');
-  if (isLegacy) {
-    const mapped = raw.map((k) =>
-      k === 'pflegesachleistung' ? 'kombileistung' : k
-    ) as BudgetBucketKey[];
-    const missing = DEFAULT_BUDGET_ORDER.filter((k) => !mapped.includes(k));
-    const legacyResult = [...mapped, ...missing];
-    const withoutPrivat = legacyResult.filter((k) => k !== 'privat');
-    return [...withoutPrivat, 'privat'];
-  }
+  // Legacy: 'pflegesachleistung' → 'kombileistung'
+  const mapped = raw.map((k) =>
+    k === 'pflegesachleistung' ? 'kombileistung' : k
+  );
 
-  // Neues Format: fehlende Buckets am Ende ergänzen
-  const valid = raw.filter((k): k is BudgetBucketKey =>
+  // Nur gültige Keys behalten
+  const valid = mapped.filter((k): k is BudgetBucketKey =>
     DEFAULT_BUDGET_ORDER.includes(k as BudgetBucketKey)
   );
+
+  // Fehlende Keys am Ende ergänzen (in Default-Reihenfolge)
   const missing = DEFAULT_BUDGET_ORDER.filter((k) => !valid.includes(k));
-  const result = [...valid, ...missing];
-  // Invariante: 'privat' immer letzter Eintrag
-  const withoutPrivat = result.filter((k) => k !== 'privat');
-  return [...withoutPrivat, 'privat'];
+  return [...valid, ...missing];
 }

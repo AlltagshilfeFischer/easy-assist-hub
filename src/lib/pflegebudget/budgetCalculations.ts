@@ -255,28 +255,30 @@ export function assignTransactionTypes(
     let pools: Pool[];
 
     if (budgetPrio && budgetPrio.length > 0) {
-      pools = budgetPrio
-        .flatMap((key) => {
-          // Neue 5-Bucket Keys
-          if (key === 'kombileistung') return [kombiPool];
-          if (key === 'vorjahresrest_entlastung') return [expiringPool];
-          if (key === 'verhinderungspflege') return vpPool ? [vpPool] : [];
-          if (key === 'entlastungsbetrag') return [entlPool];
-          if (key === 'privat') return []; // PRIVAT immer als Fallback am Ende
-          // Legacy Keys
-          if (key === 'pflegesachleistung') return [kombiPool];
-          return [];
-        });
+      // Pools nur bis zur Position von 'privat' aufbauen — ab dort wird direkt privat abgerechnet
+      const privatIdx = budgetPrio.indexOf('privat');
+      const keysBeforePrivat = privatIdx >= 0 ? budgetPrio.slice(0, privatIdx) : budgetPrio;
 
-      // Nicht in budgetPrio enthaltene Pools als Fallback in korrekter Reihenfolge anhängen
-      const hasExpiring = budgetPrio.includes('vorjahresrest_entlastung');
-      const hasVP = budgetPrio.includes('verhinderungspflege');
-      const hasEntl = budgetPrio.includes('entlastungsbetrag');
-      const hasKombi = budgetPrio.some((k) => k === 'kombileistung' || k === 'pflegesachleistung');
-      if (!hasExpiring) pools.push(expiringPool);
-      if (!hasVP && vpPool) pools.push(vpPool);
-      if (!hasEntl) pools.push(entlPool);
-      if (!hasKombi) pools.push(kombiPool);
+      pools = keysBeforePrivat.flatMap((key) => {
+        if (key === 'kombileistung') return [kombiPool];
+        if (key === 'vorjahresrest_entlastung') return [expiringPool];
+        if (key === 'verhinderungspflege') return vpPool ? [vpPool] : [];
+        if (key === 'entlastungsbetrag') return [entlPool];
+        if (key === 'pflegesachleistung') return [kombiPool];
+        return [];
+      });
+
+      // Wenn 'privat' nicht explizit in der Liste steht: fehlende Pools als Fallback anhängen
+      if (privatIdx < 0) {
+        const hasExpiring = keysBeforePrivat.includes('vorjahresrest_entlastung');
+        const hasVP = keysBeforePrivat.includes('verhinderungspflege');
+        const hasEntl = keysBeforePrivat.includes('entlastungsbetrag');
+        const hasKombi = keysBeforePrivat.some((k) => k === 'kombileistung' || k === 'pflegesachleistung');
+        if (!hasExpiring) pools.push(expiringPool);
+        if (!hasVP && vpPool) pools.push(vpPool);
+        if (!hasEntl) pools.push(entlPool);
+        if (!hasKombi) pools.push(kombiPool);
+      }
     } else {
       // Default-Reihenfolge: Vorjahresrest → VP → EB → Kombi
       pools = [expiringPool, ...(vpPool ? [vpPool] : []), entlPool, kombiPool];
