@@ -50,7 +50,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
       iban: '',
       gehalt_pro_monat: null,
       hourly_rate: null,
-      vertragsstunden_pro_monat: null,
+      vertragsstunden_pro_woche: null,
       employment_type: '',
       soll_wochenstunden: null,
       max_termine_pro_tag: null,
@@ -93,7 +93,7 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
         iban: values.iban || null,
         gehalt_pro_monat: values.gehalt_pro_monat ?? null,
         hourly_rate: values.hourly_rate ?? null,
-        vertragsstunden_pro_monat: values.vertragsstunden_pro_monat ?? null,
+        vertragsstunden_pro_woche: values.vertragsstunden_pro_woche ?? null,
         employment_type: values.employment_type || null,
         soll_wochenstunden: values.soll_wochenstunden ?? null,
         max_termine_pro_tag: values.max_termine_pro_tag ?? null,
@@ -210,9 +210,9 @@ export function AddMitarbeiterDialog({ open, onOpenChange, onSuccess }: AddMitar
                   {errors.hourly_rate && <p className="text-xs text-destructive">{errors.hourly_rate.message}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Vertragsstunden / Monat *</Label>
-                  <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
-                  {errors.vertragsstunden_pro_monat && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_monat.message}</p>}
+                  <Label>Vertragsstunden / Woche</Label>
+                  <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_woche')} placeholder="0" />
+                  {errors.vertragsstunden_pro_woche && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_woche.message}</p>}
                 </div>
               </div>
 

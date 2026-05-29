@@ -192,9 +192,9 @@ export function PersonalDataTab({ form }: PersonalDataTabProps) {
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Vertragsstunden / Monat</Label>
-              <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_monat')} placeholder="0" />
-              {errors.vertragsstunden_pro_monat && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_monat.message}</p>}
+              <Label>Vertragsstunden / Woche</Label>
+              <Input type="number" step="0.5" min="0" {...register('vertragsstunden_pro_woche')} placeholder="z.B. 40" />
+              {errors.vertragsstunden_pro_woche && <p className="text-xs text-destructive">{errors.vertragsstunden_pro_woche.message}</p>}
             </div>
           </div>
         </div>

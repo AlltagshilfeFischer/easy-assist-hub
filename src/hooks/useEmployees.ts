@@ -13,7 +13,7 @@ export function useEmployees(options?: { includeInactive?: boolean }) {
         .from('mitarbeiter')
         .select(`
           id, vorname, nachname, telefon, ist_aktiv, max_termine_pro_tag,
-          farbe_kalender, soll_wochenstunden, qualification, employment_type,
+          farbe_kalender, soll_wochenstunden, vertragsstunden_pro_woche, qualification, employment_type,
           is_bookable, in_scheduling_pool, hourly_rate, avatar_url, benutzer_id, strasse, plz, stadt,
           zustaendigkeitsbereich,
           benutzer(email, vorname, nachname)

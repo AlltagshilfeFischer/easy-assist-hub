@@ -27,6 +27,7 @@ export interface Employee {
   farbe_kalender: string;
   workload?: number;
   soll_wochenstunden?: number | null;
+  vertragsstunden_pro_woche?: number | null;
   qualification?: string | null;
   employment_type?: string | null;
   is_bookable?: boolean;
@@ -250,7 +251,7 @@ export interface MitarbeiterRow {
   zustaendigkeitsbereich: string | null;
   // Reiter 1: Persoenliche Daten & Vertrag
   gehalt_pro_monat: number | null;
-  vertragsstunden_pro_monat: number | null;
+  vertragsstunden_pro_woche: number | null;
   geburtsdatum: string | null;
   geburtsname: string | null;
   geburtsort: string | null;

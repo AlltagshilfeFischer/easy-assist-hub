@@ -1236,7 +1236,7 @@ export type Database = {
           sv_rv_nummer: string | null
           telefon: string | null
           updated_at: string
-          vertragsstunden_pro_monat: number | null
+          vertragsstunden_pro_woche: number | null
           vorname: string | null
           weitere_beschaeftigung: boolean | null
           zustaendigkeitsbereich: string | null
@@ -1280,7 +1280,7 @@ export type Database = {
           sv_rv_nummer?: string | null
           telefon?: string | null
           updated_at?: string
-          vertragsstunden_pro_monat?: number | null
+          vertragsstunden_pro_woche?: number | null
           vorname?: string | null
           weitere_beschaeftigung?: boolean | null
           zustaendigkeitsbereich?: string | null
@@ -1324,7 +1324,7 @@ export type Database = {
           sv_rv_nummer?: string | null
           telefon?: string | null
           updated_at?: string
-          vertragsstunden_pro_monat?: number | null
+          vertragsstunden_pro_woche?: number | null
           vorname?: string | null
           weitere_beschaeftigung?: boolean | null
           zustaendigkeitsbereich?: string | null

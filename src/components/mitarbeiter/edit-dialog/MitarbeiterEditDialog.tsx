@@ -37,7 +37,7 @@ interface MitarbeiterData {
   // Neue Felder
   gehalt_pro_monat: number | null;
   hourly_rate: number | null;
-  vertragsstunden_pro_monat: number | null;
+  vertragsstunden_pro_woche: number | null;
   geburtsdatum: string | null;
   geburtsname: string | null;
   geburtsort: string | null;
@@ -104,7 +104,7 @@ export function MitarbeiterEditDialog({ open, onOpenChange, mitarbeiter, onSucce
       employment_type: values.employment_type || null,
       gehalt_pro_monat: values.lohnart === 'festgehalt' ? (values.gehalt_pro_monat ?? null) : null,
       hourly_rate: values.lohnart === 'stundenlohn' ? (values.hourly_rate ?? null) : null,
-      vertragsstunden_pro_monat: values.vertragsstunden_pro_monat ?? null,
+      vertragsstunden_pro_woche: values.vertragsstunden_pro_woche ?? null,
       geburtsdatum: values.geburtsdatum || null,
       geburtsname: values.geburtsname || null,
       geburtsort: values.geburtsort || null,
@@ -276,7 +276,7 @@ function getDefaults(m: MitarbeiterData | null): MitarbeiterFormValues {
     lohnart: m?.hourly_rate != null ? 'stundenlohn' : 'festgehalt',
     gehalt_pro_monat: m?.gehalt_pro_monat ?? null,
     hourly_rate: m?.hourly_rate ?? null,
-    vertragsstunden_pro_monat: m?.vertragsstunden_pro_monat ?? null,
+    vertragsstunden_pro_woche: m?.vertragsstunden_pro_woche ?? null,
     employment_type: m?.employment_type || '',
     soll_wochenstunden: m?.soll_wochenstunden ?? null,
     max_termine_pro_tag: m?.max_termine_pro_tag ?? null,

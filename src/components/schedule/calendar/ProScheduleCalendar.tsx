@@ -570,7 +570,7 @@ export function ProScheduleCalendar({
       <div className="divide-y divide-border">
         {employees.map((employee) => {
           const weekHours = getWeeklyHours(employee.id);
-          const sollStunden = employee.soll_wochenstunden || 40;
+          const sollStunden = employee.vertragsstunden_pro_woche || employee.soll_wochenstunden || 40;
           const initials = employee.name
             .split(' ')
             .map(n => n[0])

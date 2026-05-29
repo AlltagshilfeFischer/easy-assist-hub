@@ -48,7 +48,7 @@ interface Mitarbeiter {
   benutzer_id: string | null;
   // Reiter 1: Persoenliche Daten & Vertrag
   gehalt_pro_monat: number | null;
-  vertragsstunden_pro_monat: number | null;
+  vertragsstunden_pro_woche: number | null;
   geburtsdatum: string | null;
   geburtsname: string | null;
   geburtsort: string | null;

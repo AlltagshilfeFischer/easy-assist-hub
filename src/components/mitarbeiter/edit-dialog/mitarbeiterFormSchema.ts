@@ -45,7 +45,7 @@ const personalDataSchema = z.object({
   lohnart: z.enum(['stundenlohn', 'festgehalt']).default('stundenlohn'),
   gehalt_pro_monat: z.preprocess(toNullableNum, z.number().positive('Gehalt muss positiv sein').nullable().optional()),
   hourly_rate: z.preprocess(toNullableNum, z.number().positive('Stundenlohn muss positiv sein').nullable().optional()),
-  vertragsstunden_pro_monat: z.preprocess(toNullableNum, z.number().positive('Stunden müssen positiv sein').nullable().optional()),
+  vertragsstunden_pro_woche: z.preprocess(toNullableNum, z.number().positive('Stunden müssen positiv sein').nullable().optional()),
   employment_type: z.string().optional().or(z.literal('')),
   soll_wochenstunden: z.preprocess(toNullableNum, z.number().min(0).nullable().optional()),
   max_termine_pro_tag: z.preprocess(toNullableNum, z.number().int().min(0).nullable().optional()),
@@ -88,6 +88,6 @@ export function checkStammdatenVollstaendig(data: Partial<MitarbeiterFormValues>
     data.plz &&
     data.stadt &&
     (data.hourly_rate || data.gehalt_pro_monat) &&
-    data.vertragsstunden_pro_monat
+    data.vertragsstunden_pro_woche
   );
 }
