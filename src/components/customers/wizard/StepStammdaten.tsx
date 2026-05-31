@@ -34,20 +34,22 @@ interface NotfallKontakt {
 const WEEKDAY_NAMES = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
 const SHIFT_BLOCKS = [
-  { label: 'Früh',       key: 'frueh',       von: '07:00', bis: '08:30' },
-  { label: 'Vormittag',  key: 'vormittag',   von: '09:00', bis: '10:30' },
-  { label: 'Mittag',     key: 'mittag',      von: '11:00', bis: '12:30' },
-  { label: 'Nachmittag', key: 'nachmittag',  von: '14:00', bis: '15:30' },
-  { label: 'Abend',      key: 'abend',       von: '16:00', bis: '17:30' },
+  { label: 'Früh',       key: 'frueh',       von: '08:30', bis: '10:00' },
+  { label: 'Vormittag',  key: 'vormittag',   von: '10:00', bis: '12:00' },
+  { label: 'Mittag',     key: 'mittag',      von: '12:00', bis: '13:30' },
+  { label: 'Nachmittag', key: 'nachmittag',  von: '13:30', bis: '15:30' },
+  { label: 'Abend',      key: 'abend',       von: '15:30', bis: '18:00' },
 ];
 
+const WPM = 52 / 12; // exakte Wochen pro Monat (4.333...)
+
 const FREQUENZ_PRO_MONAT: Record<string, number> = {
-  '14_taegig': 2,
-  'woechentlich': 4.3,
-  '2x_woechentlich': 8.6,
-  '3x_woechentlich': 13,
-  '4x_woechentlich': 17.3,
-  '5x_woechentlich': 21.7,
+  '14_taegig': WPM / 2,
+  'woechentlich': WPM,
+  '2x_woechentlich': WPM * 2,
+  '3x_woechentlich': WPM * 3,
+  '4x_woechentlich': WPM * 4,
+  '5x_woechentlich': WPM * 5,
 };
 
 const MONATSNAMEN = [

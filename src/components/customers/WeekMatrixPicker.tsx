@@ -12,11 +12,11 @@ const DAYS = [
 ];
 
 const SHIFTS = [
-  { key: 'frueh',       label: 'Früh',       time: '07–08:30' },
-  { key: 'vormittag',   label: 'Vormittag',  time: '09–10:30' },
-  { key: 'mittag',      label: 'Mittag',     time: '11–12:30' },
-  { key: 'nachmittag',  label: 'Nachmittag', time: '14–15:30' },
-  { key: 'abend',       label: 'Abend',      time: '16–17:30' },
+  { key: 'frueh',       label: 'Früh',       time: '08:30–10' },
+  { key: 'vormittag',   label: 'Vormittag',  time: '10–12' },
+  { key: 'mittag',      label: 'Mittag',     time: '12–13:30' },
+  { key: 'nachmittag',  label: 'Nachmittag', time: '13:30–15:30' },
+  { key: 'abend',       label: 'Abend',      time: '15:30–18' },
 ];
 
 interface WeekMatrixPickerProps {
