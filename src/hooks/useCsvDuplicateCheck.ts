@@ -28,10 +28,22 @@ interface ExistingCustomer {
   telefonnr: string | null;
 }
 
+// Umlaute, Leerzeichen und Sonderzeichen normalisieren für robustes Matching
+const normalizeStr = (s: string): string =>
+  s.trim().toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/\s+/g, ' ');
+
 const normalizeKey = (v: string, n: string, geb?: string): string => {
-  const base = `${v.trim().toLowerCase()}|${n.trim().toLowerCase()}`;
+  const base = `${normalizeStr(v)}|${normalizeStr(n)}`;
   return geb ? `${base}|${geb}` : base;
 };
+
+// Telefonnummer auf Ziffern reduzieren, +49/0049 → 0
+const normalizePhone = (s: string): string =>
+  s.replace(/[\s\-\/().]/g, '')
+    .replace(/^\+49/, '0')
+    .replace(/^0049/, '0');
 
 const parseGermanDateToIso = (s: string): string => {
   const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
@@ -57,8 +69,9 @@ export function useCsvDuplicateCheck(validRows: ValidatedRow[]) {
 
     if (!existingCustomers) return result;
 
-    const existingByFullKey = new Map<string, ExistingCustomer>();
-    const existingByNameKey = new Map<string, ExistingCustomer>();
+    const existingByFullKey  = new Map<string, ExistingCustomer>();
+    const existingByNameKey  = new Map<string, ExistingCustomer>();
+    const existingByPhone    = new Map<string, ExistingCustomer>();
 
     for (const customer of existingCustomers) {
       const vorname = customer.vorname ?? '';
@@ -74,6 +87,14 @@ export function useCsvDuplicateCheck(validRows: ValidatedRow[]) {
       if (!existingByNameKey.has(nameKey)) {
         existingByNameKey.set(nameKey, customer);
       }
+
+      // Telefon als dritte Matching-Stufe (Fallback wenn Name nicht eindeutig)
+      if (customer.telefonnr) {
+        const phoneKey = normalizePhone(customer.telefonnr);
+        if (phoneKey.length >= 6 && !existingByPhone.has(phoneKey)) {
+          existingByPhone.set(phoneKey, customer);
+        }
+      }
     }
 
     for (const validatedRow of validRows) {
@@ -84,15 +105,25 @@ export function useCsvDuplicateCheck(validRows: ValidatedRow[]) {
 
       let found: ExistingCustomer | undefined;
 
+      // Stufe 1: Name + Geburtsdatum (stärkster Match)
       if (record.geburtsdatum) {
         const isoGeb = parseGermanDateToIso(record.geburtsdatum);
         const fullKey = normalizeKey(vorname, nachname, isoGeb);
         found = existingByFullKey.get(fullKey);
       }
 
+      // Stufe 2: Nur Name (umlaut-normalisiert)
       if (!found) {
         const nameKey = normalizeKey(vorname, nachname);
         found = existingByNameKey.get(nameKey);
+      }
+
+      // Stufe 3: Telefonnummer (Fallback wenn Name nicht matcht)
+      if (!found && record.telefonnr) {
+        const phoneKey = normalizePhone(record.telefonnr);
+        if (phoneKey.length >= 6) {
+          found = existingByPhone.get(phoneKey);
+        }
       }
 
       if (found) {
