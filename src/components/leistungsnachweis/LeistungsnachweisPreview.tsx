@@ -48,6 +48,8 @@ interface Props {
   kunde: Kunde;
   nachweis: LeistungsnachweisData;
   termine: Termin[];
+  /** Gespeicherte GF-Unterschrift aus den Einstellungen — als Fallback wenn noch nicht explizit unterschrieben */
+  gfUnterschriftUrl?: string | null;
 }
 
 const monthNames = [
@@ -57,7 +59,7 @@ const monthNames = [
 
 const SKIP_STATUS = ['abgesagt_rechtzeitig'];
 
-export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: Props) {
+export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfUnterschriftUrl }: Props) {
   const { stempelUrl } = useGfStempelUrl();
   const kundenName = [kunde.vorname, kunde.nachname].filter(Boolean).join(' ') || kunde.name || '';
   const adresse = kunde.adresse || [kunde.strasse, [kunde.plz, kunde.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ');
@@ -283,6 +285,12 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
           <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
             {nachweis.unterschrift_mitarbeiter_bild ? (
               <img src={nachweis.unterschrift_mitarbeiter_bild} alt="GF-Unterschrift" style={{ maxHeight: '14mm', maxWidth: '100%' }} />
+            ) : gfUnterschriftUrl ? (
+              <img
+                src={`${gfUnterschriftUrl}?t=${Math.floor(Date.now() / 60000)}`}
+                alt="GF-Unterschrift"
+                style={{ maxHeight: '14mm', maxWidth: '100%', objectFit: 'contain' }}
+              />
             ) : (
               <div style={{
                 width: '100%', height: '13mm',
@@ -299,6 +307,11 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
             <p style={{ fontSize: '7px', color: '#666', marginTop: '0.5mm' }}>
               {format(new Date(nachweis.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm')} Uhr
               {nachweis.unterschrift_mitarbeiter_durch ? ` – ${nachweis.unterschrift_mitarbeiter_durch}` : ''}
+            </p>
+          )}
+          {!nachweis.unterschrift_mitarbeiter_zeitstempel && nachweis.unterschrift_gf_name && (
+            <p style={{ fontSize: '7px', color: '#666', marginTop: '0.5mm' }}>
+              {nachweis.unterschrift_gf_name}
             </p>
           )}
         </div>

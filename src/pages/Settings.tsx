@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/useSettings';
 import { useGfStempelUrl } from '@/hooks/useOrganisationSettings';
+import { useGfSignature } from '@/hooks/useGfSignature';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Settings as SettingsIcon,
@@ -18,6 +20,8 @@ import {
   Stamp,
   Upload,
   Trash2,
+  PenLine,
+  RotateCcw,
 } from 'lucide-react';
 import { invokeAiFunction } from '@/lib/aiClient';
 import { toast } from 'sonner';
@@ -31,10 +35,157 @@ export default function Settings() {
   const [keyInput, setKeyInput] = useState(settings.openAiApiKey);
   const [showKey, setShowKey] = useState(false);
 
-  // GF-Stempel
+  // GF-Stempel (organisationsweit)
   const { stempelUrl, isLoading: isStempelLoading, saveStempelUrl, isSaving: isStempelSaving } = useGfStempelUrl();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Persönliche GF-Unterschrift
+  const { isGeschaeftsfuehrer } = useUserRole();
+  const { signaturUrl, signaturName, isLoading: isSigLoading, isSaving: isSigSaving, saveSignature, saveUploadedFile, clearSignature, saveName } = useGfSignature();
+  const [sigName, setSigName] = useState('');
+  const [isDrawMode, setIsDrawMode] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [isSigUploading, setIsSigUploading] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const sigFileInputRef = useRef<HTMLInputElement>(null);
+  const sigNameInitialized = useRef(false);
+
+  // Initialen Namen aus gespeichertem Wert übernehmen (einmalig beim Laden)
+  useEffect(() => {
+    if (signaturName && !sigNameInitialized.current) {
+      sigNameInitialized.current = true;
+      setSigName(signaturName);
+    }
+  }, [signaturName]);
+
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }, []);
+
+  useEffect(() => {
+    if (isDrawMode) setTimeout(initCanvas, 50);
+  }, [isDrawMode, initCanvas]);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+  };
+
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    e.preventDefault();
+    isDrawingRef.current = true;
+    lastPointRef.current = getPos(e, canvas);
+    setHasDrawn(true);
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    e.preventDefault();
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !lastPointRef.current) return;
+    const pos = getPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    lastPointRef.current = pos;
+  };
+
+  const endDraw = () => { isDrawingRef.current = false; lastPointRef.current = null; };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    setHasDrawn(false);
+  };
+
+  const handleSaveDrawn = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !hasDrawn) return;
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      await saveSignature(dataUrl, sigName);
+      setIsDrawMode(false);
+      setHasDrawn(false);
+      toast.success('Unterschrift gespeichert');
+    } catch (err) {
+      console.error(err);
+      toast.error('Speichern fehlgeschlagen');
+    }
+  };
+
+  const handleSigUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (sigFileInputRef.current) sigFileInputRef.current.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+      toast.error('Nur PNG oder JPG erlaubt');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Datei zu groß — max. 2 MB');
+      return;
+    }
+    setIsSigUploading(true);
+    try {
+      await saveUploadedFile(file, sigName);
+      toast.success('Unterschrift gespeichert');
+    } catch (err) {
+      console.error(err);
+      toast.error('Upload fehlgeschlagen');
+    } finally {
+      setIsSigUploading(false);
+    }
+  };
+
+  const handleClearSig = async () => {
+    try {
+      await clearSignature();
+      toast.success('Unterschrift entfernt');
+    } catch (err) {
+      console.error(err);
+      toast.error('Löschen fehlgeschlagen');
+    }
+  };
+
+  const handleSaveName = async () => {
+    try {
+      await saveName(sigName);
+      toast.success('Name gespeichert');
+    } catch (err) {
+      console.error(err);
+      toast.error('Speichern fehlgeschlagen');
+    }
+  };
 
   const handleStempelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -357,6 +508,135 @@ export default function Settings() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Persönliche GF-Unterschrift — nur für GF/GlobalAdmin */}
+      {isGeschaeftsfuehrer && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PenLine className="h-5 w-5" />
+              Persönliche Unterschrift
+            </CardTitle>
+            <CardDescription>
+              Einmal zeichnen oder hochladen — wird automatisch auf jedem Leistungsnachweis als GF-Unterschrift verwendet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="sig-name">Name (erscheint auf dem LN)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="sig-name"
+                  value={sigName}
+                  onChange={e => setSigName(e.target.value)}
+                  placeholder="Vorname Nachname"
+                  className="flex-1"
+                />
+                <Button variant="outline" onClick={handleSaveName} disabled={isSigSaving} className="shrink-0">
+                  Speichern
+                </Button>
+              </div>
+            </div>
+
+            {/* Aktuelle Unterschrift */}
+            {isSigLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Lade…
+              </div>
+            ) : signaturUrl ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Gespeicherte Unterschrift:</p>
+                <div className="border rounded-lg p-3 bg-white inline-block">
+                  <img
+                    src={`${signaturUrl}?t=${Math.floor(Date.now() / 60000)}`}
+                    alt="GF-Unterschrift"
+                    className="max-h-20 max-w-xs object-contain"
+                  />
+                </div>
+              </div>
+            ) : !isDrawMode ? (
+              <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center text-sm text-muted-foreground">
+                Noch keine Unterschrift hinterlegt
+              </div>
+            ) : null}
+
+            {/* Zeichenpad */}
+            {isDrawMode && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Hier unterschreiben:</p>
+                <div className="border rounded-lg bg-white overflow-hidden" style={{ touchAction: 'none' }}>
+                  <canvas
+                    ref={canvasRef}
+                    style={{ width: '100%', height: '120px', display: 'block', cursor: 'crosshair' }}
+                    onMouseDown={startDraw}
+                    onMouseMove={draw}
+                    onMouseUp={endDraw}
+                    onMouseLeave={endDraw}
+                    onTouchStart={startDraw}
+                    onTouchMove={draw}
+                    onTouchEnd={endDraw}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={clearCanvas} className="gap-1.5">
+                    <RotateCcw className="h-3.5 w-3.5" /> Neu zeichnen
+                  </Button>
+                  <Button size="sm" onClick={handleSaveDrawn} disabled={!hasDrawn || isSigSaving} className="gap-1.5">
+                    {isSigSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                    Unterschrift übernehmen
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setIsDrawMode(false); setHasDrawn(false); }}>
+                    Abbrechen
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Aktionen */}
+            {!isDrawMode && (
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" onClick={() => setIsDrawMode(true)} className="gap-2">
+                  <PenLine className="h-4 w-4" />
+                  {signaturUrl ? 'Neu zeichnen' : 'Unterschrift zeichnen'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => sigFileInputRef.current?.click()}
+                  disabled={isSigUploading || isSigSaving}
+                  className="gap-2"
+                >
+                  {isSigUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {signaturUrl ? 'Bild ersetzen' : 'Bild hochladen'}
+                </Button>
+                {signaturUrl && (
+                  <Button
+                    variant="outline"
+                    onClick={handleClearSig}
+                    disabled={isSigUploading || isSigSaving}
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" /> Entfernen
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <input
+              ref={sigFileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              className="hidden"
+              onChange={handleSigUpload}
+            />
+
+            <p className="text-xs text-muted-foreground">
+              Die Unterschrift erscheint automatisch auf jedem Leistungsnachweis, solange du eingeloggt bist.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
