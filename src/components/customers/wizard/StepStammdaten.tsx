@@ -41,15 +41,13 @@ const SHIFT_BLOCKS = [
   { label: 'Abend',      key: 'abend',       von: '15:30', bis: '18:00' },
 ];
 
-const WPM = 52 / 12; // exakte Wochen pro Monat (4.333...)
-
 const FREQUENZ_PRO_MONAT: Record<string, number> = {
-  '14_taegig': WPM / 2,
-  'woechentlich': WPM,
-  '2x_woechentlich': WPM * 2,
-  '3x_woechentlich': WPM * 3,
-  '4x_woechentlich': WPM * 4,
-  '5x_woechentlich': WPM * 5,
+  '14_taegig': 2,
+  'woechentlich': 4,
+  '2x_woechentlich': 8,
+  '3x_woechentlich': 12,
+  '4x_woechentlich': 16,
+  '5x_woechentlich': 20,
 };
 
 const MONATSNAMEN = [
