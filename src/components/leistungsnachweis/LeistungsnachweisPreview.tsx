@@ -1,6 +1,4 @@
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
-import { useGfStempelUrl } from '@/hooks/useOrganisationSettings';
 
 interface Kunde {
   vorname: string | null;
@@ -48,7 +46,7 @@ interface Props {
   kunde: Kunde;
   nachweis: LeistungsnachweisData;
   termine: Termin[];
-  /** Gespeicherte GF-Unterschrift aus den Einstellungen — als Fallback wenn noch nicht explizit unterschrieben */
+  /** Gespeicherte GF-Unterschrift aus den Einstellungen — Fallback wenn noch nicht explizit unterschrieben */
   gfUnterschriftUrl?: string | null;
 }
 
@@ -60,12 +58,10 @@ const monthNames = [
 const SKIP_STATUS = ['abgesagt_rechtzeitig'];
 
 export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfUnterschriftUrl }: Props) {
-  const { stempelUrl } = useGfStempelUrl();
   const kundenName = [kunde.vorname, kunde.nachname].filter(Boolean).join(' ') || kunde.name || '';
   const adresse = kunde.adresse || [kunde.strasse, [kunde.plz, kunde.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   const geburtsdatum = kunde.geburtsdatum ? format(new Date(kunde.geburtsdatum), 'dd.MM.yyyy') : '';
 
-  // Build day map
   const dayMap = new Map<number, { uhrzeit: string; stunden: string }>();
   let totalStunden = 0;
 
@@ -101,7 +97,6 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfU
     };
   };
 
-  // Format deckeln betrag
   const deckelnLabel = nachweis.cb_deckeln_45b
     ? `Deckeln §45b ${nachweis.cb_deckeln_45b_betrag ? nachweis.cb_deckeln_45b_betrag + ' EUR' : '_____ EUR'} Rest privat`
     : 'Deckeln §45b _____ EUR Rest privat';
@@ -147,7 +142,6 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfU
 
       {/* Termintabelle - Two columns side by side */}
       <div style={{ display: 'flex', gap: '3mm', marginBottom: '3mm' }}>
-        {/* Left column: Days 1-15 */}
         <table style={{ flex: 1, borderCollapse: 'collapse', fontSize: '9px' }}>
           <thead>
             <tr>
@@ -170,7 +164,6 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfU
           </tbody>
         </table>
 
-        {/* Right column: Days 16-31 */}
         <table style={{ flex: 1, borderCollapse: 'collapse', fontSize: '9px' }}>
           <thead>
             <tr>
@@ -204,7 +197,7 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfU
         Die Leistungen sind nach §4 Nr. 16 Buchst. g UstG von der Umsatzsteuer befreit.
       </p>
 
-      {/* Leistungsart Checkboxen – driven by nachweis data */}
+      {/* Leistungsart Checkboxen */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5mm', fontSize: '9px', marginBottom: '3mm' }}>
         <label style={checkboxLabel}>
           <CheckboxPrint checked={!!nachweis.cb_kombinationsleistung} /> Kombinationsleistung §45a SGB XI
@@ -239,31 +232,8 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfU
         </p>
       </div>
 
-      {/* Unterschriften – drei Spalten: GF | Kunde | Mitarbeiter */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '3mm', marginBottom: '6mm', marginTop: '8mm' }}>
-        {/* GF / Stempel */}
-        <div style={{ flex: 1 }}>
-          <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', paddingBottom: '1mm' }}>
-            {stempelUrl ? (
-              <img
-                src={`${stempelUrl}?t=${Math.floor(Date.now() / 60000)}`}
-                alt="Stempel / Unterschrift GF"
-                style={{ maxHeight: '14mm', maxWidth: '100%', objectFit: 'contain' }}
-              />
-            ) : (
-              <div style={{
-                width: '100%', height: '13mm',
-                border: '1.5px dashed #aaa',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '7px', color: '#aaa',
-              }}>
-                Stempel / Unterschrift GF
-              </div>
-            )}
-          </div>
-          <p style={{ fontSize: '8px', marginTop: '1mm' }}>Handzeichen (Alltagshilfe Fischer)</p>
-        </div>
-
+      {/* Unterschriften – zwei Spalten: Leistungsnehmer | Mitarbeiter / GF */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8mm', marginBottom: '6mm', marginTop: '8mm' }}>
         {/* Kunde */}
         <div style={{ flex: 1 }}>
           <div style={{ borderBottom: '1px solid #333', height: '15mm', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
@@ -327,7 +297,6 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine, gfU
   );
 }
 
-// Helper: print checkbox
 function CheckboxPrint({ checked }: { checked: boolean }) {
   return (
     <span style={{
@@ -339,7 +308,6 @@ function CheckboxPrint({ checked }: { checked: boolean }) {
   );
 }
 
-// Style constants
 const thStyle: React.CSSProperties = {
   border: '1px solid #999', padding: '1mm 1.5mm', fontWeight: 'bold',
   textAlign: 'center', backgroundColor: '#f0f0f0', fontSize: '8px',
