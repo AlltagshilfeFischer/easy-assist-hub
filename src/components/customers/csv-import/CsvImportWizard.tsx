@@ -180,7 +180,7 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
   );
   const { validatedRows } = useCsvImportValidation(mergedRecords);
 
-  const rowsForDuplicateCheck = validatedRows.filter(r => r.isValid || skipInvalidRows);
+  const rowsForDuplicateCheck = validatedRows.filter(r => r.isValid || !skipInvalidRows);
   const { duplicateInfos, actions, setAction, setAllDuplicatesAction: setAllAction, isLoading: isDuplicateCheckLoading } = useCsvDuplicateCheck(rowsForDuplicateCheck);
 
   const importSummary = useMemo(() => {
@@ -242,7 +242,7 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
       const rowsToUpdate: Array<{ id: string; record: MappedCustomerRecord }> = [];
 
       for (const row of validatedRows) {
-        if (!row.isValid && !skipInvalidRows) continue;
+        if (!row.isValid && skipInvalidRows) continue;
         const mergedRecord: MappedCustomerRecord = {
           ...row.record,
           ...row.editedValues,
