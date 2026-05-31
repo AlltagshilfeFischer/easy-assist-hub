@@ -58,9 +58,6 @@ interface LeistungsnachweisRow {
   unterschrift_kunde_durch: string | null;
   unterschrift_gf_template: string | null;
   unterschrift_gf_name: string | null;
-  unterschrift_mitarbeiter_bild: string | null;
-  unterschrift_mitarbeiter_zeitstempel: string | null;
-  unterschrift_mitarbeiter_durch: string | null;
   cb_kombinationsleistung: boolean;
   cb_entlastungsleistung: boolean;
   cb_verhinderungspflege: boolean;
@@ -109,7 +106,7 @@ type SortKey = 'name' | 'geplant' | 'geleistet' | 'status';
 export default function Leistungsnachweise() {
   const queryClient = useQueryClient();
   const { isGeschaeftsfuehrer } = useUserRole();
-  const { signaturUrl: gfUnterschriftUrl, signaturName: gfUnterschriftName } = useGfSignature();
+  const { signaturName: gfUnterschriftName } = useGfSignature();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -127,7 +124,6 @@ export default function Leistungsnachweise() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showStornierConfirm, setShowStornierConfirm] = useState(false);
   const [showKundenSignatur, setShowKundenSignatur] = useState(false);
-  const [showGfSignatur, setShowGfSignatur] = useState(false);
 
   // Online status tracking
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -439,34 +435,6 @@ export default function Leistungsnachweise() {
     },
   });
 
-  // GF zeichnet Canvas-Unterschrift (wenn MA nicht unterschrieben hat) → abgeschlossen
-  const handleGfSignatur = async (dataUrl: string, durch: string) => {
-    if (!selectedLN) return;
-    const zeitstempel = new Date().toISOString();
-    const { data, error } = await supabase
-      .from('leistungsnachweise')
-      .update({
-        unterschrift_mitarbeiter_bild: dataUrl,
-        unterschrift_mitarbeiter_zeitstempel: zeitstempel,
-        unterschrift_mitarbeiter_durch: durch,
-        status: 'abgeschlossen',
-      })
-      .eq('id', selectedLN.id)
-      .select()
-      .single();
-    if (error) {
-      toast.error('Fehler beim Speichern der GF-Unterschrift', { description: error.message });
-      return;
-    }
-    await markTermineAbgerechnet(selectedLN.kunden_id, selectedLN.monat, selectedLN.jahr);
-    toast.success('GF-Unterschrift gespeichert — LN abgeschlossen');
-    setShowGfSignatur(false);
-    setSelectedLN(data as LeistungsnachweisRow);
-    queryClient.invalidateQueries({ queryKey: ['leistungsnachweise'] });
-    queryClient.invalidateQueries({ queryKey: ['termine_budget_all'] });
-    queryClient.invalidateQueries({ queryKey: ['termine_budget'] });
-    queryClient.invalidateQueries({ queryKey: ['termine-ln'] });
-  };
 
   // GF bestätigt (wenn MA bereits unterschrieben hat) → nur abschließen, kein Canvas
   const handleGfBestaetigen = async () => {
@@ -1498,64 +1466,28 @@ export default function Leistungsnachweise() {
                       )}
                     </div>
 
-                    {/* ── MITARBEITER / GF ABSCHLUSS ── */}
+                    {/* ── GF ABSCHLUSS ── */}
                     <div className="rounded-lg border border-border p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium text-foreground">
-                          {selectedLN.unterschrift_mitarbeiter_zeitstempel
-                            ? 'Mitarbeiter-Unterschrift'
-                            : 'GF-Abschluss'}
-                        </p>
-                        {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
-                          <span className="flex items-center gap-1 text-xs text-success font-medium">
-                            <CheckCircle2 className="h-3 w-3" /> Vorhanden
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {selectedLN.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Ausstehend'}
-                          </span>
-                        )}
+                        <p className="text-xs font-medium text-foreground">GF-Abschluss</p>
+                        <span className="text-xs text-muted-foreground">
+                          {selectedLN.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Ausstehend'}
+                        </span>
                       </div>
 
-                      {selectedLN.unterschrift_mitarbeiter_zeitstempel ? (
-                        /* MA hat unterschrieben → anzeigen + GF-Bestätigen */
+                      {selectedLN.status === 'abgeschlossen' ? (
+                        <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+                          Leistungsnachweis abgeschlossen.
+                        </p>
+                      ) : (
                         <div className="space-y-2">
-                          <div className="rounded-md border border-border bg-white p-3 flex flex-col items-center gap-2">
-                            {selectedLN.unterschrift_mitarbeiter_bild && (
-                              <img
-                                src={selectedLN.unterschrift_mitarbeiter_bild}
-                                alt="Mitarbeiter-Unterschrift"
-                                className="max-h-20 w-full object-contain"
-                              />
-                            )}
-                            <div className="w-full border-t border-dashed border-border pt-2 flex items-center justify-between text-xs text-muted-foreground">
-                              <span className="font-medium">{selectedLN.unterschrift_mitarbeiter_durch || '–'}</span>
-                              <span>{format(new Date(selectedLN.unterschrift_mitarbeiter_zeitstempel), 'dd.MM.yyyy, HH:mm', { locale: de })} Uhr</span>
-                            </div>
-                          </div>
-                          {selectedLN.status !== 'abgeschlossen' && (
-                            <Button
-                              className="w-full gap-2 h-10"
-                              onClick={handleGfBestaetigen}
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                              Bestätigen &amp; abschließen
-                            </Button>
-                          )}
-                        </div>
-                      ) : selectedLN.status !== 'abgeschlossen' ? (
-                        /* MA hat NICHT unterschrieben → GF muss Canvas-Unterschrift */
-                        <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground">
-                            Kein Mitarbeiter-Unterschrift — bitte GF-Unterschrift leisten.
-                          </p>
                           <Button
                             className="w-full gap-2 h-10"
                             variant={selectedLN.unterschrift_kunde_zeitstempel ? 'default' : 'outline'}
-                            onClick={() => setShowGfSignatur(true)}
+                            onClick={handleGfBestaetigen}
                           >
-                            <PenLine className="h-4 w-4" />
-                            GF unterschreiben &amp; abschließen
+                            <CheckCircle2 className="h-4 w-4" />
+                            Bestätigen &amp; abschließen
                           </Button>
                           {!selectedLN.unterschrift_kunde_zeitstempel && (
                             <p className="text-xs text-amber-600 text-center">
@@ -1563,10 +1495,6 @@ export default function Leistungsnachweise() {
                             </p>
                           )}
                         </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
-                          Leistungsnachweis abgeschlossen.
-                        </p>
                       )}
                     </div>
                   </div>
@@ -1623,7 +1551,6 @@ export default function Leistungsnachweise() {
                 kunde={kunde}
                 nachweis={selectedLN}
                 termine={filteredTermine}
-                gfUnterschriftUrl={gfUnterschriftUrl}
               />
             ) : null;
           })()}
@@ -1639,7 +1566,6 @@ export default function Leistungsnachweise() {
               kunde={kunde}
               nachweis={selectedLN}
               termine={filteredTermine}
-              gfUnterschriftUrl={gfUnterschriftUrl}
             />
           </div>
         ) : null;
@@ -1661,21 +1587,6 @@ export default function Leistungsnachweise() {
         document.body
       )}
 
-      {/* GF-Unterschrift Vollbild-Overlay — via Portal damit kein Stacking-Context-Problem */}
-      {showGfSignatur && selectedLN && createPortal(
-        <KundenSignaturPad
-          kundeName={getKundeName(selectedLN.kunden_id)}
-          monat={selectedLN.monat}
-          jahr={selectedLN.jahr}
-          termine={filteredTermine}
-          liveGeleistet={displayHours.geleistet}
-          isOnline={isOnline}
-          onConfirm={handleGfSignatur}
-          onCancel={() => setShowGfSignatur(false)}
-          headerTitle={`GF-Unterschrift: ${getKundeName(selectedLN.kunden_id)} — ${monthNames[selectedLN.monat - 1]} ${selectedLN.jahr}`}
-        />,
-        document.body
-      )}
     </div>
   );
 }
