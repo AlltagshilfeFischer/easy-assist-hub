@@ -16,7 +16,8 @@ export interface ValidatedRow {
 function validateRecord(record: MappedCustomerRecord): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (!record.vorname?.trim()) {
+  const isInteressent = record.kategorie?.trim().toLowerCase() === 'interessent';
+  if (!isInteressent && !record.vorname?.trim()) {
     errors.push({ field: 'vorname', message: 'Vorname ist erforderlich' });
   }
   if (!record.nachname?.trim()) {
@@ -47,13 +48,13 @@ function validateRecord(record: MappedCustomerRecord): ValidationError[] {
     if (deMatch) {
       const [, day, month, year] = deMatch;
       const date = new Date(`${year}-${month}-${day}`);
-      if (isNaN(date.getTime()) || date.getDate() !== parseInt(day, 10)) {
+      if (isNaN(date.getTime()) || date.getUTCDate() !== parseInt(day, 10)) {
         errors.push({ field: 'geburtsdatum', message: 'Ungültiges Datum (z.B. 31.02. existiert nicht)' });
       }
     } else if (isoMatch) {
       const [, year, month, day] = isoMatch;
       const date = new Date(`${year}-${month}-${day}`);
-      if (isNaN(date.getTime()) || date.getDate() !== parseInt(day, 10)) {
+      if (isNaN(date.getTime()) || date.getUTCDate() !== parseInt(day, 10)) {
         errors.push({ field: 'geburtsdatum', message: 'Ungültiges Datum' });
       }
     } else {
@@ -69,7 +70,9 @@ function validateRecord(record: MappedCustomerRecord): ValidationError[] {
   }
 
   if (record.kategorie) {
-    if (!['Kunde', 'Interessent'].includes(record.kategorie)) {
+    const norm = record.kategorie.trim();
+    const cap = norm.charAt(0).toUpperCase() + norm.slice(1).toLowerCase();
+    if (!['Kunde', 'Interessent'].includes(cap)) {
       errors.push({ field: 'kategorie', message: 'Kategorie muss "Kunde" oder "Interessent" sein' });
     }
   }

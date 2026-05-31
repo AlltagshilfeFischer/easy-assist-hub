@@ -78,18 +78,23 @@ function recordToSupabaseInsert(
     else if (['frau', 'weiblich', 'w', 'f', 'female', 'dame'].includes(gNorm))       geschlecht = 'weiblich';
     else if (['divers', 'd', 'non-binary', 'nonbinary'].includes(gNorm))              geschlecht = 'divers';
     else if (['keine_angabe', 'keine angabe', 'k.a.', 'unbekannt', '-'].includes(gNorm)) geschlecht = 'keine_angabe';
-    else geschlecht = gNorm; // pass-through für unbekannte Werte
+    // unbekannte Werte → null (pass-through würde DB-Constraint verletzen)
   }
 
   // Status: Aktiv (default) / Inaktiv — überschreibt kategorie-basierte Logik
   const statusNorm = r.aktiv_status?.trim().toLowerCase();
   const aktiv = statusNorm === 'inaktiv' ? false : true; // Default: aktiv, außer explizit "Inaktiv"
 
-  // Stunden + Budget-Beträge: deutsches Komma → Punkt
-  const stundenRaw = r.stunden_kontingent_monat?.replace(',', '.');
+  // Stunden + Budget-Beträge: deutsches oder englisches Format → Zahl
+  const stundenRaw = r.stunden_kontingent_monat?.replace(/,/g, '.');
   const toEuro = (s?: string): number | null => {
     if (!s?.trim()) return null;
-    const num = parseFloat(s.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
+    const cleaned = s.trim().replace(/[^\d.,-]/g, '');
+    // Deutsches Format (1.234,56) → Punkt als Tausender, Komma als Dezimal
+    // Englisches Format (1234.56) → Punkt als Dezimal, kein Komma
+    const num = cleaned.includes(',')
+      ? parseFloat(cleaned.replace(/\./g, '').replace(',', '.'))
+      : parseFloat(cleaned);
     return isNaN(num) ? null : num;
   };
 
@@ -114,7 +119,12 @@ function recordToSupabaseInsert(
     vorname: r.vorname?.trim() || null,
     nachname: r.nachname?.trim() || null,
     mitarbeiter: mitarbeiterId,
-    pflegegrad: r.pflegegrad != null && r.pflegegrad !== '' ? parseInt(r.pflegegrad, 10) : null,
+    pflegegrad: (() => {
+      const s = r.pflegegrad?.trim();
+      if (!s || s === 'nicht_vorhanden') return null;
+      const n = parseInt(s, 10);
+      return isNaN(n) ? null : n;
+    })(),
     strasse,
     plz,
     stadt,
@@ -135,7 +145,12 @@ function recordToSupabaseInsert(
     angehoerige_ansprechpartner: r.angehoerige_ansprechpartner?.trim() || null,
     eintritt: toIsoDate(r.eintritt),
     austritt: toIsoDate(r.austritt),
-    kategorie: r.kategorie || 'Kunde',
+    kategorie: (() => {
+      const raw = r.kategorie?.trim();
+      if (!raw) return 'Kunde';
+      const norm = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+      return ['Kunde', 'Interessent'].includes(norm) ? norm : 'Kunde';
+    })(),
     email: r.email?.trim() || null,
     farbe_kalender: '#10B981',
     initial_budget_entlastung: toEuro(r.initial_budget_entlastung),
@@ -270,7 +285,12 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
 
       const updateErrors: string[] = [];
       for (const { id, record } of rowsToUpdate) {
-        const updates = recordToSupabaseInsert(record, employeeNameMap);
+        const allFields = recordToSupabaseInsert(record, employeeNameMap);
+        // Nur Felder überschreiben die tatsächlich in der CSV standen (nicht null/undefined),
+        // damit bestehende Kundendaten nicht durch fehlende CSV-Spalten gelöscht werden
+        const updates = Object.fromEntries(
+          Object.entries(allFields).filter(([, v]) => v !== null && v !== undefined)
+        );
         const { error } = await supabase.from('kunden').update(updates).eq('id', id);
         if (error) {
           const name = `${record.vorname ?? ''} ${record.nachname ?? ''}`.trim();
