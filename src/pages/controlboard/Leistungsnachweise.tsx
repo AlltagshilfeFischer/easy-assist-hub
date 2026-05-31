@@ -25,6 +25,7 @@ import {
   RotateCcw, Lock, ChevronsUpDown, Check, Bell
 } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useGfSignature } from '@/hooks/useGfSignature';
 import { useHaushaltshilfeVerordnungen } from '@/hooks/useHaushaltshilfeVerordnungen';
 import { useBudgetTransactionsByClientMonth } from '@/hooks/useBudgetTransactions';
 import { format, startOfWeek } from 'date-fns';
@@ -108,6 +109,7 @@ type SortKey = 'name' | 'geplant' | 'geleistet' | 'status';
 export default function Leistungsnachweise() {
   const queryClient = useQueryClient();
   const { isGeschaeftsfuehrer } = useUserRole();
+  const { signaturUrl: gfUnterschriftUrl, signaturName: gfUnterschriftName } = useGfSignature();
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -357,6 +359,13 @@ export default function Leistungsnachweise() {
       toast.error('Fehler beim Speichern', { description: err instanceof Error ? err.message : 'Unbekannt' });
     },
   });
+
+  // Checkbox-Änderungen sofort in DB schreiben — kein expliziter Speichern-Button nötig
+  const saveCheckbox = (field: keyof LeistungsnachweisRow, value: boolean) => {
+    if (!selectedLN) return;
+    setSelectedLN(prev => prev ? { ...prev, [field]: value } : null);
+    updateMutation.mutate({ [field]: value });
+  };
 
   // Helper: calculate hours from termine
   const calculateHoursFromTermine = (terminList: Termin[]) => {
@@ -707,15 +716,22 @@ export default function Leistungsnachweise() {
 
     const updates: Partial<LeistungsnachweisRow> = {};
 
-    if (lnBudgetTransactions.length > 0) {
-      // Derive checkboxes from the service_types actually billed this month
+    if (hasActiveHHForSelectedLN) {
+      // §38 hat höchste Priorität — deckt den Monat vollständig ab, andere Budgets entfallen
+      updates.cb_haushaltshilfe = true;
+    } else if (lnBudgetTransactions.length > 0) {
+      // Billing bereits gelaufen: Checkboxen aus tatsächlichen Transaktionen ableiten
       const usedTypes = new Set(lnBudgetTransactions.map(t => t.service_type));
       if (usedTypes.has('ENTLASTUNG')) updates.cb_entlastungsleistung = true;
       if (usedTypes.has('KOMBI')) updates.cb_kombinationsleistung = true;
       if (usedTypes.has('VERHINDERUNG')) updates.cb_verhinderungspflege = true;
+    } else {
+      // Kein Billing gelaufen: aus Kunden-Stammdaten und Freischaltungsstatus ableiten
+      if ((kunde.pflegegrad ?? 0) >= 1) updates.cb_entlastungsleistung = true;
+      if (kunde.verhinderungspflege_aktiv) updates.cb_verhinderungspflege = true;
+      if (kunde.pflegesachleistung_aktiv && (kunde.pflegegrad ?? 0) >= 2) updates.cb_kombinationsleistung = true;
     }
-    // Haushaltshilfe and Privat are structural — set regardless of transactions
-    if (hasActiveHHForSelectedLN) updates.cb_haushaltshilfe = true;
+    // Privatperson: immer aus Kunden-Stammdaten
     if (kunde.kasse_privat === 'Privat') updates.ist_privat = true;
 
     if (Object.keys(updates).length > 0) {
@@ -1065,7 +1081,14 @@ export default function Leistungsnachweise() {
                       <TableRow
                         key={ln.id}
                         className={`cursor-pointer transition-colors ${isActive ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-muted/50'}`}
-                        onClick={() => { setSelectedLN(ln); setShowDetail(true); }}
+                        onClick={() => {
+                          // Auto-Namen des GF eintragen wenn noch keiner gesetzt ist
+                          const withName = (!ln.unterschrift_gf_name && gfUnterschriftName)
+                            ? { ...ln, unterschrift_gf_name: gfUnterschriftName }
+                            : ln;
+                          setSelectedLN(withName);
+                          setShowDetail(true);
+                        }}
                       >
                         <TableCell onClick={e => e.stopPropagation()} title={!canCheck ? 'Erst nach Unterschrift auswählbar' : ''}>
                           <Checkbox
@@ -1322,30 +1345,30 @@ export default function Leistungsnachweise() {
                     <h3 className="text-sm font-semibold text-foreground">Leistungsart / Abrechnung</h3>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={selectedLN.cb_kombinationsleistung} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_kombinationsleistung: !!c })} />
+                        <Checkbox checked={selectedLN.cb_kombinationsleistung} onCheckedChange={(c) => saveCheckbox('cb_kombinationsleistung', !!c)} />
                         Kombileistung §45a
                       </label>
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={selectedLN.cb_entlastungsleistung} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_entlastungsleistung: !!c })} />
+                        <Checkbox checked={selectedLN.cb_entlastungsleistung} onCheckedChange={(c) => saveCheckbox('cb_entlastungsleistung', !!c)} />
                         Entlastung §45b
                       </label>
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={selectedLN.cb_verhinderungspflege} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_verhinderungspflege: !!c })} />
+                        <Checkbox checked={selectedLN.cb_verhinderungspflege} onCheckedChange={(c) => saveCheckbox('cb_verhinderungspflege', !!c)} />
                         Verhinderungspflege §39
                       </label>
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={selectedLN.cb_haushaltshilfe} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_haushaltshilfe: !!c })} />
+                        <Checkbox checked={selectedLN.cb_haushaltshilfe} onCheckedChange={(c) => saveCheckbox('cb_haushaltshilfe', !!c)} />
                         Haushaltshilfe §38
                       </label>
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={selectedLN.cb_deckeln_45b} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, cb_deckeln_45b: !!c })} />
+                        <Checkbox checked={selectedLN.cb_deckeln_45b} onCheckedChange={(c) => saveCheckbox('cb_deckeln_45b', !!c)} />
                         Deckeln §45b
                         {selectedLN.cb_deckeln_45b && (
                           <Input type="number" className="h-6 w-20 text-xs" value={selectedLN.cb_deckeln_45b_betrag ?? ''} onChange={e => setSelectedLN({ ...selectedLN, cb_deckeln_45b_betrag: e.target.value ? Number(e.target.value) : null })} placeholder="EUR" />
                         )}
                       </label>
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <Checkbox checked={selectedLN.ist_privat} onCheckedChange={(c) => setSelectedLN({ ...selectedLN, ist_privat: !!c })} />
+                        <Checkbox checked={selectedLN.ist_privat} onCheckedChange={(c) => saveCheckbox('ist_privat', !!c)} />
                         Privatperson
                       </label>
                     </div>
@@ -1600,6 +1623,7 @@ export default function Leistungsnachweise() {
                 kunde={kunde}
                 nachweis={selectedLN}
                 termine={filteredTermine}
+                gfUnterschriftUrl={gfUnterschriftUrl}
               />
             ) : null;
           })()}
@@ -1615,6 +1639,7 @@ export default function Leistungsnachweise() {
               kunde={kunde}
               nachweis={selectedLN}
               termine={filteredTermine}
+              gfUnterschriftUrl={gfUnterschriftUrl}
             />
           </div>
         ) : null;
