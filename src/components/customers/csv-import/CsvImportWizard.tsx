@@ -83,7 +83,7 @@ function recordToSupabaseInsert(
 
   // Status: Aktiv (default) / Inaktiv — überschreibt kategorie-basierte Logik
   const statusNorm = r.aktiv_status?.trim().toLowerCase();
-  const aktiv = statusNorm ? statusNorm !== 'inaktiv' : (!r.kategorie || r.kategorie === 'Kunde');
+  const aktiv = statusNorm === 'inaktiv' ? false : true; // Default: aktiv, außer explizit "Inaktiv"
 
   // Stunden + Budget-Beträge: deutsches Komma → Punkt
   const stundenRaw = r.stunden_kontingent_monat?.replace(',', '.');

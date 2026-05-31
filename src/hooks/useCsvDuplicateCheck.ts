@@ -44,8 +44,7 @@ export function useCsvDuplicateCheck(validRows: ValidatedRow[]) {
     queryFn: async (): Promise<ExistingCustomer[]> => {
       const { data, error } = await supabase
         .from('kunden')
-        .select('id, vorname, nachname, geburtsdatum, strasse, telefonnr')
-        .eq('aktiv', true);
+        .select('id, vorname, nachname, geburtsdatum, strasse, telefonnr');
       if (error) throw error;
       return data ?? [];
     },
