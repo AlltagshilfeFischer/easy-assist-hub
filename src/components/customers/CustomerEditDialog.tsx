@@ -243,8 +243,8 @@ export function CustomerEditDialog({
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="vorname">Vorname</Label>
-                    <Input id="vorname" value={editingCustomer.vorname || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, vorname: e.target.value })} required />
+                    <Label htmlFor="vorname">Vorname{editingCustomer.kategorie !== 'Interessent' ? ' *' : ''}</Label>
+                    <Input id="vorname" value={editingCustomer.vorname || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, vorname: e.target.value })} required={editingCustomer.kategorie !== 'Interessent'} />
                   </div>
                   <div>
                     <Label htmlFor="nachname">Nachname</Label>
@@ -328,7 +328,7 @@ export function CustomerEditDialog({
                 <h3 className="text-lg font-semibold">Kontaktdaten</h3>
                 <div className="grid grid-cols-2 gap-4">
                   {/* Fix 5: Telefon als Pflichtfeld */}
-                  <div><Label htmlFor="telefonnr">Telefon *</Label><Input id="telefonnr" value={editingCustomer.telefonnr || ''} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setEditingCustomer({ ...editingCustomer, telefonnr: val }); }} inputMode="tel" required /></div>
+                  <div><Label htmlFor="telefonnr">Telefon{editingCustomer.kategorie !== 'Interessent' ? ' *' : ''}</Label><Input id="telefonnr" value={editingCustomer.telefonnr || ''} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setEditingCustomer({ ...editingCustomer, telefonnr: val }); }} inputMode="tel" required={editingCustomer.kategorie !== 'Interessent'} /></div>
                   <div><Label htmlFor="email">E-Mail</Label><Input id="email" type="email" value={editingCustomer.email || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })} /></div>
                   {/* Fix 3: Kontaktweg */}
                   <div>
