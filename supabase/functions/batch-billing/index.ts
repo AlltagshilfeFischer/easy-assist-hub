@@ -386,9 +386,34 @@ serve(async (req) => {
     }
 
     // ── 5. Leistungsnachweise upserten ────────────────────────
+
+    // 5a. Gesperrte LNs vorab ermitteln — unterschrieben/abgeschlossen dürfen nicht
+    //     überschrieben werden (rechtsgültige Dokumente).
+    const allKundenIds = [...new Set([...lnGroups.values()].map((g) => g.kundenId))];
+    const { data: existingLNs } = await supabase
+      .from("leistungsnachweise")
+      .select("kunden_id, monat, jahr, cb_haushaltshilfe, status")
+      .in("kunden_id", allKundenIds)
+      .in("status", ["unterschrieben", "abgeschlossen"]);
+
+    const lockedLNKeys = new Set<string>(
+      (existingLNs ?? []).map(
+        (ln) =>
+          `${ln.kunden_id}:${ln.jahr}-${String(ln.monat).padStart(2, "0")}:${ln.cb_haushaltshilfe ? "hh" : "reg"}`,
+      ),
+    );
+
     const erstellteLN: unknown[] = [];
 
-    for (const group of lnGroups.values()) {
+    for (const [lnKey, group] of lnGroups.entries()) {
+      // Gesperrten LN nicht überschreiben
+      if (lockedLNKeys.has(lnKey)) {
+        warnings.push(
+          `LN für ${group.kundenName} ${group.monat}/${group.jahr} ist bereits unterschrieben/abgeschlossen — übersprungen.`,
+        );
+        continue;
+      }
+
       const { data: ln, error: lnErr } = await supabase
         .from("leistungsnachweise")
         .upsert(

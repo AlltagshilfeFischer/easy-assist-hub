@@ -193,10 +193,16 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
         Gesamt: {totalStunden.toFixed(1).replace('.', ',')} Std
       </div>
 
-      {/* USt-Hinweis */}
-      <p style={{ fontSize: '8px', marginBottom: '3mm', fontStyle: 'italic' }}>
-        Die Leistungen sind nach §4 Nr. 16 Buchst. g UstG von der Umsatzsteuer befreit.
-      </p>
+      {/* USt-Hinweis: steuerbefreit nur bei Pflegegrad > 0 */}
+      {(kunde.pflegegrad ?? 0) > 0 ? (
+        <p style={{ fontSize: '8px', marginBottom: '3mm', fontStyle: 'italic' }}>
+          Die Leistungen sind nach §4 Nr. 16 Buchst. g UstG von der Umsatzsteuer befreit.
+        </p>
+      ) : (
+        <p style={{ fontSize: '8px', marginBottom: '3mm', fontStyle: 'italic' }}>
+          Umsatzsteuer: 19% gemäß §12 Abs. 1 UStG
+        </p>
+      )}
 
       {/* Leistungsart Checkboxen – driven by nachweis data */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5mm', fontSize: '9px', marginBottom: '3mm' }}>
