@@ -59,8 +59,11 @@ export function useGfSignature() {
 
   const saveSignature = async (dataUrl: string, name: string) => {
     if (!uid) throw new Error('Nicht eingeloggt');
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
+    const base64 = dataUrl.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'image/png' });
     const storagePath = `gf-unterschriften/${uid}.png`;
     const { error } = await supabase.storage
       .from('avatars')
