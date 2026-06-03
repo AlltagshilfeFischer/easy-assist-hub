@@ -40,6 +40,7 @@ interface TerminRow {
     entlastung_genehmigt: boolean | null;
     verhinderungspflege_genehmigt: boolean | null;
     pflegesachleistung_genehmigt: boolean | null;
+    pflegesachleistung_budget: number | null;
     initial_budget_entlastung: number | null;
     budget_prioritaet: string[] | null;
   } | null;
@@ -171,7 +172,7 @@ serve(async (req) => {
         kunden:kunden_id (
           id, vorname, nachname, pflegegrad,
           entlastung_genehmigt, verhinderungspflege_genehmigt, pflegesachleistung_genehmigt,
-          initial_budget_entlastung, budget_prioritaet
+          pflegesachleistung_budget, initial_budget_entlastung, budget_prioritaet
         )
       `)
       .in("status", ["completed", "cancelled"])
@@ -261,6 +262,7 @@ serve(async (req) => {
         entlastung_genehmigt: kundeData.entlastung_genehmigt,
         verhinderungspflege_genehmigt: kundeData.verhinderungspflege_genehmigt,
         pflegesachleistung_genehmigt: kundeData.pflegesachleistung_genehmigt,
+        pflegesachleistung_budget: kundeData.pflegesachleistung_budget,
         initial_budget_entlastung: kundeData.initial_budget_entlastung,
         budget_prioritaet: kundeData.budget_prioritaet,
         haushaltshilfe_verordnungen: hhVerordnungenByKunde.get(kundenId) ?? [],

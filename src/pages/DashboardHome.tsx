@@ -4,6 +4,7 @@ import { Building, AlertCircle, Clock, Calendar } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth } from 'date-fns';
+import { VpRenewalAlert } from '@/components/dashboard/VpRenewalAlert';
 export default function DashboardHome() {
   const {
     data: customersCount,
@@ -101,6 +102,8 @@ export default function DashboardHome() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-sm sm:text-base text-muted-foreground">Übersicht</p>
       </div>
+
+      <VpRenewalAlert />
 
       {/* Statistics Cards */}
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">

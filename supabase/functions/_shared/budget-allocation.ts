@@ -39,6 +39,7 @@ export interface KundeForAllocation {
   entlastung_genehmigt: boolean | null;
   verhinderungspflege_genehmigt: boolean | null;
   pflegesachleistung_genehmigt: boolean | null;
+  pflegesachleistung_budget: number | null; // Kunden-Override für Kombi-Monatsbetrag
   initial_budget_entlastung: number | null;
   budget_prioritaet: string[] | null;
   haushaltshilfe_verordnungen?: HaushaltshilfeVerordnung[] | null;
@@ -149,9 +150,9 @@ function entlAvailable(
   return { available: Math.max(0, total - consumedYear), expiringCarryOver: expiring };
 }
 
-function kombiMonthlyMax(pg: number, genehmigt: boolean, careLevels: CareLevel[]): number {
+function kombiMonthlyMax(pg: number, genehmigt: boolean, careLevels: CareLevel[], customBudget?: number | null): number {
   if (!genehmigt || pg < 2) return 0;
-  return careLevels.find((cl) => cl.pflegegrad === pg)?.kombi_max_40_prozent_monat ?? 0;
+  return customBudget ?? careLevels.find((cl) => cl.pflegegrad === pg)?.kombi_max_40_prozent_monat ?? 0;
 }
 
 function vpRemainingYear(pg: number, genehmigt: boolean, consumedYear: number): number {
@@ -359,7 +360,7 @@ export function allocateTermine(
     const entl = entlAvailable(
       pg, carryOver, consumedEnt, month, kunde.entlastung_genehmigt ?? false,
     );
-    const km = kombiMonthlyMax(pg, kunde.pflegesachleistung_genehmigt ?? false, careLevels);
+    const km = kombiMonthlyMax(pg, kunde.pflegesachleistung_genehmigt ?? false, careLevels, kunde.pflegesachleistung_budget);
     const vp = vpRemainingYear(pg, kunde.verhinderungspflege_genehmigt ?? false, consumedVP);
 
     // Pools nur für reguläre Termine (HH-Termine bypasssen alle Pools)

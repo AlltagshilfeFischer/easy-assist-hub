@@ -223,10 +223,33 @@ export function useAbschliessenMonth() {
       kundenId: string;
       allocations: TerminBudgetAllocation[];
     }) => {
-      // 1. budget_transactions für Kassentöpfe (kein HH)
-      const txInserts = allocations
-        .filter((a) => a.serviceType !== 'HAUSHALTSHILFE')
-        .map((a) => ({
+      // 1. budget_transactions für Kassentöpfe (kein HH, kein Privat)
+      // Bei Split-Allokationen: separate Zeilen pro Topf mit korrekten Einzelbeträgen.
+      // Fahrtpauschale nur auf der ersten Position eines Termins.
+      const txInserts = allocations.flatMap((a) => {
+        if (a.serviceType === 'HAUSHALTSHILFE') return [];
+
+        if (a.splitAllocations && a.splitAllocations.length > 1) {
+          return a.splitAllocations
+            .filter((s) => s.type !== 'HAUSHALTSHILFE' && s.type !== 'PRIVAT')
+            .map((s, i) => ({
+              client_id: kundenId,
+              service_date: a.serviceDate,
+              hours: Math.round(a.hours * (s.amount / a.totalAmount) * 100) / 100,
+              visits: i === 0 ? 1 : 0,
+              service_type: s.type,
+              hourly_rate: a.hourlyRate,
+              travel_flat_total: i === 0 ? a.travelFlatTotal : 0,
+              total_amount: s.amount,
+              allocation_type: 'AUTO' as const,
+              source: 'MANUAL' as const,
+              billed: true,
+            }));
+        }
+
+        if (a.serviceType === 'PRIVAT') return [];
+
+        return [{
           client_id: kundenId,
           service_date: a.serviceDate,
           hours: a.hours,
@@ -238,7 +261,8 @@ export function useAbschliessenMonth() {
           allocation_type: 'AUTO' as const,
           source: 'MANUAL' as const,
           billed: true,
-        }));
+        }];
+      });
 
       if (txInserts.length > 0) {
         const { error } = await supabase
