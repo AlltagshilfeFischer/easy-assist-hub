@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { BudgetTransaction, ServiceType } from '@/types/domain';
 import type { TerminBudgetAllocation } from '@/lib/pflegebudget/budgetCalculations';
+import { buildBudgetTransactionRows } from '@/lib/pflegebudget/billingTransactionRows';
 import { toast } from 'sonner';
 
 type BudgetTransactionInsert = Omit<BudgetTransaction, 'id' | 'created_at'>;
@@ -223,46 +224,8 @@ export function useAbschliessenMonth() {
       kundenId: string;
       allocations: TerminBudgetAllocation[];
     }) => {
-      // 1. budget_transactions für Kassentöpfe (kein HH, kein Privat)
-      // Bei Split-Allokationen: separate Zeilen pro Topf mit korrekten Einzelbeträgen.
-      // Fahrtpauschale nur auf der ersten Position eines Termins.
-      const txInserts = allocations.flatMap((a) => {
-        if (a.serviceType === 'HAUSHALTSHILFE') return [];
-
-        if (a.splitAllocations && a.splitAllocations.length > 1) {
-          return a.splitAllocations
-            .filter((s) => s.type !== 'HAUSHALTSHILFE' && s.type !== 'PRIVAT')
-            .map((s, i) => ({
-              client_id: kundenId,
-              service_date: a.serviceDate,
-              hours: Math.round(a.hours * (s.amount / a.totalAmount) * 100) / 100,
-              visits: i === 0 ? 1 : 0,
-              service_type: s.type,
-              hourly_rate: a.hourlyRate,
-              travel_flat_total: i === 0 ? a.travelFlatTotal : 0,
-              total_amount: s.amount,
-              allocation_type: 'AUTO' as const,
-              source: 'MANUAL' as const,
-              billed: true,
-            }));
-        }
-
-        if (a.serviceType === 'PRIVAT') return [];
-
-        return [{
-          client_id: kundenId,
-          service_date: a.serviceDate,
-          hours: a.hours,
-          visits: 1,
-          service_type: a.serviceType,
-          hourly_rate: a.hourlyRate,
-          travel_flat_total: a.travelFlatTotal,
-          total_amount: a.totalAmount,
-          allocation_type: 'AUTO' as const,
-          source: 'MANUAL' as const,
-          billed: true,
-        }];
-      });
+      // 1. budget_transactions für Kassentöpfe (kein HH, Privat oder Nullstunden)
+      const txInserts = buildBudgetTransactionRows(kundenId, allocations);
 
       if (txInserts.length > 0) {
         const { error } = await supabase

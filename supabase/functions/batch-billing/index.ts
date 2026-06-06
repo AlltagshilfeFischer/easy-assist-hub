@@ -154,7 +154,11 @@ serve(async (req) => {
     );
     if (authError || !user) return jsonResponse({ error: "Invalid token" }, 401);
 
-    const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: user.id });
+    const { data: isAdmin, error: adminError } = await supabase.rpc(
+      "is_admin",
+      { _user_id: user.id },
+    );
+    if (adminError) throw new Error(`Admin-Prüfung: ${adminError.message}`);
     if (!isAdmin) return jsonResponse({ error: "Admin access required" }, 403);
 
     // ── Input ─────────────────────────────────────────────────

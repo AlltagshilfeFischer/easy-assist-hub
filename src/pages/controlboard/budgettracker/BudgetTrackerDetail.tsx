@@ -882,6 +882,12 @@ export default function BudgetTrackerDetail() {
 
   const isPrivate = isPrivateInsured(kunde.versichertennummer);
   const fullName = `${kunde.nachname ?? ''}, ${kunde.vorname ?? ''}`.trim().replace(/^,\s*/, '');
+  const pflegegrad = kunde.pflegegrad ?? 0;
+  const budgetCardGridClass = pflegegrad === 0
+    ? 'grid-cols-1'
+    : pflegegrad === 1
+      ? 'grid-cols-1 sm:grid-cols-2'
+      : 'grid-cols-2 lg:grid-cols-4';
 
   return (
     <div className="space-y-6 p-6">
@@ -915,28 +921,34 @@ export default function BudgetTrackerDetail() {
 
       {/* Budget-Summary-Cards */}
       {availability && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <BudgetSummaryCard
-            title="Entlastungsbetrag"
-            consumed={consumedYear.ENTLASTUNG}
-            available={availability.entlastungAvailable}
-            total={availability.entlastungYearlyTotal}
-            extra={availability.expiringCarryOver > 0 ? `Übertrag: ${formatCurrency(availability.expiringCarryOver)}` : undefined}
-            warning={expiryWarning ? 'Übertrag läuft 01.07. ab' : undefined}
-          />
-          <BudgetSummaryCard
-            title="Kombinationsleistung"
-            consumed={availability.kombiConsumed}
-            available={availability.kombiAvailable}
-            total={availability.kombiMonthlyMax}
-            extra="Monatslimit"
-          />
-          <BudgetSummaryCard
-            title="Verhinderungspflege"
-            consumed={consumedYear.VERHINDERUNG}
-            available={availability.vpRemainingYear}
-            total={availability.vpYearlyTotal}
-          />
+        <div className={`grid gap-4 ${budgetCardGridClass}`}>
+          {pflegegrad >= 1 && (
+            <BudgetSummaryCard
+              title="Entlastungsbetrag"
+              consumed={consumedYear.ENTLASTUNG}
+              available={availability.entlastungAvailable}
+              total={availability.entlastungYearlyTotal}
+              extra={availability.expiringCarryOver > 0 ? `Übertrag: ${formatCurrency(availability.expiringCarryOver)}` : undefined}
+              warning={expiryWarning ? 'Übertrag läuft 01.07. ab' : undefined}
+            />
+          )}
+          {pflegegrad >= 2 && (
+            <BudgetSummaryCard
+              title="Kombinationsleistung"
+              consumed={availability.kombiConsumed}
+              available={availability.kombiAvailable}
+              total={availability.kombiMonthlyMax}
+              extra="Monatslimit"
+            />
+          )}
+          {pflegegrad >= 2 && (
+            <BudgetSummaryCard
+              title="Verhinderungspflege"
+              consumed={consumedYear.VERHINDERUNG}
+              available={availability.vpRemainingYear}
+              total={availability.vpYearlyTotal}
+            />
+          )}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Privat</CardTitle>

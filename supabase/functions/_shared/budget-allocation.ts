@@ -113,6 +113,7 @@ export function calculateAmount(
 ): { hourlyRate: number; travelFlat: number; total: number } {
   const t = getActiveTariff(type, tariffs);
   if (!t) return { hourlyRate: 0, travelFlat: 0, total: 0 };
+  if (hours <= 0) return { hourlyRate: t.hourly_rate, travelFlat: 0, total: 0 };
   const travelFlat = r2(visits * t.travel_flat_per_visit);
   return { hourlyRate: t.hourly_rate, travelFlat, total: r2(hours * t.hourly_rate + travelFlat) };
 }

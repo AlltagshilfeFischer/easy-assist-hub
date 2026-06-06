@@ -161,6 +161,9 @@ export function calculateTransactionAmount(
   }
 
   const hourlyRate = tariff.hourly_rate;
+  if (hours <= 0) {
+    return { hourlyRate, travelFlatTotal: 0, totalAmount: 0 };
+  }
   const travelFlatTotal = visits * tariff.travel_flat_per_visit;
   const totalAmount = hours * hourlyRate + travelFlatTotal;
 
