@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Building, FileSpreadsheet, Plus, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
@@ -56,6 +56,7 @@ export default function MasterData() {
   const [detailKundenId, setDetailKundenId] = useState<string | null>(null);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const lastClickedIndexRef = useRef<number>(-1);
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -113,14 +114,27 @@ export default function MasterData() {
     });
   }, [customers, searchParams]);
 
-  const handleToggleSelection = (id: string) => {
-    setSelectedCustomerIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const handleRowClick = useCallback((id: string, index: number, shiftKey: boolean) => {
+    if (shiftKey && lastClickedIndexRef.current >= 0) {
+      const start = Math.min(lastClickedIndexRef.current, index);
+      const end = Math.max(lastClickedIndexRef.current, index);
+      const rangeIds = filters.sortedCustomers.slice(start, end + 1).map((c: any) => c.id as string);
+      setSelectedCustomerIds(prev => {
+        const next = new Set(prev);
+        const isSelecting = !prev.has(id);
+        rangeIds.forEach((rid) => isSelecting ? next.add(rid) : next.delete(rid));
+        return next;
+      });
+    } else {
+      lastClickedIndexRef.current = index;
+      setSelectedCustomerIds(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    }
+  }, [filters.sortedCustomers]);
 
   const handleToggleAll = () => {
     const visibleIds = filters.sortedCustomers.map((c: any) => c.id);
@@ -262,7 +276,7 @@ export default function MasterData() {
               convertPending={convertToCustomerMutation.isPending}
               revertPending={convertToInteressentMutation.isPending}
               selectedIds={selectedCustomerIds}
-              onToggleSelection={handleToggleSelection}
+              onRowClick={handleRowClick}
               onToggleAll={handleToggleAll}
               nameFilter={filters.nameFilter} setNameFilter={filters.setNameFilter}
               telefonFilter={filters.telefonFilter} setTelefonFilter={filters.setTelefonFilter}

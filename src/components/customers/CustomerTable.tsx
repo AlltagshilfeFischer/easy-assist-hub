@@ -29,7 +29,7 @@ interface CustomerTableProps {
   revertPending: boolean;
   // Selection
   selectedIds: Set<string>;
-  onToggleSelection: (id: string) => void;
+  onRowClick: (id: string, index: number, shiftKey: boolean) => void;
   onToggleAll: () => void;
   // Column filters
   nameFilter: string; setNameFilter: (v: string) => void;
@@ -90,7 +90,7 @@ export function CustomerTable({
   convertPending,
   revertPending,
   selectedIds,
-  onToggleSelection,
+  onRowClick,
   onToggleAll,
   nameFilter, setNameFilter,
   telefonFilter, setTelefonFilter,
@@ -145,7 +145,7 @@ export function CustomerTable({
             <TableHead></TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className="select-none">
           {customers.length === 0 && (
             <TableRow>
               <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
@@ -153,12 +153,20 @@ export function CustomerTable({
               </TableCell>
             </TableRow>
           )}
-          {customers.map((customer: any) => (
-            <TableRow key={customer.id} data-state={selectedIds.has(customer.id) ? 'selected' : undefined}>
+          {customers.map((customer: any, index: number) => (
+            <TableRow
+              key={customer.id}
+              data-state={selectedIds.has(customer.id) ? 'selected' : undefined}
+              className="cursor-pointer"
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('[data-action-cell]')) return;
+                onRowClick(customer.id, index, e.shiftKey);
+              }}
+            >
               <TableCell>
                 <Checkbox
                   checked={selectedIds.has(customer.id)}
-                  onCheckedChange={() => onToggleSelection(customer.id)}
+                  onCheckedChange={() => {}}
                   aria-label={`${customer.vorname} ${customer.nachname} auswählen`}
                 />
               </TableCell>
@@ -192,7 +200,7 @@ export function CustomerTable({
                   {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell data-action-cell>
                 <div className="flex gap-0.5">
                   {onViewDetail && (
                     <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => onViewDetail(customer.id)} title="Details">

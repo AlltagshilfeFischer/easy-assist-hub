@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useDeferredValue } from 'react';
 
 export type SortKey = 'name' | 'nachname' | 'vorname' | 'status' | 'telefon' | 'email' | 'created_at' | 'pflegegrad' | 'strasse' | 'geburtsdatum' | 'eintritt';
 export type SortDirection = 'asc' | 'desc';
@@ -43,6 +43,9 @@ export function useCustomerFilters(customers: any[] | undefined) {
     direction: 'desc',
   });
 
+  // Defer the expensive global search so typing feels instant
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
   const handleSort = (key: SortKey) => {
     setCustomerSort((prev) => ({
       key,
@@ -55,9 +58,9 @@ export function useCustomerFilters(customers: any[] | undefined) {
 
     let filtered = customers;
 
-    // Global search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    // Global search (deferred — input bleibt responsiv, Liste aktualisiert sich mit leichter Verzögerung)
+    if (deferredSearchQuery.trim()) {
+      const query = deferredSearchQuery.toLowerCase();
       filtered = filtered.filter((customer: any) => {
         const staticFields = [
           customer.name, customer.vorname, customer.nachname,
@@ -176,7 +179,7 @@ export function useCustomerFilters(customers: any[] | undefined) {
       if (aValue > bValue) return direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [customers, customerSort, searchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter, dateFromFilter, dateToFilter, nameFilter, telefonFilter, emailFilter, pflegegradFilter, pflegekasseFilter, strasseFilter, plzFilter, stadtFilter]);
+  }, [customers, customerSort, deferredSearchQuery, customerStatusFilter, customerKategorieFilter, stadtteilFilter, eintrittsdatumFilter, dateFromFilter, dateToFilter, nameFilter, telefonFilter, emailFilter, pflegegradFilter, pflegekasseFilter, strasseFilter, plzFilter, stadtFilter]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
