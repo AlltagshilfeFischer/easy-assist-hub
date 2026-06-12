@@ -59,20 +59,17 @@ export function useCustomerFilters(customers: any[] | undefined) {
     let filtered = customers;
 
     // Global search (deferred — input bleibt responsiv, Liste aktualisiert sich mit leichter Verzögerung)
+    // Notfallkontakte werden in der Listenansicht nicht geladen (eigene Query beim Bearbeiten)
     if (deferredSearchQuery.trim()) {
       const query = deferredSearchQuery.toLowerCase();
       filtered = filtered.filter((customer: any) => {
-        const staticFields = [
+        const fields = [
           customer.name, customer.vorname, customer.nachname,
           customer.telefonnr, customer.email, customer.strasse,
           customer.stadt, customer.plz, customer.stadtteil, customer.pflegekasse,
           customer.angehoerige_ansprechpartner,
         ].filter(Boolean).map((f: string) => f.toLowerCase());
-        if (staticFields.some((field) => field.includes(query))) return true;
-        const kontaktFelder = (customer.notfallkontakte ?? []).flatMap((k: any) =>
-          [k.name, k.bezug, k.telefon].filter(Boolean).map((f: string) => f.toLowerCase())
-        );
-        return kontaktFelder.some((field: string) => field.includes(query));
+        return fields.some((field) => field.includes(query));
       });
     }
 

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -104,10 +105,29 @@ export function CustomerTable({
   const allSelected = customers.length > 0 && customers.every((c: any) => selectedIds.has(c.id));
   const someSelected = !allSelected && customers.some((c: any) => selectedIds.has(c.id));
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: customers.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 33,
+    overscan: 15,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom = virtualItems.length > 0
+    ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+    : 0;
+
   return (
-    <div className="rounded-md border overflow-x-auto">
+    <div
+      ref={scrollContainerRef}
+      className="rounded-md border overflow-x-auto"
+      style={{ maxHeight: '72vh', overflowY: 'auto' }}
+    >
       <Table className="min-w-[880px] text-xs [&_th]:px-1.5 [&_th]:py-1.5 [&_td]:px-1.5 [&_td]:py-1">
-        <TableHeader>
+        <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
           <TableRow>
             <TableHead className="w-[28px]">
               <Checkbox
@@ -153,90 +173,104 @@ export function CustomerTable({
               </TableCell>
             </TableRow>
           )}
-          {customers.map((customer: any, index: number) => (
-            <TableRow
-              key={customer.id}
-              data-state={selectedIds.has(customer.id) ? 'selected' : undefined}
-              className="cursor-pointer"
-              onClick={(e) => {
-                if ((e.target as HTMLElement).closest('[data-action-cell]')) return;
-                onRowClick(customer.id, index, e.shiftKey);
-              }}
-            >
-              <TableCell>
-                <Checkbox
-                  checked={selectedIds.has(customer.id)}
-                  onCheckedChange={() => {}}
-                  aria-label={`${customer.vorname} ${customer.nachname} auswählen`}
-                />
-              </TableCell>
-              <TableCell className="font-medium">{customer.nachname || '-'}</TableCell>
-              <TableCell>{customer.vorname || '-'}</TableCell>
-              <TableCell>{customer.pflegegrad ?? '-'}</TableCell>
-              <TableCell className="max-w-[130px] truncate" title={buildAddress(customer)}>
-                {buildAddress(customer)}
-              </TableCell>
-              <TableCell>{customer.telefonnr || '-'}</TableCell>
-              <TableCell>{formatDate(customer.geburtsdatum)}</TableCell>
-              <TableCell
-                className="max-w-[130px]"
-                title={[customer.pflegekasse, customer.versichertennummer].filter(Boolean).join(' · ')}
-              >
-                <div className="truncate">{customer.pflegekasse || '-'}</div>
-                {customer.versichertennummer && (
-                  <div className="truncate text-muted-foreground">{customer.versichertennummer}</div>
-                )}
-              </TableCell>
-              <TableCell>{customer.kassen_privat || '-'}</TableCell>
-              <TableCell>{customer.stunden_kontingent_monat || '-'}</TableCell>
-              <TableCell>
-                <div>{formatDate(customer.eintritt)}</div>
-                {customer.austritt && (
-                  <div className="text-muted-foreground">{formatDate(customer.austritt)}</div>
-                )}
-              </TableCell>
-              <TableCell>
-                <Badge variant={customer.aktiv ? 'default' : 'secondary'} className="text-xs px-1 py-0">
-                  {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
-                </Badge>
-              </TableCell>
-              <TableCell data-action-cell>
-                <div className="flex gap-0.5">
-                  {onViewDetail && (
-                    <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => onViewDetail(customer.id)} title="Details">
-                      <Eye className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => onEdit(customer)} title="Bearbeiten">
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant={customer.aktiv ? 'outline' : 'default'}
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => onToggleStatus({ kundenId: customer.id, currentStatus: customer.aktiv })}
-                    disabled={togglePending}
-                    title={customer.aktiv ? 'Deaktivieren' : 'Aktivieren'}
-                  >
-                    <Power className="h-3 w-3" />
-                  </Button>
-                  <Button variant="destructive" size="sm" className="h-6 w-6 p-0" onClick={() => onDelete(customer.id)} title="Löschen">
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                  {customer.kategorie === 'Interessent' && (
-                    <Button variant="default" size="sm" onClick={() => onConvert(customer.id)} disabled={convertPending} className="text-xs h-6 px-1.5">
-                      Kunde
-                    </Button>
-                  )}
-                  {customer.kategorie === 'Kunde' && (
-                    <Button variant="outline" size="sm" onClick={() => onRevert(customer.id)} disabled={revertPending} className="text-xs h-6 px-1.5" title="Zurück zu Interessent">
-                      Interessent
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
+          {paddingTop > 0 && (
+            <TableRow style={{ height: paddingTop }}>
+              <TableCell colSpan={13} className="p-0 border-none" />
             </TableRow>
-          ))}
+          )}
+          {virtualItems.map((virtualRow) => {
+            const customer = customers[virtualRow.index];
+            if (!customer) return null;
+            return (
+              <TableRow
+                key={customer.id}
+                data-state={selectedIds.has(customer.id) ? 'selected' : undefined}
+                className="cursor-pointer"
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest('[data-action-cell]')) return;
+                  onRowClick(customer.id, virtualRow.index, e.shiftKey);
+                }}
+              >
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.has(customer.id)}
+                    onCheckedChange={() => {}}
+                    aria-label={`${customer.vorname} ${customer.nachname} auswählen`}
+                  />
+                </TableCell>
+                <TableCell className="font-medium">{customer.nachname || '-'}</TableCell>
+                <TableCell>{customer.vorname || '-'}</TableCell>
+                <TableCell>{customer.pflegegrad ?? '-'}</TableCell>
+                <TableCell className="max-w-[130px] truncate" title={buildAddress(customer)}>
+                  {buildAddress(customer)}
+                </TableCell>
+                <TableCell>{customer.telefonnr || '-'}</TableCell>
+                <TableCell>{formatDate(customer.geburtsdatum)}</TableCell>
+                <TableCell
+                  className="max-w-[130px]"
+                  title={[customer.pflegekasse, customer.versichertennummer].filter(Boolean).join(' · ')}
+                >
+                  <div className="truncate">{customer.pflegekasse || '-'}</div>
+                  {customer.versichertennummer && (
+                    <div className="truncate text-muted-foreground">{customer.versichertennummer}</div>
+                  )}
+                </TableCell>
+                <TableCell>{customer.kassen_privat || '-'}</TableCell>
+                <TableCell>{customer.stunden_kontingent_monat || '-'}</TableCell>
+                <TableCell>
+                  <div>{formatDate(customer.eintritt)}</div>
+                  {customer.austritt && (
+                    <div className="text-muted-foreground">{formatDate(customer.austritt)}</div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={customer.aktiv ? 'default' : 'secondary'} className="text-xs px-1 py-0">
+                    {customer.aktiv ? 'Aktiv' : 'Inaktiv'}
+                  </Badge>
+                </TableCell>
+                <TableCell data-action-cell>
+                  <div className="flex gap-0.5">
+                    {onViewDetail && (
+                      <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => onViewDetail(customer.id)} title="Details">
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => onEdit(customer)} title="Bearbeiten">
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant={customer.aktiv ? 'outline' : 'default'}
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => onToggleStatus({ kundenId: customer.id, currentStatus: customer.aktiv })}
+                      disabled={togglePending}
+                      title={customer.aktiv ? 'Deaktivieren' : 'Aktivieren'}
+                    >
+                      <Power className="h-3 w-3" />
+                    </Button>
+                    <Button variant="destructive" size="sm" className="h-6 w-6 p-0" onClick={() => onDelete(customer.id)} title="Löschen">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                    {customer.kategorie === 'Interessent' && (
+                      <Button variant="default" size="sm" onClick={() => onConvert(customer.id)} disabled={convertPending} className="text-xs h-6 px-1.5">
+                        Kunde
+                      </Button>
+                    )}
+                    {customer.kategorie === 'Kunde' && (
+                      <Button variant="outline" size="sm" onClick={() => onRevert(customer.id)} disabled={revertPending} className="text-xs h-6 px-1.5" title="Zurück zu Interessent">
+                        Interessent
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+          {paddingBottom > 0 && (
+            <TableRow style={{ height: paddingBottom }}>
+              <TableCell colSpan={13} className="p-0 border-none" />
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>

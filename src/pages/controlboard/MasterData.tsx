@@ -63,13 +63,31 @@ export default function MasterData() {
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('kunden')
-        .select(`*, hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname), notfallkontakte(id, name, bezug, telefon)`)
-        .order('nachname', { nullsFirst: false })
-        .order('vorname', { nullsFirst: false });
-      if (error) throw error;
-      return data;
+      // Notfallkontakte werden nur beim Bearbeiten geladen (handleEditCustomer),
+      // nicht in der Listenansicht — verhindert Row-Duplikation durch One-to-Many-Join.
+      // Paginierter Loop: PostgREST gibt standardmäßig max. 1000 Zeilen zurück.
+      const PAGE = 1000;
+      let offset = 0;
+      const result: any[] = [];
+      for (;;) {
+        const { data, error } = await supabase
+          .from('kunden')
+          .select(`*, hauptbetreuer:mitarbeiter!mitarbeiter(id, vorname, nachname)`)
+          .order('nachname', { nullsFirst: false })
+          .order('vorname', { nullsFirst: false })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        if (data && data.length > 0) result.push(...data);
+        if (!data || data.length < PAGE) break;
+        offset += PAGE;
+      }
+      // Deduplizierung als Sicherheitsnetz (z.B. bei race conditions)
+      const seen = new Set<string>();
+      return result.filter((c) => {
+        if (!c?.id || seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+      });
     },
   });
 
