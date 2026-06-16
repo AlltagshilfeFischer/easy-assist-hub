@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 
@@ -30,6 +32,7 @@ export function VpRenewalAlert() {
   const { isGeschaeftsfuehrer, isGlobalAdmin } = useUserRole();
   const navigate = useNavigate();
   const { data: kunden = [], isLoading } = useVpRenewalKunden();
+  const [collapsed, setCollapsed] = useState(false);
 
   if (!isGeschaeftsfuehrer && !isGlobalAdmin) return null;
   if (isLoading || kunden.length === 0) return null;
@@ -37,31 +40,43 @@ export function VpRenewalAlert() {
   return (
     <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
       <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-      <AlertTitle className="text-amber-800 dark:text-amber-300 font-semibold">
-        Verhinderungspflege neu beantragen ({kunden.length} {kunden.length === 1 ? 'Kunde' : 'Kunden'})
-      </AlertTitle>
-      <AlertDescription className="mt-2">
-        <p className="text-amber-700 dark:text-amber-400 text-sm mb-3">
-          Für folgende Kunden ist die Verhinderungspflege aktiv, aber noch nicht für {new Date().getFullYear()} genehmigt:
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {kunden.map((k) => (
-            <button
-              key={k.id}
-              onClick={() => navigate(`/dashboard/master-data?kunde=${k.id}&tab=abrechnung`)}
-              className="flex items-center gap-1.5 text-xs bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 px-2.5 py-1 rounded-full transition-colors border border-amber-200 dark:border-amber-700"
-            >
-              <span>{k.vorname} {k.nachname}</span>
-              {k.kunden_nummer && (
-                <Badge variant="outline" className="text-xs h-4 border-amber-300 dark:border-amber-600 px-1">
-                  #{k.kunden_nummer}
-                </Badge>
-              )}
-              <ExternalLink className="h-3 w-3 opacity-60" />
-            </button>
-          ))}
-        </div>
-      </AlertDescription>
+      <div className="flex items-center justify-between">
+        <AlertTitle className="text-amber-800 dark:text-amber-300 font-semibold">
+          Verhinderungspflege neu beantragen ({kunden.length} {kunden.length === 1 ? 'Kunde' : 'Kunden'})
+        </AlertTitle>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed((c) => !c)}
+          className="h-6 w-6 p-0 text-amber-700 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40"
+        >
+          {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        </Button>
+      </div>
+      {!collapsed && (
+        <AlertDescription className="mt-2">
+          <p className="text-amber-700 dark:text-amber-400 text-sm mb-3">
+            Für folgende Kunden ist die Verhinderungspflege aktiv, aber noch nicht für {new Date().getFullYear()} genehmigt:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {kunden.map((k) => (
+              <button
+                key={k.id}
+                onClick={() => navigate(`/dashboard/master-data?openKunde=${k.id}&tab=abrechnung`)}
+                className="flex items-center gap-1.5 text-xs bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 px-2.5 py-1 rounded-full transition-colors border border-amber-200 dark:border-amber-700"
+              >
+                <span>{k.vorname} {k.nachname}</span>
+                {k.kunden_nummer && (
+                  <Badge variant="outline" className="text-xs h-4 border-amber-300 dark:border-amber-600 px-1">
+                    #{k.kunden_nummer}
+                  </Badge>
+                )}
+                <ExternalLink className="h-3 w-3 opacity-60" />
+              </button>
+            ))}
+          </div>
+        </AlertDescription>
+      )}
     </Alert>
   );
 }
