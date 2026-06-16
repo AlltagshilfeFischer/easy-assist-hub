@@ -115,6 +115,25 @@ export default function MitarbeiterDashboard() {
     setShowKundenInfoDialog(true);
   };
 
+  const handleOpenTermin = async (terminId: string) => {
+    const existing = appointments.find(a => a.id === terminId);
+    if (existing) {
+      handleEditAppointment(existing);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('termine')
+      .select(`
+        id, titel, start_at, end_at, status, mitarbeiter_id, kunden_id, ausweichort_id,
+        customer:kunden!termine_kunden_id_fkey(id, name, vorname, nachname, farbe_kalender, strasse, plz, stadt, stadtteil, telefonnr, pflegegrad, pflegekasse, versichertennummer, sonstiges),
+        ausweichort:ausweichorte!termine_ausweichort_id_fkey(id, name, strasse, plz, stadt, notizen)
+      `)
+      .eq('id', terminId)
+      .single();
+    if (error || !data) return;
+    handleEditAppointment(data as Appointment);
+  };
+
   const handleOpenChangeRequest = () => {
     // selectedAppointment wird durch KundenInfoDialog's onClose auf null gesetzt
     // wenn das Dialog schließt → vorher sichern
@@ -156,7 +175,7 @@ export default function MitarbeiterDashboard() {
       <TerminBestaetigung appointments={appointments} onUpdate={loadData} />
 
       {/* Benachrichtigungen */}
-      <Benachrichtigungen />
+      <Benachrichtigungen onOpenTermin={handleOpenTermin} />
 
       {/* Leistungsnachweise zur Unterschrift */}
       <LeistungsnachweisSignature />

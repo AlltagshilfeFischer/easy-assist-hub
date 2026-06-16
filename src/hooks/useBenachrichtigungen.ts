@@ -30,7 +30,7 @@ export function useBenachrichtigungen() {
       if (error) throw error;
       return (data ?? []) as Benachrichtigung[];
     },
-    refetchInterval: 30000, // Poll every 30s
+    refetchInterval: 30000,
   });
 
   // Realtime subscription for instant updates
@@ -54,6 +54,23 @@ export function useBenachrichtigungen() {
     }
 
     return () => { supabase.removeChannel(channel); };
+  }, [user?.id, queryClient]);
+
+  // Auto-cleanup: gelesene Benachrichtigungen älter als 30 Tage löschen
+  useEffect(() => {
+    if (!user?.id) return;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    (supabase
+      .from('benachrichtigungen' as any)
+      .delete()
+      .eq('benutzer_id', user.id)
+      .eq('gelesen', true)
+      .lt('created_at', thirtyDaysAgo.toISOString()) as any)
+      .then(({ error }: { error: any }) => {
+        if (error) console.error('[benachrichtigungen] cleanup error:', error.message);
+        else queryClient.invalidateQueries({ queryKey: ['benachrichtigungen', user.id] });
+      });
   }, [user?.id, queryClient]);
 
   return query;
@@ -94,6 +111,24 @@ export function useMarkAllAsRead() {
         .update({ gelesen: true } as any)
         .eq('benutzer_id', user.id)
         .eq('gelesen', false)) as any;
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['benachrichtigungen', user?.id] });
+    },
+  });
+}
+
+export function useDeleteBenachrichtigung() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase
+        .from('benachrichtigungen' as any)
+        .delete()
+        .eq('id', id)) as any;
       if (error) throw error;
     },
     onSuccess: () => {
