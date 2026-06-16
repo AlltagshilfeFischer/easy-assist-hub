@@ -279,8 +279,12 @@ export function CsvImportWizard({ open, onOpenChange }: CsvImportWizardProps) {
 
       if (rowsToImport.length > 0) {
         const inserts = rowsToImport.map(r => recordToSupabaseInsert(r, employeeNameMap));
-        const { error } = await supabase.from('kunden').insert(inserts);
-        if (error) throw error;
+        // Chunked insert: verhindert Timeout/Payload-Probleme bei großen CSV-Dateien
+        const CHUNK_SIZE = 200;
+        for (let i = 0; i < inserts.length; i += CHUNK_SIZE) {
+          const { error } = await supabase.from('kunden').insert(inserts.slice(i, i + CHUNK_SIZE));
+          if (error) throw error;
+        }
       }
 
       const updateErrors: string[] = [];

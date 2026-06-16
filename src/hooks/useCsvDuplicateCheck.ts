@@ -54,11 +54,23 @@ export function useCsvDuplicateCheck(validRows: ValidatedRow[]) {
   const { data: existingCustomers, isLoading } = useQuery({
     queryKey: ['customers-for-duplicate-check'],
     queryFn: async (): Promise<ExistingCustomer[]> => {
-      const { data, error } = await supabase
-        .from('kunden')
-        .select('id, vorname, nachname, geburtsdatum, strasse, telefonnr');
-      if (error) throw error;
-      return data ?? [];
+      // Supabase gibt standardmäßig max. 1000 Zeilen zurück — bei größeren DBs
+      // müssen wir paginiert laden, damit kein Duplikat übersehen wird.
+      const PAGE_SIZE = 1000;
+      const all: ExistingCustomer[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('kunden')
+          .select('id, vorname, nachname, geburtsdatum, strasse, telefonnr')
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return all;
     },
     staleTime: 0,
     gcTime: 0,
