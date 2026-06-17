@@ -56,7 +56,7 @@ export function useBenachrichtigungen() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id, queryClient]);
 
-  // Auto-cleanup: gelesene Benachrichtigungen älter als 30 Tage löschen
+  // Auto-cleanup: alle Benachrichtigungen älter als 30 Tage löschen (gelesen und ungelesen)
   useEffect(() => {
     if (!user?.id) return;
     const thirtyDaysAgo = new Date();
@@ -65,7 +65,6 @@ export function useBenachrichtigungen() {
       .from('benachrichtigungen' as any)
       .delete()
       .eq('benutzer_id', user.id)
-      .eq('gelesen', true)
       .lt('created_at', thirtyDaysAgo.toISOString()) as any)
       .then(({ error }: { error: any }) => {
         if (error) console.error('[benachrichtigungen] cleanup error:', error.message);

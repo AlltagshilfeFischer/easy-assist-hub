@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { MapPin, Phone, Shield, Clock, AlertTriangle, MoveRight, User, Heart } from 'lucide-react';
+import { MapPin, Phone, Shield, Clock, AlertTriangle, MoveRight, User, Heart, CalendarDays } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,7 @@ interface KundenInfoDialogProps {
 }
 
 export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest, isGeschaeftsfuehrer = false }: KundenInfoDialogProps) {
+  const navigate = useNavigate();
   const [notfallkontakte, setNotfallkontakte] = useState<NotfallKontakt[]>([]);
   const [zeitfenster, setZeitfenster] = useState<Zeitfenster[]>([]);
   const [loading, setLoading] = useState(false);
@@ -228,12 +230,23 @@ export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest
         <Separator />
 
         {/* Actions */}
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={onClose}>Schließen</Button>
+          {isGeschaeftsfuehrer && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => { onClose(); navigate('/dashboard/controlboard/schedule-builder'); }}
+            >
+              <CalendarDays className="h-4 w-4" />
+              Im Dienstplan öffnen
+            </Button>
+          )}
           {appointment.status !== 'completed' && appointment.status !== 'abgerechnet' && appointment.status !== 'bezahlt' && (
             <Button size="sm" onClick={onChangeRequest} className="gap-1.5">
               <MoveRight className="h-4 w-4" />
-              {isGeschaeftsfuehrer ? 'Termin verschieben' : 'Termin verschieben'}
+              Termin verschieben
             </Button>
           )}
         </div>
