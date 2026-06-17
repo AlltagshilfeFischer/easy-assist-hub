@@ -43,6 +43,7 @@ export function EnhancedDropZone({
       onClick={onClick}
       className={cn(
         'relative transition-all duration-200 overflow-hidden',
+        onClick && 'cursor-pointer',
         isOver && 'bg-primary/10 border-primary ring-2 ring-primary shadow-lg',
         workloadInfo?.isOverbooked && 'bg-destructive/5 border-destructive/20',
         className
