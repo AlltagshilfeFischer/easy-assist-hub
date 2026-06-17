@@ -128,7 +128,7 @@ export function CreateRecurringAppointmentDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto z-[201]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-        <DialogHeader>
+        <DialogHeader className="sticky top-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2">
             <Repeat className="h-5 w-5" />
             {editingTemplate ? 'Regeltermin bearbeiten' : 'Regeltermin erstellen'}

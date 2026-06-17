@@ -316,7 +316,7 @@ export function AppointmentDetailDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0">
         {/* Header */}
-        <div className="px-6 pt-6 pb-4">
+        <div className="px-6 pt-6 pb-4 sticky top-0 bg-background z-10">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle className="text-lg font-semibold">

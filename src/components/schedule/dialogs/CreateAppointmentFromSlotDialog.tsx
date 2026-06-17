@@ -288,7 +288,7 @@ export function CreateAppointmentFromSlotDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-[201]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
-        <DialogHeader>
+        <DialogHeader className="sticky top-0 bg-background z-10">
           <DialogTitle>Neuen Termin erstellen</DialogTitle>
           <DialogDescription>
             Erstellen Sie einen Einzeltermin oder eine wiederkehrende Terminserie

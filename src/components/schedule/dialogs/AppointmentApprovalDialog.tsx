@@ -152,7 +152,7 @@ export function AppointmentApprovalDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="sticky top-0 bg-background z-10">
           <DialogTitle>Ausstehende Terminverschiebungen</DialogTitle>
           <DialogDescription id="approval-desc">
             Mitarbeiter haben diese Termine bereits verschoben. Bestätigen Sie die Änderung oder machen Sie sie rückgängig.
