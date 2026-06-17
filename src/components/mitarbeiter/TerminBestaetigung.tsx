@@ -3,14 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { format, differenceInMinutes, startOfDay, startOfTomorrow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
-  XCircle, AlertTriangle, Clock, Loader2, CheckCircle2,
+  XCircle, AlertTriangle, Clock, Loader2,
   Paperclip, X as XIcon,
 } from 'lucide-react';
 import { useTerminUpload } from '@/hooks/useTerminUpload';
@@ -38,7 +37,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 export function TerminBestaetigung({ appointments, onUpdate }: TerminBestaetigungProps) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [istStundenMap, setIstStundenMap] = useState<Record<string, string>>({});
 
   // Inline-Formular für Ausnahme-Status
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
@@ -65,28 +63,6 @@ export function TerminBestaetigung({ appointments, onUpdate }: TerminBestaetigun
       );
     })
     .sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
-
-  const handleDirectComplete = async (appointmentId: string) => {
-    setLoadingId(appointmentId);
-    try {
-      const updateData: Record<string, unknown> = {
-        status: 'completed' as Database['public']['Enums']['termin_status'],
-      };
-      const istStr = istStundenMap[appointmentId];
-      if (istStr && !isNaN(parseFloat(istStr))) {
-        updateData.iststunden = parseFloat(istStr);
-      }
-      const { error } = await supabase.from('termine').update(updateData).eq('id', appointmentId);
-      if (error) throw error;
-      toast.success('Termin als "Durchgeführt" markiert');
-      onUpdate();
-    } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
-      toast.error('Fehler beim Aktualisieren des Termins');
-    } finally {
-      setLoadingId(null);
-    }
-  };
 
   const openExceptionForm = (appointmentId: string, status: string) => {
     setActiveFormId(appointmentId);
@@ -171,11 +147,11 @@ export function TerminBestaetigung({ appointments, onUpdate }: TerminBestaetigun
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
-          Offene Terminbestätigungen
+          Heute nicht wie geplant?
           <Badge variant="destructive" className="ml-2">{unconfirmedToday.length}</Badge>
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Bitte bestätige deine heutigen Termine oder melde Ausnahmen.
+          Alle Termine gelten automatisch als durchgeführt — melde es nur, wenn etwas nicht stattgefunden hat.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -195,47 +171,18 @@ export function TerminBestaetigung({ appointments, onUpdate }: TerminBestaetigun
               key={appointment.id}
               className="flex flex-col gap-3 p-3 bg-background rounded-lg border"
             >
-              {/* Termin-Info + Ist-Stunden */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{customerName}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {format(start, 'EEEE, dd.MM.yyyy', { locale: de })} · {format(start, 'HH:mm')} – {format(end, 'HH:mm')} ({plannedHours}h)
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">Ist-Std:</span>
-                  <Input
-                    type="number"
-                    step="0.25"
-                    min="0"
-                    max="12"
-                    placeholder={plannedHours}
-                    value={istStundenMap[appointment.id] ?? ''}
-                    onChange={e => setIstStundenMap(prev => ({ ...prev, [appointment.id]: e.target.value }))}
-                    className="w-20 h-7 text-sm"
-                    disabled={isLoading || isFormOpen}
-                  />
-                </div>
+              {/* Termin-Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{customerName}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {format(start, 'EEEE, dd.MM.yyyy', { locale: de })} · {format(start, 'HH:mm')} – {format(end, 'HH:mm')} ({plannedHours}h)
+                </p>
               </div>
 
               {/* Aktions-Buttons — nur wenn kein Formular offen */}
               {!isFormOpen && (
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    disabled={isLoading}
-                    onClick={() => handleDirectComplete(appointment.id)}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                    )}
-                    Durchgeführt
-                  </Button>
                   <Button
                     size="sm"
                     variant="outline"

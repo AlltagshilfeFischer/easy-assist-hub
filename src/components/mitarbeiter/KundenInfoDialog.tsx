@@ -9,6 +9,7 @@ import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import type { Appointment } from '@/types/domain';
+import { AppointmentAttachments } from '@/components/schedule/AppointmentAttachments';
 
 interface NotfallKontakt {
   id: string;
@@ -226,6 +227,10 @@ export function KundenInfoDialog({ isOpen, onClose, appointment, onChangeRequest
             </div>
           </>
         )}
+
+        {/* Anhänge */}
+        <Separator />
+        <AppointmentAttachments terminId={appointment.id} readOnly={!isGeschaeftsfuehrer} />
 
         <Separator />
 
