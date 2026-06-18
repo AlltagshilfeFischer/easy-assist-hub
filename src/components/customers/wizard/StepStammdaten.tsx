@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { StadtteilCombobox } from '@/components/ui/stadtteil-combobox';
 import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -228,7 +229,7 @@ export function StepStammdaten({ customerData, setCustomerData, employees }: Ste
           <div className="space-y-2 col-span-2"><Label htmlFor="stadt">Stadt{isKunde ? ' *' : ''}</Label><Input id="stadt" value={customerData.stadt} onChange={(e) => setCustomerData((p: any) => ({ ...p, stadt: e.target.value }))} placeholder="Stadt" required={isKunde} /></div>
         </div>
         <div className="grid grid-cols-4 gap-4">
-          <div><Label htmlFor="stadtteil">Stadtteil</Label><Input id="stadtteil" value={customerData.stadtteil} onChange={(e) => setCustomerData((p: any) => ({ ...p, stadtteil: e.target.value }))} placeholder="z.B. Linden, Mitte" /></div>
+          <div><Label htmlFor="stadtteil">Stadtteil</Label><StadtteilCombobox id="stadtteil" value={customerData.stadtteil} onChange={(v) => setCustomerData((p: any) => ({ ...p, stadtteil: v }))} /></div>
           <div><Label htmlFor="telefonnr">Telefon{isKunde ? ' *' : ''}</Label><Input id="telefonnr" value={customerData.telefonnr} onChange={(e) => { const val = e.target.value.replace(/[^\d+\-\/ ()]/g, ''); setCustomerData((p: any) => ({ ...p, telefonnr: val })); }} placeholder="0511 123456" inputMode="tel" required={isKunde} /></div>
           <div><Label htmlFor="email">E-Mail</Label><Input id="email" type="email" value={customerData.email} onChange={(e) => setCustomerData((p: any) => ({ ...p, email: e.target.value }))} placeholder="kunde@email.de" /></div>
           <div>

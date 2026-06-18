@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { StadtteilCombobox } from '@/components/ui/stadtteil-combobox';
 import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -318,7 +319,7 @@ export function CustomerEditDialog({
                   </div>
                   <div>
                     <Label htmlFor="stadtteil">Stadtteil</Label>
-                    <Input id="stadtteil" value={editingCustomer.stadtteil || ''} onChange={(e) => setEditingCustomer({ ...editingCustomer, stadtteil: e.target.value })} />
+                    <StadtteilCombobox id="stadtteil" value={editingCustomer.stadtteil || ''} onChange={(v) => setEditingCustomer({ ...editingCustomer, stadtteil: v })} />
                   </div>
                 </div>
               </div>
