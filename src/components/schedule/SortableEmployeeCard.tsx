@@ -1,16 +1,20 @@
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, AlertCircle, Crosshair } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Employee } from '@/types/domain';
 
 interface SortableEmployeeCardProps {
   employee: Employee;
   isVisible: boolean;
+  isSoloed: boolean;
   onToggle: () => void;
+  onSolo: () => void;
 }
 
-export function SortableEmployeeCard({ employee, isVisible, onToggle }: SortableEmployeeCardProps) {
+export function SortableEmployeeCard({ employee, isVisible, isSoloed, onToggle, onSolo }: SortableEmployeeCardProps) {
+  const [hovered, setHovered] = useState(false);
   const {
     attributes,
     listeners,
@@ -31,10 +35,13 @@ export function SortableEmployeeCard({ employee, isVisible, onToggle }: Sortable
     <div
       ref={setNodeRef}
       style={style}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className={cn(
         "flex items-center gap-2 p-3 rounded-lg border bg-card transition-all",
         isDragging && "opacity-50 shadow-lg",
-        !isVisible && "opacity-50 bg-muted/20"
+        !isVisible && "opacity-50 bg-muted/20",
+        isSoloed && "ring-2 ring-primary/40"
       )}
     >
       {/* Drag Handle */}
@@ -63,6 +70,22 @@ export function SortableEmployeeCard({ employee, isVisible, onToggle }: Sortable
           </div>
         )}
       </div>
+
+      {/* Solo Button — erscheint beim Hover oder wenn aktiv */}
+      {(hovered || isSoloed) && (
+        <button
+          onClick={onSolo}
+          title={isSoloed ? 'Solo aufheben' : 'Nur diesen anzeigen'}
+          className={cn(
+            "p-1 rounded transition-colors",
+            isSoloed
+              ? "text-primary bg-primary/10"
+              : "text-muted-foreground hover:bg-muted"
+          )}
+        >
+          <Crosshair className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {/* Visibility Toggle */}
       <button

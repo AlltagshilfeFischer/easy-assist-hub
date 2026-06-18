@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Users, Eye, EyeOff, AlertCircle, GripVertical } from 'lucide-react';
+import { Search, Users, Eye, EyeOff, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DndContext,
@@ -45,6 +45,28 @@ export function EmployeeFilterSidebar({
   className
 }: EmployeeFilterSidebarProps) {
   const [showOnlyActive, setShowOnlyActive] = useState(true);
+  const [soloId, setSoloId] = useState<string | null>(null);
+
+  const handleSolo = useCallback((employeeId: string) => {
+    if (soloId === employeeId) {
+      // Solo aufheben: alle einblenden
+      setSoloId(null);
+      employees.forEach(e => {
+        if (hiddenEmployeeIds.has(e.id)) onToggleEmployee(e.id);
+      });
+    } else {
+      // Solo aktivieren: nur diesen einblenden, alle anderen ausblenden
+      setSoloId(employeeId);
+      employees.forEach(e => {
+        const isHidden = hiddenEmployeeIds.has(e.id);
+        if (e.id === employeeId && isHidden) {
+          onToggleEmployee(e.id);
+        } else if (e.id !== employeeId && !isHidden) {
+          onToggleEmployee(e.id);
+        }
+      });
+    }
+  }, [soloId, employees, hiddenEmployeeIds, onToggleEmployee]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -115,30 +137,25 @@ export function EmployeeFilterSidebar({
         </div>
 
         {/* Quick actions */}
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => employees.forEach(e => {
-              if (!hiddenEmployeeIds.has(e.id)) onToggleEmployee(e.id);
-            })}
-            className="w-full h-8 text-xs"
-          >
-            <EyeOff className="h-3 w-3 mr-1.5" />
-            Alle ausblenden
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => employees.forEach(e => {
-              if (hiddenEmployeeIds.has(e.id)) onToggleEmployee(e.id);
-            })}
-            className="w-full h-8 text-xs"
-          >
-            <Eye className="h-3 w-3 mr-1.5" />
-            Alle anzeigen
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setSoloId(null);
+            if (hiddenEmployeeIds.size > 0) {
+              employees.forEach(e => { if (hiddenEmployeeIds.has(e.id)) onToggleEmployee(e.id); });
+            } else {
+              employees.forEach(e => { if (!hiddenEmployeeIds.has(e.id)) onToggleEmployee(e.id); });
+            }
+          }}
+          className="w-full h-8 text-xs"
+        >
+          {hiddenEmployeeIds.size > 0 ? (
+            <><Eye className="h-3 w-3 mr-1.5" />Alle einblenden</>
+          ) : (
+            <><EyeOff className="h-3 w-3 mr-1.5" />Alle ausblenden</>
+          )}
+        </Button>
 
         {/* Employee list with drag & drop */}
         <DndContext
@@ -157,7 +174,9 @@ export function EmployeeFilterSidebar({
                     key={employee.id}
                     employee={employee}
                     isVisible={!hiddenEmployeeIds.has(employee.id)}
+                    isSoloed={soloId === employee.id}
                     onToggle={() => onToggleEmployee(employee.id)}
+                    onSolo={() => handleSolo(employee.id)}
                   />
                 ))}
               </div>
