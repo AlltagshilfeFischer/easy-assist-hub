@@ -669,6 +669,8 @@ export type Database = {
           aktiv: boolean
           angehoerige_ansprechpartner: string | null
           archiviert: boolean | null
+          beihilfe_anteil_prozent: number | null
+          ist_beihilfeberechtigt: boolean
           austritt: string | null
           begruendung: string | null
           budget_prioritaet: string[] | null
@@ -737,6 +739,7 @@ export type Database = {
           archiviert?: boolean | null
           austritt?: string | null
           begruendung?: string | null
+          beihilfe_anteil_prozent?: number | null
           budget_prioritaet?: string[] | null
           column1?: string | null
           created_at?: string | null
@@ -750,6 +753,7 @@ export type Database = {
           id?: string
           initial_budget_entlastung?: number | null
           initial_budget_verhinderung?: number | null
+          ist_beihilfeberechtigt?: boolean
           kasse_privat?: string | null
           kategorie?: string | null
           kombileistung_genehmigt_am?: string | null
@@ -803,6 +807,7 @@ export type Database = {
           archiviert?: boolean | null
           austritt?: string | null
           begruendung?: string | null
+          beihilfe_anteil_prozent?: number | null
           budget_prioritaet?: string[] | null
           column1?: string | null
           created_at?: string | null
@@ -816,6 +821,7 @@ export type Database = {
           id?: string
           initial_budget_entlastung?: number | null
           initial_budget_verhinderung?: number | null
+          ist_beihilfeberechtigt?: boolean
           kasse_privat?: string | null
           kategorie?: string | null
           kombileistung_genehmigt_am?: string | null

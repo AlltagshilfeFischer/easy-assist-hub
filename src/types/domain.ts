@@ -95,6 +95,8 @@ export interface Customer {
   sonstiges?: string | null;
   // Versicherung & Abrechnung
   kasse_privat?: string | null;
+  ist_beihilfeberechtigt?: boolean | null;
+  beihilfe_anteil_prozent?: number | null;
   kopie_lw?: string | null;
   rechnungskopie?: string[] | null;
   rechnungskopie_adresse_name?: string | null;

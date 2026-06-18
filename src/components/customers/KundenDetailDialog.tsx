@@ -231,6 +231,17 @@ export function KundenDetailDialog({ isOpen, onClose, kundenId }: KundenDetailDi
                   <span className="text-muted-foreground">Abrechnungsart</span>
                   <p className="font-medium">{kunde.kasse_privat || '-'}</p>
                 </div>
+                {kunde.ist_beihilfeberechtigt && (
+                  <div className="border border-amber-300 bg-amber-50 rounded-md p-3 space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-amber-800">Beihilfeberechtigt (Beamte)</span>
+                      <Badge className="bg-amber-200 text-amber-800 border-amber-300">
+                        {kunde.beihilfe_anteil_prozent ?? '?'} %
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-amber-700">LN in 3 Ausfertigungen: Pflegekasse · Beihilfestelle · Eigenbeleg</p>
+                  </div>
+                )}
                 {/* Verhinderungspflege */}
                 <div className="border rounded-md p-3 space-y-1">
                   <div className="flex items-center justify-between">

@@ -25,6 +25,8 @@ interface AbrechnungFormData {
   kasse_privat?: string;
   entlastung_genehmigt?: boolean;
   privatrechnung_erlaubt?: boolean;
+  ist_beihilfeberechtigt?: boolean;
+  beihilfe_anteil_prozent?: number | null;
   initial_budget_entlastung?: number | null;
   verhinderungspflege_aktiv: boolean;
   verhinderungspflege_beantragt?: boolean;
@@ -134,6 +136,44 @@ export function StepAbrechnung({
               }
             />
           </div>
+          <div className="flex items-center justify-between p-3 border rounded-lg col-span-2">
+            <div>
+              <Label className="text-sm font-medium">Beihilfeberechtigt (Beamte)</Label>
+              <p className="text-xs text-muted-foreground">
+                Beihilfestelle erstattet einen Teil – LN muss mehrfach ausgestellt werden
+              </p>
+            </div>
+            <Switch
+              checked={!!customerData.ist_beihilfeberechtigt}
+              onCheckedChange={(checked) =>
+                setCustomerData(p => ({
+                  ...p,
+                  ist_beihilfeberechtigt: checked,
+                  beihilfe_anteil_prozent: checked ? (p.beihilfe_anteil_prozent ?? 50) : null,
+                }))
+              }
+            />
+          </div>
+          {customerData.ist_beihilfeberechtigt && (
+            <div>
+              <Label>Beihilfe-Anteil (%)</Label>
+              <Select
+                value={String(customerData.beihilfe_anteil_prozent ?? 50)}
+                onValueChange={(v) => setCustomerData(p => ({ ...p, beihilfe_anteil_prozent: Number(v) }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 %</SelectItem>
+                  <SelectItem value="50">50 %</SelectItem>
+                  <SelectItem value="70">70 %</SelectItem>
+                  <SelectItem value="80">80 %</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Prozentualer Anteil den die Beihilfestelle erstattet
+              </p>
+            </div>
+          )}
           <div>
             <Label>Vorjahresrest Entlastungsbetrag (€)</Label>
             <Input

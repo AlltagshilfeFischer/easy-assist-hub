@@ -13,6 +13,8 @@ interface Kunde {
   pflegekasse: string | null;
   versichertennummer: string | null;
   pflegegrad: number | null;
+  ist_beihilfeberechtigt?: boolean | null;
+  beihilfe_anteil_prozent?: number | null;
 }
 
 interface Termin {
@@ -204,6 +206,34 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
         </p>
       )}
 
+      {/* Beihilfe-Hinweis – nur für beihilfeberechtigte Kunden */}
+      {kunde.ist_beihilfeberechtigt && (
+        <div style={{
+          border: '2px solid #b45309',
+          borderRadius: '3mm',
+          padding: '2mm 3mm',
+          marginBottom: '3mm',
+          backgroundColor: '#fffbeb',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1mm' }}>
+            <span style={{ fontWeight: 'bold', fontSize: '9px', color: '#92400e' }}>
+              ⚠ Beihilfeberechtigt (Beamte)
+            </span>
+            <span style={{
+              fontWeight: 'bold', fontSize: '9px',
+              backgroundColor: '#b45309', color: '#fff',
+              padding: '0.5mm 2mm', borderRadius: '2mm',
+            }}>
+              Beihilfe-Anteil: {kunde.beihilfe_anteil_prozent ?? '?'} %
+            </span>
+          </div>
+          <p style={{ fontSize: '7.5px', color: '#78350f', margin: 0 }}>
+            Bitte <strong>3 Ausfertigungen</strong> erstellen:{' '}
+            1× Pflegekasse &nbsp;·&nbsp; 1× Beihilfestelle &nbsp;·&nbsp; 1× persönliche Unterlagen
+          </p>
+        </div>
+      )}
+
       {/* Leistungsart Checkboxen – driven by nachweis data */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5mm', fontSize: '9px', marginBottom: '3mm' }}>
         <label style={checkboxLabel}>
@@ -300,8 +330,9 @@ export default function LeistungsnachweisPreview({ kunde, nachweis, termine }: P
 function CheckboxPrint({ checked }: { checked: boolean }) {
   return (
     <span style={{
-      display: 'inline-block', width: '3mm', height: '3mm', border: '1px solid #333',
-      marginRight: '1.5mm', verticalAlign: 'middle', textAlign: 'center', lineHeight: '3mm', fontSize: '8px'
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: '3mm', height: '3mm', border: '1px solid #333',
+      marginRight: '1.5mm', fontSize: '8px', flexShrink: 0,
     }}>
       {checked ? '✓' : ''}
     </span>

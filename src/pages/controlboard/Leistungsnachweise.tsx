@@ -173,7 +173,7 @@ export default function Leistungsnachweise() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kunden')
-        .select('id, vorname, nachname, name, pflegegrad, stunden_kontingent_monat, strasse, plz, stadt, adresse, geburtsdatum, pflegekasse, versichertennummer, verhinderungspflege_aktiv, pflegesachleistung_aktiv, kasse_privat')
+        .select('id, vorname, nachname, name, pflegegrad, stunden_kontingent_monat, strasse, plz, stadt, adresse, geburtsdatum, pflegekasse, versichertennummer, verhinderungspflege_aktiv, pflegesachleistung_aktiv, kasse_privat, ist_beihilfeberechtigt, beihilfe_anteil_prozent')
         .eq('aktiv', true)
         .order('nachname');
       if (error) throw error;
