@@ -132,14 +132,9 @@ export default function MitarbeiterDashboard() {
       appointment = data as Appointment;
     }
 
-    // Kalender zur richtigen Woche navigieren
+    // Kalender zur richtigen Woche navigieren (Dialog schließen → Kalender zeigt korrekte KW)
     setCurrentWeek(new Date(appointment.start_at));
     handleEditAppointment(appointment);
-
-    // Zum Kalender scrollen
-    setTimeout(() => {
-      document.getElementById('mein-bereich-kalender')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
   };
 
   const handleOpenChangeRequest = () => {
