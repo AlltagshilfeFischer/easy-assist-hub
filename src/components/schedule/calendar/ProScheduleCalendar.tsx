@@ -149,6 +149,7 @@ function PopoverEmployeeFilter({
   handlePopoverDragEnd: (event: DragEndEvent) => void;
 }) {
   const [search, setSearch] = useState('');
+  const [chipsOpen, setChipsOpen] = useState(false);
   const visibleCount = allEmployees.filter((e) => !hiddenEmployeeIds.has(e.id)).length;
 
   const filtered = useMemo(() => {
@@ -179,28 +180,43 @@ function PopoverEmployeeFilter({
       </div>
 
       {/* Schnellfilter-Chips */}
-      <div className="px-3 pb-1 flex flex-wrap gap-1.5">
-        {filtered.map((emp) => {
-          const isVisible = !hiddenEmployeeIds.has(emp.id);
-          const initials = emp.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
-          return (
-            <button
-              key={emp.id}
-              type="button"
-              onClick={() => onToggleEmployee(emp.id)}
-              className={cn(
-                'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all',
-                isVisible
-                  ? 'border-transparent text-white shadow-sm'
-                  : 'border-border text-muted-foreground bg-muted/30 opacity-50'
-              )}
-              style={isVisible ? { backgroundColor: emp.farbe_kalender || '#3B82F6' } : undefined}
-              title={isVisible ? `${emp.name} ausblenden` : `${emp.name} einblenden`}
-            >
-              {initials}
-            </button>
-          );
-        })}
+      <div className="px-3 pb-1">
+        <button
+          type="button"
+          onClick={() => setChipsOpen((v) => !v)}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1"
+        >
+          <ChevronDown className={cn('h-3 w-3 transition-transform', chipsOpen && 'rotate-180')} />
+          Schnellfilter-Chips
+          {!chipsOpen && (
+            <span className="ml-1 text-muted-foreground/60">({allEmployees.length})</span>
+          )}
+        </button>
+        {chipsOpen && (
+          <div className="flex flex-wrap gap-1.5 pb-1">
+            {filtered.map((emp) => {
+              const isVisible = !hiddenEmployeeIds.has(emp.id);
+              const initials = emp.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+              return (
+                <button
+                  key={emp.id}
+                  type="button"
+                  onClick={() => onToggleEmployee(emp.id)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-all',
+                    isVisible
+                      ? 'border-transparent text-white shadow-sm'
+                      : 'border-border text-muted-foreground bg-muted/30 opacity-50'
+                  )}
+                  style={isVisible ? { backgroundColor: emp.farbe_kalender || '#3B82F6' } : undefined}
+                  title={isVisible ? `${emp.name} ausblenden` : `${emp.name} einblenden`}
+                >
+                  {initials}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Alle ein/aus + Counter */}
