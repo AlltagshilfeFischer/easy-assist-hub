@@ -3,7 +3,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useUserRole, type UserRole } from '@/hooks/useUserRole';
 import {
   Calendar,
-  CalendarSearch,
   Home,
   Users,
   Settings,
@@ -41,7 +40,6 @@ const dashboardItems: SidebarItem[] = [
 
 const controlboardItems: SidebarItem[] = [
   { title: 'Dienstplan', url: '/dashboard/schedule-builder', icon: Calendar, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
-  { title: 'Offene Termine', url: '/dashboard/offene-termine', icon: CalendarSearch, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
   { title: 'Kunden/Neukunden', url: '/dashboard/master-data', icon: Users, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },
   { title: 'Mitarbeiter', url: '/dashboard/admin', icon: UserCog, requiredRoles: ['globaladmin', 'geschaeftsfuehrer'] },
   { title: 'Dokumentenverwaltung', url: '/dashboard/dokumentenverwaltung', icon: FolderOpen, requiredRoles: ['globaladmin', 'geschaeftsfuehrer', 'buchhaltung'] },

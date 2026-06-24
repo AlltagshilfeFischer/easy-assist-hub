@@ -45,6 +45,7 @@ import { AIAppointmentCreator } from '@/components/schedule/ai/AIAppointmentCrea
 import { useSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { ConflictsNavigationCard } from '@/components/schedule/panels/ConflictsNavigationCard';
+import { AllOpenAppointmentsPanel } from '@/components/schedule/AllOpenAppointmentsPanel';
 import { useAllVerfuegbarkeiten } from '@/hooks/useAllVerfuegbarkeiten';
 import { DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 
@@ -1922,6 +1923,16 @@ const ScheduleBuilderModern = () => {
             </Button>
           </div>
         </div>
+
+        {/* Alle offenen Termine — ausklappbare Leiste */}
+        {viewMode === 'week' && (
+          <AllOpenAppointmentsPanel
+            appointments={appointments}
+            currentWeek={currentWeek}
+            onNavigateToWeek={(weekStart) => setCurrentWeek(weekStart)}
+            onEditAppointment={setEditingAppointment}
+          />
+        )}
 
         {/* Main Content: Calendar + Unassigned Panel */}
         <div className="flex-1 flex flex-row min-h-0 gap-2 overflow-hidden">

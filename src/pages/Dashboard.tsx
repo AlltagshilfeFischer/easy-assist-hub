@@ -15,7 +15,6 @@ import AktivitaetsLog from './controlboard/AktivitaetsLog';
 import Reporting from './controlboard/Reporting';
 import BudgetTracker from './controlboard/budgettracker/BudgetTracker';
 import BudgetTrackerDetail from './controlboard/budgettracker/BudgetTrackerDetail';
-import OffeneTermine from './controlboard/OffeneTermine';
 
 import Settings from './Settings';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -88,7 +87,6 @@ export default function Dashboard() {
         <Route path="/" element={<DashboardHome />} />
         <Route path="/mein-bereich" element={<MitarbeiterDashboard />} />
         <Route path="/schedule-builder" element={<ScheduleBuilderModern />} />
-        <Route path="/offene-termine" element={<OffeneTermine />} />
         <Route path="/master-data" element={<MasterData />} />
         <Route path="/new-entries" element={<NewEntries />} />
         <Route path="/admin" element={<BenutzerverwaltungNeu />} />
