@@ -147,7 +147,7 @@ interface UserRoleRow {
 // ─── Suggestion Type ──────────────────────────────────────────────────────────
 
 interface Suggestion {
-  mitarbeiter_id: string;
+  id: string;
   name: string;
   farbe_kalender: string;
   score: number;
@@ -429,7 +429,7 @@ Deno.serve(async (req: Request) => {
     const inPool = (ma.in_scheduling_pool !== false) && !isGf;
 
     const suggestion: Suggestion = {
-      mitarbeiter_id: ma.id,
+      id: ma.id,
       name: [ma.vorname, ma.nachname].filter(Boolean).join(' '),
       farbe_kalender: ma.farbe_kalender ?? '#6b7280',
       score: totalScore,
@@ -437,14 +437,13 @@ Deno.serve(async (req: Request) => {
       zone_color: terminZone,
       today_appointments: maDayTermine.length,
       reasons,
-      is_fallback: isGf || totalScore < 100,
+      is_fallback: isGf,
     };
 
-    // Pool-MAs mit score >= 100 → normale Vorschläge
-    if (inPool && totalScore >= 100) {
+    // Pool-MAs → normale Vorschläge (nach Score sortiert), GF → Fallback
+    if (inPool) {
       normalSuggestions.push(suggestion);
     } else {
-      // GF oder score < 100 → Fallback
       suggestion.is_fallback = true;
       fallbackSuggestions.push(suggestion);
     }
