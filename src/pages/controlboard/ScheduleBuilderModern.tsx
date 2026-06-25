@@ -1924,18 +1924,21 @@ const ScheduleBuilderModern = () => {
           </div>
         </div>
 
-        {/* Alle offenen Termine — ausklappbare Leiste */}
-        {viewMode === 'week' && (
-          <AllOpenAppointmentsPanel
-            appointments={appointments}
-            currentWeek={currentWeek}
-            onNavigateToWeek={(weekStart) => setCurrentWeek(weekStart)}
-            onEditAppointment={setEditingAppointment}
-          />
-        )}
-
-        {/* Main Content: Calendar + Unassigned Panel */}
+        {/* Main Content: Side Panel + Calendar */}
         <div className="flex-1 flex flex-row min-h-0 gap-2 overflow-hidden">
+          {/* Offene Termine — seitliches Panel (nur Wochenansicht) */}
+          {viewMode === 'week' && (
+            <AllOpenAppointmentsPanel
+              appointments={appointments}
+              currentWeek={currentWeek}
+              activeId={activeId}
+              onNavigateToWeek={(weekStart) => setCurrentWeek(weekStart)}
+              onEditAppointment={setEditingAppointment}
+              onCut={handleCutAppointment}
+              onCopy={handleCopyAppointment}
+            />
+          )}
+
           {/* Calendar */}
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             {/* Calendar Grid */}
