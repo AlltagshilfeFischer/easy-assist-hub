@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format, startOfWeek, getWeek, addDays, isSameDay } from 'date-fns';
+import { format, startOfWeek, getWeek, addDays, isSameDay, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import {
   AlertTriangle, ChevronLeft, ChevronRight, Clock, MapPin, ArrowRight, CalendarClock,
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { useDroppable } from '@dnd-kit/core';
 import { DraggableAppointment } from './DraggableAppointment';
 import type { CalendarAppointment } from '@/types/domain';
 
@@ -42,21 +43,28 @@ export function AllOpenAppointmentsPanel({
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
+  // Drop zone: dropping an assigned appointment here → unassigns it (id 'unassigned'
+  // is already handled by handleDragEnd in ScheduleBuilderModern)
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: 'unassigned' });
+
+  const today = startOfDay(new Date());
   const currentWeekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
 
-  // All unassigned — but EXCLUDE current week (those are already in the Offen-Zeile
-  // of the calendar and share the same DnD context → same id would conflict)
+  // Future unassigned — EXCLUDE current week (those are in the Offen-Zeile of the
+  // calendar; same DnD id would conflict) AND EXCLUDE past appointments
   const otherWeekUnassigned = useMemo(
     () =>
       appointments.filter(a => {
         const isUnassigned = !a.mitarbeiter_id || a.status === 'unassigned';
         if (!isUnassigned) return false;
-        // exclude current week
         const d = new Date(a.start_at);
+        // only future
+        if (d < today) return false;
+        // exclude current week
         const ws = startOfWeek(d, { weekStartsOn: 1 });
         return ws.getTime() !== currentWeekStart.getTime();
       }),
-    [appointments, currentWeekStart],
+    [appointments, currentWeekStart, today],
   );
 
   const weekGroups = useMemo((): WeekGroup[] => {
@@ -79,17 +87,18 @@ export function AllOpenAppointmentsPanel({
     return Array.from(map.values()).sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
   }, [otherWeekUnassigned, currentWeekStart]);
 
-  // Current-week unassigned count (shown in Offen-Zeile of calendar)
+  // Current-week future unassigned count (shown in Offen-Zeile of calendar)
   const currentWeekCount = useMemo(
     () =>
       appointments.filter(a => {
         const isUnassigned = !a.mitarbeiter_id || a.status === 'unassigned';
         if (!isUnassigned) return false;
         const d = new Date(a.start_at);
+        if (d < today) return false;
         const ws = startOfWeek(d, { weekStartsOn: 1 });
         return ws.getTime() === currentWeekStart.getTime();
       }).length,
-    [appointments, currentWeekStart],
+    [appointments, currentWeekStart, today],
   );
 
   const totalOther = otherWeekUnassigned.length;
@@ -101,7 +110,15 @@ export function AllOpenAppointmentsPanel({
   // ── Collapsed strip ──────────────────────────────────────────────────────────
   if (collapsed) {
     return (
-      <div className="flex-shrink-0 w-10 flex flex-col items-center rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 py-3 gap-3">
+      <div
+        ref={setDropRef}
+        className={cn(
+          "flex-shrink-0 w-10 flex flex-col items-center rounded-lg border py-3 gap-3 transition-colors",
+          isOver
+            ? "border-amber-500 bg-amber-200 dark:bg-amber-800/60"
+            : "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40",
+        )}
+      >
         <button
           type="button"
           onClick={() => setCollapsed(false)}
@@ -123,12 +140,25 @@ export function AllOpenAppointmentsPanel({
 
   // ── Expanded panel ───────────────────────────────────────────────────────────
   return (
-    <div className="flex-shrink-0 w-64 flex flex-col rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30 overflow-hidden">
+    <div
+      ref={setDropRef}
+      className={cn(
+        "flex-shrink-0 w-64 flex flex-col rounded-lg border overflow-hidden transition-colors",
+        isOver
+          ? "border-amber-500 bg-amber-100/80 dark:bg-amber-900/50"
+          : "border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/30",
+      )}
+    >
       {/* Header */}
-      <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-100/70 dark:bg-amber-900/40 border-b border-amber-200 dark:border-amber-800 flex-shrink-0">
+      <div className={cn(
+        "flex items-center gap-1.5 px-3 py-2 border-b flex-shrink-0 transition-colors",
+        isOver
+          ? "bg-amber-300/70 dark:bg-amber-700/50 border-amber-500"
+          : "bg-amber-100/70 dark:bg-amber-900/40 border-amber-200 dark:border-amber-800",
+      )}>
         <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
         <span className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex-1">
-          Offen
+          {isOver ? 'Loslassen → Zuordnung entfernen' : 'Offen'}
         </span>
         <Badge
           variant="secondary"
